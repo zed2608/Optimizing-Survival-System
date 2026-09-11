@@ -1,2 +1,13 @@
-data/
+# Python Environments
+.venv/
 __pycache__/
+
+# React Environments
+node_modules/
+
+# Security
+*.env
+
+# GIS Heavy Files
+*.tif
+*.ovr

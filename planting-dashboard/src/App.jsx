@@ -139,6 +139,7 @@ function App() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            
             {plantingSites.map((site, index) => (
               <Marker key={index} position={[site.latitude, site.longitude]}>
                 <Popup>
@@ -150,6 +151,7 @@ function App() {
                 </Popup>
               </Marker>
             ))}
+
           </MapContainer>
         )}
       </div>

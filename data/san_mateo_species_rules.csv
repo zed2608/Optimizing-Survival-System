@@ -1,0 +1,21 @@
+species,type,max_slope_percent,min_elev_m,max_elev_m,drought_tolerance,shade_tolerance,soil_pref,use_case
+Narra,Native,30,0,1300,Medium,Low,Loam/Clay,"Reforestation, watershed, parks"
+Molave,Native,60,0,700,High,Low,Limestone/Loam,"Upland, slopes, watershed"
+Dao,Native,45,0,1000,Medium,Medium,Clay/Loam,"Forest restoration, watershed"
+Banaba,Native,15,0,400,Low,Low,Clay/Loam,"Roadsides, parks, open spaces"
+Bitaog,Native,20,0,500,High,Low,Sandy/Loam,Riparian/open areas
+Kalumpit,Native,45,0,1000,Medium,Medium,Clay/Loam,"Forest restoration, river/watershed"
+Duhat,Native,30,0,1200,High,Low,Any,"Watershed, parks, agroforestry"
+Kamagong,Native,45,0,800,Medium,Medium,Loam/Clay,Biodiversity restoration
+Katmon,Native,45,0,1000,Low,Medium,Loam,"Forest restoration, biodiversity"
+Batikuling,Native,45,0,1000,Medium,Medium,Loam/Clay,Forest restoration
+Palosapis,Native,45,0,1000,Medium,Low,Loam/Clay,Forest/watershed restoration
+Talisay,Native,15,0,800,High,Low,Sandy/Loam,"Parks, roadsides"
+Bamboo,Native,70,0,1500,High,Low,Any,"Riverbanks, erosion control"
+Langka,Fruit tree,25,0,1000,Medium,Medium,Loam,Agroforestry/community planting
+Guyabano,Fruit tree,25,0,1000,Low,Medium,Loam,Community/agroforestry
+Atsuete,Native/introduced,25,0,800,Medium,Low,Loam/Clay,Agroforestry
+Cacao,Cultivated,20,0,800,Low,High,Loam/Clay,Agroforestry
+Rambutan,Fruit tree,20,0,600,Low,Medium,Loam/Clay,Agroforestry
+Kasoy,Introduced/cultivated,25,0,800,High,Low,Sandy/Loam,Agroforestry
+Sampalok,Cultivated,25,0,1500,High,Low,Any,Parks/agroforestry

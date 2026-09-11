@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "react-leaflet-cluster": "^4.1.3"
+  }
+}

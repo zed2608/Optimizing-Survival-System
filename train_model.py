@@ -1,64 +1,75 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import LabelEncoder
 import joblib
 from pathlib import Path
 
 def train_suitability_model():
-    print("Initializing Random Forest Training Module...")
-    data_folder = Path("data")
+    print("==================================================")
+    print(" INITIALIZING RANDOM FOREST AI TRAINING")
+    print("==================================================")
     
-    # 1. Generate Synthetic Historical Training Data
-    # (Simulating past LGU planting records to teach the model)
-    num_samples = 1500
-    species_list = ['Narra', 'Mahogany', 'Ilang-Ilang', 'Banaba', 'Molave']
-    soil_types = ['Clay Loam', 'Sandy Loam', 'Silty Clay', 'Loam']
-    hazard_levels = ['Low', 'Moderate', 'High']
-    
-    np.random.seed(42)
-    df = pd.DataFrame({
-        'species': np.random.choice(species_list, num_samples),
-        'soil_type': np.random.choice(soil_types, num_samples),
-        'slope_percentage': np.random.uniform(0.0, 35.0, num_samples),
-        'landslide_hazard': np.random.choice(hazard_levels, num_samples)
-    })
-    
-    # 2. Simulate Ecological Survival Rules 
-    # (Teaching the model that certain conditions cause failure)
-    def determine_survival(row):
-        score = 0.5 
-        if row['species'] == 'Narra' and row['slope_percentage'] < 15: score += 0.3
-        if row['species'] == 'Mahogany' and row['soil_type'] in ['Clay Loam', 'Loam']: score += 0.2
-        if row['landslide_hazard'] == 'High': score -= 0.4
-        if row['slope_percentage'] > 25: score -= 0.3
-        
-        probability = max(0.05, min(0.95, score))
-        return np.random.binomial(1, probability)
+    # 1. Load the Biological Constraints
+    rules_path = "data/san_mateo_species_rules.csv"
+    try:
+        rules_df = pd.read_csv(rules_path)
+    except FileNotFoundError:
+        print(f"[!] Could not find {rules_path}")
+        return
 
-    df['survived'] = df.apply(determine_survival, axis=1)
+    print(" -> Synthesizing historical training data from biological rules...")
     
-    # 3. Preprocess Data (Convert text to numbers for the math engine)
-    X = pd.get_dummies(df[['species', 'soil_type', 'slope_percentage', 'landslide_hazard']])
-    y = df['survived']
+    # 2. Generate Synthetic Training Data
+    # We create 500 virtual planting scenarios for each species to teach the AI
+    training_data = []
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    for _, tree in rules_df.iterrows():
+        for _ in range(500):
+            # Generate optimal and edge-case environments based on the tree's limits
+            simulated_slope = np.random.uniform(0, tree['max_slope_percent'])
+            simulated_elev = np.random.uniform(tree['min_elev_m'], tree['max_elev_m'])
+            
+            # Convert categorical rules into numerical ML weights
+            soil_weight = 1 if "Any" in tree['soil_pref'] else 2
+            drought_weight = 3 if tree['drought_tolerance'] == "High" else (2 if tree['drought_tolerance'] == "Medium" else 1)
+            shade_weight = 3 if tree['shade_tolerance'] == "High" else (2 if tree['shade_tolerance'] == "Medium" else 1)
+            
+            training_data.append({
+                'slope_percentage': simulated_slope,
+                'elevation_m': simulated_elev,
+                'soil_compatibility': soil_weight,
+                'drought_survival': drought_weight,
+                'shade_survival': shade_weight,
+                'target_species': tree['species']
+            })
+
+    train_df = pd.DataFrame(training_data)
     
-    # 4. Train the Random Forest
-    print("Training Random Forest Classifier on historical data...")
+    # 3. Prepare Features (X) and Target (y)
+    X = train_df[['slope_percentage', 'elevation_m', 'soil_compatibility', 'drought_survival', 'shade_survival']]
+    y = train_df['target_species']
+    
+    # Encode the tree names into numbers for the AI
+    le = LabelEncoder()
+    y_encoded = le.fit_transform(y)
+    
+    print(f" -> Training Random Forest on {len(train_df):,} simulated environments...")
+    
+    # 4. Train the Random Forest Algorithm
+    # 100 decision trees voting on the best outcome
     rf_model = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=10)
-    rf_model.fit(X_train, y_train)
+    rf_model.fit(X, y_encoded)
     
-    # 5. Evaluate Performance
-    y_pred = rf_model.predict(X_test)
-    acc = accuracy_score(y_test, y_pred)
-    print(f"Model Accuracy: {acc * 100:.2f}%")
+    # 5. Export the Trained Model and Encoder
+    joblib.dump(rf_model, 'data/rf_suitability_model.pkl')
+    joblib.dump(le, 'data/rf_label_encoder.pkl')
     
-    # 6. Save the Model
-    joblib.dump(rf_model, data_folder / "rf_suitability_model.pkl")
-    joblib.dump(X.columns.tolist(), data_folder / "rf_model_columns.pkl")
-    print("Success! Random Forest model exported as .pkl file.")
+    print("==================================================")
+    print(" MODEL TRAINING COMPLETE & SAVED")
+    print(" -> rf_suitability_model.pkl (The Brain)")
+    print(" -> rf_label_encoder.pkl (The Translator)")
+    print("==================================================")
 
 if __name__ == "__main__":
     train_suitability_model()

@@ -1,0 +1,1001 @@
+sapling_id,species,drought_tolerance,preferred_zone
+SAP-0001,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0002,Banaba,Low,Parks and Recreation Zone
+SAP-0003,Banaba,Low,Medium Density Residential Zone
+SAP-0004,Narra,Medium,Parks and Recreation Zone
+SAP-0005,Banaba,High,Forest Zone
+SAP-0006,Molave,Low,Buffer Zone
+SAP-0007,Mahogany,High,Parks and Recreation Zone
+SAP-0008,Ilang-Ilang,Medium,Forest Zone
+SAP-0009,Molave,Low,Buffer Zone
+SAP-0010,Narra,Low,Forest Zone
+SAP-0011,Mahogany,High,Parks and Recreation Zone
+SAP-0012,Mahogany,Low,Forest Zone
+SAP-0013,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0014,Molave,Low,Buffer Zone
+SAP-0015,Banaba,Medium,Medium Density Residential Zone
+SAP-0016,Ilang-Ilang,High,Forest Zone
+SAP-0017,Narra,High,Parks and Recreation Zone
+SAP-0018,Molave,Low,Medium Density Residential Zone
+SAP-0019,Mahogany,Medium,Forest Zone
+SAP-0020,Narra,Low,Parks and Recreation Zone
+SAP-0021,Mahogany,Low,Medium Density Residential Zone
+SAP-0022,Molave,Low,Forest Zone
+SAP-0023,Narra,Low,Medium Density Residential Zone
+SAP-0024,Banaba,Medium,Forest Zone
+SAP-0025,Ilang-Ilang,High,Forest Zone
+SAP-0026,Molave,High,Parks and Recreation Zone
+SAP-0027,Narra,High,Forest Zone
+SAP-0028,Molave,High,Forest Zone
+SAP-0029,Ilang-Ilang,High,Forest Zone
+SAP-0030,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0031,Mahogany,Medium,Parks and Recreation Zone
+SAP-0032,Mahogany,High,Parks and Recreation Zone
+SAP-0033,Molave,Medium,Buffer Zone
+SAP-0034,Mahogany,High,Forest Zone
+SAP-0035,Narra,High,Medium Density Residential Zone
+SAP-0036,Mahogany,High,Buffer Zone
+SAP-0037,Narra,High,Buffer Zone
+SAP-0038,Banaba,Medium,Parks and Recreation Zone
+SAP-0039,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0040,Mahogany,Low,Parks and Recreation Zone
+SAP-0041,Narra,Low,Medium Density Residential Zone
+SAP-0042,Banaba,High,Medium Density Residential Zone
+SAP-0043,Banaba,Low,Parks and Recreation Zone
+SAP-0044,Banaba,Medium,Parks and Recreation Zone
+SAP-0045,Molave,Medium,Medium Density Residential Zone
+SAP-0046,Mahogany,Medium,Medium Density Residential Zone
+SAP-0047,Banaba,Low,Buffer Zone
+SAP-0048,Banaba,High,Buffer Zone
+SAP-0049,Narra,Medium,Forest Zone
+SAP-0050,Molave,High,Forest Zone
+SAP-0051,Mahogany,High,Forest Zone
+SAP-0052,Narra,High,Parks and Recreation Zone
+SAP-0053,Banaba,Medium,Parks and Recreation Zone
+SAP-0054,Banaba,Low,Buffer Zone
+SAP-0055,Narra,Medium,Parks and Recreation Zone
+SAP-0056,Banaba,Low,Forest Zone
+SAP-0057,Molave,High,Buffer Zone
+SAP-0058,Molave,High,Forest Zone
+SAP-0059,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0060,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0061,Banaba,High,Medium Density Residential Zone
+SAP-0062,Mahogany,Low,Medium Density Residential Zone
+SAP-0063,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0064,Mahogany,Medium,Buffer Zone
+SAP-0065,Narra,Low,Parks and Recreation Zone
+SAP-0066,Banaba,Low,Medium Density Residential Zone
+SAP-0067,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0068,Narra,Medium,Forest Zone
+SAP-0069,Molave,Medium,Buffer Zone
+SAP-0070,Banaba,High,Medium Density Residential Zone
+SAP-0071,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0072,Molave,High,Medium Density Residential Zone
+SAP-0073,Narra,Low,Medium Density Residential Zone
+SAP-0074,Molave,Medium,Buffer Zone
+SAP-0075,Molave,Low,Forest Zone
+SAP-0076,Banaba,Low,Parks and Recreation Zone
+SAP-0077,Banaba,Low,Buffer Zone
+SAP-0078,Ilang-Ilang,Medium,Buffer Zone
+SAP-0079,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0080,Narra,High,Medium Density Residential Zone
+SAP-0081,Molave,Low,Buffer Zone
+SAP-0082,Narra,Medium,Buffer Zone
+SAP-0083,Narra,Medium,Medium Density Residential Zone
+SAP-0084,Banaba,Low,Buffer Zone
+SAP-0085,Banaba,Low,Forest Zone
+SAP-0086,Narra,Low,Buffer Zone
+SAP-0087,Narra,Low,Medium Density Residential Zone
+SAP-0088,Narra,Medium,Buffer Zone
+SAP-0089,Mahogany,High,Medium Density Residential Zone
+SAP-0090,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0091,Mahogany,High,Forest Zone
+SAP-0092,Narra,Low,Buffer Zone
+SAP-0093,Mahogany,Low,Buffer Zone
+SAP-0094,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0095,Molave,Medium,Parks and Recreation Zone
+SAP-0096,Narra,High,Buffer Zone
+SAP-0097,Molave,Low,Medium Density Residential Zone
+SAP-0098,Banaba,Low,Forest Zone
+SAP-0099,Banaba,High,Medium Density Residential Zone
+SAP-0100,Banaba,Low,Forest Zone
+SAP-0101,Molave,High,Buffer Zone
+SAP-0102,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0103,Mahogany,High,Buffer Zone
+SAP-0104,Narra,Low,Parks and Recreation Zone
+SAP-0105,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0106,Ilang-Ilang,Medium,Forest Zone
+SAP-0107,Mahogany,High,Buffer Zone
+SAP-0108,Banaba,Medium,Medium Density Residential Zone
+SAP-0109,Banaba,Medium,Buffer Zone
+SAP-0110,Narra,Low,Parks and Recreation Zone
+SAP-0111,Narra,Medium,Medium Density Residential Zone
+SAP-0112,Banaba,Low,Buffer Zone
+SAP-0113,Mahogany,High,Forest Zone
+SAP-0114,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0115,Ilang-Ilang,Medium,Forest Zone
+SAP-0116,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0117,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0118,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0119,Banaba,Medium,Medium Density Residential Zone
+SAP-0120,Molave,High,Parks and Recreation Zone
+SAP-0121,Banaba,Low,Buffer Zone
+SAP-0122,Molave,Medium,Forest Zone
+SAP-0123,Mahogany,Low,Parks and Recreation Zone
+SAP-0124,Molave,Low,Forest Zone
+SAP-0125,Narra,Low,Medium Density Residential Zone
+SAP-0126,Ilang-Ilang,Low,Forest Zone
+SAP-0127,Narra,Medium,Forest Zone
+SAP-0128,Molave,Low,Parks and Recreation Zone
+SAP-0129,Banaba,Low,Medium Density Residential Zone
+SAP-0130,Banaba,Low,Parks and Recreation Zone
+SAP-0131,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0132,Ilang-Ilang,High,Forest Zone
+SAP-0133,Banaba,High,Parks and Recreation Zone
+SAP-0134,Molave,Low,Medium Density Residential Zone
+SAP-0135,Mahogany,Medium,Forest Zone
+SAP-0136,Ilang-Ilang,High,Buffer Zone
+SAP-0137,Narra,High,Medium Density Residential Zone
+SAP-0138,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0139,Mahogany,Low,Buffer Zone
+SAP-0140,Mahogany,Low,Parks and Recreation Zone
+SAP-0141,Mahogany,High,Medium Density Residential Zone
+SAP-0142,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0143,Molave,Medium,Buffer Zone
+SAP-0144,Banaba,High,Buffer Zone
+SAP-0145,Mahogany,Medium,Forest Zone
+SAP-0146,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0147,Narra,High,Parks and Recreation Zone
+SAP-0148,Narra,Medium,Buffer Zone
+SAP-0149,Narra,High,Buffer Zone
+SAP-0150,Narra,High,Parks and Recreation Zone
+SAP-0151,Mahogany,High,Medium Density Residential Zone
+SAP-0152,Banaba,Medium,Medium Density Residential Zone
+SAP-0153,Banaba,High,Buffer Zone
+SAP-0154,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0155,Mahogany,Medium,Buffer Zone
+SAP-0156,Banaba,Medium,Medium Density Residential Zone
+SAP-0157,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0158,Banaba,High,Parks and Recreation Zone
+SAP-0159,Narra,Low,Medium Density Residential Zone
+SAP-0160,Mahogany,Medium,Parks and Recreation Zone
+SAP-0161,Ilang-Ilang,Medium,Forest Zone
+SAP-0162,Narra,Low,Forest Zone
+SAP-0163,Mahogany,Medium,Medium Density Residential Zone
+SAP-0164,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0165,Narra,High,Forest Zone
+SAP-0166,Molave,High,Forest Zone
+SAP-0167,Mahogany,Medium,Buffer Zone
+SAP-0168,Banaba,High,Parks and Recreation Zone
+SAP-0169,Banaba,Medium,Medium Density Residential Zone
+SAP-0170,Mahogany,Low,Medium Density Residential Zone
+SAP-0171,Mahogany,High,Medium Density Residential Zone
+SAP-0172,Ilang-Ilang,High,Forest Zone
+SAP-0173,Narra,High,Forest Zone
+SAP-0174,Molave,High,Buffer Zone
+SAP-0175,Mahogany,Medium,Parks and Recreation Zone
+SAP-0176,Narra,Medium,Forest Zone
+SAP-0177,Banaba,High,Medium Density Residential Zone
+SAP-0178,Mahogany,Low,Medium Density Residential Zone
+SAP-0179,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0180,Banaba,Medium,Forest Zone
+SAP-0181,Banaba,Low,Forest Zone
+SAP-0182,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0183,Banaba,Low,Parks and Recreation Zone
+SAP-0184,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0185,Molave,High,Forest Zone
+SAP-0186,Banaba,Low,Buffer Zone
+SAP-0187,Banaba,Low,Buffer Zone
+SAP-0188,Narra,Low,Medium Density Residential Zone
+SAP-0189,Mahogany,Medium,Parks and Recreation Zone
+SAP-0190,Banaba,Medium,Medium Density Residential Zone
+SAP-0191,Mahogany,High,Medium Density Residential Zone
+SAP-0192,Molave,Medium,Buffer Zone
+SAP-0193,Mahogany,High,Parks and Recreation Zone
+SAP-0194,Narra,High,Forest Zone
+SAP-0195,Banaba,High,Parks and Recreation Zone
+SAP-0196,Molave,High,Parks and Recreation Zone
+SAP-0197,Molave,Low,Buffer Zone
+SAP-0198,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0199,Banaba,Low,Medium Density Residential Zone
+SAP-0200,Molave,High,Parks and Recreation Zone
+SAP-0201,Molave,Low,Buffer Zone
+SAP-0202,Banaba,Medium,Forest Zone
+SAP-0203,Narra,High,Buffer Zone
+SAP-0204,Molave,High,Parks and Recreation Zone
+SAP-0205,Narra,Low,Parks and Recreation Zone
+SAP-0206,Molave,High,Forest Zone
+SAP-0207,Narra,High,Parks and Recreation Zone
+SAP-0208,Narra,Medium,Parks and Recreation Zone
+SAP-0209,Narra,Low,Medium Density Residential Zone
+SAP-0210,Mahogany,High,Buffer Zone
+SAP-0211,Banaba,High,Parks and Recreation Zone
+SAP-0212,Molave,High,Medium Density Residential Zone
+SAP-0213,Banaba,Medium,Medium Density Residential Zone
+SAP-0214,Banaba,Medium,Medium Density Residential Zone
+SAP-0215,Banaba,High,Medium Density Residential Zone
+SAP-0216,Mahogany,Low,Forest Zone
+SAP-0217,Molave,High,Buffer Zone
+SAP-0218,Mahogany,Low,Buffer Zone
+SAP-0219,Mahogany,High,Buffer Zone
+SAP-0220,Mahogany,Low,Buffer Zone
+SAP-0221,Mahogany,Medium,Medium Density Residential Zone
+SAP-0222,Molave,High,Parks and Recreation Zone
+SAP-0223,Molave,Medium,Forest Zone
+SAP-0224,Banaba,Medium,Parks and Recreation Zone
+SAP-0225,Banaba,High,Forest Zone
+SAP-0226,Mahogany,Low,Buffer Zone
+SAP-0227,Narra,Low,Medium Density Residential Zone
+SAP-0228,Banaba,Medium,Buffer Zone
+SAP-0229,Ilang-Ilang,Medium,Forest Zone
+SAP-0230,Ilang-Ilang,High,Forest Zone
+SAP-0231,Mahogany,Low,Forest Zone
+SAP-0232,Molave,High,Forest Zone
+SAP-0233,Ilang-Ilang,Low,Forest Zone
+SAP-0234,Narra,High,Medium Density Residential Zone
+SAP-0235,Molave,Low,Medium Density Residential Zone
+SAP-0236,Banaba,Medium,Parks and Recreation Zone
+SAP-0237,Narra,Low,Buffer Zone
+SAP-0238,Molave,Low,Parks and Recreation Zone
+SAP-0239,Mahogany,Medium,Parks and Recreation Zone
+SAP-0240,Molave,Low,Forest Zone
+SAP-0241,Banaba,Medium,Medium Density Residential Zone
+SAP-0242,Banaba,High,Forest Zone
+SAP-0243,Molave,Low,Forest Zone
+SAP-0244,Mahogany,Low,Buffer Zone
+SAP-0245,Banaba,High,Parks and Recreation Zone
+SAP-0246,Narra,Medium,Buffer Zone
+SAP-0247,Molave,Medium,Parks and Recreation Zone
+SAP-0248,Narra,High,Buffer Zone
+SAP-0249,Narra,Low,Medium Density Residential Zone
+SAP-0250,Narra,High,Medium Density Residential Zone
+SAP-0251,Mahogany,Medium,Medium Density Residential Zone
+SAP-0252,Ilang-Ilang,High,Buffer Zone
+SAP-0253,Narra,High,Buffer Zone
+SAP-0254,Molave,High,Medium Density Residential Zone
+SAP-0255,Banaba,Low,Parks and Recreation Zone
+SAP-0256,Ilang-Ilang,Medium,Buffer Zone
+SAP-0257,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0258,Mahogany,Medium,Parks and Recreation Zone
+SAP-0259,Narra,Medium,Buffer Zone
+SAP-0260,Molave,High,Medium Density Residential Zone
+SAP-0261,Banaba,Medium,Buffer Zone
+SAP-0262,Banaba,High,Buffer Zone
+SAP-0263,Molave,Medium,Forest Zone
+SAP-0264,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0265,Banaba,Low,Forest Zone
+SAP-0266,Banaba,Low,Buffer Zone
+SAP-0267,Ilang-Ilang,High,Forest Zone
+SAP-0268,Banaba,High,Medium Density Residential Zone
+SAP-0269,Molave,High,Buffer Zone
+SAP-0270,Molave,Low,Forest Zone
+SAP-0271,Molave,High,Buffer Zone
+SAP-0272,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0273,Banaba,Medium,Parks and Recreation Zone
+SAP-0274,Mahogany,Low,Medium Density Residential Zone
+SAP-0275,Narra,Low,Buffer Zone
+SAP-0276,Banaba,Medium,Forest Zone
+SAP-0277,Narra,High,Buffer Zone
+SAP-0278,Narra,High,Medium Density Residential Zone
+SAP-0279,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0280,Mahogany,Medium,Buffer Zone
+SAP-0281,Mahogany,High,Parks and Recreation Zone
+SAP-0282,Banaba,Medium,Forest Zone
+SAP-0283,Narra,High,Forest Zone
+SAP-0284,Molave,High,Forest Zone
+SAP-0285,Narra,High,Medium Density Residential Zone
+SAP-0286,Molave,Low,Parks and Recreation Zone
+SAP-0287,Banaba,Low,Buffer Zone
+SAP-0288,Mahogany,High,Forest Zone
+SAP-0289,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0290,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0291,Mahogany,High,Forest Zone
+SAP-0292,Banaba,Low,Parks and Recreation Zone
+SAP-0293,Mahogany,High,Buffer Zone
+SAP-0294,Ilang-Ilang,High,Buffer Zone
+SAP-0295,Mahogany,Medium,Buffer Zone
+SAP-0296,Narra,Low,Forest Zone
+SAP-0297,Molave,High,Medium Density Residential Zone
+SAP-0298,Banaba,Medium,Forest Zone
+SAP-0299,Mahogany,Medium,Parks and Recreation Zone
+SAP-0300,Molave,Medium,Forest Zone
+SAP-0301,Ilang-Ilang,High,Buffer Zone
+SAP-0302,Molave,Low,Buffer Zone
+SAP-0303,Banaba,Low,Buffer Zone
+SAP-0304,Banaba,High,Buffer Zone
+SAP-0305,Banaba,Low,Parks and Recreation Zone
+SAP-0306,Molave,High,Forest Zone
+SAP-0307,Mahogany,Low,Buffer Zone
+SAP-0308,Mahogany,High,Forest Zone
+SAP-0309,Molave,Low,Parks and Recreation Zone
+SAP-0310,Banaba,Medium,Parks and Recreation Zone
+SAP-0311,Mahogany,High,Buffer Zone
+SAP-0312,Mahogany,Low,Medium Density Residential Zone
+SAP-0313,Narra,Medium,Buffer Zone
+SAP-0314,Narra,Low,Medium Density Residential Zone
+SAP-0315,Mahogany,Medium,Buffer Zone
+SAP-0316,Mahogany,Medium,Forest Zone
+SAP-0317,Molave,High,Forest Zone
+SAP-0318,Molave,Medium,Medium Density Residential Zone
+SAP-0319,Banaba,Medium,Forest Zone
+SAP-0320,Mahogany,High,Parks and Recreation Zone
+SAP-0321,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0322,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0323,Narra,Medium,Forest Zone
+SAP-0324,Narra,Low,Forest Zone
+SAP-0325,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0326,Narra,Medium,Medium Density Residential Zone
+SAP-0327,Molave,Low,Medium Density Residential Zone
+SAP-0328,Mahogany,Low,Forest Zone
+SAP-0329,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0330,Banaba,Medium,Buffer Zone
+SAP-0331,Molave,High,Parks and Recreation Zone
+SAP-0332,Narra,High,Medium Density Residential Zone
+SAP-0333,Narra,High,Forest Zone
+SAP-0334,Mahogany,High,Buffer Zone
+SAP-0335,Molave,Medium,Parks and Recreation Zone
+SAP-0336,Molave,Medium,Medium Density Residential Zone
+SAP-0337,Narra,High,Parks and Recreation Zone
+SAP-0338,Molave,Low,Parks and Recreation Zone
+SAP-0339,Banaba,High,Parks and Recreation Zone
+SAP-0340,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0341,Narra,High,Medium Density Residential Zone
+SAP-0342,Molave,High,Medium Density Residential Zone
+SAP-0343,Narra,Medium,Forest Zone
+SAP-0344,Molave,High,Medium Density Residential Zone
+SAP-0345,Ilang-Ilang,High,Buffer Zone
+SAP-0346,Mahogany,Low,Forest Zone
+SAP-0347,Banaba,High,Buffer Zone
+SAP-0348,Mahogany,High,Medium Density Residential Zone
+SAP-0349,Banaba,Medium,Forest Zone
+SAP-0350,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0351,Narra,Medium,Buffer Zone
+SAP-0352,Narra,High,Medium Density Residential Zone
+SAP-0353,Narra,High,Buffer Zone
+SAP-0354,Banaba,Low,Buffer Zone
+SAP-0355,Ilang-Ilang,High,Forest Zone
+SAP-0356,Molave,Low,Buffer Zone
+SAP-0357,Mahogany,Low,Parks and Recreation Zone
+SAP-0358,Molave,High,Forest Zone
+SAP-0359,Banaba,High,Parks and Recreation Zone
+SAP-0360,Narra,Medium,Parks and Recreation Zone
+SAP-0361,Banaba,Medium,Forest Zone
+SAP-0362,Banaba,High,Forest Zone
+SAP-0363,Ilang-Ilang,High,Buffer Zone
+SAP-0364,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0365,Mahogany,Low,Buffer Zone
+SAP-0366,Molave,Medium,Buffer Zone
+SAP-0367,Molave,High,Parks and Recreation Zone
+SAP-0368,Mahogany,Medium,Forest Zone
+SAP-0369,Ilang-Ilang,Medium,Buffer Zone
+SAP-0370,Mahogany,Low,Parks and Recreation Zone
+SAP-0371,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0372,Molave,Low,Forest Zone
+SAP-0373,Mahogany,Medium,Parks and Recreation Zone
+SAP-0374,Molave,Low,Forest Zone
+SAP-0375,Mahogany,Low,Medium Density Residential Zone
+SAP-0376,Ilang-Ilang,Medium,Buffer Zone
+SAP-0377,Mahogany,Low,Buffer Zone
+SAP-0378,Narra,High,Parks and Recreation Zone
+SAP-0379,Ilang-Ilang,High,Forest Zone
+SAP-0380,Ilang-Ilang,High,Forest Zone
+SAP-0381,Narra,Medium,Parks and Recreation Zone
+SAP-0382,Banaba,High,Buffer Zone
+SAP-0383,Banaba,Medium,Buffer Zone
+SAP-0384,Banaba,High,Forest Zone
+SAP-0385,Ilang-Ilang,Medium,Buffer Zone
+SAP-0386,Banaba,High,Buffer Zone
+SAP-0387,Narra,Low,Parks and Recreation Zone
+SAP-0388,Molave,High,Parks and Recreation Zone
+SAP-0389,Narra,High,Forest Zone
+SAP-0390,Banaba,High,Buffer Zone
+SAP-0391,Narra,Medium,Parks and Recreation Zone
+SAP-0392,Mahogany,Medium,Buffer Zone
+SAP-0393,Molave,Medium,Buffer Zone
+SAP-0394,Molave,Low,Medium Density Residential Zone
+SAP-0395,Mahogany,Medium,Parks and Recreation Zone
+SAP-0396,Banaba,Low,Parks and Recreation Zone
+SAP-0397,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0398,Molave,Low,Medium Density Residential Zone
+SAP-0399,Narra,Low,Parks and Recreation Zone
+SAP-0400,Banaba,High,Forest Zone
+SAP-0401,Mahogany,Medium,Buffer Zone
+SAP-0402,Mahogany,Low,Buffer Zone
+SAP-0403,Narra,High,Medium Density Residential Zone
+SAP-0404,Ilang-Ilang,High,Forest Zone
+SAP-0405,Molave,High,Parks and Recreation Zone
+SAP-0406,Banaba,High,Medium Density Residential Zone
+SAP-0407,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0408,Mahogany,High,Medium Density Residential Zone
+SAP-0409,Mahogany,High,Buffer Zone
+SAP-0410,Narra,Low,Forest Zone
+SAP-0411,Narra,Low,Medium Density Residential Zone
+SAP-0412,Banaba,High,Medium Density Residential Zone
+SAP-0413,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0414,Narra,Medium,Forest Zone
+SAP-0415,Narra,Medium,Parks and Recreation Zone
+SAP-0416,Mahogany,Low,Forest Zone
+SAP-0417,Mahogany,Medium,Medium Density Residential Zone
+SAP-0418,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0419,Narra,High,Medium Density Residential Zone
+SAP-0420,Banaba,High,Buffer Zone
+SAP-0421,Molave,High,Parks and Recreation Zone
+SAP-0422,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0423,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0424,Molave,High,Buffer Zone
+SAP-0425,Narra,Medium,Buffer Zone
+SAP-0426,Mahogany,High,Parks and Recreation Zone
+SAP-0427,Mahogany,High,Parks and Recreation Zone
+SAP-0428,Mahogany,High,Forest Zone
+SAP-0429,Molave,Low,Buffer Zone
+SAP-0430,Mahogany,High,Parks and Recreation Zone
+SAP-0431,Molave,High,Forest Zone
+SAP-0432,Banaba,Low,Buffer Zone
+SAP-0433,Molave,High,Buffer Zone
+SAP-0434,Narra,High,Parks and Recreation Zone
+SAP-0435,Molave,Medium,Forest Zone
+SAP-0436,Banaba,High,Parks and Recreation Zone
+SAP-0437,Banaba,High,Forest Zone
+SAP-0438,Banaba,Medium,Buffer Zone
+SAP-0439,Narra,High,Medium Density Residential Zone
+SAP-0440,Narra,High,Parks and Recreation Zone
+SAP-0441,Molave,High,Medium Density Residential Zone
+SAP-0442,Banaba,Medium,Medium Density Residential Zone
+SAP-0443,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0444,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0445,Narra,Low,Medium Density Residential Zone
+SAP-0446,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0447,Banaba,Low,Buffer Zone
+SAP-0448,Narra,Low,Parks and Recreation Zone
+SAP-0449,Banaba,High,Forest Zone
+SAP-0450,Mahogany,High,Buffer Zone
+SAP-0451,Mahogany,Low,Buffer Zone
+SAP-0452,Ilang-Ilang,High,Forest Zone
+SAP-0453,Banaba,Medium,Buffer Zone
+SAP-0454,Mahogany,Low,Forest Zone
+SAP-0455,Narra,Low,Forest Zone
+SAP-0456,Banaba,Medium,Medium Density Residential Zone
+SAP-0457,Narra,High,Medium Density Residential Zone
+SAP-0458,Banaba,High,Buffer Zone
+SAP-0459,Narra,Low,Forest Zone
+SAP-0460,Banaba,Medium,Buffer Zone
+SAP-0461,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0462,Molave,Medium,Buffer Zone
+SAP-0463,Mahogany,High,Buffer Zone
+SAP-0464,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0465,Molave,Low,Medium Density Residential Zone
+SAP-0466,Ilang-Ilang,Medium,Buffer Zone
+SAP-0467,Ilang-Ilang,Medium,Buffer Zone
+SAP-0468,Ilang-Ilang,High,Forest Zone
+SAP-0469,Banaba,High,Medium Density Residential Zone
+SAP-0470,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0471,Narra,Medium,Medium Density Residential Zone
+SAP-0472,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0473,Mahogany,High,Medium Density Residential Zone
+SAP-0474,Narra,Medium,Forest Zone
+SAP-0475,Molave,Medium,Buffer Zone
+SAP-0476,Narra,Medium,Parks and Recreation Zone
+SAP-0477,Narra,Low,Forest Zone
+SAP-0478,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0479,Molave,High,Forest Zone
+SAP-0480,Narra,Medium,Forest Zone
+SAP-0481,Narra,Low,Medium Density Residential Zone
+SAP-0482,Banaba,Low,Medium Density Residential Zone
+SAP-0483,Banaba,Medium,Medium Density Residential Zone
+SAP-0484,Ilang-Ilang,Medium,Buffer Zone
+SAP-0485,Mahogany,High,Parks and Recreation Zone
+SAP-0486,Narra,Medium,Buffer Zone
+SAP-0487,Ilang-Ilang,Low,Buffer Zone
+SAP-0488,Mahogany,Medium,Forest Zone
+SAP-0489,Narra,Medium,Parks and Recreation Zone
+SAP-0490,Banaba,Low,Medium Density Residential Zone
+SAP-0491,Banaba,Low,Buffer Zone
+SAP-0492,Narra,Medium,Parks and Recreation Zone
+SAP-0493,Mahogany,High,Parks and Recreation Zone
+SAP-0494,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0495,Molave,Low,Buffer Zone
+SAP-0496,Mahogany,High,Medium Density Residential Zone
+SAP-0497,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0498,Mahogany,Medium,Forest Zone
+SAP-0499,Banaba,Low,Parks and Recreation Zone
+SAP-0500,Banaba,Low,Medium Density Residential Zone
+SAP-0501,Narra,High,Forest Zone
+SAP-0502,Molave,High,Forest Zone
+SAP-0503,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0504,Molave,Medium,Buffer Zone
+SAP-0505,Narra,Low,Buffer Zone
+SAP-0506,Banaba,Medium,Forest Zone
+SAP-0507,Narra,Medium,Buffer Zone
+SAP-0508,Molave,Medium,Parks and Recreation Zone
+SAP-0509,Ilang-Ilang,Low,Forest Zone
+SAP-0510,Mahogany,High,Forest Zone
+SAP-0511,Molave,Low,Buffer Zone
+SAP-0512,Banaba,High,Medium Density Residential Zone
+SAP-0513,Narra,Medium,Forest Zone
+SAP-0514,Narra,Low,Forest Zone
+SAP-0515,Mahogany,Medium,Parks and Recreation Zone
+SAP-0516,Mahogany,Medium,Forest Zone
+SAP-0517,Narra,High,Buffer Zone
+SAP-0518,Mahogany,High,Forest Zone
+SAP-0519,Narra,Medium,Buffer Zone
+SAP-0520,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0521,Banaba,High,Buffer Zone
+SAP-0522,Narra,Low,Buffer Zone
+SAP-0523,Narra,Medium,Parks and Recreation Zone
+SAP-0524,Banaba,Low,Forest Zone
+SAP-0525,Molave,High,Forest Zone
+SAP-0526,Ilang-Ilang,Low,Forest Zone
+SAP-0527,Mahogany,High,Buffer Zone
+SAP-0528,Mahogany,Medium,Medium Density Residential Zone
+SAP-0529,Molave,High,Buffer Zone
+SAP-0530,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0531,Banaba,High,Buffer Zone
+SAP-0532,Mahogany,Low,Medium Density Residential Zone
+SAP-0533,Mahogany,High,Parks and Recreation Zone
+SAP-0534,Molave,Low,Parks and Recreation Zone
+SAP-0535,Molave,Low,Buffer Zone
+SAP-0536,Banaba,High,Medium Density Residential Zone
+SAP-0537,Molave,Medium,Buffer Zone
+SAP-0538,Banaba,Medium,Forest Zone
+SAP-0539,Narra,Medium,Medium Density Residential Zone
+SAP-0540,Ilang-Ilang,Medium,Buffer Zone
+SAP-0541,Mahogany,Low,Parks and Recreation Zone
+SAP-0542,Narra,Medium,Medium Density Residential Zone
+SAP-0543,Narra,Medium,Buffer Zone
+SAP-0544,Banaba,High,Forest Zone
+SAP-0545,Narra,High,Parks and Recreation Zone
+SAP-0546,Molave,Medium,Parks and Recreation Zone
+SAP-0547,Molave,Medium,Buffer Zone
+SAP-0548,Ilang-Ilang,Medium,Buffer Zone
+SAP-0549,Mahogany,High,Forest Zone
+SAP-0550,Mahogany,Medium,Buffer Zone
+SAP-0551,Mahogany,High,Medium Density Residential Zone
+SAP-0552,Narra,Medium,Parks and Recreation Zone
+SAP-0553,Ilang-Ilang,High,Forest Zone
+SAP-0554,Molave,Low,Parks and Recreation Zone
+SAP-0555,Mahogany,High,Buffer Zone
+SAP-0556,Narra,High,Medium Density Residential Zone
+SAP-0557,Narra,High,Buffer Zone
+SAP-0558,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0559,Narra,Medium,Buffer Zone
+SAP-0560,Banaba,High,Medium Density Residential Zone
+SAP-0561,Mahogany,Medium,Medium Density Residential Zone
+SAP-0562,Banaba,High,Medium Density Residential Zone
+SAP-0563,Ilang-Ilang,High,Buffer Zone
+SAP-0564,Narra,Low,Buffer Zone
+SAP-0565,Narra,Medium,Medium Density Residential Zone
+SAP-0566,Narra,Medium,Forest Zone
+SAP-0567,Molave,Low,Buffer Zone
+SAP-0568,Banaba,Medium,Buffer Zone
+SAP-0569,Molave,Low,Parks and Recreation Zone
+SAP-0570,Mahogany,Medium,Buffer Zone
+SAP-0571,Banaba,Low,Buffer Zone
+SAP-0572,Banaba,Medium,Forest Zone
+SAP-0573,Ilang-Ilang,Medium,Buffer Zone
+SAP-0574,Ilang-Ilang,Medium,Forest Zone
+SAP-0575,Narra,High,Medium Density Residential Zone
+SAP-0576,Mahogany,High,Parks and Recreation Zone
+SAP-0577,Narra,Low,Buffer Zone
+SAP-0578,Mahogany,Low,Medium Density Residential Zone
+SAP-0579,Banaba,Low,Forest Zone
+SAP-0580,Narra,High,Parks and Recreation Zone
+SAP-0581,Molave,High,Buffer Zone
+SAP-0582,Banaba,Low,Medium Density Residential Zone
+SAP-0583,Narra,Low,Forest Zone
+SAP-0584,Narra,High,Buffer Zone
+SAP-0585,Narra,Low,Medium Density Residential Zone
+SAP-0586,Molave,High,Forest Zone
+SAP-0587,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0588,Mahogany,Medium,Forest Zone
+SAP-0589,Narra,Low,Parks and Recreation Zone
+SAP-0590,Mahogany,Low,Forest Zone
+SAP-0591,Mahogany,High,Medium Density Residential Zone
+SAP-0592,Banaba,Medium,Buffer Zone
+SAP-0593,Narra,Low,Buffer Zone
+SAP-0594,Mahogany,Low,Buffer Zone
+SAP-0595,Narra,Medium,Parks and Recreation Zone
+SAP-0596,Banaba,Medium,Parks and Recreation Zone
+SAP-0597,Molave,High,Buffer Zone
+SAP-0598,Mahogany,Medium,Medium Density Residential Zone
+SAP-0599,Narra,Medium,Medium Density Residential Zone
+SAP-0600,Banaba,Low,Forest Zone
+SAP-0601,Narra,High,Buffer Zone
+SAP-0602,Banaba,High,Forest Zone
+SAP-0603,Molave,Low,Forest Zone
+SAP-0604,Mahogany,Low,Buffer Zone
+SAP-0605,Narra,High,Parks and Recreation Zone
+SAP-0606,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0607,Molave,Medium,Parks and Recreation Zone
+SAP-0608,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0609,Banaba,Medium,Medium Density Residential Zone
+SAP-0610,Mahogany,High,Forest Zone
+SAP-0611,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0612,Mahogany,Low,Parks and Recreation Zone
+SAP-0613,Molave,Low,Forest Zone
+SAP-0614,Mahogany,High,Parks and Recreation Zone
+SAP-0615,Mahogany,Medium,Parks and Recreation Zone
+SAP-0616,Narra,Medium,Forest Zone
+SAP-0617,Molave,High,Parks and Recreation Zone
+SAP-0618,Molave,Low,Forest Zone
+SAP-0619,Banaba,Medium,Buffer Zone
+SAP-0620,Ilang-Ilang,High,Forest Zone
+SAP-0621,Mahogany,Low,Medium Density Residential Zone
+SAP-0622,Mahogany,High,Buffer Zone
+SAP-0623,Mahogany,High,Buffer Zone
+SAP-0624,Molave,High,Medium Density Residential Zone
+SAP-0625,Banaba,High,Parks and Recreation Zone
+SAP-0626,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0627,Molave,Medium,Parks and Recreation Zone
+SAP-0628,Narra,Low,Parks and Recreation Zone
+SAP-0629,Molave,Low,Forest Zone
+SAP-0630,Mahogany,Medium,Parks and Recreation Zone
+SAP-0631,Mahogany,Low,Parks and Recreation Zone
+SAP-0632,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0633,Molave,Low,Forest Zone
+SAP-0634,Ilang-Ilang,Medium,Forest Zone
+SAP-0635,Mahogany,High,Forest Zone
+SAP-0636,Narra,High,Buffer Zone
+SAP-0637,Ilang-Ilang,High,Buffer Zone
+SAP-0638,Narra,Medium,Parks and Recreation Zone
+SAP-0639,Mahogany,Medium,Medium Density Residential Zone
+SAP-0640,Mahogany,Medium,Medium Density Residential Zone
+SAP-0641,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0642,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0643,Narra,Medium,Medium Density Residential Zone
+SAP-0644,Banaba,Low,Forest Zone
+SAP-0645,Mahogany,Low,Buffer Zone
+SAP-0646,Mahogany,High,Medium Density Residential Zone
+SAP-0647,Mahogany,High,Medium Density Residential Zone
+SAP-0648,Molave,Low,Medium Density Residential Zone
+SAP-0649,Mahogany,High,Parks and Recreation Zone
+SAP-0650,Narra,High,Parks and Recreation Zone
+SAP-0651,Banaba,Low,Buffer Zone
+SAP-0652,Narra,Low,Parks and Recreation Zone
+SAP-0653,Ilang-Ilang,Medium,Forest Zone
+SAP-0654,Banaba,High,Forest Zone
+SAP-0655,Mahogany,Medium,Parks and Recreation Zone
+SAP-0656,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0657,Molave,Medium,Forest Zone
+SAP-0658,Mahogany,Medium,Medium Density Residential Zone
+SAP-0659,Molave,High,Buffer Zone
+SAP-0660,Narra,High,Buffer Zone
+SAP-0661,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0662,Narra,High,Parks and Recreation Zone
+SAP-0663,Mahogany,Low,Buffer Zone
+SAP-0664,Molave,Medium,Buffer Zone
+SAP-0665,Molave,Medium,Parks and Recreation Zone
+SAP-0666,Banaba,Low,Forest Zone
+SAP-0667,Narra,Medium,Medium Density Residential Zone
+SAP-0668,Mahogany,High,Buffer Zone
+SAP-0669,Mahogany,Medium,Forest Zone
+SAP-0670,Molave,Medium,Forest Zone
+SAP-0671,Narra,High,Buffer Zone
+SAP-0672,Mahogany,Medium,Forest Zone
+SAP-0673,Ilang-Ilang,Medium,Buffer Zone
+SAP-0674,Banaba,Medium,Parks and Recreation Zone
+SAP-0675,Molave,High,Forest Zone
+SAP-0676,Banaba,Medium,Forest Zone
+SAP-0677,Banaba,Low,Buffer Zone
+SAP-0678,Mahogany,High,Forest Zone
+SAP-0679,Narra,High,Parks and Recreation Zone
+SAP-0680,Mahogany,Low,Parks and Recreation Zone
+SAP-0681,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0682,Molave,Medium,Parks and Recreation Zone
+SAP-0683,Banaba,Medium,Forest Zone
+SAP-0684,Ilang-Ilang,Low,Forest Zone
+SAP-0685,Narra,Medium,Forest Zone
+SAP-0686,Banaba,Medium,Parks and Recreation Zone
+SAP-0687,Ilang-Ilang,High,Forest Zone
+SAP-0688,Narra,High,Forest Zone
+SAP-0689,Molave,Low,Medium Density Residential Zone
+SAP-0690,Mahogany,High,Buffer Zone
+SAP-0691,Molave,Medium,Buffer Zone
+SAP-0692,Mahogany,Low,Parks and Recreation Zone
+SAP-0693,Molave,Low,Buffer Zone
+SAP-0694,Molave,Medium,Medium Density Residential Zone
+SAP-0695,Mahogany,Low,Forest Zone
+SAP-0696,Banaba,Medium,Forest Zone
+SAP-0697,Ilang-Ilang,High,Buffer Zone
+SAP-0698,Banaba,Medium,Parks and Recreation Zone
+SAP-0699,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0700,Banaba,High,Medium Density Residential Zone
+SAP-0701,Banaba,High,Forest Zone
+SAP-0702,Narra,Medium,Forest Zone
+SAP-0703,Molave,Low,Buffer Zone
+SAP-0704,Mahogany,High,Parks and Recreation Zone
+SAP-0705,Ilang-Ilang,High,Buffer Zone
+SAP-0706,Mahogany,Medium,Medium Density Residential Zone
+SAP-0707,Narra,Low,Buffer Zone
+SAP-0708,Mahogany,Medium,Buffer Zone
+SAP-0709,Molave,Low,Forest Zone
+SAP-0710,Ilang-Ilang,Medium,Buffer Zone
+SAP-0711,Molave,Low,Medium Density Residential Zone
+SAP-0712,Ilang-Ilang,High,Buffer Zone
+SAP-0713,Mahogany,Low,Parks and Recreation Zone
+SAP-0714,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0715,Narra,High,Buffer Zone
+SAP-0716,Narra,Low,Medium Density Residential Zone
+SAP-0717,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0718,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0719,Banaba,High,Forest Zone
+SAP-0720,Mahogany,Low,Forest Zone
+SAP-0721,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0722,Ilang-Ilang,High,Forest Zone
+SAP-0723,Mahogany,Medium,Buffer Zone
+SAP-0724,Narra,High,Parks and Recreation Zone
+SAP-0725,Molave,Low,Forest Zone
+SAP-0726,Mahogany,High,Forest Zone
+SAP-0727,Narra,High,Forest Zone
+SAP-0728,Banaba,Low,Forest Zone
+SAP-0729,Mahogany,Low,Medium Density Residential Zone
+SAP-0730,Mahogany,Medium,Parks and Recreation Zone
+SAP-0731,Molave,Low,Medium Density Residential Zone
+SAP-0732,Mahogany,Low,Forest Zone
+SAP-0733,Mahogany,High,Buffer Zone
+SAP-0734,Molave,Low,Parks and Recreation Zone
+SAP-0735,Molave,Low,Medium Density Residential Zone
+SAP-0736,Ilang-Ilang,Low,Buffer Zone
+SAP-0737,Banaba,High,Forest Zone
+SAP-0738,Banaba,Low,Buffer Zone
+SAP-0739,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0740,Banaba,High,Medium Density Residential Zone
+SAP-0741,Narra,Low,Forest Zone
+SAP-0742,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0743,Mahogany,Low,Buffer Zone
+SAP-0744,Narra,Medium,Parks and Recreation Zone
+SAP-0745,Molave,Low,Parks and Recreation Zone
+SAP-0746,Ilang-Ilang,High,Forest Zone
+SAP-0747,Molave,Low,Forest Zone
+SAP-0748,Ilang-Ilang,Low,Buffer Zone
+SAP-0749,Banaba,Medium,Medium Density Residential Zone
+SAP-0750,Banaba,High,Buffer Zone
+SAP-0751,Narra,Medium,Buffer Zone
+SAP-0752,Molave,Low,Buffer Zone
+SAP-0753,Banaba,Medium,Parks and Recreation Zone
+SAP-0754,Ilang-Ilang,Low,Forest Zone
+SAP-0755,Mahogany,High,Buffer Zone
+SAP-0756,Molave,Low,Buffer Zone
+SAP-0757,Banaba,High,Medium Density Residential Zone
+SAP-0758,Molave,High,Forest Zone
+SAP-0759,Narra,High,Medium Density Residential Zone
+SAP-0760,Narra,Medium,Parks and Recreation Zone
+SAP-0761,Molave,Medium,Buffer Zone
+SAP-0762,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0763,Ilang-Ilang,High,Buffer Zone
+SAP-0764,Banaba,High,Parks and Recreation Zone
+SAP-0765,Molave,Medium,Parks and Recreation Zone
+SAP-0766,Banaba,Low,Parks and Recreation Zone
+SAP-0767,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0768,Mahogany,High,Parks and Recreation Zone
+SAP-0769,Narra,High,Parks and Recreation Zone
+SAP-0770,Molave,Medium,Medium Density Residential Zone
+SAP-0771,Banaba,Low,Buffer Zone
+SAP-0772,Mahogany,Low,Medium Density Residential Zone
+SAP-0773,Mahogany,Medium,Medium Density Residential Zone
+SAP-0774,Narra,Low,Medium Density Residential Zone
+SAP-0775,Molave,Medium,Parks and Recreation Zone
+SAP-0776,Molave,Low,Parks and Recreation Zone
+SAP-0777,Banaba,High,Forest Zone
+SAP-0778,Banaba,High,Medium Density Residential Zone
+SAP-0779,Molave,High,Parks and Recreation Zone
+SAP-0780,Mahogany,Low,Forest Zone
+SAP-0781,Mahogany,High,Buffer Zone
+SAP-0782,Narra,Medium,Forest Zone
+SAP-0783,Mahogany,High,Forest Zone
+SAP-0784,Mahogany,Medium,Buffer Zone
+SAP-0785,Mahogany,Medium,Parks and Recreation Zone
+SAP-0786,Banaba,Medium,Forest Zone
+SAP-0787,Banaba,High,Forest Zone
+SAP-0788,Banaba,Medium,Forest Zone
+SAP-0789,Narra,High,Parks and Recreation Zone
+SAP-0790,Molave,Medium,Parks and Recreation Zone
+SAP-0791,Banaba,Medium,Medium Density Residential Zone
+SAP-0792,Molave,Low,Buffer Zone
+SAP-0793,Ilang-Ilang,High,Buffer Zone
+SAP-0794,Molave,Low,Medium Density Residential Zone
+SAP-0795,Molave,Medium,Forest Zone
+SAP-0796,Ilang-Ilang,High,Buffer Zone
+SAP-0797,Molave,Low,Forest Zone
+SAP-0798,Molave,Low,Forest Zone
+SAP-0799,Banaba,Low,Buffer Zone
+SAP-0800,Mahogany,Medium,Medium Density Residential Zone
+SAP-0801,Narra,High,Medium Density Residential Zone
+SAP-0802,Mahogany,Low,Medium Density Residential Zone
+SAP-0803,Narra,High,Forest Zone
+SAP-0804,Mahogany,Medium,Parks and Recreation Zone
+SAP-0805,Molave,Medium,Parks and Recreation Zone
+SAP-0806,Narra,Medium,Buffer Zone
+SAP-0807,Banaba,Medium,Forest Zone
+SAP-0808,Narra,Medium,Buffer Zone
+SAP-0809,Banaba,Medium,Parks and Recreation Zone
+SAP-0810,Mahogany,Low,Medium Density Residential Zone
+SAP-0811,Narra,Low,Medium Density Residential Zone
+SAP-0812,Molave,Medium,Medium Density Residential Zone
+SAP-0813,Banaba,Low,Parks and Recreation Zone
+SAP-0814,Narra,High,Buffer Zone
+SAP-0815,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0816,Narra,Medium,Parks and Recreation Zone
+SAP-0817,Ilang-Ilang,Low,Buffer Zone
+SAP-0818,Molave,Medium,Medium Density Residential Zone
+SAP-0819,Ilang-Ilang,High,Buffer Zone
+SAP-0820,Molave,High,Parks and Recreation Zone
+SAP-0821,Banaba,High,Forest Zone
+SAP-0822,Banaba,High,Buffer Zone
+SAP-0823,Mahogany,Low,Parks and Recreation Zone
+SAP-0824,Molave,Medium,Parks and Recreation Zone
+SAP-0825,Narra,Low,Medium Density Residential Zone
+SAP-0826,Mahogany,Low,Buffer Zone
+SAP-0827,Mahogany,Low,Forest Zone
+SAP-0828,Molave,Low,Buffer Zone
+SAP-0829,Narra,Medium,Forest Zone
+SAP-0830,Mahogany,High,Forest Zone
+SAP-0831,Narra,Low,Medium Density Residential Zone
+SAP-0832,Banaba,Low,Medium Density Residential Zone
+SAP-0833,Narra,Low,Forest Zone
+SAP-0834,Ilang-Ilang,Low,Buffer Zone
+SAP-0835,Narra,Medium,Medium Density Residential Zone
+SAP-0836,Mahogany,Low,Buffer Zone
+SAP-0837,Ilang-Ilang,High,Buffer Zone
+SAP-0838,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0839,Banaba,High,Forest Zone
+SAP-0840,Narra,Low,Parks and Recreation Zone
+SAP-0841,Narra,Low,Buffer Zone
+SAP-0842,Mahogany,Low,Parks and Recreation Zone
+SAP-0843,Ilang-Ilang,Low,Buffer Zone
+SAP-0844,Molave,Medium,Forest Zone
+SAP-0845,Narra,Low,Forest Zone
+SAP-0846,Molave,Medium,Medium Density Residential Zone
+SAP-0847,Molave,Medium,Parks and Recreation Zone
+SAP-0848,Narra,Low,Parks and Recreation Zone
+SAP-0849,Narra,Medium,Medium Density Residential Zone
+SAP-0850,Banaba,Medium,Buffer Zone
+SAP-0851,Molave,Low,Parks and Recreation Zone
+SAP-0852,Molave,Medium,Medium Density Residential Zone
+SAP-0853,Ilang-Ilang,High,Forest Zone
+SAP-0854,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0855,Ilang-Ilang,Medium,Forest Zone
+SAP-0856,Mahogany,High,Forest Zone
+SAP-0857,Mahogany,Medium,Forest Zone
+SAP-0858,Banaba,Low,Forest Zone
+SAP-0859,Banaba,High,Buffer Zone
+SAP-0860,Molave,Low,Parks and Recreation Zone
+SAP-0861,Mahogany,Low,Medium Density Residential Zone
+SAP-0862,Mahogany,Low,Parks and Recreation Zone
+SAP-0863,Mahogany,Medium,Buffer Zone
+SAP-0864,Banaba,Low,Buffer Zone
+SAP-0865,Ilang-Ilang,Medium,Buffer Zone
+SAP-0866,Molave,High,Medium Density Residential Zone
+SAP-0867,Molave,Medium,Parks and Recreation Zone
+SAP-0868,Narra,Low,Medium Density Residential Zone
+SAP-0869,Mahogany,Low,Buffer Zone
+SAP-0870,Mahogany,High,Parks and Recreation Zone
+SAP-0871,Banaba,Medium,Forest Zone
+SAP-0872,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0873,Mahogany,High,Parks and Recreation Zone
+SAP-0874,Molave,High,Parks and Recreation Zone
+SAP-0875,Banaba,Medium,Medium Density Residential Zone
+SAP-0876,Molave,Low,Medium Density Residential Zone
+SAP-0877,Molave,High,Medium Density Residential Zone
+SAP-0878,Molave,Low,Forest Zone
+SAP-0879,Mahogany,High,Forest Zone
+SAP-0880,Banaba,High,Parks and Recreation Zone
+SAP-0881,Mahogany,Low,Parks and Recreation Zone
+SAP-0882,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0883,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0884,Ilang-Ilang,Medium,Buffer Zone
+SAP-0885,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0886,Narra,Low,Buffer Zone
+SAP-0887,Molave,Low,Parks and Recreation Zone
+SAP-0888,Ilang-Ilang,Medium,Forest Zone
+SAP-0889,Narra,Medium,Medium Density Residential Zone
+SAP-0890,Banaba,Low,Medium Density Residential Zone
+SAP-0891,Banaba,Low,Buffer Zone
+SAP-0892,Mahogany,Low,Buffer Zone
+SAP-0893,Mahogany,High,Medium Density Residential Zone
+SAP-0894,Molave,Medium,Buffer Zone
+SAP-0895,Banaba,Low,Parks and Recreation Zone
+SAP-0896,Mahogany,Low,Parks and Recreation Zone
+SAP-0897,Mahogany,Medium,Buffer Zone
+SAP-0898,Narra,Low,Medium Density Residential Zone
+SAP-0899,Ilang-Ilang,Medium,Buffer Zone
+SAP-0900,Molave,High,Buffer Zone
+SAP-0901,Ilang-Ilang,Medium,Buffer Zone
+SAP-0902,Molave,Low,Buffer Zone
+SAP-0903,Molave,Low,Medium Density Residential Zone
+SAP-0904,Narra,Medium,Forest Zone
+SAP-0905,Molave,Low,Forest Zone
+SAP-0906,Narra,Low,Parks and Recreation Zone
+SAP-0907,Banaba,Low,Medium Density Residential Zone
+SAP-0908,Mahogany,Low,Medium Density Residential Zone
+SAP-0909,Molave,Medium,Medium Density Residential Zone
+SAP-0910,Banaba,Low,Buffer Zone
+SAP-0911,Molave,High,Parks and Recreation Zone
+SAP-0912,Molave,Low,Forest Zone
+SAP-0913,Ilang-Ilang,Medium,Buffer Zone
+SAP-0914,Mahogany,High,Buffer Zone
+SAP-0915,Mahogany,Medium,Parks and Recreation Zone
+SAP-0916,Molave,Low,Parks and Recreation Zone
+SAP-0917,Molave,High,Buffer Zone
+SAP-0918,Ilang-Ilang,High,Parks and Recreation Zone
+SAP-0919,Mahogany,Low,Medium Density Residential Zone
+SAP-0920,Banaba,Medium,Buffer Zone
+SAP-0921,Narra,Medium,Forest Zone
+SAP-0922,Mahogany,High,Forest Zone
+SAP-0923,Banaba,Medium,Parks and Recreation Zone
+SAP-0924,Banaba,Medium,Medium Density Residential Zone
+SAP-0925,Ilang-Ilang,Medium,Parks and Recreation Zone
+SAP-0926,Banaba,Low,Forest Zone
+SAP-0927,Narra,Medium,Forest Zone
+SAP-0928,Banaba,Medium,Medium Density Residential Zone
+SAP-0929,Narra,High,Medium Density Residential Zone
+SAP-0930,Banaba,High,Forest Zone
+SAP-0931,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0932,Molave,Medium,Parks and Recreation Zone
+SAP-0933,Narra,Low,Parks and Recreation Zone
+SAP-0934,Molave,High,Buffer Zone
+SAP-0935,Ilang-Ilang,High,Buffer Zone
+SAP-0936,Molave,Medium,Buffer Zone
+SAP-0937,Narra,Medium,Medium Density Residential Zone
+SAP-0938,Mahogany,Low,Buffer Zone
+SAP-0939,Molave,High,Buffer Zone
+SAP-0940,Molave,High,Medium Density Residential Zone
+SAP-0941,Ilang-Ilang,Low,Medium Density Residential Zone
+SAP-0942,Banaba,Medium,Buffer Zone
+SAP-0943,Narra,Low,Buffer Zone
+SAP-0944,Ilang-Ilang,Medium,Buffer Zone
+SAP-0945,Narra,High,Forest Zone
+SAP-0946,Narra,Low,Medium Density Residential Zone
+SAP-0947,Narra,Medium,Buffer Zone
+SAP-0948,Narra,Low,Buffer Zone
+SAP-0949,Molave,Medium,Parks and Recreation Zone
+SAP-0950,Narra,Medium,Forest Zone
+SAP-0951,Molave,Low,Forest Zone
+SAP-0952,Narra,Medium,Medium Density Residential Zone
+SAP-0953,Molave,Low,Parks and Recreation Zone
+SAP-0954,Molave,Low,Parks and Recreation Zone
+SAP-0955,Banaba,Low,Forest Zone
+SAP-0956,Molave,High,Forest Zone
+SAP-0957,Narra,High,Parks and Recreation Zone
+SAP-0958,Mahogany,Medium,Forest Zone
+SAP-0959,Banaba,Low,Buffer Zone
+SAP-0960,Mahogany,Low,Medium Density Residential Zone
+SAP-0961,Molave,Medium,Buffer Zone
+SAP-0962,Narra,High,Buffer Zone
+SAP-0963,Narra,Low,Parks and Recreation Zone
+SAP-0964,Molave,Low,Buffer Zone
+SAP-0965,Mahogany,High,Buffer Zone
+SAP-0966,Ilang-Ilang,Medium,Buffer Zone
+SAP-0967,Ilang-Ilang,High,Forest Zone
+SAP-0968,Molave,High,Forest Zone
+SAP-0969,Banaba,Low,Medium Density Residential Zone
+SAP-0970,Molave,Low,Buffer Zone
+SAP-0971,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0972,Narra,High,Forest Zone
+SAP-0973,Molave,Medium,Medium Density Residential Zone
+SAP-0974,Narra,Low,Medium Density Residential Zone
+SAP-0975,Banaba,High,Medium Density Residential Zone
+SAP-0976,Molave,High,Buffer Zone
+SAP-0977,Banaba,High,Forest Zone
+SAP-0978,Mahogany,Medium,Forest Zone
+SAP-0979,Banaba,Low,Forest Zone
+SAP-0980,Narra,Low,Buffer Zone
+SAP-0981,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0982,Molave,High,Buffer Zone
+SAP-0983,Mahogany,Low,Buffer Zone
+SAP-0984,Mahogany,Medium,Parks and Recreation Zone
+SAP-0985,Ilang-Ilang,Medium,Forest Zone
+SAP-0986,Narra,Medium,Medium Density Residential Zone
+SAP-0987,Ilang-Ilang,Medium,Buffer Zone
+SAP-0988,Mahogany,High,Medium Density Residential Zone
+SAP-0989,Ilang-Ilang,Low,Parks and Recreation Zone
+SAP-0990,Narra,Medium,Parks and Recreation Zone
+SAP-0991,Molave,Medium,Medium Density Residential Zone
+SAP-0992,Ilang-Ilang,Medium,Medium Density Residential Zone
+SAP-0993,Ilang-Ilang,High,Medium Density Residential Zone
+SAP-0994,Narra,High,Medium Density Residential Zone
+SAP-0995,Molave,Low,Parks and Recreation Zone
+SAP-0996,Banaba,Low,Forest Zone
+SAP-0997,Mahogany,High,Parks and Recreation Zone
+SAP-0998,Banaba,High,Medium Density Residential Zone
+SAP-0999,Molave,Medium,Buffer Zone
+SAP-1000,Banaba,High,Forest Zone
