@@ -1,6 +1,7 @@
 # Python Environments
 .venv/
 __pycache__/
+greening_records.db
 
 # React Environments
 node_modules/
