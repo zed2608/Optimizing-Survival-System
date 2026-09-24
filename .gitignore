@@ -11,4 +11,4 @@ node_modules/
 
 # GIS Heavy Files
 *.tif
-*.ovr
+*.ovrsan_mateo_rf_model.pkl
