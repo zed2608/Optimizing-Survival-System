@@ -14,3 +14,4 @@ node_modules/
 *.ovrsan_mateo_rf_model.pkl
 
 data/processed/scores/
+data/processed/plans/
