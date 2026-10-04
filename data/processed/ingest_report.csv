@@ -1,0 +1,217 @@
+species,field,severity,issue,detail
+Batikuling,common_name,high,file_source_not_provided,Batikuling [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,scientific_name,high,file_source_not_provided,Litsea leytensis Merr. [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,category,high,file_source_not_provided,Native Timber [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,elev_min_m,high,file_source_not_provided,0 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,elev_max_m,high,file_source_not_provided,1000 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,shade_tol,high,file_source_not_provided,Low [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,max_slope_pct,high,file_source_not_provided,45 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,soil_raw,high,file_source_not_provided,Top soil and manure 10:1 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,timber_density_raw,high,file_source_not_provided,0.419-0.585 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,mature_height_m,high,file_source_not_provided,25 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,canopy_spread_m,high,file_source_not_provided,15 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,urban_raw,high,file_source_not_provided,Forest Restoration [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,months_raw,high,file_source_not_provided,"[5, 6] [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]"
+Batikuling,deployment_stage,high,file_source_not_provided,Sapling [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,growth_rate_raw,high,file_source_not_provided,Very slow [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,reference_authority,high,file_source_not_provided,DENR-ERDB [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,special_care_notes,high,file_source_not_provided,"Needs shading during seedling stage, partial/full sun for saplings [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]"
+Batikuling,preferred_climate_seasons,high,file_source_not_provided,Low and medium altitude forests [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,endangered_raw,high,file_source_not_provided,"Endangered (DENR), Vulnerable (IUCN) [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]"
+Batikuling,planting_difficulty,high,file_source_not_provided,Low germination rate 3-5% [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,mode_of_nutrition,high,file_source_not_provided,Autotrophic [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,native_habitat,high,file_source_not_provided,"Endemic to Philippines (Luzon, Negros, Leyte) [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]"
+Batikuling,growth_form,high,file_source_not_provided,"80cm diameter, pale brown bark, lanceolate leaves [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]"
+Batikuling,water_preference,high,file_source_not_provided,Soak overnight in tap water pre-germination [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,light_preference,high,file_source_not_provided,Partial to Full Sun [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,propagation_method,high,file_source_not_provided,"Seeds, Tissue Culture [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]"
+Batikuling,common_problems,high,file_source_not_provided,Shot holes on leaves by Coleoptera; Tissue browning [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,spacing_min_m,high,file_source_not_provided,10 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,spacing_max_m,high,file_source_not_provided,15 [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,planting_depth,high,file_source_not_provided,Line sowing in seed bed [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,germination_raw,high,file_source_not_provided,120-180 days [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,planting_method,high,file_source_not_provided,Sow in line in seed bed [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,nutritional_requirements,high,file_source_not_provided,Manure [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]
+Batikuling,common_uses,high,file_source_not_provided,"Carving, sculpture, pattern making, ceilings [Source: RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf]"
+Banana - Saba,germination_raw,medium,nonstandard_citation,"14-21 days 
+https://urbangoesgreen.com/plant-guide/edible/saba-banana/ "
+Batikuling,rain_min_mm,medium,nonstandard_citation,2000 Source [https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines?]
+Batikuling,ph_min,medium,nonstandard_citation,"5.5
+https://journals.uplb.edu.ph/index.php/JESAM/article/download/879/789 "
+Batikuling,ph_max,medium,nonstandard_citation,"6.5
+https://journals.uplb.edu.ph/index.php/JESAM/article/download/879/789 "
+Batikuling,drought_tol,medium,nonstandard_citation,"Low
+https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines "
+Batikuling,waterlog_tol,medium,nonstandard_citation,"Low
+https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines "
+Batikuling,root_type,medium,nonstandard_citation,"Small buttresses
+https://plantuse.plantnet.org/en/Litsea_leytensis_(PROSEA)"
+Batikuling,temp_min_c,medium,nonstandard_citation,"24
+https://www.researchgate.net/figure/Land-cover-map-of-the-provinces-of-Laguna-and-Quezon-in-2020-including-the-species_fig1_399912623 "
+Batikuling,temp_max_c,medium,nonstandard_citation,"33
+https://www.researchgate.net/figure/Land-cover-map-of-the-provinces-of-Laguna-and-Quezon-in-2020-including-the-species_fig1_399912623 "
+Batikuling,climate_risk_notes,medium,nonstandard_citation,Continuing decline in habitat quality due to deforestation [source: https://www.iucnredlist.org/species/33327/126992516]
+Batikuling,typhoon_res,medium,nonstandard_citation,"Medium
+https://www.pcaarrd.dost.gov.ph/index.php/quick-information-dispatch-qid-articles/endangered-tree-species-makaasim-and-batikuling-being-conserved-in-project "
+Batikuling,humidity,medium,nonstandard_citation,"High
+https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines "
+Batikuling,drainage,medium,nonstandard_citation,"Well-drained
+https://journals.uplb.edu.ph/index.php/JESAM/article/download/879/789 "
+Batikuling,dry_season_raw,medium,nonstandard_citation,"Max 1-3 months
+https://journals.uplb.edu.ph/index.php/EDJ/article/download/1149/917/ "
+Clumping Bamboo,timber_density_raw,medium,nonstandard_citation,"0.4
+https://dassoxtr.com/Bamboo.aspx "
+Clumping Bamboo,sexuality_raw,medium,nonstandard_citation,"Hermaphroditic
+https://pmc.ncbi.nlm.nih.gov/articles/PMC5493747/ "
+Clumping Bamboo,germination_raw,medium,nonstandard_citation,"7-30 days 
+https://www.bamboogarden.com/resource-pages/clumping-bamboo-growth-rate "
+Coconut,timber_density_raw,medium,nonstandard_citation,"0.90
+https://iopscience.iop.org/article/10.1088/1757-899X/1298/1/012014/pdf "
+Kamias,timber_density_raw,medium,nonstandard_citation,"0.50
+https://apps.worldagroforestry.org/atlas-documents/ENGLISH/Averrhoa%20bilimbi.pdf "
+Salinggogon,common_problems,medium,nonstandard_citation," Low seed germination rates, seedling vulnerability to damping-off disease, intense weed competition, and a lack of direct sunlight
+https://agriculture.com.ph/2021/06/10/philippine-native-tree-that-re"
+Atsuete,shade_tol,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,max_slope_pct,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,drought_tol,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,urban_raw,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,typhoon_res,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,endangered_raw,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,drought_tolerance_notes,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,water_preference,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,light_preference,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Atsuete,humidity,medium,off_list_source,https://tropical.theferns.info/viewtropical.php?id=Bixa+orellana
+Batikuling,rain_min_mm,medium,off_list_source,https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines?
+Batikuling,rain_max_mm,medium,off_list_source,https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines?utm_
+Batikuling,drought_tol,medium,off_list_source,https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines
+Batikuling,waterlog_tol,medium,off_list_source,https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines
+Batikuling,root_type,medium,off_list_source,https://plantuse.plantnet.org/en/Litsea_leytensis_(PROSEA)
+Batikuling,temp_min_c,medium,off_list_source,https://www.researchgate.net/figure/Land-cover-map-of-the-provinces-of-Laguna-and-Quezon-in-2020-including-the-species_fig1_399912623
+Batikuling,temp_max_c,medium,off_list_source,https://www.researchgate.net/figure/Land-cover-map-of-the-provinces-of-Laguna-and-Quezon-in-2020-including-the-species_fig1_399912623
+Batikuling,corona_raw,medium,off_list_source,https://link.springer.com/article/10.1007/s44274-023-00024-y
+Batikuling,climate_risk_notes,medium,off_list_source,https://www.iucnredlist.org/species/33327/126992516
+Batikuling,typhoon_res,medium,off_list_source,https://www.pcaarrd.dost.gov.ph/index.php/quick-information-dispatch-qid-articles/endangered-tree-species-makaasim-and-batikuling-being-conserved-in-project
+Batikuling,drought_tolerance_notes,medium,off_list_source,https://prosea.prota4u.org/view.aspx?id=4347
+Batikuling,plant_partners,medium,off_list_source,https://www.mdpi.com/2673-5636/5/1/4?utm_
+Batikuling,humidity,medium,off_list_source,https://www.researchgate.net/publication/399912623_Predicting_Species_Occurrence_of_Litsea_leytensis_Merr_in_the_Provinces_of_Laguna_and_Quezon_Philippines
+Batikuling,dry_season_raw,medium,off_list_source,https://journals.uplb.edu.ph/index.php/EDJ/article/download/1149/917/
+Clumping Bamboo,timber_density_raw,medium,off_list_source,https://dassoxtr.com/Bamboo.aspx
+Clumping Bamboo,sexuality_raw,medium,off_list_source,https://pmc.ncbi.nlm.nih.gov/articles/PMC5493747/
+Clumping Bamboo,germination_raw,medium,off_list_source,https://www.bamboogarden.com/resource-pages/clumping-bamboo-growth-rate
+Coconut,timber_density_raw,medium,off_list_source,https://iopscience.iop.org/article/10.1088/1757-899X/1298/1/012014/pdf
+Kamias,timber_density_raw,medium,off_list_source,https://apps.worldagroforestry.org/atlas-documents/ENGLISH/Averrhoa%20bilimbi.pdf
+Salinggogon,common_problems,medium,off_list_source,https://agriculture.com.ph/2021/06/10/philippine-native-tree-that-resembles-japans-cherry-blossoms-grows-in-rizal/
+Batikuling,soil_types_allowed,medium,soil_text_unmapped,Top soil and manure 10:1
+Batikuling,sexuality_raw,medium,truncated_url,Dioecioushttps [Source: //tropical.theferns.info/viewtropical.php?id=Litsea+leytensis]
+Batikuling,sexuality_raw,medium,url_missing_scheme,Dioecioushttps [Source: //tropical.theferns.info/viewtropical.php?id=Litsea+leytensis]
+Balai Lamok,timber_density_raw,low,missing_marker,N/A
+Banana - Latundan,timber_density_raw,low,missing_marker,N.A
+Banana - Saba,timber_density_raw,low,missing_marker,N/A
+Calamansi,timber_density_raw,low,missing_marker,N/A
+Lemon,timber_density_raw,low,missing_marker,N/A
+Peacock Flower Tree,timber_density_raw,low,missing_marker,N/A
+Weeping Fig (Balete),timber_density_raw,low,missing_marker,N/A
+Avocado,root_system_type,low,root_type_not_mapped,"Shallow root system, highly susceptible to Phytophthora"
+Calamansi,root_system_type,low,root_type_not_mapped,Taproot / Fibrous
+Coconut,root_system_type,low,root_type_not_mapped,Extensive Fibrous
+Fire Tree,root_system_type,low,root_type_not_mapped,Extensive shallow and aggressive surface roots
+Lemon,root_system_type,low,root_type_not_mapped,"Shallow taproot, fibrous"
+Peacock Flower Tree,root_system_type,low,root_type_not_mapped,Fibrous
+Weeping Fig (Balete),root_system_type,low,root_type_not_mapped,"Extensive aggressive surface roots, aerial roots"
+Apitong,preferred_corona_climate,info,no_type_I_preference,"Type II, III, IV"
+Bagtikan,preferred_corona_climate,info,no_type_I_preference,"Type II, III, IV"
+Batikuling,preferred_corona_climate,info,no_type_I_preference,Type II (Quezon) and Type III (Laguna)
+Katmon,preferred_corona_climate,info,no_type_I_preference,"Type II, III, IV"
+Red Lauan,preferred_corona_climate,info,no_type_I_preference,"Type II, III, IV"
+White Lauan,preferred_corona_climate,info,no_type_I_preference,"Type II, III, IV"
+Apitong,endangered_status,info,scheme_not_named,Critically Endangered
+Atsuete,endangered_status,info,scheme_not_named,Least Concern
+Avocado,endangered_status,info,scheme_not_named,Least Concern
+Bagtikan,endangered_status,info,scheme_not_named,Vulnerable
+Balai Lamok,endangered_status,info,scheme_not_named,Least Concern
+Banaba,endangered_status,info,scheme_not_named,Least Concern
+Banana - Latundan,endangered_status,info,scheme_not_named,Least Concern
+Banana - Saba,endangered_status,info,scheme_not_named,Least Concern
+Bitaog,endangered_status,info,scheme_not_named,Least Concern
+Cacao,endangered_status,info,scheme_not_named,Least Concern
+Calamansi,endangered_status,info,scheme_not_named,Least Concern
+Chesa/Tiesa,endangered_status,info,scheme_not_named,Least Concern
+Clumping Bamboo,endangered_status,info,scheme_not_named,Least Concern
+Coconut,endangered_status,info,scheme_not_named,Least Concern
+Dao,endangered_status,info,scheme_not_named,Vulnerable
+Duhat,endangered_status,info,scheme_not_named,Least Concern
+Fire Tree,endangered_status,info,scheme_not_named,Least Concern
+Guava,endangered_status,info,scheme_not_named,Least Concern
+Guyabano,endangered_status,info,scheme_not_named,Least Concern
+Indian/Carabao Mango,endangered_status,info,scheme_not_named,Least Concern
+Kalumpit,endangered_status,info,scheme_not_named,Vulnerable
+Kamagong,endangered_status,info,scheme_not_named,Endangered
+Kamias,endangered_status,info,scheme_not_named,Least Concern
+Kasoy,endangered_status,info,scheme_not_named,Least Concern
+Katmon,endangered_status,info,scheme_not_named,Vulnerable
+Langka,endangered_status,info,scheme_not_named,Least Concern
+Lemon,endangered_status,info,scheme_not_named,Least Concern
+Malunggay,endangered_status,info,scheme_not_named,Least Concern
+Molave,endangered_status,info,scheme_not_named,Endangered
+Narra,endangered_status,info,scheme_not_named,Vulnerable
+Palosapis,endangered_status,info,scheme_not_named,Vulnerable
+Papaya,endangered_status,info,scheme_not_named,Least Concern
+Peacock Flower Tree,endangered_status,info,scheme_not_named,Least Concern
+Rambutan,endangered_status,info,scheme_not_named,Least Concern
+Red Lauan,endangered_status,info,scheme_not_named,Critically Endangered
+Robusta (Coffee),endangered_status,info,scheme_not_named,Least Concern
+Salinggogon,endangered_status,info,scheme_not_named,Least Concern
+Sampalok,endangered_status,info,scheme_not_named,Least Concern
+Santol,endangered_status,info,scheme_not_named,Least Concern
+Star Apple,endangered_status,info,scheme_not_named,Least Concern
+Talisay,endangered_status,info,scheme_not_named,Least Concern
+Weeping Fig (Balete),endangered_status,info,scheme_not_named,Least Concern
+White Lauan,endangered_status,info,scheme_not_named,Vulnerable
+Yakal,endangered_status,info,scheme_not_named,Critically Endangered
+Apitong,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Atsuete,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Avocado,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Bagtikan,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Balai Lamok,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Banaba,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Banana - Latundan,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Banana - Saba,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Batikuling,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Bitaog,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Cacao,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Calamansi,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Chesa/Tiesa,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Clumping Bamboo,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Coconut,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Dao,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Duhat,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Fire Tree,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Guava,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Guyabano,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Indian/Carabao Mango,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Kalumpit,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Kamagong,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Kamias,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Kasoy,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Katmon,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Langka,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Lemon,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Malunggay,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Molave,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Narra,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Palosapis,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Papaya,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Peacock Flower Tree,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Rambutan,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Red Lauan,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Robusta (Coffee),common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Salinggogon,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Sampalok,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Santol,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Star Apple,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Talisay,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Weeping Fig (Balete),common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+White Lauan,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Yakal,common_name,info,species_key_had_source_tag,removed from the key; kept as a source row
+Salinggogon,urban_suitability,info,urban_tag_qualifier_dropped,Parks (Philippine Cherry Blossom)
+Weeping Fig (Balete),urban_suitability,info,urban_tag_qualifier_dropped,Open Spaces (NOT streetscape)

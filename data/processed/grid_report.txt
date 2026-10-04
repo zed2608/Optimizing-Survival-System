@@ -1,0 +1,12 @@
+input rows: 8255
+legacy slope_1 identical to elevation_ in every row: True
+legacy soil_ph range 5.50-7.50, distinct values 8255 of 8255 -> synthetic, dropped
+rows after one-per-cell: 8088 (removed 167 repeated-cell rows)
+grid 110 x 158; cell size ~100.0 m (E-W) x 99.9 m (N-S)
+slope method: {'full': 6285, 'partial': 1787, 'none': 16}  (partial = only one axis available, may under-estimate)
+slope % median 20.1, p90 44.2, max 132.9; share > 30%: 29.8%; > 50%: 5.8%
+points with a land-use zone: 6809 of 8088; legal zones: 6251
+zones: {'Forest Zone': 4368, '(outside zoning)': 1279, 'High Density Residential - Mixed Use Zone': 868, 'Medium Density Residential Zone': 502, 'Special Reserved Zone': 355, 'Agricultural Zone': 224, 'Institutional Research Zone': 124, 'Socialized Housing Zone': 68, 'Medium Industrial Zone': 65, 'Minor Commercial - Mixed Use Zone': 61, 'Quarry Sub-Zone': 55, 'Buffer Zone': 36, 'Parks and Recreation Zone': 25, 'Cemetery Zone': 23, 'Sanitary Landfill': 19, 'General Institutional Zone': 11, 'Light Industrial Zone': 3, 'General Institutional Zonec': 2}
+soil codes: {4478: 4478, 4413: 2176, 4546: 1162, 7001: 272}  (texture mapping is UNVERIFIED)
+dropped columns: slope_1 (copy of elevation), soil_ph (synthetic), Recommende, Survivabil (legacy outputs), polygon/shape columns
+NOT available yet: real soil pH, rainfall, temperature, existing mature trees, canopy context

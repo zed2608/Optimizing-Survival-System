@@ -1,0 +1,27 @@
+tag_as_written,canonical_tag,purpose,species_count,status
+Agroforestry,Agroforestry,planting,22,provisional
+Parks,Parks,urban,15,provisional
+Household Gardens,Household Gardens,urban,10,provisional
+Watershed,Watershed,watershed,9,provisional
+Forest Restoration,Forest Restoration,planting,7,provisional
+Orchards,Orchards,planting,6,provisional
+Streetscape,Streetscape,urban,4,provisional
+Coastal,Coastal,watershed,3,provisional
+Biodiversity,Biodiversity,planting,2,provisional
+Food Security,Food Security,planting,2,provisional
+Riverbanks,Riverbanks,watershed,2,provisional
+Roadside,Roadside,urban,2,provisional
+Roadsides,Roadside,urban,2,provisional
+Marginal Lands,Marginal Lands,planting,1,provisional
+Medians,Medians,urban,1,provisional
+Open Spaces,Open Spaces,urban,1,provisional
+Open Spaces (NOT streetscape),Open Spaces,urban,1,provisional
+Parks (Philippine Cherry Blossom),Parks,urban,1,provisional
+Property Lines,Property Lines,,1,provisional
+Riparian,Riparian,watershed,1,provisional
+Slopes,Slopes,watershed,1,provisional
+Understory,Understory,,1,provisional
+Understory Orchards,Understory Orchards,planting,1,provisional
+Upland,Upland,watershed,1,provisional
+Urban Gardens,Urban Gardens,urban,1,provisional
+Windbreak,Windbreak,watershed,1,provisional
