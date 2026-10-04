@@ -111,13 +111,6 @@ Calamansi,timber_density_raw,low,missing_marker,N/A
 Lemon,timber_density_raw,low,missing_marker,N/A
 Peacock Flower Tree,timber_density_raw,low,missing_marker,N/A
 Weeping Fig (Balete),timber_density_raw,low,missing_marker,N/A
-Avocado,root_system_type,low,root_type_not_mapped,"Shallow root system, highly susceptible to Phytophthora"
-Calamansi,root_system_type,low,root_type_not_mapped,Taproot / Fibrous
-Coconut,root_system_type,low,root_type_not_mapped,Extensive Fibrous
-Fire Tree,root_system_type,low,root_type_not_mapped,Extensive shallow and aggressive surface roots
-Lemon,root_system_type,low,root_type_not_mapped,"Shallow taproot, fibrous"
-Peacock Flower Tree,root_system_type,low,root_type_not_mapped,Fibrous
-Weeping Fig (Balete),root_system_type,low,root_type_not_mapped,"Extensive aggressive surface roots, aerial roots"
 Apitong,preferred_corona_climate,info,no_type_I_preference,"Type II, III, IV"
 Bagtikan,preferred_corona_climate,info,no_type_I_preference,"Type II, III, IV"
 Batikuling,preferred_corona_climate,info,no_type_I_preference,Type II (Quezon) and Type III (Laguna)

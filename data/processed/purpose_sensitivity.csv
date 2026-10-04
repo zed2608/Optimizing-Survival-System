@@ -1,0 +1,136 @@
+species_id,common_name,purpose,base_rank,rank_best,rank_worst,max_rank_shift,max_single_weight_shift,worst_single_change,top5_base,top5_in_all_scenarios,top5_in_any_scenario,n_scenarios
+1,Narra,planting,1,1,4,3,0,,True,True,True,76
+7,Duhat,planting,2,1,4,2,0,,True,True,True,76
+19,Kasoy,planting,3,1,9,6,2,conservation_value +25%,True,False,True,76
+41,Guava,planting,4,1,10,6,2,conservation_value +25%,True,False,True,76
+24,Malunggay,planting,5,5,12,7,4,conservation_value +25%,True,False,True,76
+25,Star Apple,planting,6,5,13,7,4,conservation_value +25%,False,False,True,76
+23,Santol,planting,7,7,17,10,4,conservation_value +25%,False,False,False,76
+21,Yakal,planting,8,2,22,14,8,conservation_value -25%,False,False,True,76
+26,Banana - Saba,planting,9,7,19,10,4,conservation_value +25%,False,False,False,76
+36,Robusta (Coffee),planting,10,9,20,10,4,conservation_value +25%,False,False,False,76
+16,Atsuete,planting,11,8,20,9,4,conservation_value +25%,False,False,False,76
+37,Apitong,planting,12,4,25,13,8,conservation_value -25%,False,False,True,76
+8,Kamagong,planting,13,5,22,9,6,conservation_value +25%,False,False,True,76
+15,Guyabano,planting,14,11,26,12,3,conservation_value -25%,False,False,False,76
+34,Red Lauan,planting,15,5,30,15,9,conservation_value -25%,False,False,True,76
+22,Indian/Carabao Mango,planting,16,11,28,12,4,conservation_value -25%,False,False,False,76
+12,Talisay,planting,17,3,27,14,5,intended_use_fit -25%,False,False,True,76
+30,Papaya,planting,18,12,29,11,5,conservation_value -25%,False,False,False,76
+4,Banaba,planting,19,7,31,12,4,intended_use_fit -25%,False,False,False,76
+38,Chesa/Tiesa,planting,20,11,29,9,6,conservation_value -25%,False,False,False,76
+27,Banana - Latundan,planting,21,13,34,13,6,conservation_value -25%,False,False,False,76
+28,Coconut,planting,22,16,31,9,4,conservation_value +25%,False,False,False,76
+2,Molave,planting,23,7,39,16,6,conservation_value -25%,False,False,False,76
+29,Calamansi,planting,24,17,32,8,6,conservation_value +25%,False,False,False,76
+14,Langka,planting,25,18,34,9,6,conservation_value +25%,False,False,False,76
+6,Kalumpit,planting,26,14,38,12,7,intended_use_fit +25%,False,False,False,76
+20,Sampalok,planting,27,16,39,12,8,establishment_ease -25%,False,False,False,76
+11,Palosapis,planting,28,11,36,17,5,growth_speed +25%,False,False,False,76
+35,Bagtikan,planting,28,11,36,17,5,growth_speed +25%,False,False,False,76
+32,Salinggogon,planting,30,23,37,7,4,intended_use_fit -25%,False,False,False,76
+45,Kamias,planting,31,23,36,8,5,conservation_value -25%,False,False,False,76
+39,Avocado,planting,32,24,37,8,5,conservation_value -25%,False,False,False,76
+33,White Lauan,planting,33,18,39,15,6,conservation_value +25%,False,False,False,76
+3,Dao,planting,34,21,39,13,6,intended_use_fit -25%,False,False,False,76
+17,Cacao,planting,35,26,38,9,7,conservation_value -25%,False,False,False,76
+9,Katmon,planting,36,20,41,16,4,conservation_value +25%,False,False,False,76
+10,Batikuling,planting,37,22,45,15,4,growth_speed +25%,False,False,False,76
+43,Lemon,planting,38,30,44,8,2,intended_use_fit -25%,False,False,False,76
+13,Clumping Bamboo,planting,39,25,42,14,3,growth_speed +25%,False,False,False,76
+18,Rambutan,planting,40,29,45,11,2,livelihood_value +25%,False,False,False,76
+42,Weeping Fig (Balete),planting,41,26,42,15,3,intended_use_fit -25%,False,False,False,76
+5,Bitaog,planting,42,38,44,4,2,growth_speed -25%,False,False,False,76
+31,Fire Tree,planting,43,35,44,8,1,conservation_value +25%,False,False,False,76
+44,Balai Lamok,planting,44,41,45,3,1,conservation_value -25%,False,False,False,76
+40,Peacock Flower Tree,planting,45,39,45,6,1,conservation_value -25%,False,False,False,76
+8,Kamagong,urban,1,1,2,1,0,,True,True,True,76
+7,Duhat,urban,2,1,3,1,1,infrastructure_safety -25%,True,True,True,76
+42,Weeping Fig (Balete),urban,3,2,9,6,1,infrastructure_safety -25%,True,False,True,76
+22,Indian/Carabao Mango,urban,4,3,8,4,1,infrastructure_safety +25%,True,False,True,76
+38,Chesa/Tiesa,urban,5,3,6,2,0,,True,False,True,76
+20,Sampalok,urban,6,4,10,4,2,storm_safety -25%,False,False,True,76
+32,Salinggogon,urban,7,3,13,6,3,shade_provision +25%,False,False,True,76
+40,Peacock Flower Tree,urban,8,4,14,6,2,infrastructure_safety -25%,False,False,True,76
+41,Guava,urban,9,6,14,5,2,shade_provision +25%,False,False,False,76
+25,Star Apple,urban,10,6,16,6,2,shade_provision -25%,False,False,False,76
+12,Talisay,urban,11,5,16,6,4,infrastructure_safety -25%,False,False,True,76
+23,Santol,urban,12,9,16,4,2,shade_provision -25%,False,False,False,76
+16,Atsuete,urban,13,9,17,4,2,storm_safety -25%,False,False,False,76
+44,Balai Lamok,urban,14,5,17,9,5,shade_provision -25%,False,False,True,76
+1,Narra,urban,15,10,18,5,2,shade_provision -25%,False,False,False,76
+29,Calamansi,urban,16,14,20,4,1,intended_use_fit -25%,False,False,False,76
+2,Molave,urban,17,4,26,13,7,intended_use_fit -25%,False,False,True,76
+4,Banaba,urban,18,16,20,2,1,intended_use_fit +25%,False,False,False,76
+3,Dao,urban,19,15,27,8,2,infrastructure_safety +25%,False,False,False,76
+9,Katmon,urban,20,16,25,5,1,intended_use_fit -25%,False,False,False,76
+26,Banana - Saba,urban,21,17,27,6,1,intended_use_fit -25%,False,False,False,76
+5,Bitaog,urban,22,17,29,7,5,intended_use_fit +25%,False,False,False,76
+43,Lemon,urban,23,21,30,7,2,intended_use_fit -25%,False,False,False,76
+31,Fire Tree,urban,24,20,35,11,3,infrastructure_safety +25%,False,False,False,76
+45,Kamias,urban,25,20,35,10,3,intended_use_fit -25%,False,False,False,76
+24,Malunggay,urban,26,21,39,13,4,intended_use_fit -25%,False,False,False,76
+19,Kasoy,urban,27,18,35,9,4,intended_use_fit -25%,False,False,False,76
+27,Banana - Latundan,urban,28,24,38,10,3,intended_use_fit -25%,False,False,False,76
+21,Yakal,urban,29,21,32,8,5,intended_use_fit -25%,False,False,False,76
+30,Papaya,urban,30,24,39,9,3,storm_safety -25%,False,False,False,76
+37,Apitong,urban,31,22,35,9,4,intended_use_fit -25%,False,False,False,76
+28,Coconut,urban,32,22,40,10,3,intended_use_fit -25%,False,False,False,76
+6,Kalumpit,urban,33,24,39,9,4,infrastructure_safety +25%,False,False,False,76
+13,Clumping Bamboo,urban,34,27,40,7,2,shade_provision -25%,False,False,False,76
+34,Red Lauan,urban,35,25,38,10,3,storm_safety -25%,False,False,False,76
+11,Palosapis,urban,36,29,37,7,3,storm_safety -25%,False,False,False,76
+36,Robusta (Coffee),urban,37,30,40,7,3,native_biodiversity_value -25%,False,False,False,76
+35,Bagtikan,urban,38,33,41,5,1,shade_provision +25%,False,False,False,76
+14,Langka,urban,39,34,41,5,2,native_biodiversity_value +25%,False,False,False,76
+33,White Lauan,urban,40,37,42,3,1,native_biodiversity_value -25%,False,False,False,76
+10,Batikuling,urban,41,34,43,7,2,native_biodiversity_value +25%,False,False,False,76
+18,Rambutan,urban,42,37,43,5,2,native_biodiversity_value -25%,False,False,False,76
+15,Guyabano,urban,43,39,43,4,0,,False,False,False,76
+39,Avocado,urban,44,44,45,1,0,,False,False,False,76
+17,Cacao,urban,45,44,45,1,0,,False,False,False,76
+13,Clumping Bamboo,watershed,1,1,1,0,0,,True,True,True,142
+3,Dao,watershed,2,2,2,0,0,,True,True,True,142
+6,Kalumpit,watershed,3,3,4,1,1,soil_binding +25%,True,True,True,142
+5,Bitaog,watershed,4,3,6,2,1,soil_binding +25%,True,False,True,142
+12,Talisay,watershed,5,4,7,2,1,steep_slope_tolerance +25%,True,False,True,142
+2,Molave,watershed,6,4,10,4,2,steep_slope_tolerance +25%,False,False,True,142
+28,Coconut,watershed,7,6,15,8,1,intended_use_fit -25%,False,False,False,142
+11,Palosapis,watershed,8,7,11,3,1,intended_use_fit -25%,False,False,False,142
+35,Bagtikan,watershed,8,7,11,3,1,intended_use_fit -25%,False,False,False,142
+21,Yakal,watershed,10,9,14,4,2,intended_use_fit -25%,False,False,False,142
+33,White Lauan,watershed,10,9,14,4,2,intended_use_fit -25%,False,False,False,142
+34,Red Lauan,watershed,10,9,14,4,2,intended_use_fit -25%,False,False,False,142
+37,Apitong,watershed,10,9,14,4,2,intended_use_fit -25%,False,False,False,142
+7,Duhat,watershed,14,4,16,10,7,intended_use_fit -25%,False,False,True,142
+1,Narra,watershed,15,6,17,9,4,intended_use_fit -25%,False,False,False,142
+4,Banaba,watershed,16,8,21,8,2,riparian_tolerance -25%,False,False,False,142
+19,Kasoy,watershed,17,10,18,7,1,soil_binding +25%,False,False,False,142
+22,Indian/Carabao Mango,watershed,18,17,23,5,2,soil_binding -25%,False,False,False,142
+44,Balai Lamok,watershed,19,17,24,5,4,riparian_tolerance -25%,False,False,False,142
+20,Sampalok,watershed,20,17,22,3,2,soil_binding -25%,False,False,False,142
+42,Weeping Fig (Balete),watershed,21,17,23,4,3,soil_binding -25%,False,False,False,142
+8,Kamagong,watershed,22,17,23,5,3,steep_slope_tolerance +25%,False,False,False,142
+23,Santol,watershed,23,21,24,2,1,steep_slope_tolerance +25%,False,False,False,142
+9,Katmon,watershed,24,19,29,5,1,steep_slope_tolerance -25%,False,False,False,142
+25,Star Apple,watershed,25,23,29,4,3,cover_interception -25%,False,False,False,142
+36,Robusta (Coffee),watershed,26,25,29,3,2,cover_interception -25%,False,False,False,142
+38,Chesa/Tiesa,watershed,26,25,30,4,3,steep_slope_tolerance +25%,False,False,False,142
+40,Peacock Flower Tree,watershed,28,25,29,3,3,cover_interception -25%,False,False,False,142
+10,Batikuling,watershed,29,25,34,5,4,steep_slope_tolerance +25%,False,False,False,142
+29,Calamansi,watershed,30,27,32,3,1,soil_binding +25%,False,False,False,142
+16,Atsuete,watershed,31,30,32,1,0,,False,False,False,142
+14,Langka,watershed,32,30,33,2,1,soil_binding -25%,False,False,False,142
+41,Guava,watershed,33,28,34,5,1,soil_binding -25%,False,False,False,142
+17,Cacao,watershed,34,30,34,4,1,soil_binding +25%,False,False,False,142
+15,Guyabano,watershed,35,35,38,3,2,soil_binding +25%,False,False,False,142
+18,Rambutan,watershed,35,35,37,2,2,steep_slope_tolerance +25%,False,False,False,142
+32,Salinggogon,watershed,37,35,39,2,2,steep_slope_tolerance +25%,False,False,False,142
+45,Kamias,watershed,38,37,38,1,0,,False,False,False,142
+43,Lemon,watershed,39,38,39,1,0,,False,False,False,142
+26,Banana - Saba,watershed,40,40,41,1,1,soil_binding +25%,False,False,False,142
+27,Banana - Latundan,watershed,41,41,42,1,1,soil_binding +25%,False,False,False,142
+30,Papaya,watershed,42,40,43,2,2,soil_binding +25%,False,False,False,142
+31,Fire Tree,watershed,43,42,43,1,0,,False,False,False,142
+24,Malunggay,watershed,44,42,44,2,0,,False,False,False,142
+39,Avocado,watershed,45,45,45,0,0,,False,False,False,142

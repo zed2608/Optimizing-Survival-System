@@ -224,6 +224,11 @@ ROOT_MAP = {
     "shallow taproot / fibrous": (0.4, 0.7), "shallow corm / fibrous": (0.5, 0.6), "fibrous rhizome": (0.5, 0.8),
     "buttress": (0.3, 0.7), "small buttresses": (0.5, 0.7), "massive buttress": (0.1, 0.8),
     "shallow spreading": (0.2, 0.6), "extensive spreading": (0.2, 0.7),
+    # PROVISIONAL, added by the team for the 7 root types that had no score (pending agriculturist sign-off)
+    "shallow root system, highly susceptible to phytophthora": (0.4, 0.4), "taproot / fibrous": (0.7, 0.8),
+    "extensive fibrous": (0.4, 0.8), "extensive shallow and aggressive surface roots": (0.1, 0.6),
+    "shallow taproot, fibrous": (0.4, 0.7), "fibrous": (0.5, 0.8),
+    "extensive aggressive surface roots, aerial roots": (0.1, 0.6),
 }
 
 PROBLEM_KEYWORDS = {

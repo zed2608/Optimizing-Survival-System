@@ -13,10 +13,10 @@ Extensive Spreading,1,0.2,0.7,proposal - validate
 Fibrous Rhizome,1,0.5,0.8,proposal - validate
 Taproot with lateral surface roots,1,0.6,0.8,proposal - validate
 Tuberous Taproot,1,0.7,0.6,proposal - validate
-Extensive Fibrous,1,,,needs score from agriculturist
-Taproot / Fibrous,1,,,needs score from agriculturist
-Extensive shallow and aggressive surface roots,1,,,needs score from agriculturist
-"Shallow root system, highly susceptible to Phytophthora",1,,,needs score from agriculturist
-Fibrous,1,,,needs score from agriculturist
-"Extensive aggressive surface roots, aerial roots",1,,,needs score from agriculturist
-"Shallow taproot, fibrous",1,,,needs score from agriculturist
+Extensive Fibrous,1,0.4,0.8,proposal - validate
+Taproot / Fibrous,1,0.7,0.8,proposal - validate
+Extensive shallow and aggressive surface roots,1,0.1,0.6,proposal - validate
+"Shallow root system, highly susceptible to Phytophthora",1,0.4,0.4,proposal - validate
+Fibrous,1,0.5,0.8,proposal - validate
+"Extensive aggressive surface roots, aerial roots",1,0.1,0.6,proposal - validate
+"Shallow taproot, fibrous",1,0.4,0.7,proposal - validate
