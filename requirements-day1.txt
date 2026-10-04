@@ -5,3 +5,6 @@ pyogrio
 shapely
 pyproj
 pytest
+fastapi
+uvicorn
+httpx
