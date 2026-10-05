@@ -16,3 +16,4 @@ node_modules/
 data/processed/scores/
 data/processed/plans/
 data/processed/kits/
+data/processed/cache/

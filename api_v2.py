@@ -11,6 +11,7 @@ Every value shown carries its source id, URL and rank where one exists (resolved
 file rather than a cited source (site elevation, slope, soil code) say which file.
 """
 import dataclasses, json, math, re, sqlite3, sys, unicodedata
+from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,11 +21,14 @@ import numpy as np
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from scipy.spatial import cKDTree
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "pipeline"))
+import advisory as adv  # noqa: E402
+import field_kit as fk  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
 import run_plan as rp  # noqa: E402
@@ -50,6 +54,12 @@ API_CFG = {
     "search_max_results": 20,
     "place_aliases": {"sta": "santa", "sto": "santo"},
     "site_crs": mt.CFG["site_crs"],
+    "kits_dir": "kits",                             # <work>/kits (field kits built by POST /plans/{id}/field-kit)
+    "cache_dir": "cache",                           # <work>/cache (forecast cache, git-ignored)
+    "plans_list_default_limit": 20,                 # GET /plans
+    "plans_list_max_limit": 100,
+    "plan_id_max_len": 100,                         # plan ids are letters, digits, underscore, hyphen only
+    "advisory_area_margin_deg": 0.1,                # /advisory/seasonal: the coordinate must be this close (degrees) to the mapped grid
 }
 LIMITS = [
     "Soil pH is not scored (there is no real pH layer); rainfall, temperature, canopy and exposure are not scored either.",
@@ -105,7 +115,7 @@ def load_data(cfg=None):
     refs = pd.read_csv(root / "species_references.csv")
     ps = pd.read_csv(root / "purpose_scores.csv")
     all_points = pd.read_csv(root / "site_points_clean.csv")
-    d = SimpleNamespace(cfg=cfg, root=root, ctx=ctx, sources=sources, refs=refs, purpose_scores=ps, all_points=all_points)
+    d = SimpleNamespace(cfg=cfg, root=root, work=root, ctx=ctx, sources=sources, refs=refs, purpose_scores=ps, all_points=all_points)
     d.tree_all = cKDTree(all_points[["utm_e", "utm_n"]].to_numpy(dtype=float))
     d.tree_legal = cKDTree(ctx.sites[["utm_e", "utm_n"]].to_numpy(dtype=float))
     d.legal_index = {int(p): i for i, p in enumerate(ctx.sites.point_id)}
@@ -427,6 +437,80 @@ def polygon_mask(sites, polygon, max_vertices):
     return shapely.contains_xy(g, sites.lon.to_numpy(), sites.lat.to_numpy())
 
 
+def render_plan(d, plan, summary, plan_id=None, extra=None):
+    """The JSON shown for a plan (a fresh one from POST /plan-event or a saved one from GET /plans/{id})."""
+    purpose = summary["purpose"]
+    ids, items = set(), []
+    for r in plan.itertuples(index=False):
+        s_ids = [int(x) for x in str(r.site_scores_src_ids).split(";") if x] if isinstance(r.site_scores_src_ids, str) else []
+        ids |= set(s_ids)
+        items.append({"point_id": int(r.point_id), "lon": py(r.lon), "lat": py(r.lat), "utm_e": py(r.utm_e), "utm_n": py(r.utm_n), "zone": py(r.zone_desc),
+                      "species_id": int(r.species_id), "species": r.species, "S": py(r.S), "P": py(r.P), "W": py(r.W), "confidence": py(r.confidence),
+                      "flags": [f for f in str(r.flags).split(";") if f] if isinstance(r.flags, str) else [], "site_scores_source_ids": s_ids})
+    palette = []
+    for p in summary["palette"]:
+        p_ids = purpose_source_ids(d, p["species_id"], purpose)
+        ids |= set(p_ids)
+        palette.append({**p, "purpose_score_source_ids": p_ids})
+    pal_by_name = {p["species"]: p for p in summary["palette"]}
+    rest = {k: v for k, v in summary.items() if k not in ("palette", "limits")}
+    out = {"plan_id": plan_id, "purpose": purpose, "n_saplings_requested": summary["n_saplings_requested"], "seed": summary.get("seed"),
+           "palette": palette, "plan": items, "summary": rest,
+           "unmatched": {"saplings_unmatched": summary["saplings_unmatched"], "saplings_unallocated_by_caps": summary["saplings_unallocated"],
+                         "unused_candidate_points": summary["unused_candidate_points"],
+                         "unmatched_by_species": {n: p["unmatched"] for n, p in pal_by_name.items() if p["unmatched"]}},
+           "sources": sources_map(d, ids), "limits": list(dict.fromkeys(summary.get("limits", []) + LIMITS))}
+    if extra:
+        out.update(extra)
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# saved plans: the plan CSV and its summary JSON live in <work>/plans exactly as pipeline/run_plan.py writes them
+# ---------------------------------------------------------------------------------------------------------------------
+PLAN_ID_RE = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def valid_plan_id(plan_id, max_len=None):
+    """Strict: letters, digits, underscore, hyphen only (no dots, slashes, drive letters, spaces, empty)."""
+    n = API_CFG["plan_id_max_len"] if max_len is None else max_len
+    return isinstance(plan_id, str) and 0 < len(plan_id) <= n and PLAN_ID_RE.fullmatch(plan_id) is not None
+
+
+def check_plan_id(plan_id):
+    if not valid_plan_id(plan_id):
+        raise HTTPException(400, "Invalid plan_id: use only letters, digits, underscore and hyphen (for example plan_urban_20261005_021810).")
+
+
+def plans_dir(d):
+    return (d.work / rp.CFG["plans_dir"]).resolve()
+
+
+def plan_files(d, plan_id):
+    """(plan csv, summary json) of a saved plan; the path is built from the validated id only and must stay inside the plans folder."""
+    check_plan_id(plan_id)
+    root = plans_dir(d)
+    csv, js = (root / f"{plan_id}.csv").resolve(), (root / f"{plan_id}_summary.json").resolve()
+    if csv.parent != root or js.parent != root or not csv.is_file() or not js.is_file():
+        raise HTTPException(404, f"Plan '{plan_id}' was not found. List the saved plans with GET /plans.")
+    return csv, js
+
+
+def kit_zip_path(d, plan_id):
+    return (d.work / d.cfg["kits_dir"] / f"field_kit_{fk.safe_name(plan_id)}.zip").resolve()
+
+
+def save_plan(d, purpose, plan, summary):
+    base = datetime.now().strftime(rp.CFG["timestamp_format"])
+    root = plans_dir(d)
+    stamp, k = base, 1
+    while (root / f"plan_{purpose}_{stamp}.csv").exists():             # two plans in the same second never overwrite each other
+        k += 1
+        stamp = f"{base}-{k}"
+    f, sj = rp.write_plan(d.work, purpose, plan, summary, stamp)
+    return f.stem, f, sj
+
+
 @app.post("/plan-event")
 def plan_event(req: PlanRequest, d=Depends(D)):
     ctx = d.ctx
@@ -448,27 +532,97 @@ def plan_event(req: PlanRequest, d=Depends(D)):
     if not summary["palette"]:
         raise HTTPException(400, "No species has eligible points (S >= 0.50) in this area, so no plan can be made. "
                                  f"{' '.join(summary['palette_warnings'])}".strip())
-    ids = set()
+    plan_id, f, sj = save_plan(d, req.purpose, plan, summary)
+    return render_plan(d, plan, summary, plan_id,
+                       {"saved": {"plan_csv": f.name, "summary_json": sj.name, "folder": f"{d.cfg['data_dir']}/{rp.CFG['plans_dir']}"},
+                        "next": {"plan": f"/plans/{plan_id}", "build_field_kit": f"POST /plans/{plan_id}/field-kit"}})
+
+
+@app.get("/plans")
+def plans_list(limit: int = Query(API_CFG["plans_list_default_limit"], ge=1, le=API_CFG["plans_list_max_limit"]), d=Depends(D)):
+    root = plans_dir(d)
     items = []
-    for r in plan.itertuples(index=False):
-        s_ids = [int(x) for x in str(r.site_scores_src_ids).split(";") if x] if isinstance(r.site_scores_src_ids, str) else []
-        ids |= set(s_ids)
-        items.append({"point_id": int(r.point_id), "lon": py(r.lon), "lat": py(r.lat), "utm_e": py(r.utm_e), "utm_n": py(r.utm_n), "zone": py(r.zone_desc),
-                      "species_id": int(r.species_id), "species": r.species, "S": py(r.S), "P": py(r.P), "W": py(r.W), "confidence": py(r.confidence),
-                      "flags": [f for f in str(r.flags).split(";") if f] if isinstance(r.flags, str) else [], "site_scores_source_ids": s_ids})
-    palette = []
-    for p in summary["palette"]:
-        p_ids = purpose_source_ids(d, p["species_id"], req.purpose)
-        ids |= set(p_ids)
-        palette.append({**p, "purpose_score_source_ids": p_ids})
-    pal_by_name = {p["species"]: p for p in summary["palette"]}
-    rest = {k: v for k, v in summary.items() if k not in ("palette", "limits")}
-    return {"purpose": req.purpose, "n_saplings_requested": req.n_saplings, "seed": seed, "palette": palette, "plan": items,
-            "summary": rest,
-            "unmatched": {"saplings_unmatched": summary["saplings_unmatched"], "saplings_unallocated_by_caps": summary["saplings_unallocated"],
-                          "unused_candidate_points": summary["unused_candidate_points"],
-                          "unmatched_by_species": {n: p["unmatched"] for n, p in pal_by_name.items() if p["unmatched"]}},
-            "sources": sources_map(d, ids), "limits": list(dict.fromkeys(summary["limits"] + LIMITS))}
+    for sj in (root.glob("plan_*_summary.json") if root.is_dir() else []):
+        plan_id = sj.name[:-len("_summary.json")]
+        if not valid_plan_id(plan_id) or not (root / f"{plan_id}.csv").is_file():
+            continue
+        try:
+            s = json.loads(sj.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            continue
+        m = re.search(r"_(\d{8})_(\d{6})", plan_id)
+        when = (datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M%S").isoformat() if m
+                else datetime.fromtimestamp(sj.stat().st_mtime).isoformat(timespec="seconds"))
+        items.append({"plan_id": plan_id, "purpose": s.get("purpose"), "n_saplings_requested": s.get("n_saplings_requested"),
+                      "n_placed": s.get("saplings_placed"), "n_unmatched": s.get("saplings_unmatched"), "date": when,
+                      "field_kit_built": kit_zip_path(d, plan_id).is_file()})
+    items.sort(key=lambda x: (x["date"], x["plan_id"]), reverse=True)
+    return {"count": len(items[:limit]), "total_saved": len(items), "plans": items[:limit]}
+
+
+@app.get("/plans/{plan_id}")
+def plan_get(plan_id: str, d=Depends(D)):
+    csv, js = plan_files(d, plan_id)
+    plan = pd.read_csv(csv)
+    summary = json.loads(js.read_text(encoding="utf-8"))
+    return render_plan(d, plan, summary, plan_id,
+                       {"saved": {"plan_csv": csv.name, "summary_json": js.name}, "field_kit_built": kit_zip_path(d, plan_id).is_file(),
+                        "next": {"build_field_kit": f"POST /plans/{plan_id}/field-kit", "download": f"/kits/{plan_id}.zip"}})
+
+
+@app.post("/plans/{plan_id}/field-kit")
+def build_field_kit(plan_id: str, d=Depends(D)):
+    csv, _ = plan_files(d, plan_id)
+    try:
+        r = fk.make_kit(csv, d.work / d.cfg["kits_dir"], pdf=True, data_dir=d.root)
+    except FileNotFoundError as ex:
+        raise HTTPException(404, str(ex))
+    except ValueError as ex:
+        raise HTTPException(400, f"The field kit could not be built: {ex}")
+    pdf_ok = (r["kit_dir"] / "field-map.pdf").is_file()
+    return {"plan_id": plan_id, "check_code": r["check_code"], "download_url": f"/kits/{plan_id}.zip", "zip_size_bytes": r["zip"].stat().st_size,
+            "pdf_included": pdf_ok, "pdf_note": None if pdf_ok else (r["pdf_note"] or "field-map.pdf was not built"), "manifest": r["manifest"]}
+
+
+@app.get("/kits/{filename}")
+def download_kit(filename: str, d=Depends(D)):
+    if not filename.endswith(".zip"):
+        raise HTTPException(404, "Field kits are downloaded as /kits/<plan_id>.zip")
+    plan_id = filename[:-len(".zip")]
+    check_plan_id(plan_id)
+    path = kit_zip_path(d, plan_id)
+    if path.parent != (d.work / d.cfg["kits_dir"]).resolve() or not path.is_file():
+        raise HTTPException(404, f"No field kit has been built for plan '{plan_id}' yet. Build it with POST /plans/{plan_id}/field-kit.")
+    return FileResponse(path, media_type="application/zip", filename=path.name)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# weather advisory
+# ---------------------------------------------------------------------------------------------------------------------
+@app.get("/advisory/seasonal")
+def advisory_seasonal(species_id: int, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180), d=Depends(D)):
+    i = d.species_idx.get(species_id)
+    if i is None:
+        raise HTTPException(404, f"species_id {species_id} not found (valid ids: {int(d.ctx.species.species_id.min())}-{int(d.ctx.species.species_id.max())})")
+    m, a = d.cfg["advisory_area_margin_deg"], d.all_points
+    if not (a.lat.min() - m <= lat <= a.lat.max() + m and a.lon.min() - m <= lon <= a.lon.max() + m):
+        raise HTTPException(422, "The coordinate is outside the San Mateo area; the advisory is only offered for the mapped municipality.")
+    try:
+        fc = adv.fetch_forecast(lat, lon, d.work / d.cfg["cache_dir"])
+    except adv.ForecastUnavailable as ex:
+        raise HTTPException(503, str(ex))
+    row = d.ctx.species.iloc[i]
+    out = adv.build_advisory({"species_id": species_id, "common_name": row.common_name, "planting_months": py(row.planting_months),
+                              "drought_tol": py(row.drought_tol)}, fc)
+    ids = species_field_ids(d, species_id, ["months_raw", "drought_tol"])
+    return {"species": {"species_id": species_id, "common_name": row.common_name, "planting_months": py(row.planting_months),
+                        "planting_months_names": [adv.CFG["month_names"][mm - 1] for mm in (adv.parse_months(py(row.planting_months)) or [])],
+                        "drought_tol": py(row.drought_tol),
+                        "source_ids": {f: d.src_by_sf[(species_id, f)] for f in ("months_raw", "drought_tol") if (species_id, f) in d.src_by_sf}},
+            "location": {"lat": lat, "lon": lon, "forecast_for_lat": round(lat, adv.CFG["cache_coord_decimals"]),
+                         "forecast_for_lon": round(lon, adv.CFG["cache_coord_decimals"])},
+            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "forecast_fetched_at": fc["fetched_at"],
+            "network_error": fc["network_error"], **out, "sources": sources_map(d, ids)}
 
 
 if __name__ == "__main__":

@@ -27,6 +27,12 @@ def data(client):
     return client.app.state.data
 
 
+@pytest.fixture(autouse=True)
+def _outputs_go_to_a_temp_folder(data, tmp_path, monkeypatch):
+    """POST /plan-event now saves the plan; keep the test runs out of data/processed/plans."""
+    monkeypatch.setattr(data, "work", tmp_path)
+
+
 def box(minlon, minlat, maxlon, maxlat):
     return {"type": "Polygon", "coordinates": [[[minlon, minlat], [maxlon, minlat], [maxlon, maxlat], [minlon, maxlat], [minlon, minlat]]]}
 
