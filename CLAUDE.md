@@ -67,9 +67,26 @@ The latest event of a point is its current status; if the latest two come from d
 - Moved positions are logged so that they can LATER improve the results (correct a cell's real planting position, learn where cells are unusable, review the
   100 m grid); nothing uses them yet.
 
+## Search bar in `#/new` (added 2026-10-05)
+One search box at the top of the map (`frontend/src/new/SearchBar.jsx`, an ARIA combobox: arrows, Enter, Escape, clear x, 8 recent searches kept in the browser).
+Suggestions start after 2 characters and a 250 ms pause; stale requests are cancelled. Groups and what choosing them does:
+- Barangays (accent/case/"Sta"="Santa"/"Sto"="Santo" tolerant) -> mode 2, outline highlighted and zoomed, ranked species from `POST /rank/area`.
+- Coordinates (read in the browser by `coords.js`, tested by `coords.test.mjs`): `14.69, 121.12`, `14.69 121.12`, with N/E letters, or UTM zone 51N `296799 1625091`.
+  Bad input is rejected with a reason, never guessed. Chosen -> spot marked, ranked; outside the municipality or not a planting zone the panel says so and offers `/nearest-viable`.
+- Species -> mode 1 with that species chosen. Planting points: a grid point id (`832`) or a plan point (`MOL-001`, species code, or common name from the 20 newest saved plans).
+- Places (streets, landmarks): only if the optional geocoder is on; the page calls it ONLY when Enter is pressed on that row.
+API (`api_v2.py`): `GET /search/all` (compact, per-group `limit`, 2+ chars), `GET /search/point?q=<digits>`, `GET /plans/{plan_id}/points?q=`, `GET /search/place` (now with
+`type` and `display_name`), `GET /search/geocode?q=`. Plan items (in `/plan-event` and `/plans/{id}`) now also carry `point_ref`, `species_code`, `barangay`,
+`barangay_display`; they are DERIVED at read time (`field_verify.plan_point_refs`, same numbering as the kit): the saved plan CSV columns did not change.
+Geocoder (Nominatim) is OFF by default (`API_CFG["geocoder_enabled"]`, answers 503). To use it set `geocoder_enabled` True AND `geocoder_contact` (an email or web address;
+empty = no request is ever sent). Rules built in: User-Agent with that contact, Philippines only, bounded to a box around San Mateo, max 1 request per second, every answer cached
+on disk 30 days (`data/processed/cache/geocode/`, git-ignored), stale cache used when the network fails, credit text "Search data (c) OpenStreetMap contributors" shown with results.
+All tunables are in the one `API_CFG` block (`geocoder_*`, `search_*`). Tests: `tests/test_api_search.py` (the network is faked; it also runs the node tests of the parser).
+
 ## Current status and next tasks
 DONE: Day 1 (data), Day 2 (site scores, purpose scores, model comparison), Day 3 (palettes, matching, `api_v2.py`), Day 4 (field kit, weather advisory),
-the `#/new` dashboard steps 0-3 (map, outlines, grid layer) and both modes ("I have species - find areas" / "I have an area - find species"), and saved field checks.
+the `#/new` dashboard steps 0-3 (map, outlines, grid layer) and both modes ("I have species - find areas" / "I have an area - find species"), saved field checks,
+and the search bar (290 tests pass).
 **Open items** (need a one-line edit in files the last task was not allowed to touch):
 1. `pipeline/run_plan.py` (command-line tool) does not yet leave out not_plantable points: call `field_verify.filter_context(ctx, field_verify.excluded_ids(field_verify.current_status(db)))`
    after `load_context`. The API already does this.

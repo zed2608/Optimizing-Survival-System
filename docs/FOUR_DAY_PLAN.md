@@ -73,6 +73,20 @@ The old dashboard's Verify / Flag Paved marks were lost on refresh; this keeps t
 Acceptance: events can never be changed or deleted; the latest event wins; excluded points never appear in plans, grid ranking, area ranking or nearest-viable; verified does not change
 any score; import is idempotent and reports errors; old endpoints behave as before when there are no checks (`tests/test_field_verify.py`).
 
+## Search bar (added after field verification)
+Why: planners and field teams know places by barangay, species, point number or plan point reference, not by clicking a map.
+1. One search box in `#/new` with grouped suggestions (Barangays, Coordinates, Species, Planting points, Places), keyboard use, clear button, recent searches (browser only),
+   a plain "no results" message with examples, 2-character minimum with a short delay and cancelled stale requests.
+2. Actions: barangay -> mode 2 with outline highlight and ranked species; coordinates (decimal or UTM 51N) -> marked spot and ranking, friendly message plus nearest viable spot when
+   outside the municipality or not a planting zone; species -> mode 1; grid point id or plan point (`MOL-001`) -> zoom and open its panel (plan id and species shown).
+3. API: `GET /search/all`, `GET /search/point`, `GET /plans/{plan_id}/points`, `GET /search/place` (adds type), `GET /search/geocode`; plan items gain `point_ref`, `species_code`,
+   `barangay` without changing the saved plan CSV.
+4. Optional street/landmark search through Nominatim, OFF by default: contact required, Philippines + San Mateo box, 1 request per second, 30-day disk cache, only on Enter,
+   attribution shown, cache or a clear error when the network fails.
+Acceptance (`tests/test_api_search.py`, 29 tests): accents/case/Sta-Sto; parser accepts decimal and UTM and rejects bad input; point and plan-point lookups with 404s; plan_id
+traversal rejected; `/search/all` limits and speed with 20 plans; geocoder 503 when off, no request without a contact, cache hit, rate limit, network failure, never the real internet.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
-sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score.
+sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;
+street/landmark search relies on OpenStreetMap coverage (not authoritative, off by default); a typed UTM coordinate is assumed to be WGS84 zone 51N.

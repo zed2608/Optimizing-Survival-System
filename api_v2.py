@@ -10,7 +10,7 @@ Palette and matching come from pipeline/palettes.py, pipeline/matching.py and pi
 Every value shown carries its source id, URL and rank where one exists (resolved from species_sources); inputs that come from a
 file rather than a cited source (site elevation, slope, soil code) say which file.
 """
-import dataclasses, json, math, re, sqlite3, sys, unicodedata
+import dataclasses, hashlib, json, math, re, sqlite3, sys, threading, time, unicodedata, urllib.parse, urllib.request
 from collections import OrderedDict
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -79,6 +79,22 @@ API_CFG = {
     "field_exclude_not_plantable": True,            # THE SWITCH: points whose latest field check is not_plantable are left out of rankings and plans
     "field_list_default_limit": 100,                # GET /field-checks
     "field_list_max_limit": 1000,
+    # ---- search ----
+    "search_group_limit": 5,                        # GET /search/all: results per group (the caller may ask for up to 20)
+    "search_recent_plans": 20,                      # GET /search/all looks for planting points in this many most recent saved plans
+    # ---- optional place search for streets and landmarks (Nominatim / OpenStreetMap): OFF by default ----
+    "geocoder_enabled": False,                      # GEOCODER_ENABLED. Off: GET /search/geocode answers 503 and nothing leaves this computer
+    "geocoder_contact": "",                         # GEOCODER_CONTACT: an email address or web address; REQUIRED when enabled (goes in the User-Agent)
+    "geocoder_app_name": "OptimizingSurvival-SanMateo",
+    "geocoder_url": "https://nominatim.openstreetmap.org/search",
+    "geocoder_countrycodes": "ph",                  # only the Philippines
+    "geocoder_bbox_margin_deg": 0.02,               # search box = the municipality's bbox plus this margin (~2 km); results are restricted to it
+    "geocoder_limit": 8,                            # results per search
+    "geocoder_min_interval_s": 1.0,                 # at most one request per second (the public service's rule)
+    "geocoder_cache_days": 30,                      # every answer is kept on disk this long
+    "geocoder_cache_dir": "cache/geocode",          # under the work folder (data/processed), git-ignored
+    "geocoder_timeout_s": 8,
+    "geocoder_attribution": "Search data (c) OpenStreetMap contributors",     # the page must show this next to place results
 }
 LIMITS = [
     "Soil pH is not scored (there is no real pH layer); rainfall, temperature, canopy and exposure are not scored either.",
@@ -556,7 +572,7 @@ def load_data(cfg=None):
     g = gpd.read_file(ROOT / cfg["barangay_shp"])
     proj = g.to_crs(cfg["site_crs"])
     cen = proj.centroid.to_crs("EPSG:4326")
-    d.places = [{"name": str(r.BRGY_NAME), "key": norm_place(r.BRGY_NAME, cfg["place_aliases"]),
+    d.places = [{"name": str(r.BRGY_NAME), "display_name": display_name(r.BRGY_NAME, cfg["place_aliases"]), "key": norm_place(r.BRGY_NAME, cfg["place_aliases"]),
                  "centroid": {"lon": round(float(cen.iloc[i].x), 6), "lat": round(float(cen.iloc[i].y), 6)},
                  "bounds": [round(float(x), 6) for x in r.geometry.bounds]} for i, r in enumerate(g.itertuples(index=False))]
     # barangay outlines and the barangay of every legal point (computed once; /geo/boundaries and /grid are served from memory)
@@ -567,6 +583,13 @@ def load_data(cfg=None):
     joined = gpd.sjoin(pts, gs[["geometry"]].reset_index().rename(columns={"index": "b"}), how="left", predicate="intersects")
     joined = joined.drop_duplicates("i", keep="first").set_index("i").b.reindex(range(len(ctx.sites)))
     d.point_barangay = joined.fillna(cfg["missing_marker"]).astype(int).to_numpy()
+    pts_all = gpd.GeoDataFrame({"i": np.arange(len(all_points))}, geometry=gpd.points_from_xy(all_points.lon, all_points.lat), crs=gs.crs)
+    j_all = gpd.sjoin(pts_all, gs[["geometry"]].reset_index().rename(columns={"index": "b"}), how="left", predicate="intersects")
+    d.allpt_barangay = j_all.drop_duplicates("i", keep="first").set_index("i").b.reindex(range(len(all_points))).fillna(cfg["missing_marker"]).astype(int).to_numpy()
+    d.allpt_index = {int(p): i for i, p in enumerate(all_points.point_id)}
+    d.places_sorted = sorted(d.places, key=lambda p: p["name"])           # same order as barangay_names (sorted by name)
+    d.geo = SimpleNamespace(lock=threading.Lock(), last=None, clock=time.monotonic, sleep=time.sleep)
+    d.plan_index_cache = OrderedDict()
     d.boundaries_body, d.boundaries_info = build_boundaries(gs, d.barangay_names, d.barangay_display, d.point_barangay, cfg)
     d.barangay_keys = [norm_place(n, cfg["place_aliases"]) for n in d.barangay_names]
     d.barangay_bbox = [f["properties"]["bbox"] for f in json.loads(d.boundaries_body)["features"][1:]]
@@ -801,7 +824,7 @@ def search_place(q: str = Query(min_length=1), d=Depends(D)):
     key = norm_place(q, d.cfg["place_aliases"])
     if not key:
         raise HTTPException(422, "q must contain letters or digits")
-    out = [{"name": p["name"], "centroid": p["centroid"], "bounds": p["bounds"],
+    out = [{"type": "barangay", "name": p["name"], "display_name": p["display_name"], "centroid": p["centroid"], "bounds": p["bounds"],
             "bounds_order": "minlon,minlat,maxlon,maxlat", "source": "data/BRGY_BOUNDARY.shp (BRGY_NAME)"}
            for p in d.places if key in p["key"]]
     return {"query": q, "normalised_query": key, "count": len(out), "results": out[:d.cfg["search_max_results"]],
@@ -884,6 +907,13 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
         items.append({"point_id": int(r.point_id), "lon": py(r.lon), "lat": py(r.lat), "utm_e": py(r.utm_e), "utm_n": py(r.utm_n), "zone": py(r.zone_desc),
                       "species_id": int(r.species_id), "species": r.species, "S": py(r.S), "P": py(r.P), "W": py(r.W), "confidence": py(r.confidence),
                       "flags": [f for f in str(r.flags).split(";") if f] if isinstance(r.flags, str) else [], "site_scores_source_ids": s_ids})
+    refs = {pid: ref for ref, pid in fv.plan_point_refs(plan, d.ctx.species).items()}
+    for it in items:
+        ref = refs[it["point_id"]]
+        j = d.legal_index.get(it["point_id"])
+        b = int(d.point_barangay[j]) if j is not None else -1
+        it.update({"point_ref": ref, "species_code": ref.split("-")[0], "barangay": d.barangay_names[b] if b >= 0 else "",
+                   "barangay_display": d.barangay_display[b] if b >= 0 else ""})
     palette = []
     for p in summary["palette"]:
         p_ids = purpose_source_ids(d, p["species_id"], purpose)
@@ -1300,6 +1330,252 @@ def field_check_history(point_id: int, d=Depends(D)):
         raise HTTPException(404, f"point_id {point_id} is not a point of the planting grid")
     return {"point_id": point_id, "current": field_view(d, point_id), "history": fv.history(d.field_db, point_id), "left_out_of_rankings": point_id in d.field_ex_ids,
             "exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"])}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# search: barangays, species, grid points, planting points of saved plans, and (optional) streets and landmarks
+# ---------------------------------------------------------------------------------------------------------------------
+def point_card(d, pid):
+    """A grid point as shown in search results (None if the id is not a grid point)."""
+    i = d.allpt_index.get(int(pid))
+    if i is None:
+        return None
+    r = d.all_points.iloc[i]
+    b = int(d.allpt_barangay[i])
+    legal = bool(r.is_legal_zone)
+    card = {"type": "grid_point", "point_id": int(r.point_id), "lon": py(r.lon), "lat": py(r.lat), "utm_e": py(r.utm_e), "utm_n": py(r.utm_n),
+            "legal_zone": legal, "zone": py(r.zone_desc) or "", "barangay": d.barangay_names[b] if b >= 0 else "",
+            "barangay_display": d.barangay_display[b] if b >= 0 else "", "elev_m": py(r.elev_m), "slope_pct": py(r.slope_pct)}
+    if not legal:
+        card["note"] = "This grid point is not in a legal planting zone, so it has no ranking."
+    elif d.field_current.get(int(pid)) is not None:
+        card["field_check"] = field_view(d, int(pid))
+    return card
+
+
+def parse_point_query(q):
+    """'832' -> 832. Digits only (spaces around are ignored); anything else is a 422 with an example."""
+    t = str(q).strip()
+    if not re.fullmatch(r"\d{1,9}", t):
+        raise HTTPException(422, "A grid point id is digits only (for example 832).")
+    return int(t)
+
+
+def norm_ref(text):
+    return re.sub(r"[\s_]+", "-", text.strip().lower())
+
+
+def parse_ref_query(q):
+    """'duh-012', 'DUH 12', 'duh12' -> ('duh', 12); 'duh' -> ('duh', None); anything else -> None."""
+    m = re.fullmatch(r"([a-z][a-z0-9]{0,2}?)[-\s_]*0*(\d{1,4})", q.strip().lower())
+    if m:
+        return m.group(1), int(m.group(2))
+    m = re.fullmatch(r"[a-z][a-z0-9]{0,2}", q.strip().lower())
+    return (m.group(0), None) if m else None
+
+
+def plan_index(d, plan_id):
+    """The points of a saved plan with their kit references (point_ref, species_code), barangay and species name. Cached until the plan file changes."""
+    csv_path = plans_dir(d) / f"{plan_id}.csv"
+    key = (plan_id, csv_path.stat().st_mtime_ns)
+    hit = lru_get(d.plan_index_cache, key)
+    if hit is not None:
+        return hit
+    plan = pd.read_csv(csv_path)
+    refs = fv.plan_point_refs(plan, d.ctx.species)                    # the same numbering as the field kit builder
+    inv = {pid: ref for ref, pid in refs.items()}
+    names = d.ctx.species.set_index("species_id").common_name
+    items = []
+    for r in plan.itertuples(index=False):
+        pid = int(r.point_id)
+        ref = inv[pid]
+        j = d.legal_index.get(pid)
+        b = int(d.point_barangay[j]) if j is not None else -1
+        items.append({"type": "plan_point", "plan_id": plan_id, "point_ref": ref, "species_code": ref.split("-")[0], "species_id": int(r.species_id),
+                      "species": str(names[int(r.species_id)]), "point_id": pid, "lon": py(r.lon), "lat": py(r.lat), "zone": py(r.zone_desc) or "",
+                      "barangay": d.barangay_names[b] if b >= 0 else "", "barangay_display": d.barangay_display[b] if b >= 0 else "",
+                      "S": py(r.S), "W": py(r.W)})
+    lru_put(d.plan_index_cache, key, items, 64)
+    return items
+
+
+def match_plan_items(items, q):
+    """Plan points matching a query: point_ref (DUH-012, duh 12), species code (duh), common name (duhat, weeping fig) or the grid point id; case-insensitive."""
+    q = q.strip()
+    ref = parse_ref_query(q)
+    nq = norm_text(q)
+    hits = []
+    for it in items:
+        code = it["species_code"].lower()
+        score = None
+        if ref and ref[1] is not None and code == ref[0] and int(it["point_ref"].split("-")[1]) == ref[1]:
+            score = 0                                                    # the exact point reference
+        elif q.isdigit() and int(q) == it["point_id"]:
+            score = 1
+        elif ref and ref[1] is None and (code == ref[0] or code.startswith(ref[0])):
+            score = 2                                                    # a species code
+        elif nq and nq in norm_text(it["species"]):
+            score = 3                                                    # a common name
+        elif norm_ref(q) in it["point_ref"].lower():
+            score = 4
+        if score is not None:
+            hits.append((score, it["point_ref"], it))
+    hits.sort(key=lambda t: (t[0], t[1]))
+    return [t[2] for t in hits]
+
+
+def saved_plan_ids(d):
+    """Plan ids that have both files, newest first (by the timestamp in the id, else the file time)."""
+    root = plans_dir(d)
+    out = []
+    for sj in (root.glob("plan_*_summary.json") if root.is_dir() else []):
+        pid = sj.name[:-len("_summary.json")]
+        if not valid_plan_id(pid) or not (root / f"{pid}.csv").is_file():
+            continue
+        m = re.search(r"_(\d{8})_(\d{6})", pid)
+        out.append((m.group(1) + m.group(2) if m else datetime.fromtimestamp(sj.stat().st_mtime).strftime("%Y%m%d%H%M%S"), pid))
+    return [pid for _, pid in sorted(out, reverse=True)]
+
+
+def barangay_hits(d, q):
+    key = norm_place(q, d.cfg["place_aliases"])
+    if not key:
+        return []
+    return [{"type": "barangay", "name": p["name"], "display_name": p["display_name"], "centroid": p["centroid"], "bounds": p["bounds"],
+             "legal_points": int((d.point_barangay == i).sum())} for i, p in enumerate(d.places_sorted) if key in p["key"]]
+
+
+def species_hits(d, q):
+    needle = norm_text(q)
+    out = []
+    for r in d.ctx.species.itertuples(index=False):
+        hit = [f for f, v in (("common_name", r.common_name), ("scientific_name", r.scientific_name)) if needle in norm_text(v)]
+        if needle and hit:
+            out.append({"type": "species", "species_id": int(r.species_id), "common_name": r.common_name, "scientific_name": r.scientific_name, "matched_on": hit})
+    return out
+
+
+@app.get("/search/point")
+def search_point(q: str = Query(min_length=1, max_length=40), d=Depends(D)):
+    """A grid point by its id (digits only). 404 when there is no such point."""
+    pid = parse_point_query(q)
+    card = point_card(d, pid)
+    if card is None:
+        raise HTTPException(404, f"There is no grid point with id {pid}. Grid point ids run from {int(d.all_points.point_id.min())} to {int(d.all_points.point_id.max())}.")
+    return card
+
+
+@app.get("/plans/{plan_id}/points")
+def plan_points_search(plan_id: str, q: str = Query(min_length=1, max_length=60), limit: int = Query(20, ge=1, le=100), d=Depends(D)):
+    """Points of a saved plan by point reference (DUH-012), species code (DUH), common name (Duhat) or grid point id. Case-insensitive."""
+    plan_files(d, plan_id)                                             # strict plan id, 404 if the plan does not exist
+    hits = match_plan_items(plan_index(d, plan_id), q)
+    return {"plan_id": plan_id, "query": q, "count": min(len(hits), limit), "total_matching": len(hits), "points": hits[:limit]}
+
+
+@app.get("/search/all")
+def search_all(q: str = Query(min_length=2, max_length=60), limit: int = Query(API_CFG["search_group_limit"], ge=1, le=20), d=Depends(D)):
+    """One call for the suggestions of the search box: barangays, species, a grid point (if q is a number) and the planting points of the most recent plans."""
+    q = q.strip()
+    bar, sp = barangay_hits(d, q), species_hits(d, q)
+    pts = []
+    if re.fullmatch(r"\d{1,9}", q):
+        card = point_card(d, int(q))
+        pts = [card] if card else []
+    plan_hits = []
+    for pid in saved_plan_ids(d)[:d.cfg["search_recent_plans"]]:
+        plan_hits.extend(match_plan_items(plan_index(d, pid), q)[:limit])
+        if len(plan_hits) >= limit:
+            break
+    return {"query": q, "normalised_query": norm_place(q, d.cfg["place_aliases"]), "limit": limit,
+            "barangays": bar[:limit], "species": sp[:limit], "points": pts[:limit], "plan_points": plan_hits[:limit],
+            "counts": {"barangays": len(bar), "species": len(sp), "points": len(pts), "plan_points": len(plan_hits)},
+            "searched_plans": min(len(saved_plan_ids(d)), d.cfg["search_recent_plans"]), "geocoder_enabled": bool(d.cfg["geocoder_enabled"])}
+
+
+# ---- streets and landmarks: the public Nominatim service, OFF by default ------------------------------------------------
+def geocoder_http_get(url, headers, timeout):
+    """GET a URL and return the parsed JSON (tests replace this function; they never use the internet)."""
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def geocode_bbox(d):
+    x0, y0, x1, y1 = d.boundaries_info["bbox"]
+    m = d.cfg["geocoder_bbox_margin_deg"]
+    return [x0 - m, y0 - m, x1 + m, y1 + m]                           # west, south, east, north
+
+
+def geocode_cache_file(d, nq):
+    key = hashlib.sha256(json.dumps([nq, d.cfg["geocoder_countrycodes"], geocode_bbox(d), d.cfg["geocoder_limit"]]).encode()).hexdigest()[:40]
+    return d.work / d.cfg["geocoder_cache_dir"] / f"{key}.json"
+
+
+@app.get("/search/geocode")
+def search_geocode(q: str = Query(min_length=3, max_length=100), d=Depends(D)):
+    """Streets and landmarks through Nominatim (OpenStreetMap). Disabled unless geocoder_enabled; one request per second; every answer cached 30 days."""
+    cfg = d.cfg
+    if not cfg["geocoder_enabled"]:
+        raise HTTPException(503, "Place search for streets and landmarks is disabled (geocoder_enabled is off). Barangays, species, points and coordinates still work.")
+    contact = (cfg["geocoder_contact"] or "").strip()
+    if not contact:
+        raise HTTPException(503, "Place search is enabled but geocoder_contact is empty. The public service requires an identifying contact (an email address or a web address) "
+                                 "in every request, so no request was sent. Set geocoder_contact in API_CFG.")
+    nq = re.sub(r"\s+", " ", q.strip().lower())
+    path = geocode_cache_file(d, nq)
+    cached = None
+    if path.is_file():
+        try:
+            cached = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            cached = None
+
+    def answer(doc, from_cache, stale=False, error=None):
+        age_days = (time.time() - doc["fetched_at"]) / 86400.0
+        return {"query": q, "enabled": True, "cached": from_cache, "stale": stale, "cache_age_days": round(age_days, 2), "network_error": error,
+                "results": doc["results"], "attribution": cfg["geocoder_attribution"], "source": "Nominatim (OpenStreetMap)"}
+
+    if cached and (time.time() - cached["fetched_at"]) < cfg["geocoder_cache_days"] * 86400:
+        return answer(cached, True)
+    x0, y0, x1, y1 = geocode_bbox(d)
+    params = {"q": q.strip(), "format": "jsonv2", "limit": cfg["geocoder_limit"], "countrycodes": cfg["geocoder_countrycodes"],
+              "viewbox": f"{x0},{y1},{x1},{y0}", "bounded": 1, "addressdetails": 0}
+    url = f"{cfg['geocoder_url']}?{urllib.parse.urlencode(params)}"
+    headers = {"User-Agent": f"{cfg['geocoder_app_name']}/1.0 ({contact})", "Accept": "application/json", "Accept-Language": "en"}
+    err = None
+    with d.geo.lock:                                                   # one request at a time, at most one per geocoder_min_interval_s
+        if d.geo.last is not None:
+            wait = cfg["geocoder_min_interval_s"] - (d.geo.clock() - d.geo.last)
+            if wait > 0:
+                d.geo.sleep(wait)
+        d.geo.last = d.geo.clock()
+        try:
+            raw = geocoder_http_get(url, headers, cfg["geocoder_timeout_s"])
+            if not isinstance(raw, list):
+                raise ValueError("the service did not return a list of places")
+        except Exception as ex:                                        # network down, timeout, blocked, bad answer
+            err = f"{type(ex).__name__}: {ex}"
+    if err is not None:
+        if cached:
+            return answer(cached, True, stale=True, error=err)
+        raise HTTPException(503, f"The place search service could not be reached and there is no saved answer for this search ({err}). Try again later.")
+    results = []
+    for it in raw:
+        try:
+            lat, lon = float(it["lat"]), float(it["lon"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        bb = it.get("boundingbox")
+        results.append({"name": it.get("name") or str(it.get("display_name", "")).split(",")[0], "display_name": it.get("display_name", ""),
+                        "category": it.get("category") or it.get("class", ""), "type": it.get("type", ""), "lat": lat, "lon": lon,
+                        "bbox": [float(bb[2]), float(bb[0]), float(bb[3]), float(bb[1])] if isinstance(bb, list) and len(bb) == 4 else []})
+    doc = {"fetched_at": time.time(), "query": nq, "results": results}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(doc), encoding="utf-8")
+    tmp.replace(path)
+    return answer(doc, False)
 
 
 if __name__ == "__main__":

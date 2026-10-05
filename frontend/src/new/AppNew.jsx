@@ -21,6 +21,7 @@ import MapNew from './MapNew.jsx'
 import ModeSwitch from './ModeSwitch.jsx'
 import PurposePicker from './PurposePicker.jsx'
 import RightPanel from './RightPanel.jsx'
+import SearchBar from './SearchBar.jsx'
 import SpeciesMultiPicker from './SpeciesMultiPicker.jsx'
 import { useObserver } from './useObserver.js'
 import { usePost } from './usePost.js'
@@ -58,6 +59,7 @@ export default function AppNew() {
   const [fieldVersion, setFieldVersion] = useState(0) // bumped after every saved field check: reloads what depends on them (and skips the browser cache)
   const [showField, setShowField] = useState(true)
   const [observer, setObserver] = useObserver()
+  const [searchNote, setSearchNote] = useState(null) // what the last search result was (shown under the search box)
 
   const health = useApi('/health')
   const boundaries = useApi('/geo/boundaries')
@@ -170,6 +172,41 @@ export default function AppNew() {
     setSpot({ lat, lon })
     setGoTarget({ lat, lon })
   }
+  // The search box chose something. Barangay -> mode 2 with that barangay; species -> mode 1 with that species; a coordinate, grid point, plan point
+  // or place -> jump there, mark it and open its ranking.
+  const onSearchChoose = (it) => {
+    setSearchNote(null)
+    if (it.type === 'barangay') {
+      changeMode('area')
+      setTool('barangay')
+      chooseArea({ kind: 'barangay', name: it.name })
+      if (it.bounds) setFitTarget({ bbox: it.bounds })
+      setSearchNote({ title: it.display_name ?? it.name, lines: ['Barangay outline highlighted. The species ranked for it are in the panel on the right.'] })
+      return
+    }
+    if (it.type === 'species') {
+      changeMode('species')
+      setSelIds([it.species_id])
+      setRowActive(null)
+      setSearchNote({ title: it.common_name, lines: ['Mode 1 is on with this species chosen: the map shows where it suits.'] })
+      return
+    }
+    const pointId = it.type === 'plan_point' || (it.type === 'grid_point' && it.legal_zone) ? it.point_id : undefined
+    setSpot({ lat: it.lat, lon: it.lon, ...(pointId ? { pointId } : {}) })
+    setGoTarget({ lat: it.lat, lon: it.lon })
+    setPanelTab('point')
+    setHidden(false)
+    setNotice('')
+    if (it.type === 'plan_point') {
+      setSearchNote({ title: `${it.point_ref} · ${it.species}`, lines: [`Plan ${it.plan_id}`, `Grid point ${it.point_id}${it.barangay_display ? ' · ' + it.barangay_display : ''}`] })
+    } else if (it.type === 'grid_point') {
+      setSearchNote({ title: `Grid point ${it.point_id}`, lines: [it.note ?? `${it.barangay_display || 'Outside the barangay outlines'} · ${it.zone}`] })
+    } else if (it.type === 'place') {
+      setSearchNote({ title: it.name || it.display_name, lines: [it.display_name], attribution: it.attribution })
+    } else {
+      setSearchNote({ title: `${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}`, lines: [it.note || 'Marked on the map. If it is outside San Mateo or not a planting zone, the panel says so and offers the nearest suitable spot.'] })
+    }
+  }
   const finishDraw = () => {
     if (draft.length < 3) return
     chooseArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
@@ -225,6 +262,8 @@ export default function AppNew() {
           field={fieldForMap}
         />
       </div>
+
+      <SearchBar onChoose={onSearchChoose} note={searchNote} onDismissNote={() => setSearchNote(null)} />
 
       {/* messages over the map */}
       <div className="nw-toasts v2 v2-embedded">
