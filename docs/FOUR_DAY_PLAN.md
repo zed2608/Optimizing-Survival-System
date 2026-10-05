@@ -52,6 +52,27 @@ Acceptance: `POST /plan-event` returns a plan for a drawn polygon in a few secon
 5. Test: open the GPX in an offline map app in airplane mode on a real phone; walk >= 5 points if possible and record GPS error.
 Cut order if time slips: PDF map, weather advisory, municipality-wide ranking.
 
+## Saved field verification (added after Day 4)
+Why: a site researcher may visit a ranked or planned spot and find it cannot be planted (paved, building, rock, creek, too steep, existing tree, owner refused).
+The old dashboard's Verify / Flag Paved marks were lost on refresh; this keeps them.
+1. `pipeline/field_verify.py` + `data/field/field_checks.db`: append-only events (`verified_plantable`, `not_plantable` with a required reason, `needs_recheck`; observer name,
+   time, optional GPS, optional moved stake position, source `dashboard` or `kit_import`, optional plan id). The latest event per point is its current status; two different
+   observers who disagree in the latest two events make the point DISPUTED.
+2. API (`api_v2.py`): `POST /field-checks`, `GET /field-checks`, `GET /field-checks/{point_id}`, `GET /field-checks/summary`, `GET /field-checks/export.csv`,
+   `POST /field-checks/import` (the filled `point-list.csv` of a field kit; rows are mapped point_ref -> point_id through the saved plan and its check code; bad rows are
+   rejected with a reason; importing the same file twice adds nothing).
+3. Effects (switch, default ON): `not_plantable` points are left out of rankings, the grid, area rankings, nearest-viable and plans; plan summaries report how many points
+   were left out. `verified_plantable` adds a badge only and never changes a score. `needs_recheck` / disputed: warning, not excluded. To clear a point add a new event with a note.
+4. Dashboard `#/new`: Field check section in the point panel (status, history, three buttons, reason and note, remembered observer name), map symbols (ring / cross / triangle,
+   never colour alone) with a legend and a toggle, sidebar counts, CSV download and import with an accepted/rejected report, not-plantable counts in area results, and a line in
+   Known limits: no login yet, a name only, anyone with access can add a check.
+5. Field kit: the kit's `status`, `moved_lat`, `moved_lon` columns are what the import reads. The kit README should say how to bring the filled file back (open item: it needs a
+   one-line change in `pipeline/field_kit.py`); `pipeline/run_plan.py` should apply the same exclusion (open item, see CLAUDE.md).
+6. Later use of the logged moved positions: they record where a cell is really plantable, so they can later correct a cell's planting position, show cells that are never usable,
+   feed a review of the 100 m grid and, with enough checks, give real survival-site evidence to compare with the rule-based scores (the RF labels are still rule-derived).
+Acceptance: events can never be changed or deleted; the latest event wins; excluded points never appear in plans, grid ranking, area ranking or nearest-viable; verified does not change
+any score; import is idempotent and reports errors; old endpoints behave as before when there are no checks (`tests/test_field_verify.py`).
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
-sign-off status as of the defense date; GPS accuracy untested.
+sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score.
