@@ -87,10 +87,9 @@ All tunables are in the one `API_CFG` block (`geocoder_*`, `search_*`). Tests: `
 DONE: Day 1 (data), Day 2 (site scores, purpose scores, model comparison), Day 3 (palettes, matching, `api_v2.py`), Day 4 (field kit, weather advisory),
 the `#/new` dashboard steps 0-3 (map, outlines, grid layer) and both modes ("I have species - find areas" / "I have an area - find species"), saved field checks,
 and the search bar (290 tests pass).
-**Open items** (need a one-line edit in files the last task was not allowed to touch):
-1. `pipeline/run_plan.py` (command-line tool) does not yet leave out not_plantable points: call `field_verify.filter_context(ctx, field_verify.excluded_ids(field_verify.current_status(db)))`
-   after `load_context`. The API already does this.
-2. `pipeline/field_kit.py` README text: add how to bring the filled CSV back ("Import field checks (CSV)" in the dashboard, with your name; moved_lat/moved_lon = where the stake really is).
+**Open items**: none. (Closed 2026-10-05: the field kit README has a "BRINGING THE RESULTS BACK" paragraph; `pipeline/run_plan.py` leaves out not_plantable points through
+`field_verify.filter_context` (option `--field-db`, default `data/field/field_checks.db`, never created by planning), prints the count and writes `field_checks` into the plan
+summary like `/plan-event`. Tests: `tests/test_run_plan_field.py`.)
 **Later**: plan tool in `#/new` (step 6), saved campaign name/dates/unit with each plan, replace Search-by-Species/Land modes of the legacy page (decided: later),
 real login for field checks, phone test of the GPX/KML kit, agriculturist sign-off of weights/soil mapping.
 When you finish a task: run QA/tests (`python -m pytest tests`, `python pipeline/qa_day1.py`, `npm run build` in `frontend/`), update this status, commit, and summarize what

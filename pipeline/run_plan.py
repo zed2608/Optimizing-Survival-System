@@ -20,8 +20,11 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import field_verify as fv  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[1]
 
 # =====================================================================================================================
 # CONFIG - every tunable number lives here. PROVISIONAL.
@@ -34,6 +37,7 @@ CFG = {
     "timestamp_format": "%Y%m%d_%H%M%S",
     "plans_dir": "plans",
     "benchmark_file": "matching_benchmark.csv",
+    "field_db": "data/field/field_checks.db",   # saved field checks (same file as api_v2.py); points whose latest check is not_plantable are left out
 }
 # =====================================================================================================================
 
@@ -198,7 +202,18 @@ def _bbox(text):
     return tuple(v)
 
 
-def main():
+def apply_field_checks(ctx, db_path, zone=None, bbox=None):
+    """Leave out the points whose latest field check is not_plantable (the same rule as POST /plan-event in api_v2.py).
+    Returns (context without those points, the 'field_checks' block for the plan summary). A missing database means no checks: nothing is created or changed."""
+    ids = fv.excluded_ids(fv.current_status(db_path)) if Path(db_path).is_file() else set()
+    gone = ctx.sites.point_id.isin(ids).to_numpy() if ids else np.zeros(len(ctx.sites), dtype=bool)
+    in_area = mt.area_mask(ctx.sites, zone, bbox)
+    block = {"exclude_not_plantable": True, "excluded_points": int((gone & in_area).sum()),
+             "note": "Points whose latest field check is not_plantable were left out of this plan."}
+    return fv.filter_context(ctx, ids), block
+
+
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--purpose", choices=mt.PURPOSES)
     ap.add_argument("--n-saplings", type=int)
@@ -209,7 +224,8 @@ def main():
     ap.add_argument("--out", default="data/processed")
     ap.add_argument("--scores", help="site_scores.db or .csv (default: <out>/scores/site_scores.db)")
     ap.add_argument("--benchmark", action="store_true", help="write matching_benchmark.csv and exit")
-    a = ap.parse_args()
+    ap.add_argument("--field-db", default=str(ROOT / CFG["field_db"]), help="saved field checks; not_plantable points are left out of the plan")
+    a = ap.parse_args(argv)
     ctx = mt.load_context(a.out, a.scores)
     if a.benchmark:
         bench, f = run_benchmark(ctx, a.out)
@@ -218,7 +234,10 @@ def main():
     if not a.purpose or not a.n_saplings:
         ap.error("--purpose and --n-saplings are required (or use --benchmark)")
     trees = pd.read_csv(a.trees_csv) if a.trees_csv else None
+    ctx, field_checks = apply_field_checks(ctx, a.field_db, a.zone, a.bbox)
+    print(f"field checks: {field_checks['excluded_points']} not-plantable point(s) left out of this area")
     plan, s = make_plan(ctx, a.purpose, a.n_saplings, a.zone, a.bbox, trees, a.seed)
+    s["field_checks"] = field_checks
     f, sj = write_plan(a.out, a.purpose, plan, s)
     print(f"purpose {a.purpose} | area points {s['area']['candidate_points_after_exclusion']} | {s['existing_trees']}")
     for p in s["palette"]:

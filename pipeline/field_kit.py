@@ -290,6 +290,14 @@ GPS AND THE 100 m CELL
   - Dioecious species need BOTH sexes: plant male and female trees near each other.
   - Plant only in the planting months listed for the species.
 
+BRINGING THE RESULTS BACK
+  When you are done, fill the status column of point-list.csv: write "planted" for a spot you planted,
+  or the reason (paved, building, rock_or_ledge, creek_or_waterlogged, too_steep, existing_tree,
+  owner_refused or other) for a spot that cannot be planted; "not plantable" alone is saved as
+  "other". If you moved the stake, also fill moved_lat and moved_lon. Then open the dashboard, type your name, and press "Import field checks
+  (CSV)". The plan id and the check code at the top of this file must match the ones in the file you
+  import, or it is refused. Importing the same file twice adds nothing.
+
 SPECIES CODES
 {pal}
 
