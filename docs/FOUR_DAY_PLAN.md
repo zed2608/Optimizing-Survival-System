@@ -86,6 +86,33 @@ Why: planners and field teams know places by barangay, species, point number or 
 Acceptance (`tests/test_api_search.py`, 29 tests): accents/case/Sta-Sto; parser accepts decimal and UTM and rejects bad input; point and plan-point lookups with 404s; plan_id
 traversal rejected; `/search/all` limits and speed with 20 plans; geocoder 503 when off, no request without a contact, cache hit, rate limit, network failure, never the real internet.
 
+## Planting window (season) and guided sidebar (feedback round, part 1)
+Why: the earlier dashboard let the user set campaign dates and the period decided the season; `#/new` had lost this, and the sidebar was too crowded.
+1. API (`api_v2.py`): optional `start`, `end`, `season_filter=only|mark` on /grid, /rank, /rank/area, /areas/rank, /species, /species/{id}, /nearest-viable, /plan-event.
+   Species get a `season` object (in_season / partly / out_of_season / unknown with window months, species months and the months in common); windows may cross the year end.
+   Scores never change. `only` removes out-of-season species from rankings, grid colours, area tables, the mix and the plan palette (whose shared months are cut to the window)
+   and reports how many were removed and why. No dates = unchanged. Bad dates = 422 in plain words.
+2. `#/new`: Planting window step (dates, 12-month strip, remembered), toggle "Only species for my dates" (default ON), season badges with words and month strips everywhere a
+   species appears, and a notice "Only N of 45 species can be planted between ..." with [Show all species] [Change dates] when few or none are left.
+3. Sidebar: five collapsible steps (Goal, Purpose, Planting window, Species/Area, Options), one open at a time, one-line summaries when collapsed, one "More" menu for Known
+   limits, dataset version, field-check summary, download and import. Labels of at most 5 words, one-sentence paragraphs, "?" help tips that work with the keyboard.
+Acceptance (`tests/test_api_season.py`, 24 tests): status for in/partly/out/unknown; year-end windows; scores unchanged by dates; `only` removes the right species and reports
+counts; no dates = old behaviour; bad dates 422; palette months inside the window; date helpers in the browser (node).
+Known consequence: all 45 species have planting months only from May to September, so in October and November none is in season and the default window (today +30 days in
+early October) shows the "Only 0 of 45" notice until the dates or the toggle are changed. This is a data fact to confirm with the agriculturist, not a defect of the filter.
+
+## Sidebar fix, species card and verify-first point panel (feedback round, part 2)
+1. Sidebar: four steps only (Goal, Purpose, Planting window, Species/Area); "Only species for my dates" and a "Jump to the next planting season" button (best 60-day window starting
+   today or later, most species fully in season, earliest on ties) are in step 3; "Suits all / at least one" is in step 4; map type and the field-checked layer are in a "Map view"
+   menu on the map; "More" stays at the bottom.
+2. Species card: a drawer opened from every place a species name appears, built from GET /species/{id}; deployment stage and timing first and large; every value with its source
+   link and rank badge; gaps shown as Data Unavailable; flagged sources marked draft.
+3. Point panel: verify first (100 m notice, one-tap Plantable / Paved or road / Building / River or creek / Other problem / Needs recheck, name asked once, confirmation, Change,
+   history); a not-plantable point shows its ranking greyed ("Left out of plans because of a field check").
+4. API: `GET /rank?include_left_out=true` (display only; default unchanged). Test: `tests/test_api_rank_left_out.py`.
+Acceptance: browser checks of the four steps, the Map view menu, the jump button (equals an independent computation), the card from ranking rows, area rows, the mix, the picker
+and search, one-tap verify (saved, confirmation, history, change adds a second event, point leaves the nearest-viable offers), with the API on and off.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
 sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;

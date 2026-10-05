@@ -59,8 +59,8 @@ function AreaTable({ title, kind, api, activeKey, onSelect, onPlan }) {
 }
 
 // Mode 1: barangays AND zones ranked for the selected species. Clicking a name zooms the map to it and highlights it.
-export default function AreasPanel({ speciesNames, combine, onCombine, byBarangay, byZone, activeKey, onSelect, onPlan }) {
-  const none = byBarangay.status === 'ok' && byBarangay.data.areas.every((r) => r.suitable_points === 0)
+export default function AreasPanel({ speciesNames, combine, onCombine, byBarangay, byZone, activeKey, onSelect, onPlan, seasonNote, allRemoved }) {
+  const none = !allRemoved && byBarangay.status === 'ok' && byBarangay.data.areas.every((r) => r.suitable_points === 0)
   return (
     <div className="v2 v2-embedded nw-areas">
       <div className="panel-body">
@@ -69,6 +69,7 @@ export default function AreasPanel({ speciesNames, combine, onCombine, byBaranga
           {speciesNames.length === 1 ? speciesNames[0] : `${speciesNames.length} species`} · {combine === 'all' ? 'must suit all selected' : 'suits at least one'}.
           Mean W is the average score over all planting-zone points of the area (0 where a point is not suitable). Click a name to zoom to it.
         </p>
+        {seasonNote}
         {none && (
           <div className="notice" role="status">
             <strong>{combine === 'all' ? 'No suitable area for all selected species.' : 'None of the selected species is suitable anywhere for this purpose.'}</strong>

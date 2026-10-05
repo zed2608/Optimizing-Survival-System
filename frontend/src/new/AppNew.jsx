@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react'
 import '../v2/v2.css'
 import './new.css'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
-import LimitsBox from '../v2/components/LimitsBox.jsx'
-import RankingPanel from '../v2/components/RankingPanel.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { RANK_LIMIT } from '../v2/config.js'
 import { purposeLabel } from '../v2/labels.js'
@@ -12,19 +10,28 @@ import { useApi } from '../v2/useApi.js'
 import AreaChooser from './AreaChooser.jsx'
 import AreaResultPanel from './AreaResultPanel.jsx'
 import AreasPanel from './AreasPanel.jsx'
-import DatasetNote from './DatasetNote.jsx'
-import FieldCheckSection from './FieldCheckSection.jsx'
-import FieldSummary from './FieldSummary.jsx'
 import { decodeFieldCode, STATUS_LABEL, STATUS_SYMBOL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
+import { PURPOSE_SHORT } from './labelsNew.js'
+import MoreMenu from './MoreMenu.jsx'
+import MapViewMenu from './MapViewMenu.jsx'
+import PlantingWindow from './PlantingWindow.jsx'
+import PointRanking from './PointRanking.jsx'
+import Segmented from './Segmented.jsx'
+import SpeciesCard from './SpeciesCard.jsx'
+import VerifyBar from './VerifyBar.jsx'
 import MapNew from './MapNew.jsx'
 import ModeSwitch from './ModeSwitch.jsx'
 import PurposePicker from './PurposePicker.jsx'
 import RightPanel from './RightPanel.jsx'
 import SearchBar from './SearchBar.jsx'
+import { FEW_SPECIES, formatDay, formatRange, monthsText, seasonQuery, windowMonths } from './season.js'
+import SeasonNotice from './SeasonNotice.jsx'
+import SidebarStep from './SidebarStep.jsx'
 import SpeciesMultiPicker from './SpeciesMultiPicker.jsx'
 import { useObserver } from './useObserver.js'
 import { usePost } from './usePost.js'
+import { useOnlySeason, usePlantingWindow } from './useWindow.js'
 
 const TABS = [
   { id: 'studio', label: '𖥠 Active Studio' },
@@ -54,7 +61,11 @@ export default function AppNew() {
   const [panelTab, setPanelTab] = useState('main')
   const [hidden, setHidden] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [limitsOpen, setLimitsOpen] = useState(false)
+  const [openStep, setOpenStep] = useState('goal') // the one open step of the sidebar
+  const [baseLayer, setBaseLayer] = useState('satellite')
+  const [cardId, setCardId] = useState(null) // the species whose information card is open
+  const win = usePlantingWindow()
+  const [onlySeason, setOnlySeason] = useOnlySeason()
   const [tab, setTab] = useState('studio')
   const [fieldVersion, setFieldVersion] = useState(0) // bumped after every saved field check: reloads what depends on them (and skips the browser cache)
   const [showField, setShowField] = useState(true)
@@ -64,13 +75,14 @@ export default function AppNew() {
   const health = useApi('/health')
   const boundaries = useApi('/geo/boundaries')
   const zones = useApi('/geo/zones')
-  const species = useApi('/species')
+  const sq = seasonQuery(win.applied, onlySeason) // the dates (and 'only' or 'mark') that every species-listing call carries
+  const species = useApi(`/species?${seasonQuery(win.applied, false)}`) // all species, each with its season (the toggle hides the out-of-season ones here)
 
   const idsParam = [...selIds].sort((a, b) => a - b).join(',')
   const selection = mode === 'species' && selIds.length > 0
   const fc = `fc=${fieldVersion}`
-  const grid = useApi(selection ? `/grid?purpose=${purpose}&species_ids=${idsParam}&mode=${combine}&${fc}` : `/grid?purpose=${purpose}&${fc}`)
-  const areasQuery = selection ? `purpose=${purpose}&species_ids=${idsParam}&mode=${combine}&${fc}` : null
+  const grid = useApi(selection ? `/grid?purpose=${purpose}&species_ids=${idsParam}&mode=${combine}&${fc}&${sq}` : `/grid?purpose=${purpose}&${fc}&${sq}`)
+  const areasQuery = selection ? `purpose=${purpose}&species_ids=${idsParam}&mode=${combine}&${fc}&${sq}` : null
   const byBarangay = useApi(areasQuery ? `/areas/rank?${areasQuery}&by=barangay` : null)
   const byZone = useApi(areasQuery ? `/areas/rank?${areasQuery}&by=zone` : null)
   const areaBody = useMemo(() => {
@@ -80,9 +92,9 @@ export default function AppNew() {
     if (area.kind === 'zone') return { ...base, zone: area.name }
     return { ...base, polygon: area.geometry }
   }, [mode, area, purpose, fieldVersion])
-  const areaRank = usePost('/rank/area', areaBody)
-  const spotQuery = spot ? `purpose=${purpose}&lat=${spot.lat.toFixed(6)}&lon=${spot.lon.toFixed(6)}&${fc}` : null
-  const rank = useApi(spotQuery ? `/rank?${spotQuery}&limit=${RANK_LIMIT}` : null)
+  const areaRank = usePost(`/rank/area?${sq}`, areaBody)
+  const spotQuery = spot ? `purpose=${purpose}&lat=${spot.lat.toFixed(6)}&lon=${spot.lon.toFixed(6)}&${fc}&${sq}` : null
+  const rank = useApi(spotQuery ? `/rank?${spotQuery}&limit=${RANK_LIMIT}&include_left_out=true` : null)
   const viable = useApi(spotQuery && viableFor === spotQuery ? `/nearest-viable?${spotQuery}` : null)
   const pointId = spot ? (spot.pointId ?? (rank.status === 'ok' ? rank.data.point.point_id : null)) : null
   const fieldPoint = useApi(pointId ? `/field-checks/${pointId}?${fc}` : null)
@@ -96,6 +108,21 @@ export default function AppNew() {
   const columns = grid.data?.columns ?? null
   const indexById = useMemo(() => new Map((columns?.point_id ?? []).map((id, i) => [id, i])), [columns])
   const selected = rank.status === 'ok' ? (indexById.get(rank.data.point.point_id) ?? -1) : -1
+  const sInfo = species.status === 'ok' ? species.data.season : null
+  const kept = sInfo ? (onlySeason ? sInfo.species_total - sInfo.out_of_season : sInfo.species_total) : null
+  const fewSpecies = onlySeason && kept !== null && kept <= FEW_SPECIES
+  const selectedRemoved = selection ? (grid.data?.season?.selected_removed_ids ?? []) : []
+  const allRemoved = selection && selectedRemoved.length === selIds.length
+  const showAllSpecies = () => setOnlySeason(false)
+  const changeDates = () => {
+    setSidebarOpen(true)
+    setOpenStep('window')
+    setTimeout(() => document.getElementById('nw-start')?.focus(), 80)
+  }
+  const seasonNotice = (light, text = '') =>
+    sInfo && (
+      <SeasonNotice light={light} text={text} kept={kept} total={sInfo.species_total} start={win.applied.start} end={win.applied.end} onShowAll={showAllSpecies} onChangeDates={changeDates} />
+    )
   const noneSuitable = useMemo(() => !!columns && selection && columns.W.every((w) => w === 0), [columns, selection])
 
   const highlight = useMemo(() => {
@@ -185,10 +212,8 @@ export default function AppNew() {
       return
     }
     if (it.type === 'species') {
-      changeMode('species')
-      setSelIds([it.species_id])
-      setRowActive(null)
-      setSearchNote({ title: it.common_name, lines: ['Mode 1 is on with this species chosen: the map shows where it suits.'] })
+      setCardId(it.species_id)
+      setSearchNote({ title: it.common_name, lines: ['The species card is open. “Find areas for this species” switches the map to it.'] })
       return
     }
     const pointId = it.type === 'plan_point' || (it.type === 'grid_point' && it.legal_zone) ? it.point_id : undefined
@@ -221,6 +246,7 @@ export default function AppNew() {
     setDraft([])
     setNotice('')
   }
+  const toggleStep = (id) => setOpenStep((o) => (o === id ? '' : id))
   const changeTool = (t) => {
     setTool(t)
     if (t !== 'draw') setDraft([])
@@ -237,7 +263,9 @@ export default function AppNew() {
   const fieldForMap = showField ? (grid.data?.field ?? null) : null
   const meta = useMemo(() => ({ purpose, species: selection ? idsParam : '' }), [purpose, selection, idsParam])
   const apiState = health.status === 'ok' ? 'ok' : health.status === 'loading' ? 'wait' : 'off'
-  const legendSub = selection
+  const legendSub = allRemoved
+    ? 'The chosen species are out of season for your dates'
+    : selection
     ? `${selIds.length === 1 ? selNames[0] : `${selIds.length} species`} · ${selIds.length === 1 ? 'one species' : combine === 'all' ? 'must suit all' : 'suits at least one'}`
     : 'Best species at each point'
 
@@ -260,15 +288,18 @@ export default function AppNew() {
           draft={draft}
           drawing={mode === 'area' && tool === 'draw'}
           field={fieldForMap}
+          baseLayer={baseLayer}
         />
       </div>
 
+      <MapViewMenu baseLayer={baseLayer} onBaseLayer={setBaseLayer} showField={showField} onShowField={setShowField} />
       <SearchBar onChoose={onSearchChoose} note={searchNote} onDismissNote={() => setSearchNote(null)} />
 
       {/* messages over the map */}
       <div className="nw-toasts v2 v2-embedded">
         {grid.status === 'loading' && <Loading what="Loading the grid points" />}
         {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title="Could not load the grid points" />}
+        {fewSpecies && seasonNotice(true)}
         {boundaries.status === 'error' && !boundaries.error.network && <ErrorBox error={boundaries.error} onRetry={boundaries.retry} title="Could not load the outlines" brief />}
       </div>
 
@@ -279,7 +310,7 @@ export default function AppNew() {
         <ColorLegend />
         {noneSuitable && (
           <div className="nw-legend-warn" role="status">
-            No point is suitable for this selection{combine === 'all' && selIds.length > 1 ? ': try “Suits at least one”' : ''}.
+            {allRemoved ? 'No chosen species can be planted in your dates.' : `No point is suitable for this selection${combine === 'all' && selIds.length > 1 ? ': try “Suits at least one”' : ''}.`}
           </div>
         )}
         {fieldForMap && (
@@ -315,21 +346,12 @@ export default function AppNew() {
           ))}
         </div>
         <div className="nw-topright">
-          <button type="button" className="nw-pillbtn" aria-expanded={limitsOpen} aria-controls="limits-panel" onClick={() => setLimitsOpen((o) => !o)}>
-            {limitsOpen ? 'Hide known limits' : 'Known limits'}
-          </button>
           <div className="nw-pill" role="status">
             <span className={`nw-dot nw-dot-${apiState}`} aria-hidden="true" />
             <span>{apiState === 'ok' ? 'API connected' : apiState === 'wait' ? 'Connecting…' : 'API offline'}</span>
           </div>
         </div>
       </header>
-      {limitsOpen && (
-        <div className="nw-limits v2 v2-embedded">
-          <LimitsBox health={health} open />
-        </div>
-      )}
-
       {tab !== 'studio' && (
         <section className="nw-modal" aria-label={TABS.find((t) => t.id === tab).label}>
           <div className="nw-modal-head">
@@ -349,65 +371,116 @@ export default function AppNew() {
         {sidebarOpen ? '◀ Hide Control Panel' : '▶ Open Control Panel'}
       </button>
       <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls">
-        <ModeSwitch value={mode} onChange={changeMode} />
-        <section className="nw-section">
-          <h3>1. Purpose</h3>
+        <SidebarStep
+          n={1}
+          id="goal"
+          title="Goal"
+          summary={mode === 'species' ? 'I have species' : 'I have an area'}
+          open={openStep === 'goal'}
+          onToggle={() => toggleStep('goal')}
+          help="“I have species” shows where the species you choose can grow. “I have an area” ranks the species for an area you choose."
+        >
+          <ModeSwitch
+            value={mode}
+            onChange={(m) => {
+              changeMode(m)
+              setOpenStep('purpose')
+            }}
+          />
+        </SidebarStep>
+        <SidebarStep
+          n={2}
+          id="purpose"
+          title="Purpose"
+          summary={PURPOSE_SHORT[purpose]}
+          open={openStep === 'purpose'}
+          onToggle={() => toggleStep('purpose')}
+          help="Urban greening: shade, safe roots, low upkeep. Tree planting: conservation and livelihood. Watershed: holding soil on slopes and by waterways."
+        >
           <PurposePicker value={purpose} onChange={setPurpose} />
-        </section>
-        {mode === 'species' ? (
-          <section className="nw-section">
-            <h3>2. Species</h3>
-            <SpeciesMultiPicker species={species} selected={selIds} onChange={setSelIds} combine={combine} onCombine={setCombine} />
-            <p className="nw-hint">
-              {selIds.length === 0
-                ? 'Pick one or more species to find the areas that suit them. Until then the map shows the best species at each point.'
-                : 'Green = good, orange = moderate, red = poor, grey = not suitable. Point at a dot to see its number; click it to see why it scores that way.'}
-            </p>
-          </section>
-        ) : (
-          <section className="nw-section">
-            <h3>2. Area</h3>
-            <AreaChooser
-              tool={tool}
-              onTool={changeTool}
-              barangays={barangayFeatures}
-              zones={zoneFeatures}
-              area={area}
-              onArea={chooseArea}
-              draftCount={draft.length}
-              onFinish={finishDraw}
-              onUndo={() => setDraft((d) => d.slice(0, -1))}
-              onClearDraft={() => setDraft([])}
-            />
-            {notice && (
-              <p className="nw-hint nw-warn" role="status">
-                {notice}
-              </p>
-            )}
-          </section>
-        )}
-        {planPrefill && (
-          <section className="nw-section">
-            <h3>Plan tool selection</h3>
-            <p className="nw-hint">
-              <strong>{planPrefill.area.name}</strong> · {purposeLabel(planPrefill.purpose)} ·{' '}
-              {planPrefill.speciesNames.length === 1 ? planPrefill.speciesNames[0] : `${planPrefill.speciesNames.length} species (${planPrefill.combine === 'all' ? 'must suit all' : 'at least one'})`}
-              <br />
-              Saved for the plan tool, which comes in a later step.
-            </p>
-            <button type="button" className="nw-btn nw-btn-small" onClick={() => setPlanPrefill(null)}>
-              Clear
-            </button>
-          </section>
-        )}
-        <FieldSummary summary={fieldSummary} observer={observer} onObserver={setObserver} showField={showField} onShowField={setShowField} onChanged={bumpField} />
-        <section className="nw-section">
-          <h3>Switch dashboard</h3>
-          <p className="nw-hint">
-            <a href="#/legacy">Earlier dashboard</a> · <a href="#/v2">First v2 page</a>
-          </p>
-          <DatasetNote health={health} />
-        </section>
+          <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('window')}>
+            Continue
+          </button>
+        </SidebarStep>
+        <SidebarStep
+          n={3}
+          id="window"
+          title="Planting window"
+          summary={`${formatRange(win.applied.start, win.applied.end)} · ${monthsText(windowMonths(win.applied.start, win.applied.end))}${onlySeason ? '' : ' · all species'}${win.error ? ' · fix dates' : ''}`}
+          open={openStep === 'window'}
+          onToggle={() => toggleStep('window')}
+          help="The season decides which species can be planted. A month counts if any day of it is in your dates. Scores never change with the dates."
+        >
+          <PlantingWindow win={win} onlySeason={onlySeason} onOnlySeason={setOnlySeason} species={species} />
+          <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('pick')}>
+            Continue
+          </button>
+        </SidebarStep>
+        <SidebarStep
+          n={4}
+          id="pick"
+          title={mode === 'species' ? 'Species' : 'Area'}
+          summary={mode === 'species' ? `${selIds.length ? `${selIds.length} chosen` : 'None chosen'} · ${combine === 'all' ? 'Suits all' : 'Suits one or more'}` : area ? areaLabel : 'None chosen'}
+          open={openStep === 'pick'}
+          onToggle={() => toggleStep('pick')}
+          help={
+            mode === 'species'
+              ? 'Until you choose species the map shows the best species at each point. Green is good, orange moderate, red poor, grey not suitable. Click a dot to see why.'
+              : 'Click a point or a barangay outline on the map, draw a shape, or pick a barangay or zone from the lists.'
+          }
+        >
+          {mode === 'species' ? (
+            <>
+              {fewSpecies && seasonNotice(false)}
+              <SpeciesMultiPicker species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} />
+              <Segmented
+                name="combine"
+                label="Place counts when"
+                help="“Suits all”: every chosen species can grow there, and the score is the lowest of theirs. “Suits at least one”: one is enough, and the score is the highest."
+                value={combine}
+                options={[
+                  { value: 'all', label: 'Suits all' },
+                  { value: 'any', label: 'Suits at least one' },
+                ]}
+                onChange={setCombine}
+              />
+            </>
+          ) : (
+            <>
+              <AreaChooser
+                tool={tool}
+                onTool={changeTool}
+                barangays={barangayFeatures}
+                zones={zoneFeatures}
+                area={area}
+                onArea={chooseArea}
+                draftCount={draft.length}
+                onFinish={finishDraw}
+                onUndo={() => setDraft((d) => d.slice(0, -1))}
+                onClearDraft={() => setDraft([])}
+              />
+              {notice && (
+                <p className="nw-hint nw-warn" role="status">
+                  {notice}
+                </p>
+              )}
+            </>
+          )}
+          {planPrefill && (
+            <div className="nw-prefill">
+              <span>
+                Plan tool: <strong>{planPrefill.area.name}</strong>
+              </span>
+              <button type="button" className="nw-btn nw-btn-small" onClick={() => setPlanPrefill(null)}>
+                Clear
+              </button>
+            </div>
+          )}
+          <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('')}>
+            Done
+          </button>
+        </SidebarStep>
+        <MoreMenu health={health} fieldSummary={fieldSummary} observer={observer} onObserver={setObserver} onChanged={bumpField} />
       </aside>
 
       {(hasMain || hasPoint) && hidden && (
@@ -426,19 +499,17 @@ export default function AppNew() {
         >
           {activeTab === 'point' ? (
             <div className="v2 v2-embedded">
-              <RankingPanel
+              {pointId ? <VerifyBar key={pointId} pointId={pointId} api={fieldPoint} observer={observer} onObserver={setObserver} onSaved={bumpField} /> : null}
+              <PointRanking
                 key={`${purpose}|${spot.lat}|${spot.lon}`}
                 rank={rank}
                 purpose={purpose}
                 viable={viable}
                 onFindViable={() => setViableFor(spotQuery)}
                 onGo={goTo}
+                seasonNote={seasonNotice(true)}
+                onInfo={setCardId}
               />
-              {pointId ? (
-                <div className="panel-body fc-wrap">
-                  <FieldCheckSection key={pointId} pointId={pointId} api={fieldPoint} observer={observer} onObserver={setObserver} onSaved={bumpField} />
-                </div>
-              ) : null}
             </div>
           ) : mode === 'species' ? (
             <AreasPanel
@@ -450,11 +521,26 @@ export default function AppNew() {
               activeKey={rowActive ? `${rowActive.kind}|${rowActive.name}` : ''}
               onSelect={selectRow}
               onPlan={planHere}
+              allRemoved={allRemoved}
+              seasonNote={selectedRemoved.length > 0 ? seasonNotice(true, `${selectedRemoved.map((id) => speciesNames.get(id) ?? `species ${id}`).join(', ')} ${selectedRemoved.length === 1 ? 'is' : 'are'} out of season between ${formatDay(win.applied.start)} and ${formatDay(win.applied.end)} and left out.`) : null}
             />
           ) : (
-            <AreaResultPanel api={areaRank} areaLabel={areaLabel} />
+            <AreaResultPanel api={areaRank} areaLabel={areaLabel} onShowAll={showAllSpecies} onChangeDates={changeDates} onInfo={setCardId} />
           )}
         </RightPanel>
+      )}
+      {cardId !== null && (
+        <SpeciesCard
+          speciesId={cardId}
+          window={win.applied}
+          onClose={() => setCardId(null)}
+          onFindAreas={(id) => {
+            changeMode('species')
+            setSelIds([id])
+            setRowActive(null)
+            setCardId(null)
+          }}
+        />
       )}
     </div>
   )

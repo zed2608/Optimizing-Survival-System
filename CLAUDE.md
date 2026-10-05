@@ -83,10 +83,53 @@ empty = no request is ever sent). Rules built in: User-Agent with that contact, 
 on disk 30 days (`data/processed/cache/geocode/`, git-ignored), stale cache used when the network fails, credit text "Search data (c) OpenStreetMap contributors" shown with results.
 All tunables are in the one `API_CFG` block (`geocoder_*`, `search_*`). Tests: `tests/test_api_search.py` (the network is faked; it also runs the node tests of the parser).
 
+## Planting window (season) and the guided sidebar in `#/new` (added 2026-10-05)
+Season strongly decides which species can be planted, so the dashboard asks for a planting window again (the earlier dashboard had campaign start/end dates).
+- API (`api_v2.py`): optional query parameters `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, `season_filter=only|mark` (default `mark`) on /grid, /rank, /rank/area (POST, in the
+  query string, not the body), /areas/rank, /species, /species/{id}, /nearest-viable and /plan-event (POST, query string). Why query only: `PlanRequest` is pinned by an older
+  test. Config: `API_CFG["season_max_days"]` = 366.
+- Rules: a month counts if ANY day of it is in the window (month granularity); a window may cross the year end (Nov to Feb). Per species `season` = `{status, window_months,
+  species_months, months_in_window}`, status `in_season` (every window month is a planting month) | `partly` | `out_of_season` | `unknown` (no planting months: never guessed,
+  never removed). Responses also carry a top-level `season` block with counts, `removed`, `removed_species_ids`, `removed_reason`, `message`.
+- Scores S, P and W NEVER depend on the dates. `only` removes out-of-season species from /rank, /species, /nearest-viable, /rank/area (ranking and mix), the grid
+  colouring (/grid: their W is 0) and /areas/rank (the selected ids that were removed are listed in `season.selected_removed_ids`), and from /plan-event, where the planting months
+  of the kept species are also CUT to the window, so the palette's shared months (`summary.season.palette_common_months`) always lie inside it (`pipeline/palettes.py` is unchanged).
+  `mark` changes nothing but adds the labels (a plan in `mark` mode gets a `season:` warning when the palette shares no month of the window). No dates = exactly the old behaviour.
+  Bad dates: 422 with a plain message (both dates or neither, YYYY-MM-DD, real date, end not before start, at most 366 days). The API does NOT refuse a past start (the dashboard does).
+- Data fact: `planting_months` of the 45 species are May to September only (36 species have May, 38 June, 41 July, 10 August, 1 September). In October/November NO species is in
+  season; for the default dates (today to +30 days, early October) 0 of 45 are in season, so the dashboard shows "Only 0 of 45 species can be planted between ..." with
+  [Show all species] [Change dates] until the dates or the toggle are changed. Tests: `tests/test_api_season.py` (+ `season.test.mjs` through it).
+- Dashboard: Planting window step (start/end, default today to +30 days, start not in the past, end not before start, at most 366 days, plain errors, 12-month strip, dates
+  remembered in the browser), toggle "Only species for my dates" (default ON, remembered), season badge (words + symbol) and a 12-month strip (planting months filled, window
+  months ringed) on ranking rows, area tables, the suggested mix, the species picker and "Why this score?". `src/new/PointRanking.jsx` is the earlier `v2` ranking panel copied
+  with season badges (the `v2` files themselves are untouched). Invalid dates never reach the API: the last valid window keeps being used.
+- Sidebar = a guided list of FOUR collapsible steps, one open at a time, each collapsed step with a one-line summary: 1 Goal, 2 Purpose, 3 Planting window (dates, month strip,
+  "Jump to the next planting season", "Only species for my dates"), 4 Species or Area (species picker + "Suits all / Suits at least one"), then a single "More" menu (Known limits,
+  Dataset version, Field checks with download and import, other dashboards). Map type and the field-checked layer are in the "Map view" button at the top right of the map.
+  Rules kept: no label over 5 words (the requested button "Jump to the next planting season" is the one exception), no sidebar paragraph over one short sentence, longer text in
+  "?" help tips (keyboard: Enter/Space opens, Escape closes).
+- "Jump to the next planting season" (`season.js`, `bestSeasonWindow`, `NEXT_SEASON_DAYS` = 60): scans start dates from today to a year ahead, counts the species whose planting
+  months cover every month of the 60-day window, picks the most species, earliest start on ties. Today 5 Oct 2026 -> 1 May - 29 Jun 2027: 36 of 45 species in season.
+
+## Species card, and the verify-first point panel in `#/new` (added 2026-10-05)
+- Species card (`SpeciesCard.jsx`, a right-hand drawer, Close button and Escape): opens from a ranking row, an area-table row, the suggested mix, the species picker (small "i"
+  button) and a search result. It reads GET /species/{id} (no API change): sections Header, "Planting stage and timing" (large type: deployment stage as written, planting months +
+  12-month strip + season badge for the chosen dates, germination, propagation, depth, method, spacing), Where it grows, The tree, Uses and care (+ the both-sexes note for dioecious
+  species). Each value shows the source link and rank badge from `species_sources`; a missing value or source is "Data Unavailable"; a value whose source is flagged is marked draft.
+  "Find areas for this species" switches to mode 1 with it selected.
+- Point panel (`VerifyBar.jsx` above the ranking): the "100 m map square, check it on the ground" notice, big one-tap buttons (Plantable, Paved or road, Building, River or creek,
+  Other problem... = rock or ledge / too steep / existing tree / owner refused / other, Needs recheck), the observer name asked once inline (remembered in the browser), an optional
+  collapsed note, "Saved: ..." confirmation, a "Change" link (a change is a NEW event; clearing a not-plantable mark needs a note), current status with its symbol and a compact history.
+  A not-plantable point shows its ranking greyed with "Left out of plans because of a field check".
+- API change (the only one this round): `GET /rank?include_left_out=true` ranks a point that is marked not plantable (default false = 404 as before) and then adds
+  `left_out_by_field_check: true`. Scores are untouched; /nearest-viable, /grid, /plan-event still leave the point out. Tests: `tests/test_api_rank_left_out.py`.
+
+## Current status and next tasks
+
 ## Current status and next tasks
 DONE: Day 1 (data), Day 2 (site scores, purpose scores, model comparison), Day 3 (palettes, matching, `api_v2.py`), Day 4 (field kit, weather advisory),
 the `#/new` dashboard steps 0-3 (map, outlines, grid layer) and both modes ("I have species - find areas" / "I have an area - find species"), saved field checks,
-and the search bar (290 tests pass).
+the search bar, the planting window (season), the guided four-step sidebar, the species card and the verify-first point panel (320 tests pass).
 **Open items**: none. (Closed 2026-10-05: the field kit README has a "BRINGING THE RESULTS BACK" paragraph; `pipeline/run_plan.py` leaves out not_plantable points through
 `field_verify.filter_context` (option `--field-db`, default `data/field/field_checks.db`, never created by planning), prints the count and writes `field_checks` into the plan
 summary like `/plan-event`. Tests: `tests/test_run_plan_field.py`.)

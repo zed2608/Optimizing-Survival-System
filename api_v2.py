@@ -12,7 +12,7 @@ file rather than a cited source (site elevation, slope, soil code) say which fil
 """
 import dataclasses, hashlib, json, math, re, sqlite3, sys, threading, time, unicodedata, urllib.parse, urllib.request
 from collections import OrderedDict
-from datetime import datetime
+from datetime import date, datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -79,6 +79,8 @@ API_CFG = {
     "field_exclude_not_plantable": True,            # THE SWITCH: points whose latest field check is not_plantable are left out of rankings and plans
     "field_list_default_limit": 100,                # GET /field-checks
     "field_list_max_limit": 1000,
+    # ---- planting window (season) ----
+    "season_max_days": 366,                         # start/end dates: the longest window accepted
     # ---- search ----
     "search_group_limit": 5,                        # GET /search/all: results per group (the caller may ask for up to 20)
     "search_recent_plans": 20,                      # GET /search/all looks for planting points in this many most recent saved plans
@@ -246,14 +248,22 @@ def _grid_doc(d, purpose, w, best, n_el, species_id, species_ids, mode, w_def, b
     return json.dumps(doc, separators=(",", ":")).encode("utf-8")
 
 
-def grid_body(d, purpose, species_id=None):
-    """JSON bytes of /grid for a purpose (best species at each legal point) or a purpose + ONE species (that species only). Cached in memory."""
+def grid_body(d, purpose, species_id=None, drop=()):
+    """JSON bytes of /grid for a purpose (best species at each legal point) or a purpose + ONE species (that species only). Cached in memory.
+    drop = species ids removed by the season filter: their W is 0 (they are never the best species)."""
     key = (purpose, species_id)
-    if key in d.grid_cache:
+    if not drop and key in d.grid_cache:
         return d.grid_cache[key]
+    if drop:
+        hit = lru_get(d.multi_cache, ("g",) + key + (drop,))
+        if hit is not None:
+            return hit
     ctx, cfg = d.ctx, d.cfg
     miss = cfg["missing_marker"]
     W, feas = mt.weights(ctx.S, ctx.P[purpose])
+    if drop:
+        gone = np.isin(ctx.species.species_id.to_numpy(dtype=int), list(drop))
+        W, feas = np.where(gone[None, :], 0.0, W), feas & ~gone[None, :]
     ids = ctx.species.species_id.to_numpy(dtype=int)
     if species_id is None:
         k = W.argmax(axis=1)
@@ -267,7 +277,10 @@ def grid_body(d, purpose, species_id=None):
         best = np.where(w > 0, species_id, miss)
         body = _grid_doc(d, purpose, w, best, feas.sum(axis=1), species_id, [species_id], "single",
                          f"W = S x P if S >= 0.50 else 0, for species {species_id} only", "the chosen species (when W > 0)", "all species")
-    d.grid_cache[key] = body
+    if drop:
+        lru_put(d.multi_cache, ("g",) + key + (drop,), body, d.cfg["multi_cache_max"])
+    else:
+        d.grid_cache[key] = body
     return body
 
 
@@ -294,6 +307,9 @@ def combined_scores(d, purpose, ids, mode):
     Returns (W, best species id or the missing marker, number of selected species suitable at the point).
     """
     ctx = d.ctx
+    if not ids:                                                        # every selected species was removed by the season filter: nothing is suitable
+        n = len(ctx.sites)
+        return np.zeros(n), np.full(n, d.cfg["missing_marker"]), np.zeros(n, dtype=int)
     ks = [d.species_idx[i] for i in ids]
     Wk, feas = mt.weights(ctx.S[:, ks], ctx.P[purpose][ks])
     arr = np.array(ids)
@@ -590,6 +606,7 @@ def load_data(cfg=None):
     d.places_sorted = sorted(d.places, key=lambda p: p["name"])           # same order as barangay_names (sorted by name)
     d.geo = SimpleNamespace(lock=threading.Lock(), last=None, clock=time.monotonic, sleep=time.sleep)
     d.plan_index_cache = OrderedDict()
+    d.species_months = [pal.parse_months(v) for v in ctx.species.planting_months]      # {5, 6, 7} or None (never guessed)
     d.boundaries_body, d.boundaries_info = build_boundaries(gs, d.barangay_names, d.barangay_display, d.point_barangay, cfg)
     d.barangay_keys = [norm_place(n, cfg["place_aliases"]) for n in d.barangay_names]
     d.barangay_bbox = [f["properties"]["bbox"] for f in json.loads(d.boundaries_body)["features"][1:]]
@@ -673,6 +690,136 @@ def pair_rows(d, point_id):
     return {int(r.species_id): (r.confidence, json.loads(r.breakdown_json)) for r in df.itertuples(index=False)}
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# planting window (season): optional start / end dates. Species planting months decide which species can be planted in the window.
+# The scores S, P and W NEVER depend on the dates. season_filter=mark only labels species; season_filter=only also removes the out-of-season ones.
+# Month granularity: a month counts if any day of it lies inside the window. A species with no planting months is "unknown" (never guessed, never removed).
+# ---------------------------------------------------------------------------------------------------------------------
+DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def parse_date(text, name):
+    if not isinstance(text, str) or not DATE_RE.fullmatch(text.strip()):
+        raise HTTPException(422, f"{name} must be a date written YYYY-MM-DD, for example 2026-10-06 (got '{text}').")
+    try:
+        return date.fromisoformat(text.strip())
+    except ValueError:
+        raise HTTPException(422, f"{name} '{text}' is not a real calendar date.")
+
+
+def window_month_list(start, end):
+    """Month numbers touched by the window in calendar order from the start; a window may cross the year end (10 Nov to 20 Feb -> [11, 12, 1, 2])."""
+    out, y, m = [], start.year, start.month
+    while (y, m) <= (end.year, end.month):
+        out.append(m)
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return list(dict.fromkeys(out))
+
+
+def parse_season(cfg, start, end, season_filter="mark"):
+    """None when no dates were sent (behaviour exactly as before); otherwise the planting window. Bad dates are a 422 with a plain message."""
+    if start is None and end is None:
+        return None
+    if start is None or end is None:
+        raise HTTPException(422, "Send both start and end (YYYY-MM-DD), or neither.")
+    s, e = parse_date(start, "start"), parse_date(end, "end")
+    if e < s:
+        raise HTTPException(422, f"The end date ({e.isoformat()}) is before the start date ({s.isoformat()}). The window must end on or after its start.")
+    days = (e - s).days + 1
+    if days > cfg["season_max_days"]:
+        raise HTTPException(422, f"The planting window is {days} days long; the longest allowed is {cfg['season_max_days']} days.")
+    if season_filter not in ("only", "mark"):
+        raise HTTPException(422, "season_filter must be 'only' or 'mark'.")
+    return SimpleNamespace(start=s, end=e, days=days, months=window_month_list(s, e), filter=season_filter)
+
+
+def season_q(start: Optional[str] = Query(None, description="planting window start, YYYY-MM-DD (send together with end)"),
+             end: Optional[str] = Query(None, description="planting window end, YYYY-MM-DD"),
+             season_filter: Literal["only", "mark"] = Query("mark", description="'mark' = label species with their season status; 'only' = also remove the out-of-season ones"),
+             d=Depends(D)):
+    return parse_season(d.cfg, start, end, season_filter)
+
+
+def season_object(species_months, season):
+    """status: in_season (every month of the window is a planting month) | partly (some) | out_of_season (none) | unknown (no planting months recorded)."""
+    win = season.months
+    if species_months is None:
+        return {"status": "unknown", "window_months": win, "species_months": [], "months_in_window": []}
+    inn = [m for m in win if m in species_months]
+    status = "in_season" if len(inn) == len(win) else ("partly" if inn else "out_of_season")
+    return {"status": status, "window_months": win, "species_months": sorted(species_months), "months_in_window": inn}
+
+
+def season_drop_ids(d, season):
+    """Species ids removed by season_filter=only (the out-of-season ones). Unknown ones stay, marked."""
+    if season is None or season.filter != "only":
+        return ()
+    ids = d.ctx.species.species_id.astype(int).tolist()
+    return tuple(sid for sid, m in zip(ids, d.species_months) if season_object(m, season)["status"] == "out_of_season")
+
+
+def day_text(x):
+    return f"{x.day} {x.strftime('%b')}"
+
+
+def season_block(d, season, selected_ids=None):
+    objs = [season_object(m, season)["status"] for m in d.species_months]
+    n = len(objs)
+    drop = season_drop_ids(d, season)
+    block = {"start": season.start.isoformat(), "end": season.end.isoformat(), "days": season.days, "window_months": season.months, "filter": season.filter,
+             "species_total": n, "in_season": objs.count("in_season"), "partly": objs.count("partly"), "out_of_season": objs.count("out_of_season"),
+             "unknown": objs.count("unknown"), "removed": len(drop), "removed_species_ids": list(drop), "kept": n - len(drop),
+             "removed_reason": "out_of_season: none of the months of the window is a planting month of the species" if drop else "",
+             "message": (f"Only {n - len(drop)} of {n} species can be planted between {day_text(season.start)} and {day_text(season.end)}." if season.filter == "only"
+                         else f"{objs.count('in_season')} of {n} species are fully in season and {objs.count('partly')} partly between {day_text(season.start)} and {day_text(season.end)}."),
+             "note": "Month granularity: a month counts if any day of it is inside the window. Scores S, P and W do not depend on the dates. "
+                     "A species with no planting months is 'unknown' and is never removed."}
+    if selected_ids is not None:
+        block["selected_removed_ids"] = [int(i) for i in selected_ids if int(i) in drop]
+    return block
+
+
+def season_extra(d, season, selected_ids=None):
+    return {} if season is None else {"season": season_block(d, season, selected_ids)}
+
+
+def with_season(body, block):
+    """Add a "season" member to cached JSON bytes (the cached grid / area bodies do not depend on the dates themselves)."""
+    return body[:-1] + b',"season":' + json.dumps(block, separators=(",", ":")).encode("utf-8") + b"}"
+
+
+def clip_months(species, season):
+    """A copy of the species table whose planting_months are cut to the window (used so that a palette's shared months lie inside the window)."""
+    sp = species.copy()
+    win = set(season.months)
+    out = []
+    for v in sp.planting_months:
+        m = pal.parse_months(v)
+        out.append(";".join(str(x) for x in sorted(m & win)) if m else v)
+    sp["planting_months"] = out
+    return sp
+
+
+def season_ctx(ctx, season, drop):
+    """A matching.Context without the removed species and with planting months cut to the window."""
+    keep = ~ctx.species.species_id.astype(int).isin(drop).to_numpy()
+    sp = clip_months(ctx.species[keep].reset_index(drop=True), season)
+    return dataclasses.replace(ctx, species=sp, S=ctx.S[:, keep], P={k: v[keep] for k, v in ctx.P.items()})
+
+
+def plan_season(d, season, summary):
+    """The season block of a plan summary, with the months the palette shares inside the window."""
+    block = season_block(d, season)
+    common = summary.get("palette_common_planting_months") or []
+    inside = [m for m in season.months if m in common]
+    block["palette_common_months"] = list(common)
+    block["palette_common_months_in_window"] = inside
+    if summary["palette"] and not inside:
+        summary["palette_warnings"] = list(summary.get("palette_warnings", [])) + [
+            "season: the species of this palette do not share a planting month inside the window (season_filter=mark does not change the palette)"]
+    return block
+
+
 def flags_for(d, species_id, breakdown, conf):
     fl = list(breakdown.get("flags", [])) + [f"gate_failed:{g}" for g in breakdown.get("gate_failed", [])]
     fl += d.ctx.species_flags.get(species_id, [])
@@ -701,10 +848,14 @@ KEY_FIELDS = {"common_name": "common_name", "scientific_name": "scientific_name"
 
 
 @app.get("/species")
-def species_list(d=Depends(D)):
+def species_list(season=Depends(season_q), d=Depends(D)):
+    """All species. With start/end each species gets a season object; with season_filter=only the out-of-season ones are removed."""
     sp, items, ids = d.ctx.species, [], set()
-    for r in sp.itertuples(index=False):
+    drop = set(season_drop_ids(d, season))
+    for k, r in enumerate(sp.itertuples(index=False)):
         sid = int(r.species_id)
+        if sid in drop:
+            continue
         fid = {f: d.src_by_sf[(sid, s)] for f, s in KEY_FIELDS.items() if (sid, s) in d.src_by_sf}
         ids |= set(fid.values())
         items.append({"species_id": sid, "common_name": r.common_name, "scientific_name": r.scientific_name, "genus": py(r.genus),
@@ -714,22 +865,24 @@ def species_list(d=Depends(D)):
                                      "cells_rank1_or_2": py(r.n_cells_rank12)},
                       "purpose_scores": {p: {"p_score": py(d.ps_by_key[(sid, p)].p_score), "confidence": py(d.ps_by_key[(sid, p)].confidence)}
                                          for p in mt.PURPOSES},
-                      "flags": d.ctx.species_flags.get(sid, []), "source_ids": fid})
+                      "flags": d.ctx.species_flags.get(sid, []), "source_ids": fid,
+                      **({"season": season_object(d.species_months[k], season)} if season is not None else {})})
     return {"count": len(items), "species": items, "sources": sources_map(d, ids),
-            "note": "GET /species/{species_id} lists every field with its source URL and rank"}
+            "note": "GET /species/{species_id} lists every field with its source URL and rank", **season_extra(d, season)}
 
 
 @app.get("/species/{species_id}")
-def species_detail(species_id: int, d=Depends(D)):
+def species_detail(species_id: int, season=Depends(season_q), d=Depends(D)):
     i = d.species_idx.get(species_id)
     if i is None:
         raise HTTPException(404, f"species_id {species_id} not found (valid ids: {int(d.ctx.species.species_id.min())}-{int(d.ctx.species.species_id.max())})")
     row = d.ctx.species.iloc[i]
     rows = d.sources[d.sources.species_id == species_id]
+    sx = {"season": season_object(d.species_months[i], season), "season_window": season_block(d, season)} if season is not None else {}
     fields = [{"field_name": r.field_name, "value_as_written": py(r.value_text), "source_id": int(r.source_id), "source_url": py(r.source_url),
                "source_rank": py(r.source_rank), "rank_basis": py(r.rank_basis), "off_list": py(r.off_list), "flags": py(r.flags)}
               for r in rows.itertuples(index=False)]
-    return {"species_id": species_id, "common_name": row.common_name, "scientific_name": row.scientific_name,
+    return {**sx, "species_id": species_id, "common_name": row.common_name, "scientific_name": row.scientific_name,
             "confidence": {"share_of_cells_with_rank1_or_2_source": py(row.confidence_r12), "cells_cited": py(row.n_cells_cited),
                            "cells_rank1_or_2": py(row.n_cells_rank12)},
             "flags": d.ctx.species_flags.get(species_id, []),
@@ -742,7 +895,9 @@ def species_detail(species_id: int, d=Depends(D)):
 
 @app.get("/rank")
 def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180),
-         limit: int = Query(API_CFG["rank_default_limit"], ge=1, le=100), d=Depends(D)):
+         limit: int = Query(API_CFG["rank_default_limit"], ge=1, le=100), season=Depends(season_q),
+         include_left_out: bool = Query(False, description="true: a point marked not plantable in the field is still ranked (for display only, greyed out) instead of answering 404"),
+         d=Depends(D)):
     e, n = d.to_utm.transform(lon, lat)
     dist, i = d.tree_all.query([e, n])
     if dist > d.cfg["nearest_point_max_m"]:
@@ -753,7 +908,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
         zone = py(pt.zone_desc) or "outside the zoning map"
         raise HTTPException(404, f"The nearest grid point (id {int(pt.point_id)}, {dist:.0f} m away) is not in a legal planting zone ({zone}); no ranking is given.")
     j = d.legal_index[int(pt.point_id)]
-    if d.ex_mask[j]:
+    if d.ex_mask[j] and not include_left_out:
         c = d.field_current[int(pt.point_id)]
         raise HTTPException(404, f"This point (id {int(pt.point_id)}) was marked not plantable in the field ({c['reason']}) by {c['observer']} on {c['observed_at'][:10]}"
                                  f"{': ' + c['note'] if c['note'] else ''}. It is left out of the ranking. Its history: GET /field-checks/{int(pt.point_id)}.")
@@ -765,21 +920,27 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
         conf, bd = pairs.get(sid, (None, {}))
         items.append((bool(feas[0, k]), float(W[0, k]), float(S_row[k]), k, sid, conf, bd))
     items.sort(key=lambda t: (not t[0], -t[1], -t[2], t[4]))
+    n_all = len(items)
+    drop = set(season_drop_ids(d, season))
+    if drop:                                                          # season_filter=only: out-of-season species are not ranked
+        items = [t for t in items if t[4] not in drop]
     out, ids = [], set()
     for rnk, (el, w, s, k, sid, conf, bd) in enumerate(items[:limit], 1):
         terms = {t: {"value": v["value"], "weight": v["weight"], "sources": [source(d, x) for x in v["src"]]} for t, v in bd.get("terms", {}).items()}
         out.append({"rank": rnk, "species_id": sid, "common_name": d.ctx.species.common_name.iloc[k], "S": round(s, 4), "P": round(float(P[k]), 4),
                     "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf),
                     "site_breakdown": {"gate_failed": bd.get("gate_failed", []), "terms": terms},
-                    "purpose_breakdown": purpose_breakdown(d, sid, purpose)})
+                    "purpose_breakdown": purpose_breakdown(d, sid, purpose),
+                    **({"season": season_object(d.species_months[k], season)} if season is not None else {})})
     return {"purpose": purpose, "query": {"lat": lat, "lon": lon},
             "point": {"point_id": int(pt.point_id), "lon": py(pt.lon), "lat": py(pt.lat), "utm_e": py(pt.utm_e), "utm_n": py(pt.utm_n),
                       "distance_m": round(float(dist), 1), "zone": py(pt.zone_desc), "elev_m": py(pt.elev_m), "slope_pct": py(pt.slope_pct),
                       "slope_method": py(pt.slope_method), "soil_texture_legacy": py(pt.soil_texture_legacy),
                       "soil_mapping_status": py(pt.soil_mapping_status),
                       "site_inputs_source": "backend/Working_Points.csv (elevation, soil code); slope by finite differences on elevation; soil texture = legacy mapping (unverified)"},
-            "species_eligible": int(sum(t[0] for t in items)), "species_total": len(items), "returned": len(out), "ranking": out,
-            "limits": LIMITS, "w_definition": "W = S x P if S >= 0.50 else 0", **field_extra(d, int(pt.point_id))}
+            "species_eligible": int(sum(t[0] for t in items)), "species_total": n_all, "returned": len(out), "ranking": out,
+            "limits": LIMITS, "w_definition": "W = S x P if S >= 0.50 else 0", **field_extra(d, int(pt.point_id)), **season_extra(d, season),
+            **({"left_out_by_field_check": True} if d.ex_mask[j] else {})}
 
 
 @app.get("/rank/municipal")
@@ -832,10 +993,17 @@ def search_place(q: str = Query(min_length=1), d=Depends(D)):
 
 
 @app.get("/nearest-viable")
-def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180), d=Depends(D)):
+def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180), season=Depends(season_q), d=Depends(D)):
     ctx, cfg = d.ctx, d.cfg
     e, n = d.to_utm.transform(lon, lat)
     W, feas = mt.weights(ctx.S, ctx.P[purpose])
+    drop = season_drop_ids(d, season)
+    if drop:                                                          # season_filter=only: only species that can be planted in the window count
+        gone = np.isin(ctx.species.species_id.to_numpy(dtype=int), list(drop))
+        if gone.all():
+            raise HTTPException(404, f"No species can be planted between {day_text(season.start)} and {day_text(season.end)}, so no suitable spot can be offered. "
+                                     "Change the dates or show all species.")
+        W, feas = np.where(gone[None, :], 0.0, W), feas & ~gone[None, :]
     viable = feas.any(axis=1) & ~d.ex_mask                          # a point marked not plantable is never offered
 
     def best(j):
@@ -843,6 +1011,7 @@ def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: flo
         sid = int(ctx.species.species_id.iloc[k])
         return {"species_id": sid, "common_name": ctx.species.common_name.iloc[k], "S": round(float(ctx.S[j, k]), 4),
                 "P": round(float(ctx.P[purpose][k]), 4), "W": round(float(W[j, k]), 4),
+                **({"season": season_object(d.species_months[k], season)} if season is not None else {}),
                 "source_ids": {"site_score": species_field_ids(d, sid, [f for fs in ss.TERM_FIELDS.values() for f in fs]),
                                "purpose_score": purpose_source_ids(d, sid, purpose)}}
 
@@ -854,7 +1023,7 @@ def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: flo
                 "ring_step_m": cfg["ring_step_m"], "distance_m": round(float(dist), 1),
                 "direction": None if already else compass(r.utm_e - e, r.utm_n - n),
                 "point": {"point_id": int(r.point_id), "lon": py(r.lon), "lat": py(r.lat), "utm_e": py(r.utm_e), "utm_n": py(r.utm_n), "zone": py(r.zone_desc)},
-                "best_species": b, "sources": sources_map(d, ids), "limits": LIMITS}
+                "best_species": b, "sources": sources_map(d, ids), "limits": LIMITS, **season_extra(d, season)}
 
     dist, i = d.tree_all.query([e, n])
     if dist <= cfg["nearest_point_max_m"]:                           # the spot itself
@@ -979,7 +1148,7 @@ def save_plan(d, purpose, plan, summary):
 
 
 @app.post("/plan-event")
-def plan_event(req: PlanRequest, d=Depends(D)):
+def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
     ctx = d.ctx
     seed = d.cfg["default_seed"] if req.seed is None else req.seed
     if req.zone:
@@ -1001,6 +1170,13 @@ def plan_event(req: PlanRequest, d=Depends(D)):
             sub = dataclasses.replace(sub, sites=sub.sites[~gone].reset_index(drop=True), S=sub.S[~gone])
         if len(sub.sites) == 0:
             raise HTTPException(400, "Every planting point of this area is marked not plantable in the field, so no plan can be made.")
+    season = q_season
+    drop = season_drop_ids(d, season)
+    if drop:                                                          # season_filter=only: species out of season are left out, planting months cut to the window
+        sub = season_ctx(sub, season, drop)
+        if len(sub.species) == 0:
+            raise HTTPException(400, f"Every species is out of season between {day_text(season.start)} and {day_text(season.end)}, so no plan can be made. "
+                                     "Change the dates, or send season_filter=mark to plan anyway and see the season labels.")
     try:
         plan, summary = rp.make_plan(sub, req.purpose, req.n_saplings, zone=req.zone, seed=seed)
     except ValueError as ex:
@@ -1008,6 +1184,10 @@ def plan_event(req: PlanRequest, d=Depends(D)):
     if not summary["palette"]:
         raise HTTPException(400, "No species has eligible points (S >= 0.50) in this area, so no plan can be made. "
                                  f"{' '.join(summary['palette_warnings'])}".strip())
+    if season is not None:
+        summary["season"] = plan_season(d, season, summary)
+        for p_ in summary["palette"]:
+            p_["season"] = season_object(d.species_months[d.species_idx[p_["species_id"]]], season)
     summary["field_checks"] = {"exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"]), "excluded_points": excluded_in_area,
                                "note": "Points whose latest field check is not_plantable were left out of this plan." if d.cfg["field_exclude_not_plantable"]
                                else "The field-check switch is off: not_plantable points were NOT left out."}
@@ -1015,7 +1195,8 @@ def plan_event(req: PlanRequest, d=Depends(D)):
     plan_id, f, sj = save_plan(d, req.purpose, plan, summary)
     return render_plan(d, plan, summary, plan_id,
                        {"saved": {"plan_csv": f.name, "summary_json": sj.name, "folder": f"{d.cfg['data_dir']}/{rp.CFG['plans_dir']}"},
-                        "next": {"plan": f"/plans/{plan_id}", "build_field_kit": f"POST /plans/{plan_id}/field-kit"}})
+                        "next": {"plan": f"/plans/{plan_id}", "build_field_kit": f"POST /plans/{plan_id}/field-kit"},
+                        **({"season": summary["season"]} if "season" in summary else {})})
 
 
 @app.get("/plans")
@@ -1126,15 +1307,23 @@ def grid(purpose: Purpose,
          species_id: Optional[int] = Query(None, description="colour by this ONE species only (the original parameter)"),
          species_ids: Optional[str] = Query(None, description="comma-separated species ids, for example 1,2,3 (several species)"),
          mode: Literal["all", "any"] = Query("all", description="with species_ids: 'all' = lowest W, suitable only if every selected species is; 'any' = highest W"),
-         d=Depends(D)):
+         season=Depends(season_q), d=Depends(D)):
     """Compact column arrays for every legal grid point: point_id, lon, lat, W, best_species_id, n_eligible_species, barangay."""
+    drop = season_drop_ids(d, season)
     if species_ids is not None:
         if species_id is not None:
             raise HTTPException(422, "Use either species_id (one species) or species_ids (several), not both")
-        return _cached_json(grid_body_multi(d, purpose, parse_species_ids(d, species_ids), mode), d, live=True)
-    if species_id is not None and species_id not in d.species_idx:
-        raise HTTPException(404, f"species_id {species_id} not found (valid ids: {int(d.ctx.species.species_id.min())}-{int(d.ctx.species.species_id.max())})")
-    return _cached_json(grid_body(d, purpose, species_id), d, live=True)
+        ids = parse_species_ids(d, species_ids)
+        body = grid_body_multi(d, purpose, [i for i in ids if i not in drop], mode)
+        sel = ids
+    else:
+        if species_id is not None and species_id not in d.species_idx:
+            raise HTTPException(404, f"species_id {species_id} not found (valid ids: {int(d.ctx.species.species_id.min())}-{int(d.ctx.species.species_id.max())})")
+        body = grid_body(d, purpose, species_id, drop)
+        sel = None if species_id is None else [species_id]
+    if season is not None:
+        body = with_season(body, season_block(d, season, sel))
+    return _cached_json(body, d, live=True)
 
 
 @app.get("/geo/zones")
@@ -1145,9 +1334,14 @@ def geo_zones(d=Depends(D)):
 
 @app.get("/areas/rank")
 def areas_rank(purpose: Purpose, species_ids: str = Query(..., description="comma-separated species ids, for example 1,2,3"),
-               mode: Literal["all", "any"] = Query("all"), by: Literal["barangay", "zone"] = Query("barangay"), d=Depends(D)):
+               mode: Literal["all", "any"] = Query("all"), by: Literal["barangay", "zone"] = Query("barangay"), season=Depends(season_q), d=Depends(D)):
     """Barangays (or zones) ranked for the selected species: mean W over the legal points, share of points suitable, number of suitable points."""
-    return _cached_json(areas_rank_body(d, purpose, parse_species_ids(d, species_ids), mode, by), d, live=True)
+    ids = parse_species_ids(d, species_ids)
+    drop = season_drop_ids(d, season)
+    body = areas_rank_body(d, purpose, [i for i in ids if i not in drop], mode, by)
+    if season is not None:
+        body = with_season(body, season_block(d, season, ids))
+    return _cached_json(body, d, live=True)
 
 
 class AreaRankRequest(BaseModel):
@@ -1160,9 +1354,11 @@ class AreaRankRequest(BaseModel):
 
 
 @app.post("/rank/area")
-def rank_area(req: AreaRankRequest, d=Depends(D)):
+def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(D)):
     """Species ranked for a whole area (a barangay, a zone or a drawn polygon) plus the suggested mix with shares from the palette code."""
     ctx, cfg = d.ctx, d.cfg
+    season = q_season
+    drop = season_drop_ids(d, season)
     miss = cfg["missing_marker"]
     mask, info = resolve_area(d, req)
     excluded_here = int((mask & d.ex_mask).sum())
@@ -1181,6 +1377,8 @@ def rank_area(req: AreaRankRequest, d=Depends(D)):
     if suitable.empty:
         raise HTTPException(400, f"No species has eligible points (S >= 0.50) in '{info['display_name']}', so there is nothing to rank. "
                                  "Try another area or another purpose.")
+    if drop:                                                           # season_filter=only: out-of-season species are not ranked (the scores are untouched)
+        suitable = suitable[~suitable.species_id.isin(drop)]
     conf = area_mean_confidence(d, ctx.sites.point_id.to_numpy()[idx])
     rows, ids = [], set()
     for rnk, r in enumerate(suitable.head(req.limit).itertuples(index=False), 1):
@@ -1199,13 +1397,26 @@ def rank_area(req: AreaRankRequest, d=Depends(D)):
                      "p_confidence": py(d.ps_by_key[(sid, req.purpose)].confidence) if py(d.ps_by_key[(sid, req.purpose)].confidence) is not None else miss,
                      "mean_site_confidence": round(float(mc), 4) if mc is not None else miss, "flags": flags,
                      "source_ids": {"site_score": s_ids, "purpose_score": p_ids}})
-    pal_res = pal.build_palette(ctx.species, S_area, P, req.n_saplings)
+    keep_k = [k for k, sid_ in enumerate(ctx.species.species_id.astype(int)) if sid_ not in drop]
+    if not keep_k or suitable.empty:
+        pal_res = {"species_id": [], "common_name": [], "share": [], "quota": [], "score": [], "needs_both_sexes": [], "common_months": [], "dioecious_rejected": [],
+                   "warnings": ["No species is left after the planting-window filter, so no mix can be suggested. Change the dates or show all species."]}
+    else:
+        sp_view = ctx.species.iloc[keep_k].reset_index(drop=True)
+        if season is not None and season.filter == "only":
+            sp_view = clip_months(sp_view, season)                    # the mix's shared planting months must lie inside the window
+        pal_res = pal.build_palette(sp_view, S_area[:, keep_k], P[keep_k], req.n_saplings)
     mix = [{"species_id": sid, "common_name": nm, "share": round(sh, 4), "quota": q, "species_score": round(sc, 4), "needs_both_sexes": nb,
             "genus": str(ctx.species.genus.iloc[d.species_idx[sid]])}
            for sid, nm, sh, q, sc, nb in zip(pal_res["species_id"], pal_res["common_name"], pal_res["share"], pal_res["quota"], pal_res["score"],
                                              pal_res["needs_both_sexes"])]
     any_suitable = int((S_area >= mt.CFG["s_min"]).any(axis=1).sum())
-    return {"purpose": req.purpose, "area": {**info, "legal_points": int(len(idx)), "points_with_a_suitable_species": any_suitable},
+    if season is not None:
+        for r_ in rows + mix:
+            r_["season"] = season_object(d.species_months[d.species_idx[r_["species_id"]]], season)
+        if mix and not [m for m in season.months if m in pal_res["common_months"]]:
+            pal_res["warnings"] = list(pal_res["warnings"]) + ["season: the species of this mix do not share a planting month inside the window"]
+    out = {"purpose": req.purpose, "area": {**info, "legal_points": int(len(idx)), "points_with_a_suitable_species": any_suitable},
             "species_total": int(len(ctx.species)), "species_with_suitable_points": int(len(suitable)), "returned": len(rows), "ranking": rows,
             "mix": {"n_saplings": req.n_saplings, "species": mix, "common_planting_months": pal_res["common_months"], "warnings": pal_res["warnings"],
                     "dioecious_left_out": pal_res["dioecious_rejected"],
@@ -1215,7 +1426,10 @@ def rank_area(req: AreaRankRequest, d=Depends(D)):
             "missing": {"marker": miss, "columns": {"mean_site_confidence": f"{miss} = no confidence value available", "p_confidence": f"{miss} = no confidence value available"},
                         "note": "No value is null. In sources, a missing rank is the marker and a missing text is an empty string."},
             "sources": {k: {f: ((miss if f == "rank" else "") if v is None else v) for f, v in src.items()} for k, src in sources_map(d, ids).items()},
-            "limits": LIMITS}
+            "limits": LIMITS, **season_extra(d, season)}
+    if season is not None:
+        out["mix"]["common_months_in_window"] = [m for m in season.months if m in pal_res["common_months"]]
+    return out
 
 
 # ---------------------------------------------------------------------------------------------------------------------

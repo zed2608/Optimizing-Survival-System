@@ -2,9 +2,10 @@ import { useRef, useState } from 'react'
 import { API_BASE } from '../v2/config.js'
 import { REASON_LABEL, STATUS_LABEL, STATUS_SYMBOL } from './fieldLabels.js'
 import { apiPostText } from './apiPost.js'
+import HelpTip from './HelpTip.jsx'
 
-// Sidebar: counts of the saved field checks, the map toggle, Download (CSV) and Import (CSV) with the accepted / rejected report.
-export default function FieldSummary({ summary, observer, onObserver, showField, onShowField, onChanged }) {
+// Inside the "More" menu: counts of the saved field checks, Download (CSV) and Import (CSV) with the accepted / rejected report.
+export default function FieldSummary({ summary, observer, onObserver, onChanged }) {
   const fileRef = useRef(null)
   const [report, setReport] = useState(null)
   const [problem, setProblem] = useState('')
@@ -32,8 +33,7 @@ export default function FieldSummary({ summary, observer, onObserver, showField,
   }
 
   return (
-    <section className="nw-section" aria-label="Field checks">
-      <h3>Field checks</h3>
+    <div aria-label="Field checks">
       {summary.status === 'loading' && <p className="nw-hint">Loading…</p>}
       {summary.status === 'error' && <p className="nw-hint nw-warn">Field checks are not available (the planning service is not reachable).</p>}
       {s && (
@@ -48,11 +48,11 @@ export default function FieldSummary({ summary, observer, onObserver, showField,
           <p className="nw-hint">
             {s.points_checked} point{s.points_checked === 1 ? '' : 's'} checked
             {s.disputed_points > 0 ? ` · ⚠ ${s.disputed_points} disputed` : ''}
-            {s.exclude_not_plantable ? ` · ${s.left_out_of_rankings} left out of rankings and plans` : ' · exclusion switch is off'}.
+            {s.exclude_not_plantable ? ` · ${s.left_out_of_rankings} left out` : ' · exclusion is off'}.
           </p>
           {s.by_status.not_plantable > 0 && (
             <p className="nw-hint">
-              Not plantable by reason:{' '}
+              Not plantable:{' '}
               {Object.entries(s.by_reason)
                 .filter(([, n]) => n > 0)
                 .map(([r, n]) => `${REASON_LABEL[r] ?? r} ${n}`)
@@ -61,24 +61,25 @@ export default function FieldSummary({ summary, observer, onObserver, showField,
           )}
         </>
       )}
-      <label className="nw-togglerow">
-        <input type="checkbox" checked={showField} onChange={(e) => onShowField(e.target.checked)} />
-        <span>Show field-checked points on the map (◯ verified, ✕ not plantable, △ recheck)</span>
-      </label>
       <label className="nw-label nw-label-gap" htmlFor="nw-fc-observer">
-        Your name (for imports; saved in this browser)
+        Your name
       </label>
       <input id="nw-fc-observer" className="nw-input" value={observer} maxLength={80} onChange={(e) => onObserver(e.target.value)} placeholder="e.g. Juan Dela Cruz" />
-      <div className="nw-row">
-        <a className="nw-btn nw-btn-small nw-linkbtn" href={`${API_BASE}/field-checks/export.csv`} download="field_checks.csv">
-          Download field checks (CSV)
-        </a>
-        <button type="button" className="nw-btn nw-btn-small" disabled={busy} onClick={() => fileRef.current?.click()}>
-          Import field checks (CSV)
-        </button>
-        <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" tabIndex={-1} onChange={onFile} aria-label="Choose the filled point-list.csv of a field kit" />
+      <div className="nw-opt-head">
+        <div className="nw-row nw-grow">
+          <a className="nw-btn nw-btn-small nw-linkbtn" href={`${API_BASE}/field-checks/export.csv`} download="field_checks.csv">
+            Download (CSV)
+          </a>
+          <button type="button" className="nw-btn nw-btn-small" disabled={busy} onClick={() => fileRef.current?.click()}>
+            Import field checks (CSV)
+          </button>
+        </div>
+        <HelpTip label="Import field checks">
+          Import the point-list.csv of a field kit after the team filled in its status and moved_lat / moved_lon columns. Your name is saved in this browser and with each imported check. Importing the same file again adds
+          nothing.
+        </HelpTip>
       </div>
-      <p className="nw-hint">Import the point-list.csv of a field kit after the team filled in its status and moved_lat / moved_lon columns. Importing the same file again adds nothing.</p>
+      <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" tabIndex={-1} onChange={onFile} aria-label="Choose the filled point-list.csv of a field kit" />
       {busy && <p className="nw-hint" role="status">Importing…</p>}
       {problem && (
         <p className="nw-hint nw-warn" role="alert">
@@ -109,6 +110,6 @@ export default function FieldSummary({ summary, observer, onObserver, showField,
           </button>
         </div>
       )}
-    </section>
+    </div>
   )
 }

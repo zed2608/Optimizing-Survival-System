@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import L from 'leaflet'
-import { LayersControl, MapContainer, TileLayer, useMap, ZoomControl } from 'react-leaflet'
+import { MapContainer, TileLayer, useMap, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MAP_BOUNDS, MAP_CENTER } from '../v2/config.js'
 import BoundaryLayers from './BoundaryLayers.jsx'
@@ -55,8 +55,14 @@ function GoTo({ target }) {
   return null
 }
 
-// Satellite (default) or street map, zoom buttons, the outlines + names, and the grid layer.
-export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, meta, goTarget, fitTarget, highlight, draft, drawing, field }) {
+// Satellite (default) or street map (chosen in the sidebar Options), zoom buttons, the outlines + names, and the grid layer.
+const BASE_LAYERS = {
+  satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri &mdash; World Imagery' },
+  street: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' },
+}
+
+export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, meta, goTarget, fitTarget, highlight, draft, drawing, field, baseLayer = 'satellite' }) {
+  const base = BASE_LAYERS[baseLayer] ?? BASE_LAYERS.satellite
   return (
     <MapContainer
       center={MAP_CENTER}
@@ -69,14 +75,7 @@ export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, sel
       className={drawing ? 'nw-drawing' : ''}
       style={{ height: '100%', width: '100%', background: '#0b1220' }}
     >
-      <LayersControl position="topright" collapsed={false}>
-        <LayersControl.BaseLayer checked name="Satellite">
-          <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="&copy; Esri &mdash; World Imagery" maxZoom={19} />
-        </LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Street map">
-          <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" maxZoom={19} />
-        </LayersControl.BaseLayer>
-      </LayersControl>
+      <TileLayer key={baseLayer} url={base.url} attribution={base.attribution} maxZoom={19} />
       <ZoomControl position="topright" />
       <FitToMunicipality bbox={bbox} />
       <GoTo target={goTarget} />

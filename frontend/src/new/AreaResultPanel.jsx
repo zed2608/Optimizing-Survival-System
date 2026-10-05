@@ -2,6 +2,8 @@ import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import FlagBadges from '../v2/components/FlagBadges.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
 import { fmt, pct } from '../v2/scale.js'
+import SeasonBadge from './SeasonBadge.jsx'
+import SeasonNotice from './SeasonNotice.jsx'
 import SourceGroup from './SourceGroup.jsx'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -27,7 +29,7 @@ function MissingOr({ v, f }) {
 }
 
 // Mode 2: ranked species for a whole area, plus the suggested mix (shares from the palette code, with its caps).
-export default function AreaResultPanel({ api, areaLabel }) {
+export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDates, onInfo }) {
   if (api.status === 'loading') return <div className="v2 v2-embedded"><div className="panel-body"><Loading what={`Ranking species for ${areaLabel}`} /></div></div>
   if (api.status === 'error') {
     const f = friendly(api.error)
@@ -50,6 +52,7 @@ export default function AreaResultPanel({ api, areaLabel }) {
   if (api.status !== 'ok') return null
   const r = api.data
   const mix = r.mix
+  const sb = r.season
   return (
     <div className="v2 v2-embedded">
       <div className="panel-body">
@@ -65,6 +68,10 @@ export default function AreaResultPanel({ api, areaLabel }) {
         )}
         {r.area.not_plantable_points === 0 && <p className="muted">No point of this area is marked not plantable in the field.</p>}
 
+        {sb && r.ranking.length === 0 && sb.removed > 0 && (
+          <SeasonNotice light kept={sb.kept} total={sb.species_total} start={sb.start} end={sb.end} onShowAll={onShowAll} onChangeDates={onChangeDates} />
+        )}
+        {sb && r.ranking.length > 0 && <p className="muted">Month strip: filled = planting months, ringed = your dates.</p>}
         <section className="nw-mix" aria-label="Suggested mix">
           <h3>Suggested mix</h3>
           {mix.species.length === 0 ? (
@@ -75,8 +82,12 @@ export default function AreaResultPanel({ api, areaLabel }) {
                 {mix.species.map((s) => (
                   <li key={s.species_id}>
                     <span className="nw-bar-name">
-                      {s.common_name}
+                      <button type="button" className="nw-namebtn" onClick={() => onInfo(s.species_id)}>
+                        {s.common_name}
+                        <span className="sr-only"> (species information)</span>
+                      </button>
                       {s.needs_both_sexes && <span className="nw-bar-flag"> · plant both sexes</span>}
+                      {s.season && <SeasonBadge season={s.season} strip={false} className="nw-inline" />}
                     </span>
                     <span className="nw-bar" aria-hidden="true">
                       <span style={{ width: `${Math.round(s.share * 100)}%` }} />
@@ -102,7 +113,12 @@ export default function AreaResultPanel({ api, areaLabel }) {
             <li key={s.species_id} className="nw-sp">
               <div className="nw-sp-head">
                 <span className="rank-no">{s.rank}</span>
-                <strong>{s.common_name}</strong>
+                <strong>
+                  <button type="button" className="nw-namebtn" onClick={() => onInfo(s.species_id)}>
+                    {s.common_name}
+                    <span className="sr-only"> (species information)</span>
+                  </button>
+                </strong>
                 <ScoreChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average score W where suitable" />
               </div>
               <dl className="scores">
@@ -125,6 +141,7 @@ export default function AreaResultPanel({ api, areaLabel }) {
                   </dd>
                 </div>
               </dl>
+              <SeasonBadge season={s.season} />
               <FlagBadges flags={s.flags} />
               <details>
                 <summary>
