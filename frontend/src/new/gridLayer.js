@@ -131,6 +131,8 @@ const GridCanvasLayer = L.Layer.extend({
     this._pn = list.length
     this._punconf = list.filter((it) => it.unconfirmed).length
     this._pitems = list
+    this._pblocks = list.some((it) => it.trees != null) // blocks: a 100 m square with the species shape and the number of trees
+    this._pside = 0
     this._pmx = new Float64Array(this._pn)
     this._pmy = new Float64Array(this._pn)
     this._ppx = new Float32Array(this._pn)
@@ -297,13 +299,37 @@ const GridCanvasLayer = L.Layer.extend({
     }
     ctx.textAlign = 'start'
     ctx.textBaseline = 'alphabetic'
+    // blocks: the 100 m square of every block (the species colour, a dark edge so that it shows on every map), under the shapes
+    const mPerPx = (156543.03392 * Math.cos((14.69 * Math.PI) / 180)) / Math.pow(2, map.getZoom())
+    this._pside = this._pblocks ? 100 / mPerPx : 0
+    const half = this._pside / 2
+    if (this._pblocks) {
+      for (const i of single) {
+        const x = px[i]
+        const y = py[i]
+        if (x < -half - 4 || y < -half - 4 || x > this._w + half + 4 || y > this._h + half + 4) continue
+        const it = this._pitems[i]
+        ctx.save()
+        ctx.globalAlpha = 0.2
+        ctx.fillStyle = shapeColor(it.kind)
+        ctx.fillRect(x - half, y - half, this._pside, this._pside)
+        ctx.globalAlpha = 1
+        ctx.lineWidth = 3
+        ctx.strokeStyle = 'rgba(15,23,42,0.9)'
+        ctx.strokeRect(x - half, y - half, this._pside, this._pside)
+        ctx.lineWidth = 1.5
+        ctx.strokeStyle = shapeColor(it.kind)
+        ctx.strokeRect(x - half, y - half, this._pside, this._pside)
+        ctx.restore()
+      }
+    }
     // shapes: a thin dark outline only
     const showCodes = this._detailed && map.getZoom() >= CODES_FROM_ZOOM
     this._codesShown = showCodes
     for (const i of single) {
       const x = px[i]
       const y = py[i]
-      if (x < -R - 12 || y < -R - 12 || x > this._w + R + 12 || y > this._h + R + 12) continue
+      if (x < -R - 12 - half || y < -R - 12 - half || x > this._w + R + 12 + half || y > this._h + R + 12 + half) continue
       const it = this._pitems[i]
       this._pdrawn++
       this._pshapes++
@@ -326,6 +352,21 @@ const GridCanvasLayer = L.Layer.extend({
         ctx.strokeStyle = '#f8fafc'
         ctx.stroke()
         ctx.restore()
+      }
+      if (it.trees != null) {                                         // the number of trees of the block, in a small pill beside the shape
+        const label = String(it.trees)
+        ctx.font = '700 11px system-ui, sans-serif'
+        const w = ctx.measureText(label).width + 8
+        ctx.fillStyle = 'rgba(15,23,42,0.9)'
+        ctx.beginPath()
+        ctx.roundRect(x + R + 2, y - R - 3, w, 14, 7)
+        ctx.fill()
+        ctx.fillStyle = '#f8fafc'
+        ctx.textBaseline = 'middle'
+        ctx.textAlign = 'center'
+        ctx.fillText(label, x + R + 2 + w / 2, y - R + 4)
+        ctx.textAlign = 'start'
+        ctx.textBaseline = 'alphabetic'
       }
       if (showCodes) {
         ctx.font = '600 10px system-ui, sans-serif'
@@ -350,15 +391,16 @@ const GridCanvasLayer = L.Layer.extend({
     if (!this._pn || !this._pvisible || !this._topLeft) return -1
     const x = layerPoint.x - this._topLeft.x
     const y = layerPoint.y - this._topLeft.y
-    const lim = (this._planR() + 3) ** 2
+    const reach = this._pblocks ? Math.max(this._planR() + 3, (this._pside || 0) / 2) : this._planR() + 3 // a block answers anywhere inside its 100 m square
+    const lim = reach ** 2
     let best = -1
     let bestD = lim
     const { _ppx: px, _ppy: py } = this
     for (let i = 0; i < this._pn; i++) {
       if (this._phidden && this._phidden[i]) continue
       const dx = px[i] - x
-      if (dx > 25 || dx < -25) continue
-      const d = dx * dx + (py[i] - y) ** 2
+      if (dx > reach + 25 || dx < -reach - 25) continue
+      const d = this._pblocks ? Math.max(dx * dx, (py[i] - y) ** 2) : dx * dx + (py[i] - y) ** 2
       if (d <= bestD) {
         bestD = d
         best = i
@@ -475,6 +517,8 @@ const GridCanvasLayer = L.Layer.extend({
     d.planDrawn = String(this._pvisible ? (this._pdrawn ?? 0) : 0)
     d.planShapes = String(this._pvisible ? (this._pshapes ?? 0) : 0)
     d.planBubbles = String(this._pvisible ? (this._pbubbles ?? 0) : 0)
+    d.planBlocks = String(this._pblocks ? 1 : 0)
+    d.planSide = String(Math.round(this._pblocks ? (this._pside ?? 0) : 0))
     d.drawMs = (this._drawMs ?? 0).toFixed(1)
     d.squarePx = (this._half * 2).toFixed(2)
     d.bubbleLabels = (this._clusters ?? []).map((c) => c.label).join('|')
@@ -772,7 +816,7 @@ const GridCanvasLayer = L.Layer.extend({
         this._hover = -2
         this._chover = -1
         this._phover = -1
-        this._showTip(this._map.layerPointToLatLng(L.point(bub.x + this._topLeft.x, bub.y + this._topLeft.y)), [bub.name ? `${bub.name}: ${bub.n} planned trees` : `${bub.n} planned trees`, 'Zoom in to see each tree'])
+        this._showTip(this._map.layerPointToLatLng(L.point(bub.x + this._topLeft.x, bub.y + this._topLeft.y)), [bub.name ? `${bub.name}: ${bub.n} planned ${this._pblocks ? 'blocks' : 'trees'}` : `${bub.n} planned ${this._pblocks ? 'blocks' : 'trees'}`, `Zoom in to see each ${this._pblocks ? 'block' : 'tree'}`])
       }
       return
     }

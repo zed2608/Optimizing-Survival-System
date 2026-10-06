@@ -6,7 +6,7 @@ Library module (used by api_v2.py; no web code here). Storage is a SQLite file, 
 APPEND-ONLY events (the database itself refuses UPDATE and DELETE). The latest event of a point is its current status. If the latest two
 events come from different observers and disagree, the point is DISPUTED.
 
-    status  verified_plantable | not_plantable | needs_recheck
+    status  verified_plantable | not_plantable | needs_recheck | planted (with trees_planted: how many trees were really planted; round 10)
     reason  paved | building | rock_or_ledge | creek_or_waterlogged | too_steep | existing_tree | owner_refused | other   (required for not_plantable)
 
 Effects (decided in api_v2.py, switch FIELD_EXCLUDE_NOT_PLANTABLE): not_plantable points are left out of rankings and plans; verified_plantable
@@ -38,21 +38,23 @@ CFG = {
     "import_max_rows": 5000,                # most rows in one import
     "report_max_rows": 400,                 # rows listed in the import report (counts always cover every row)
     "disputed_bit": 4,                      # in the compact status codes, disputed = code + 4
+    "trees_planted_max": 100000,            # most trees one event may report
 }
 # =====================================================================================================================
 
-STATUSES = ("verified_plantable", "not_plantable", "needs_recheck")
+STATUSES = ("verified_plantable", "not_plantable", "needs_recheck", "planted")
 REASONS = ("paved", "building", "rock_or_ledge", "creek_or_waterlogged", "too_steep", "existing_tree", "owner_refused", "other")
 SOURCES = ("dashboard", "kit_import")
-STATUS_CODE = {"verified_plantable": 1, "not_plantable": 2, "needs_recheck": 3}      # compact codes used by /grid (0 = no check)
+STATUS_CODE = {"verified_plantable": 1, "not_plantable": 2, "needs_recheck": 3, "planted": 1}      # compact codes used by /grid (0 = no check); a planted square shows as verified
 
 # words a kit's status column may hold (the README says: tick it when the tree is planted)
 VERIFIED_WORDS = {"verified_plantable", "verified", "plantable", "planted", "done", "yes", "y", "x", "ok", "✓", "✔", "1", "true"}
 NOT_WORDS = {"not_plantable", "not plantable", "unplantable", "no", "n", "skip", "skipped", "blocked", "flagged", "cannot plant", "can't plant", "0", "false"}
 RECHECK_WORDS = {"needs_recheck", "needs recheck", "recheck", "check again", "unsure", "maybe", "?"}
 
-SCHEMA = f"""
-CREATE TABLE IF NOT EXISTS field_checks (
+def table_sql(name="field_checks"):
+    return f"""
+CREATE TABLE IF NOT EXISTS {name} (
     check_id INTEGER PRIMARY KEY AUTOINCREMENT,
     point_id INTEGER NOT NULL,
     status TEXT NOT NULL CHECK (status IN {STATUSES}),
@@ -66,15 +68,23 @@ CREATE TABLE IF NOT EXISTS field_checks (
     plan_id TEXT,
     created_at TEXT NOT NULL,
     import_key TEXT,
-    CHECK (status <> 'not_plantable' OR reason IS NOT NULL)
+    trees_planted INTEGER CHECK (trees_planted IS NULL OR trees_planted >= 0),
+    CHECK (status <> 'not_plantable' OR reason IS NOT NULL),
+    CHECK ((status = 'planted') = (trees_planted IS NOT NULL))
 );
+"""
+
+
+EXTRAS = """
 CREATE INDEX IF NOT EXISTS ix_field_checks_point ON field_checks (point_id, check_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_field_checks_import_key ON field_checks (import_key) WHERE import_key IS NOT NULL;
 CREATE TRIGGER IF NOT EXISTS field_checks_no_update BEFORE UPDATE ON field_checks BEGIN SELECT RAISE(ABORT, 'field_checks is append-only: add a new event instead'); END;
 CREATE TRIGGER IF NOT EXISTS field_checks_no_delete BEFORE DELETE ON field_checks BEGIN SELECT RAISE(ABORT, 'field_checks is append-only: events are never deleted'); END;
 """
+SCHEMA = table_sql() + EXTRAS
+OLD_COLUMNS = "check_id, point_id, status, reason, note, observer, observed_at, gps_lat, gps_lon, gps_accuracy_m, moved_lat, moved_lon, source, plan_id, created_at, import_key"
 EVENT_COLUMNS = ["check_id", "point_id", "status", "reason", "note", "observer", "observed_at", "gps_lat", "gps_lon", "gps_accuracy_m",
-                 "moved_lat", "moved_lon", "source", "plan_id", "created_at"]
+                 "moved_lat", "moved_lon", "source", "plan_id", "created_at", "trees_planted"]
 
 
 class FieldCheckError(ValueError):
@@ -89,8 +99,31 @@ def connect(db_path):
     p.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(p)
     con.row_factory = sqlite3.Row
-    con.executescript(SCHEMA)
+    cur = con.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='field_checks'").fetchone()
+    if cur is not None and "trees_planted" not in cur["sql"]:
+        migrate(con, p)
+    else:
+        con.executescript(SCHEMA)
     return con
+
+
+def migrate(con, path):
+    """Round 10: the table of an older database gets the status `planted` and the column trees_planted. Every event is copied with its check_id (nothing is lost or changed), a copy of the file is
+    kept next to it (<name>.before_planted.bak, never overwritten), and the new table has the same triggers: UPDATE and DELETE are still refused."""
+    bak = Path(str(path) + ".before_planted.bak")
+    if not bak.exists():
+        import shutil
+        con.commit()
+        shutil.copyfile(path, bak)
+    con.executescript(f"""
+BEGIN IMMEDIATE;
+{table_sql("field_checks_new")}
+INSERT INTO field_checks_new ({OLD_COLUMNS}) SELECT {OLD_COLUMNS} FROM field_checks ORDER BY check_id;
+DROP TABLE field_checks;
+ALTER TABLE field_checks_new RENAME TO field_checks;
+COMMIT;
+""")
+    con.executescript(EXTRAS)
 
 
 def now_utc():
@@ -161,6 +194,22 @@ def validate_event(raw, *, point_lonlat, inside=None, previous_status=None, now=
         raise FieldCheckError(f"status must be one of {', '.join(STATUSES)}")
     reason = raw.get("reason")
     reason = None if reason is None or str(reason).strip() == "" else str(reason).strip()
+    trees = raw.get("trees_planted")
+    trees = None if trees is None or (isinstance(trees, str) and trees.strip() == "") else trees
+    if status == "planted":
+        if trees is None:
+            raise FieldCheckError("the number of trees planted (trees_planted) is required when the status is planted")
+        try:
+            tf = float(trees)
+        except (TypeError, ValueError):
+            raise FieldCheckError(f"trees_planted '{trees}' is not a number")
+        if not math.isfinite(tf) or tf != int(tf) or tf < 0 or tf > CFG["trees_planted_max"]:
+            raise FieldCheckError(f"trees_planted must be a whole number from 0 to {CFG['trees_planted_max']}")
+        trees = int(tf)
+        if reason is not None and str(reason).strip() != "":
+            raise FieldCheckError("a reason only applies to not_plantable")
+    elif trees is not None:
+        raise FieldCheckError("trees_planted only applies to the status planted")
     if status == "not_plantable":
         if reason is None:
             raise FieldCheckError(f"a reason is required when the status is not_plantable (one of: {', '.join(REASONS)})")
@@ -193,7 +242,7 @@ def validate_event(raw, *, point_lonlat, inside=None, previous_status=None, now=
     plan_id = None if plan_id is None or str(plan_id).strip() == "" else str(plan_id).strip()
     return {"point_id": int(raw["point_id"]), "status": status, "reason": reason, "note": note, "observer": observer,
             "observed_at": iso(parse_time(raw.get("observed_at"), now)), "gps_lat": gps_lat, "gps_lon": gps_lon, "gps_accuracy_m": acc,
-            "moved_lat": moved_lat, "moved_lon": moved_lon, "plan_id": plan_id}
+            "moved_lat": moved_lat, "moved_lon": moved_lon, "plan_id": plan_id, "trees_planted": trees}
 
 
 def add_event(db_path, event, source="dashboard", import_key=None, con=None):
@@ -205,9 +254,9 @@ def add_event(db_path, event, source="dashboard", import_key=None, con=None):
     try:
         cur = con.execute(
             "INSERT INTO field_checks (point_id, status, reason, note, observer, observed_at, gps_lat, gps_lon, gps_accuracy_m, moved_lat, moved_lon, "
-            "source, plan_id, created_at, import_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "source, plan_id, created_at, import_key, trees_planted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (event["point_id"], event["status"], event["reason"], event["note"], event["observer"], event["observed_at"], event["gps_lat"],
-             event["gps_lon"], event["gps_accuracy_m"], event["moved_lat"], event["moved_lon"], source, event["plan_id"], iso(now_utc()), import_key))
+             event["gps_lon"], event["gps_accuracy_m"], event["moved_lat"], event["moved_lon"], source, event["plan_id"], iso(now_utc()), import_key, event.get("trees_planted")))
         if own:
             con.commit()
         return int(cur.lastrowid)
@@ -292,7 +341,8 @@ def summary(current, barangay_of):
         disputed += int(c["disputed"])
         b = barangay_of(pid) or "Outside every barangay"
         by_barangay.setdefault(b, {s: 0 for s in STATUSES})[c["status"]] += 1
-    return {"points_checked": len(current), "by_status": by_status, "by_reason": by_reason, "by_barangay": by_barangay, "disputed_points": disputed}
+    trees = sum(int(c["trees_planted"] or 0) for c in current.values() if c["status"] == "planted")
+    return {"points_checked": len(current), "by_status": by_status, "by_reason": by_reason, "by_barangay": by_barangay, "disputed_points": disputed, "trees_planted_total": int(trees)}
 
 
 def events_csv(db_path, barangay_of, current_only=False):
@@ -323,9 +373,37 @@ def plan_point_refs(plan, species):
     df = plan[["point_id", "species_id"]].copy()
     df["code"] = df.species_id.map(codes)
     df = df.sort_values(["code", "point_id"]).reset_index(drop=True)
-    width = max(fk.CFG["min_number_digits"], len(str(df.groupby("code").size().max())))
-    df["ref"] = df.code + "-" + (df.groupby("code").cumcount() + 1).astype(str).str.zfill(width)
+    df["ref"] = fk.make_refs(df.code, is_blocks_plan(plan))
     return dict(zip(df.ref, df.point_id.astype(int)))
+
+
+def is_blocks_plan(plan):
+    """A plan made in blocks mode has the column trees_planned (one row = one block); older plans are points plans."""
+    return "trees_planned" in plan.columns
+
+
+def latest_for_plan(db_path, plan_id, point_ids):
+    """{point_id: latest relevant event} for the blocks of one plan. `planted` only counts when it was saved for THIS plan; not_plantable, needs_recheck and verified_plantable are facts about the
+    square and count for every plan. Events are never changed: the latest relevant one wins."""
+    ids = [int(i) for i in point_ids]
+    out = {}
+    if not ids:
+        return out
+    con = connect(db_path)
+    try:
+        for k in range(0, len(ids), 500):
+            chunk = ids[k:k + 500]
+            q = ",".join("?" * len(chunk))
+            for r in con.execute(f"SELECT * FROM field_checks WHERE point_id IN ({q}) ORDER BY check_id DESC", chunk):
+                pid = int(r["point_id"])
+                if pid in out:
+                    continue
+                if r["status"] == "planted" and r["plan_id"] != plan_id:
+                    continue
+                out[pid] = _row(r)
+    finally:
+        con.close()
+    return out
 
 
 def map_status(word):
@@ -342,9 +420,21 @@ def map_status(word):
     return None
 
 
-def _import_key(plan_id, point_id, status, reason, note, moved_lat, moved_lon):
+def map_status_ex(word, blocks_plan=False):
+    """(status, reason, trees) from a word of a kit's status column. On a BLOCKS plan "planted" / "done" mean the status planted (trees None = all the block's trees; "planted 25" = 25 trees);
+    on a points plan (and in old files) the words keep their old meaning (planted = verified_plantable)."""
+    w = str(word).strip().lower()
+    if blocks_plan:
+        m = re.fullmatch(r"(planted|done)[\s:=-]*(\d+)?", w)
+        if m:
+            return "planted", None, (int(m.group(2)) if m.group(2) else None)
+    m2 = map_status(word)
+    return (m2[0], m2[1], None) if m2 else None
+
+
+def _import_key(plan_id, point_id, status, reason, note, moved_lat, moved_lon, trees=None):
     payload = json.dumps([plan_id, int(point_id), status, reason, note or "", None if moved_lat is None else round(moved_lat, 6),
-                          None if moved_lon is None else round(moved_lon, 6)])
+                          None if moved_lon is None else round(moved_lon, 6)] + ([trees] if trees is not None else []))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -366,8 +456,8 @@ def import_kit_csv(db_path, text, *, observer, species, plans_dir, point_lonlat_
     delim = ";" if first.count(";") > first.count(",") else ","
     reader = csv.DictReader(io.StringIO(text), delimiter=delim)
     cols = [(c or "").strip() for c in (reader.fieldnames or [])]
-    if not text.strip() or "status" not in cols or not ({"point_ref", "point_id"} & set(cols)):
-        raise FieldCheckError("this does not look like a field kit point-list.csv: it needs the columns point_ref (or point_id) and status")
+    if not text.strip() or not ({"status", "trees_planted"} & set(cols)) or not ({"point_ref", "block_ref", "point_id"} & set(cols)):
+        raise FieldCheckError("this does not look like a field kit point-list.csv or blocks.csv: it needs the columns point_ref or block_ref (or point_id) and status")
     rows = [{(k or "").strip(): (v or "").strip() for k, v in r.items()} for r in reader]
     if len(rows) > CFG["import_max_rows"]:
         raise FieldCheckError(f"too many rows ({len(rows)}; limit {CFG['import_max_rows']})")
@@ -379,7 +469,7 @@ def import_kit_csv(db_path, text, *, observer, species, plans_dir, point_lonlat_
               "notes": []}
     if not pid_plan:
         raise FieldCheckError("the file has no plan_id column and none was given: it is needed to map point_ref to the grid point")
-    refs, plan_ids, code = {}, set(), None
+    refs, plan_ids, code, planned, blocks_plan = {}, set(), None, {}, False
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", pid_plan):
         raise FieldCheckError("plan_id may contain only letters, digits, underscore and hyphen")
     plan_csv = Path(plans_dir) / f"{pid_plan}.csv"
@@ -388,6 +478,8 @@ def import_kit_csv(db_path, text, *, observer, species, plans_dir, point_lonlat_
         plan = pd.read_csv(plan_csv)
         refs = plan_point_refs(plan, species)
         plan_ids = set(plan.point_id.astype(int))
+        blocks_plan = is_blocks_plan(plan)
+        planned = dict(zip(plan.point_id.astype(int), plan.trees_planned.astype(int))) if blocks_plan else {}
         code = fk.check_code(plan_csv)
     else:
         plan_error = f"plan '{pid_plan}' was not found among the saved plans, so point_ref cannot be mapped to a grid point"
@@ -396,7 +488,7 @@ def import_kit_csv(db_path, text, *, observer, species, plans_dir, point_lonlat_
     try:
         con.execute("BEGIN")
         for n, r in enumerate(rows, start=2):                                    # line 1 is the header
-            ref = r.get("point_ref", "")
+            ref = r.get("point_ref", "") or r.get("block_ref", "")
             outcome = {"line": n, "point_ref": ref, "point_id": r.get("point_id", "") or None}
 
             def done(kind, why=""):
@@ -405,8 +497,8 @@ def import_kit_csv(db_path, text, *, observer, species, plans_dir, point_lonlat_
                 if len(report["rows"]) < CFG["report_max_rows"] and kind != "blank":
                     report["rows"].append(outcome)
 
-            word, mlat, mlon = r.get("status", ""), r.get("moved_lat", ""), r.get("moved_lon", "")
-            if word == "" and mlat == "" and mlon == "":
+            word, mlat, mlon, tcol = r.get("status", ""), r.get("moved_lat", ""), r.get("moved_lon", ""), r.get("trees_planted", "")
+            if word == "" and mlat == "" and mlon == "" and tcol == "":
                 done("blank")
                 continue
             try:
@@ -432,22 +524,34 @@ def import_kit_csv(db_path, text, *, observer, species, plans_dir, point_lonlat_
                 if point_id not in plan_ids:
                     raise FieldCheckError(f"point {point_id} is not part of plan '{pid_plan}'")
                 outcome["point_id"] = point_id
+                if word == "" and tcol != "" and blocks_plan:
+                    word = "planted"                                       # blocks.csv: a count without a status word means planted
                 if word == "":
                     raise FieldCheckError("a moved position is given but the status is empty")
-                mapped = map_status(word)
+                mapped = map_status_ex(word, blocks_plan)
                 if mapped is None:
                     raise FieldCheckError(f"unrecognised status '{word}' (use planted / verified_plantable, not_plantable or needs_recheck)")
-                status, reason = mapped
+                status, reason, cnt = mapped
+                trees = None
+                if status == "planted":
+                    raw_n = tcol if tcol != "" else cnt
+                    trees = planned.get(point_id) if raw_n in (None, "") else raw_n          # no count given: all the block's trees
+                    try:
+                        trees = int(float(trees))
+                    except (TypeError, ValueError):
+                        raise FieldCheckError(f"trees_planted '{raw_n}' is not a whole number")
+                    if trees < 0 or trees > planned.get(point_id, trees):
+                        raise FieldCheckError(f"trees_planted {trees} is more than the {planned.get(point_id)} trees planned for this block (or negative)")
                 reason = r.get("reason") or reason
                 note = r.get("note") or None
                 if status == "not_plantable" and reason == "other" and not note:
                     note = "from a kit import: no reason given"
                 ev = {"point_id": point_id, "status": status, "reason": reason if status == "not_plantable" else None, "note": note,
                       "observer": r.get("observer") or observer, "observed_at": r.get("observed_at") or observed_at, "moved_lat": mlat or None,
-                      "moved_lon": mlon or None, "plan_id": pid_plan}
+                      "moved_lon": mlon or None, "plan_id": pid_plan, "trees_planted": trees}
                 prev = con.execute("SELECT status FROM field_checks WHERE point_id=? ORDER BY check_id DESC LIMIT 1", (point_id,)).fetchone()
                 ev = validate_event(ev, point_lonlat=point_lonlat_of(point_id), inside=inside, previous_status=prev["status"] if prev else None, now=now)
-                key = _import_key(pid_plan, point_id, ev["status"], ev["reason"], ev["note"], ev["moved_lat"], ev["moved_lon"])
+                key = _import_key(pid_plan, point_id, ev["status"], ev["reason"], ev["note"], ev["moved_lat"], ev["moved_lon"], ev["trees_planted"])
                 if key in seen or con.execute("SELECT 1 FROM field_checks WHERE import_key=?", (key,)).fetchone():
                     seen.add(key)
                     done("duplicates", "this row was already imported (same plan, point, status and moved position)")

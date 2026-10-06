@@ -63,6 +63,8 @@ API_CFG = {
     "plans_list_default_limit": 20,                 # GET /plans
     "plans_list_max_limit": 100,
     "plan_id_max_len": 100,                         # plan ids are letters, digits, underscore, hyphen only
+    "layout_mode": rp.CFG["layout_mode"],           # LAYOUT_MODE: "blocks" (new default: n_saplings = total trees planted in blocks at the species spacing) or "points" (one tree per square, the plan of before)
+    "campaign_name_max": 80,                        # same limit as CampaignIn.name; a top-up name "<campaign> (top-up N)" is cut to fit
     "advisory_area_margin_deg": 0.1,                # /advisory/seasonal: the coordinate must be this close (degrees) to the mapped grid
     "boundary_simplify_deg": 0.00005,               # /geo/boundaries: first simplification tolerance (degrees, ~5 m)
     "boundary_simplify_max_deg": 0.002,             # ... never simplify beyond this (~200 m)
@@ -77,7 +79,7 @@ API_CFG = {
     "multi_cache_max": 48,                          # /grid with species_ids: how many different selections stay cached in memory
     "areas_cache_max": 64,                          # /areas/rank: how many different requests stay cached in memory
     "area_mix_saplings": 100,                       # POST /rank/area: saplings the suggested mix is worked out for (shares barely depend on it)
-    "field_db": "data/field/field_checks.db",       # saved field checks (append-only events, git-ignored)
+    "field_db": os.environ.get("OS_FIELD_DB") or "data/field/field_checks.db",   # saved field checks (append-only events, git-ignored); OS_FIELD_DB = another file (tests, browser checks)
     "field_exclude_not_plantable": True,            # THE SWITCH: points whose latest field check is not_plantable are left out of rankings and plans
     "field_list_default_limit": 100,                # GET /field-checks
     "field_list_max_limit": 1000,
@@ -628,7 +630,7 @@ def field_flags_for_plan(d, plan):
         c = d.field_current.get(pid)
         extra = []
         if c is not None:
-            extra.append({"verified_plantable": "field_verified", "needs_recheck": "field_needs_recheck", "not_plantable": "field_not_plantable"}[c["status"]])
+            extra.append({"verified_plantable": "field_verified", "planted": "field_verified", "needs_recheck": "field_needs_recheck", "not_plantable": "field_not_plantable"}[c["status"]])
             if c["disputed"]:
                 extra.append("field_disputed")
         out.append(";".join(x for x in (fl.split(";") if fl else []) + extra if x))
@@ -1339,6 +1341,8 @@ class PlanRequest(BaseModel):
     seed: Optional[int] = None
     campaign: Optional[CampaignIn] = Field(None, description="campaign name and assigned unit, saved with the plan")
     species_ids: Optional[list[int]] = Field(None, min_length=1, max_length=60, description="plan with only these species (caps are relaxed to the minimum needed)")
+    layout_mode: Optional[Literal["blocks", "points"]] = Field(None, description="blocks (default): n_saplings = total TREES, planted in blocks (one 100 m square per block, species spacing); "
+                                                                                 "points: one tree per square, exactly the plan of before")
 
 
 def polygon_mask(sites, polygon, max_vertices):
@@ -1378,8 +1382,16 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
                       "species_id": int(r.species_id), "species": r.species, "S": py(r.S), "P": py(r.P), "W": py(r.W), "confidence": py(r.confidence),
                       "flags": [f for f in str(r.flags).split(";") if f] if isinstance(r.flags, str) else [], "site_scores_source_ids": s_ids})
     refs = {pid: ref for ref, pid in fv.plan_point_refs(plan, d.ctx.species).items()}
+    blocks = "trees_planned" in plan.columns
+    if blocks:
+        for it, r in zip(items, plan.itertuples(index=False)):
+            it.update({"trees_planned": int(r.trees_planned), "spacing_m": py(r.spacing_m), "rows": int(r.rows), "trees_per_row": int(r.trees_per_row), "capacity": int(r.capacity),
+                       "usable_side_m": py(r.usable_side_m), "row_direction": r.row_direction, "start_corner": r.start_corner,
+                       "layout_note": r.layout_note if isinstance(r.layout_note, str) else ""})
     for it in items:
         ref = refs[it["point_id"]]
+        if blocks:
+            it["block_ref"] = ref
         j = d.allpt_index.get(it["point_id"])                          # all grid squares (a saved plan may hold squares the current view does not score)
         b = int(d.allpt_barangay[j]) if j is not None else -1
         it.update({"point_ref": ref, "species_code": ref.split("-")[0], "barangay": d.barangay_names[b] if b >= 0 else "",
@@ -1397,7 +1409,10 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
                          "unused_candidate_points": summary["unused_candidate_points"],
                          "unmatched_by_species": {n: p["unmatched"] for n, p in pal_by_name.items() if p["unmatched"]}},
            "sources": sources_map(d, ids), "limits": list(dict.fromkeys(summary.get("limits", []) + limits_of(d))),
-           "campaign": campaign_info(summary), "n_species": len(summary["palette"]), "n_placed": summary["saplings_placed"]}
+           "campaign": campaign_info(summary), "n_species": len(summary["palette"]), "n_placed": summary["saplings_placed"],
+           "layout_mode": "blocks" if blocks else "points", "parent_plan_id": summary.get("parent_plan_id")}
+    if blocks:
+        out["blocks"] = {"trees": int(summary.get("saplings_placed", 0)), "blocks": int(len(items)), "hectares": (summary.get("layout") or {}).get("hectares_used")}
     if extra:
         out.update(extra)
     return out
@@ -1449,7 +1464,7 @@ def save_plan(d, purpose, plan, summary):
     return f.stem, f, sj
 
 
-def plan_scope(d, req, season, strict=True):
+def plan_scope(d, req, season, strict=True, extra_exclude_ids=None):
     """The planting squares and species a plan request can use: the area (barangay / zone / polygon), the season rules, the field-check exclusions and the chosen species.
     strict=True raises the plain-words 4xx errors of POST /plan-event; strict=False (the preview) reports an empty season in `empty` instead."""
     ctx = d.ctx
@@ -1476,6 +1491,14 @@ def plan_scope(d, req, season, strict=True):
         raise HTTPException(400, "The area contains no planting-zone grid points.")
     if req.barangay is not None or req.polygon is not None:
         sub = dataclasses.replace(ctx, sites=ctx.sites[mask].reset_index(drop=True), S=ctx.S[mask])
+    family_dropped = 0
+    if extra_exclude_ids:                                             # a top-up never reuses a square of its plan family
+        gone = sub.sites.point_id.isin(extra_exclude_ids).to_numpy()
+        family_dropped = int(gone.sum())
+        if gone.any():
+            sub = dataclasses.replace(sub, sites=sub.sites[~gone].reset_index(drop=True), S=sub.S[~gone])
+        if len(sub.sites) == 0:
+            raise HTTPException(400, "Every planting square of this area is already used by the parent plan (or its top-ups), so no top-up can be made here.")
     excluded_in_area = 0
     if d.field_ex_ids:                                                # points marked not plantable in the field are never planned
         gone = sub.sites.point_id.isin(d.field_ex_ids).to_numpy()
@@ -1508,7 +1531,7 @@ def plan_scope(d, req, season, strict=True):
     if empty and strict:
         raise HTTPException(400, message)
     return SimpleNamespace(sub=sub, season=season, drop=drop, excluded_in_area=excluded_in_area, ids_req=ids_req, ids_kept=ids_kept, removed=removed, area=area,
-                           empty=empty, message=message)
+                           empty=empty, message=message, family_dropped=family_dropped)
 
 
 @app.post("/plan-event/preview")
@@ -1520,29 +1543,58 @@ def plan_preview(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
     cols = [k for k, sid in enumerate(sub.species.species_id.astype(int)) if sc.ids_kept is None or sid in set(sc.ids_kept)]
     suitable = int((sub.S[:, cols] >= smin).any(axis=1).sum()) if cols else 0
     species_available = int((sub.S[:, cols] >= smin).any(axis=0).sum()) if cols else 0
+    layout = req.layout_mode or d.cfg["layout_mode"]
     can, reason, message = True, "", ""
+    est = None
+    if layout == "blocks" and cols and suitable:
+        avail = (sub.S[:, cols] >= smin).any(axis=0)
+        bt = pal.block_table(sub.species.iloc[cols].reset_index(drop=True))
+        caps = bt.capacity.to_numpy(dtype=float)[avail & np.isfinite(bt.capacity.to_numpy(dtype=float))]
+        if len(caps):
+            typ = int(np.median(caps))
+            bc = pal.BLOCK_CFG
+            about = int(math.ceil(n / typ))
+            est = {"trees": n, "typical_trees_per_block": typ, "min_trees_per_block": int(caps.min()), "max_trees_per_block": int(caps.max()),
+                   "blocks_about": about, "blocks_low": int(math.ceil(n / caps.max())), "blocks_high": int(math.ceil(n / caps.min())),
+                   "hectares_about": round(about * bc["block_side_m"] ** 2 / bc["hectare_m2"], 2),
+                   "basis": "typical = the median trees per full block of the species that have a suitable square in this area; the real count depends on the species mix the plan chooses"}
     if sc.empty:
         can, reason, message = False, sc.empty, sc.message
     elif suitable == 0:
         can, reason, message = False, "no_suitable_squares", "No square of this area is suitable (S >= 0.50) for the species available, so no plan can be made."
-    return {"can_create": can, "reason": reason, "message": message,
+    elif layout == "blocks" and est is None:
+        can, reason, message = False, "no_species_with_spacing", "None of the species available has a planting distance, so no plan in blocks can be made."
+    if layout == "blocks" and est is not None:
+        cap = {"n_saplings": n, "unit": "trees", "max_placeable": suitable * est["typical_trees_per_block"], "max_placeable_blocks": suitable,
+               "short": est["blocks_about"] > suitable,
+               "message": (f"Only {suitable} suitable squares: at most {suitable} blocks (about {suitable * est['typical_trees_per_block']} trees) can be placed"
+                           if est["blocks_about"] > suitable else "")}
+    else:
+        cap = {"n_saplings": n, "unit": "squares", "max_placeable": suitable, "short": n > suitable,
+               "message": (f"Only {suitable} suitable squares: at most {suitable} trees can be placed" if 0 < suitable < n else "")}
+    return {"can_create": can, "reason": reason, "message": message, "layout_mode": layout, "blocks_estimate": est,
             "area": {**sc.area, "candidate_squares": int(len(sub.sites)), "suitable_squares": suitable},
-            "capacity": {"n_saplings": n, "max_placeable": suitable, "short": n > suitable,
-                         "message": (f"Only {suitable} suitable squares: at most {suitable} trees can be placed" if 0 < suitable < n else "")},
+            "capacity": cap,
             "species": {"mode": "chosen" if sc.ids_req else "auto", "requested": sc.ids_req, "removed_by_season": sc.removed, "available": species_available,
                         "total": int(len(d.ctx.species))},
             "excluded_by_field_checks": sc.excluded_in_area,
             **season_extra(d, q_season, sc.ids_req)}
 
 
-@app.post("/plan-event")
-def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
-    seed = d.cfg["default_seed"] if req.seed is None else req.seed
-    season = q_season
-    sc = plan_scope(d, req, season, strict=True)
+def request_snapshot(d, req, season, layout, seed):
+    """The settings of a blocks plan, saved in its summary so that a top-up can repeat them (same area, species, dates, campaign and views)."""
+    return {"purpose": req.purpose, "n_saplings": int(req.n_saplings), "layout_mode": layout, "zone": req.zone, "barangay": req.barangay, "polygon": req.polygon, "seed": seed,
+            "species_ids": list(req.species_ids) if req.species_ids else None,
+            "campaign": {"name": req.campaign.name, "unit": req.campaign.unit or ""} if req.campaign is not None else None,
+            "start": season.start.isoformat() if season else None, "end": season.end.isoformat() if season else None,
+            "season_filter": season.filter if season else None, "include_unzoned": bool(d.zoning_on)}
+
+
+def create_plan(d, req, season, sc, seed, layout, species_trees=None, topup=None):
+    """Make, complete and save one plan (POST /plan-event and POST /plans/{id}/top-up). topup = {parent_plan_id, ...} marks a top-up plan."""
     sub = sc.sub
     try:
-        plan, summary = rp.make_plan(sub, req.purpose, req.n_saplings, zone=req.zone, seed=seed, species_ids=sc.ids_kept)
+        plan, summary = rp.make_plan(sub, req.purpose, req.n_saplings, zone=req.zone, seed=seed, species_ids=sc.ids_kept, layout_mode=layout, species_trees=species_trees)
     except ValueError as ex:
         raise HTTPException(400, f"{ex}" + (" (the zone has no legal points inside the polygon)" if req.zone and req.polygon is not None else ""))
     if not summary["palette"]:
@@ -1559,19 +1611,34 @@ def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
     if req.campaign is not None:
         summary["campaign"] = {"name": req.campaign.name, "unit": req.campaign.unit or "", "start": season.start.isoformat() if season else None,
                                "end": season.end.isoformat() if season else None}
-    if sc.ids_req:
+    if sc.ids_req and not topup:
         summary.setdefault("species_selection", {})["species_ids_removed_by_season"] = sc.removed
     summary["field_checks"] = {"exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"]), "excluded_points": sc.excluded_in_area,
                                "note": "Points whose latest field check is not_plantable were left out of this plan." if d.cfg["field_exclude_not_plantable"]
                                else "The field-check switch is off: not_plantable points were NOT left out."}
     if d.zoning_on:                                                   # how many placed trees stand on land outside the zoning map
         summary["zoning"] = rp.zoning_block(True, plan)
+    if layout == "blocks":
+        summary["request"] = request_snapshot(d, req, season, layout, seed)
+    if topup:
+        summary["parent_plan_id"] = topup["parent_plan_id"]
+        summary["topup"] = {k: v for k, v in topup.items() if k != "parent_plan_id"}
+        summary["palette_warnings"] = []                               # the species mix of a top-up is fixed by what was lost, so the usual diversity notes do not apply
+        summary.pop("species_selection", None)
     plan = field_flags_for_plan(d, plan)
     plan_id, f, sj = save_plan(d, req.purpose, plan, summary)
     return render_plan(d, plan, summary, plan_id,
                        {"saved": {"plan_csv": f.name, "summary_json": sj.name, "folder": f"{d.cfg['data_dir']}/{rp.CFG['plans_dir']}"},
                         "next": {"plan": f"/plans/{plan_id}", "build_field_kit": f"POST /plans/{plan_id}/field-kit"},
                         **({"season": summary["season"]} if "season" in summary else {})})
+
+
+@app.post("/plan-event")
+def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
+    seed = d.cfg["default_seed"] if req.seed is None else req.seed
+    layout = req.layout_mode or d.cfg["layout_mode"]
+    sc = plan_scope(d, req, q_season, strict=True)
+    return create_plan(d, req, q_season, sc, seed, layout)
 
 
 @app.get("/plans")
@@ -1592,7 +1659,8 @@ def plans_list(limit: int = Query(API_CFG["plans_list_default_limit"], ge=1, le=
         items.append({"plan_id": plan_id, "purpose": s.get("purpose"), "n_saplings_requested": s.get("n_saplings_requested"),
                       "n_placed": s.get("saplings_placed"), "n_unmatched": s.get("saplings_unmatched"), "date": when,
                       "campaign": campaign_info(s), "n_species": len(s.get("palette") or []),
-                      "field_kit_built": kit_zip_path(d, plan_id).is_file()})
+                      "field_kit_built": kit_zip_path(d, plan_id).is_file(), "layout_mode": s.get("layout_mode", "points"), "parent_plan_id": s.get("parent_plan_id"),
+                      "blocks": (s.get("layout") or {}).get("blocks")})
     items.sort(key=lambda x: (x["date"], x["plan_id"]), reverse=True)
     return {"count": len(items[:limit]), "total_saved": len(items), "plans": items[:limit]}
 
@@ -1603,8 +1671,204 @@ def plan_get(plan_id: str, d=Depends(D)):
     plan = pd.read_csv(csv)
     summary = json.loads(js.read_text(encoding="utf-8"))
     return render_plan(d, plan, summary, plan_id,
-                       {"saved": {"plan_csv": csv.name, "summary_json": js.name}, "field_kit_built": kit_zip_path(d, plan_id).is_file(),
+                       {"saved": {"plan_csv": csv.name, "summary_json": js.name}, "field_kit_built": kit_zip_path(d, plan_id).is_file(), "child_plan_ids": plan_children(d, plan_id),
                         "next": {"build_field_kit": f"POST /plans/{plan_id}/field-kit", "download": f"/kits/{plan_id}.zip"}})
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# progress of a plan in blocks, top-up plans and the block model
+# ---------------------------------------------------------------------------------------------------------------------
+PROGRESS_STATES = ("done", "partly", "problem", "to_do")
+
+
+def plan_parents(d):
+    """{plan_id: parent_plan_id or None} of every saved plan."""
+    root = plans_dir(d)
+    out = {}
+    for sj in (root.glob("plan_*_summary.json") if root.is_dir() else []):
+        pid = sj.name[:-len("_summary.json")]
+        if not valid_plan_id(pid) or not (root / f"{pid}.csv").is_file():
+            continue
+        try:
+            out[pid] = json.loads(sj.read_text(encoding="utf-8")).get("parent_plan_id")
+        except (ValueError, OSError):
+            continue
+    return out
+
+
+def plan_children(d, plan_id):
+    return sorted(pid for pid, par in plan_parents(d).items() if par == plan_id)
+
+
+def plan_family(d, plan_id):
+    """(root plan id, set of every plan id of the family: the root, its top-ups and their top-ups)."""
+    parents = plan_parents(d)
+    r, seen = plan_id, set()
+    while parents.get(r) and r not in seen:
+        seen.add(r)
+        r = parents[r]
+    fam, grew = {r}, True
+    while grew:
+        grew = False
+        for pid, par in parents.items():
+            if par in fam and pid not in fam:
+                fam.add(pid)
+                grew = True
+    return r, fam
+
+
+def load_plan(d, plan_id):
+    csv, js = plan_files(d, plan_id)
+    return pd.read_csv(csv), json.loads(js.read_text(encoding="utf-8"))
+
+
+def block_progress(d, plan_id, plan):
+    """The progress of a plan in blocks from the append-only field checks. Per block the latest relevant event wins: planted only counts for THIS plan, not_plantable / needs_recheck /
+    verified_plantable are facts about the square. States: done (all trees planted), partly (some), problem (not plantable), to_do (nothing planted yet)."""
+    refs = {pid: ref for ref, pid in fv.plan_point_refs(plan, d.ctx.species).items()}
+    latest = fv.latest_for_plan(d.field_db, plan_id, plan.point_id.astype(int).tolist())
+    blocks = []
+    for r in plan.itertuples(index=False):
+        pid, planned = int(r.point_id), int(r.trees_planned)
+        ev = latest.get(pid)
+        st = ev["status"] if ev else None
+        planted = int(ev["trees_planted"] or 0) if st == "planted" else 0
+        if st == "not_plantable":
+            state = "problem"
+        elif st == "planted" and planted >= planned:
+            state = "done"
+        elif st == "planted" and planted > 0:
+            state = "partly"
+        else:
+            state = "to_do"
+        blocks.append({"point_id": pid, "block_ref": refs[pid], "species_id": int(r.species_id), "species": r.species, "trees_planned": planned, "trees_planted": planted,
+                       "state": state, "field_status": st, "reason": ev["reason"] if ev else None, "observer": ev["observer"] if ev else None,
+                       "observed_at": ev["observed_at"] if ev else None, "note": ev["note"] if ev else None,
+                       "needs_recheck": st == "needs_recheck"})
+    return blocks
+
+
+def progress_report(d, plan_id, plan, summary):
+    if not fv.is_blocks_plan(plan):
+        raise HTTPException(400, "This plan was made in points mode (one tree per square). Progress and top-up only exist for plans in blocks.")
+    blocks = block_progress(d, plan_id, plan)
+    n_state = {k: sum(1 for b in blocks if b["state"] == k) for k in PROGRESS_STATES}
+    planned = sum(b["trees_planned"] for b in blocks)
+    planted = sum(b["trees_planted"] for b in blocks)
+    problem_trees = sum(b["trees_planned"] for b in blocks if b["state"] == "problem")
+    remaining = planned - planted - problem_trees
+    per = {}
+    for b in blocks:
+        e = per.setdefault(b["species_id"], {"species_id": b["species_id"], "species": b["species"], "planned": 0, "planted": 0, "problem_trees": 0, "remaining": 0, "blocks": 0,
+                                             "blocks_done": 0, "blocks_partly": 0, "blocks_problem": 0, "blocks_to_do": 0})
+        e["planned"] += b["trees_planned"]
+        e["planted"] += b["trees_planted"]
+        e["blocks"] += 1
+        e["blocks_" + b["state"]] += 1
+        if b["state"] == "problem":
+            e["problem_trees"] += b["trees_planned"]
+        else:
+            e["remaining"] += b["trees_planned"] - b["trees_planted"]
+    return {"plan_id": plan_id, "layout_mode": "blocks", "campaign": campaign_info(summary), "parent_plan_id": summary.get("parent_plan_id"), "child_plan_ids": plan_children(d, plan_id),
+            "trees": {"planned": planned, "planted": planted, "remaining": remaining, "problem": problem_trees,
+                      "percent_planted": round(100.0 * planted / planned, 1) if planned else 0.0},
+            "blocks": {"total": len(blocks), "done": n_state["done"], "partly": n_state["partly"], "problem": n_state["problem"], "to_do": n_state["to_do"]},
+            "shortfall": {"trees": problem_trees, "blocks": n_state["problem"],
+                          "note": "The shortfall is the trees of the blocks marked not plantable. Trees that are not planted yet are 'remaining', not shortfall."},
+            "per_species": sorted(per.values(), key=lambda e: e["species_id"]), "blocks_list": blocks,
+            "definitions": {"done": "every tree of the block is planted", "partly": "some trees are planted", "problem": "the block cannot be planted (latest check: not plantable)",
+                            "to_do": "nothing planted yet", "remaining": "planned - planted - problem trees"}}
+
+
+@app.get("/plans/{plan_id}/progress")
+def plan_progress(plan_id: str, d=Depends(D)):
+    """How far a plan in blocks is planted, from the saved field checks (latest relevant event of each block)."""
+    plan, summary = load_plan(d, plan_id)
+    return progress_report(d, plan_id, plan, summary)
+
+
+class TopUpIn(BaseModel):
+    include_remaining: bool = Field(False, description="also plan the trees that are not planted yet (not only the trees of the problem blocks)")
+    seed: Optional[int] = None
+
+
+@app.post("/plans/{plan_id}/top-up")
+def plan_top_up(plan_id: str, request: Request, body: Optional[TopUpIn] = None, d=Depends(D)):
+    """A new plan for the trees a plan lost (blocks marked not plantable) and, optionally, the trees still to plant. Same campaign, dates and settings; the name is
+    '<campaign> (top-up N)'; squares of the parent plan (and of its other top-ups) and squares marked not plantable are never used; parent_plan_id is saved with the new plan."""
+    body = body or TopUpIn()
+    plan, summary = load_plan(d, plan_id)
+    snap = summary.get("request")
+    if not fv.is_blocks_plan(plan) or not snap:
+        raise HTTPException(400, "Only plans made in blocks can be topped up (this plan is in points mode or was saved without its settings).")
+    base = request.app.state.data
+    if getattr(base, "views", None):                                   # the view the parent plan was made in (squares outside the zoning map or not)
+        d = base.views[bool(snap.get("include_unzoned", d.zoning_on))]
+    prog = progress_report(d, plan_id, plan, summary)
+    want = {}
+    for e in prog["per_species"]:
+        n = e["problem_trees"] + (e["remaining"] if body.include_remaining else 0)
+        if n > 0:
+            want[e["species_id"]] = n
+    _, fam = plan_family(d, plan_id)
+    covered = {}
+    for child in plan_children(d, plan_id):                            # trees an earlier top-up of this plan already planned: never plan them twice
+        cp, _ = load_plan(d, child)
+        if "trees_planned" in cp.columns:
+            for sid, n in cp.groupby("species_id").trees_planned.sum().items():
+                covered[int(sid)] = covered.get(int(sid), 0) + int(n)
+    short = {sid: n - covered.get(sid, 0) for sid, n in want.items() if n - covered.get(sid, 0) > 0}
+    if not short:
+        raise HTTPException(400, ("Nothing to top up: no block of this plan is marked not plantable." if not body.include_remaining and not covered else
+                                  "Nothing to top up: the trees that were lost are already covered by an earlier top-up of this plan." if covered else
+                                  "Nothing to top up: every tree of this plan is planted."))
+    used = set()
+    for fid in fam:
+        fp = pd.read_csv(plan_files(d, fid)[0], usecols=["point_id"])
+        used |= set(fp.point_id.astype(int))
+    season = None
+    if snap.get("start") and snap.get("end"):
+        season = parse_season(d.cfg, snap["start"], snap["end"], snap.get("season_filter") or "mark")
+    camp = snap.get("campaign")
+    root_id, _ = plan_family(d, plan_id)
+    root_summary = load_plan(d, root_id)[1] if root_id != plan_id else summary
+    root_camp = (root_summary.get("request") or {}).get("campaign") or camp
+    n_top = len(fam)                                                   # the root plan counts as 1, so the first top-up is 1
+    label = f" (top-up {n_top})"
+    cname = None
+    if root_camp:
+        cname = root_camp["name"][:max(1, d.cfg["campaign_name_max"] - len(label))] + label
+    req = SimpleNamespace(purpose=snap["purpose"], n_saplings=int(sum(short.values())), polygon=snap.get("polygon"), zone=snap.get("zone"), barangay=snap.get("barangay"),
+                          seed=body.seed if body.seed is not None else snap.get("seed"), species_ids=list(short),
+                          campaign=SimpleNamespace(name=cname, unit=(root_camp or {}).get("unit", "")) if cname else None, layout_mode="blocks")
+    sc = plan_scope(d, req, season, strict=True, extra_exclude_ids=used)
+    seed = d.cfg["default_seed"] if req.seed is None else req.seed
+    trees = {sid: n for sid, n in short.items() if sid in set(sc.ids_kept or [])}
+    gone = sorted(set(short) - set(trees))
+    if not trees:
+        raise HTTPException(400, "None of the species that lost trees can be planted again in this area and window. Change the dates or plan a new campaign.")
+    req.species_ids = list(trees)
+    req.n_saplings = int(sum(trees.values()))
+    req.campaign = SimpleNamespace(name=cname, unit=(root_camp or {}).get("unit", "")) if cname else None
+    out = create_plan(d, req, season, sc, seed, "blocks", species_trees=trees,
+                      topup={"parent_plan_id": plan_id, "number": n_top, "trees_requested": req.n_saplings, "include_remaining": bool(body.include_remaining),
+                             "trees_by_species": {str(k): v for k, v in trees.items()}, "species_not_available": gone, "squares_excluded_of_family": sc.family_dropped,
+                             "shortfall_trees_of_parent": prog["shortfall"]["trees"]})
+    out["parent_plan_id"] = plan_id
+    out["topup"] = {"number": n_top, "trees_requested": req.n_saplings, "include_remaining": bool(body.include_remaining), "species_not_available": gone,
+                    "squares_excluded_of_family": sc.family_dropped, "parent_shortfall_trees": prog["shortfall"]["trees"]}
+    return out
+
+
+@app.get("/block-model")
+def block_model(d=Depends(D)):
+    """The block model (provisional) and, for every species, the spacing, rows, trees per row and capacity of a full block; a species without planting distance says why it cannot be planned."""
+    bc = pal.BLOCK_CFG
+    bt = pal.block_table(d.ctx.species)
+    rows = [{"species_id": int(r.species_id), "common_name": r.common_name, "spacing_m": py(r.spacing_m), "rows": py(r.rows), "trees_per_row": py(r.trees_per_row),
+             "capacity": py(r.capacity), "reason": r.reason} for r in bt.itertuples(index=False)]
+    return {"config": {**bc, "usable_side_m": round(bc["block_side_m"] * bc["usable_share"] ** 0.5, 2), "status": "provisional until the agriculturist signs it off"},
+            "species": rows, "without_spacing": [r["species_id"] for r in rows if r["capacity"] is None]}
 
 
 @app.post("/plans/{plan_id}/field-kit")
@@ -2106,7 +2370,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(D)):
 # ---------------------------------------------------------------------------------------------------------------------
 class FieldCheckIn(BaseModel):
     point_id: int
-    status: Literal["verified_plantable", "not_plantable", "needs_recheck"]
+    status: Literal["verified_plantable", "not_plantable", "needs_recheck", "planted"]
     reason: Optional[Literal["paved", "building", "rock_or_ledge", "creek_or_waterlogged", "too_steep", "existing_tree", "owner_refused", "other"]] = Field(
         None, description="required when status is not_plantable")
     note: Optional[str] = Field(None, description=f"up to {fv.CFG['note_max_chars']} characters; required to clear a not_plantable point")
@@ -2117,7 +2381,23 @@ class FieldCheckIn(BaseModel):
     gps_accuracy_m: Optional[float] = None
     moved_lat: Optional[float] = Field(None, description="where the stake was actually placed")
     moved_lon: Optional[float] = None
-    plan_id: Optional[str] = None
+    plan_id: Optional[str] = Field(None, description="required when the status is planted: the plan whose block was planted")
+    trees_planted: Optional[int] = Field(None, ge=0, description="required when the status is planted: trees really planted in the block (0 up to the trees of the block)")
+
+
+def check_planted(d, req):
+    """planted only makes sense for a block of a plan in blocks: the plan must exist, hold the point, and trees_planted must not exceed the trees of the block."""
+    if not req.plan_id:
+        raise HTTPException(422, "plan_id is required when the status is planted (say which plan's block was planted).")
+    plan, _ = load_plan(d, req.plan_id)
+    if not fv.is_blocks_plan(plan):
+        raise HTTPException(422, "This plan was made in points mode: use verified_plantable. The status planted (with a tree count) belongs to blocks plans.")
+    row = plan[plan.point_id.astype(int) == int(req.point_id)]
+    if row.empty:
+        raise HTTPException(422, f"point_id {req.point_id} is not a block of plan {req.plan_id}.")
+    planned = int(row.trees_planned.iloc[0])
+    if req.trees_planted is None or req.trees_planted > planned:
+        raise HTTPException(422, f"trees_planted must be a whole number from 0 to {planned} (the trees of this block).")
 
 
 def inside_municipality(d):
@@ -2137,6 +2417,10 @@ def point_lonlat_of(d):
 def field_check_add(req: FieldCheckIn, d=Depends(D)):
     """Save one field check as a new event. Nothing is ever updated or deleted; the latest event of a point is its current status."""
     prev = d.field_current.get(req.point_id)
+    if req.status == "planted":
+        check_planted(d, req)
+    elif req.trees_planted is not None:
+        raise HTTPException(422, "trees_planted only applies to the status planted.")
     try:
         ev = fv.validate_event(req.model_dump(), point_lonlat=point_lonlat_of(d)(req.point_id), inside=inside_municipality(d),
                                previous_status=prev["status"] if prev else None)
@@ -2146,7 +2430,8 @@ def field_check_add(req: FieldCheckIn, d=Depends(D)):
     refresh_field(d)
     return {"check_id": check_id, "saved": {**ev, "source": "dashboard", "check_id": check_id}, "current": field_view(d, req.point_id),
             "effect": ("The point is now left out of rankings and plans." if req.point_id in d.field_ex_ids else
-                       "Saved. This does not change any score." if req.status == "verified_plantable" else "Saved."),
+                       "Saved. This does not change any score." if req.status == "verified_plantable" else
+                       f"Saved: {req.trees_planted} trees planted in this block (plan {req.plan_id})." if req.status == "planted" else "Saved."),
             "limits": FIELD_LIMITS[:1]}
 
 
@@ -2185,7 +2470,7 @@ async def field_check_import(request: Request, observer: str = Query(..., descri
 
 
 @app.get("/field-checks")
-def field_check_list(status: Optional[Literal["verified_plantable", "not_plantable", "needs_recheck"]] = None, barangay: Optional[str] = None,
+def field_check_list(status: Optional[Literal["verified_plantable", "not_plantable", "needs_recheck", "planted"]] = None, barangay: Optional[str] = None,
                      point_id: Optional[int] = None, limit: int = Query(API_CFG["field_list_default_limit"], ge=1, le=API_CFG["field_list_max_limit"]),
                      d=Depends(D)):
     """The CURRENT status of every checked point (latest event each), newest first. Filters: status, barangay, point_id."""

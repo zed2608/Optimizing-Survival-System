@@ -8,6 +8,7 @@ export default function PlanStep({
   name, onName, unit, onUnit, n, onN, nValid, areaLabel, modeLabel, windowText, preview, reason, onCreate, creating, createError, result, onAnother, seasonNoticeProps,
 }) {
   const p = preview.status === 'ok' ? preview.data : null
+  const est = p?.blocks_estimate ?? null
   const placed = result?.summary?.saplings_placed
   const requested = result?.summary?.n_saplings_requested
   const sm = result?.summary
@@ -26,12 +27,12 @@ export default function PlanStep({
       <input id="nw-campaign-unit" className="nw-input" value={unit} maxLength={80} onChange={(e) => onUnit(e.target.value)} placeholder="e.g. MENRO field team" />
       <div className="nw-opt-head">
         <label className="nw-label nw-grow" htmlFor="nw-saplings">
-          Number of saplings
+          Number of trees
         </label>
-        <HelpTip label="Number of saplings">How many trees to plan, from 1 to 2000.</HelpTip>
+        <HelpTip label="Number of trees">How many trees to plan in total, from 1 to 2000. They are planted in blocks: each block is one 100 m grid square planted at the species spacing.</HelpTip>
       </div>
       <input id="nw-saplings" type="number" min="1" max="2000" className="nw-input" value={n} onChange={(e) => onN(e.target.value)} aria-invalid={!nValid} />
-      <div className="nw-presets" role="group" aria-label="Sapling presets">
+      <div className="nw-presets" role="group" aria-label="Tree number presets">
         {PRESETS.map((v) => (
           <button key={v} type="button" className={`nw-btn nw-btn-small ${String(n) === String(v) ? 'nw-btn-go' : ''}`} onClick={() => onN(String(v))}>
             {v}
@@ -40,10 +41,15 @@ export default function PlanStep({
       </div>
       {!nValid && (
         <p className="nw-error" role="alert">
-          Saplings: 1 to 2000.
+          Trees: 1 to 2000.
         </p>
       )}
 
+      {est && (
+        <p className="nw-estimate" role="status">
+          About {est.blocks_about} block{est.blocks_about === 1 ? '' : 's'} of {est.typical_trees_per_block} trees (about {est.hectares_about} ha)
+        </p>
+      )}
       <dl className="nw-plansum" aria-label="What the plan will use">
         <div>
           <dt>Area</dt>
@@ -88,7 +94,7 @@ export default function PlanStep({
       {result && (
         <div className="nw-created" role="status">
           <strong>
-            Placed {placed} of {requested}
+            Placed {placed} of {requested} trees{sm.layout ? ` in ${sm.layout.blocks} blocks` : ''}
           </strong>
           {placed < requested && (
             <ul>

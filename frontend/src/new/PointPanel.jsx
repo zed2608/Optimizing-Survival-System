@@ -5,6 +5,7 @@ import ColorLegend from '../v2/components/ColorLegend.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
 import { wLevel } from '../v2/scale.js'
 import { friendlyNotRankable, purposeLabel } from '../v2/labels.js'
+import BlockLayout from './BlockLayout.jsx'
 import ChosenHere from './ChosenHere.jsx'
 import HelpTip from './HelpTip.jsx'
 import LocationCard from './LocationCard.jsx'
@@ -45,7 +46,7 @@ function ResultRow({ item, point, onInfo, full }) {
 // The point panel: 1 where this is (header card), 2 the field check card, 3 (goal "I have species") your chosen species here, 4 the best species as a compact list.
 export default function PointPanel({
   rank, purpose, win, today, barangay, searched, pointId, fieldApi, observer, onObserver, onSaved, viable, onFindViable, onGo, seasonNote, onInfo,
-  view, onView, chosen, selIds, combine, onlySeason,
+  view, onView, chosen, selIds, combine, onlySeason, planBlock = null,
 }) {
   const [show, setShow] = useState(5)
   const full = view === 'full'
@@ -88,7 +89,29 @@ export default function PointPanel({
     <div className="nw-ppanel">
       <ViewSwitch value={view} onChange={onView} />
       <LocationCard ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
-      {pointId ? <VerifyBar key={pointId} pointId={pointId} api={fieldApi} observer={observer} onObserver={onObserver} onSaved={onSaved} /> : null}
+      {planBlock && (
+        <section className="nw-pcard nw-blockcard" aria-label="Planting block">
+          <div className="nw-pcard-head">
+            <h3>Planting block {planBlock.item.block_ref}</h3>
+            <HelpTip label="About blocks">A block is one 100 m grid square planted at the species spacing. Walk to the centre, start at the south-west corner of the planted part and plant the rows east to west.</HelpTip>
+          </div>
+          <div className="nw-loc-line">
+            {planBlock.item.species} · {planBlock.item.trees_planned} trees · plan {planBlock.planId}
+          </div>
+          <BlockLayout item={planBlock.item} kind={planBlock.kind} />
+        </section>
+      )}
+      {pointId ? (
+        <VerifyBar
+          key={`${pointId}|${planBlock?.planId ?? ''}`}
+          pointId={pointId}
+          api={fieldApi}
+          observer={observer}
+          onObserver={onObserver}
+          onSaved={onSaved}
+          block={planBlock ? { planId: planBlock.planId, trees: planBlock.item.trees_planned, ref: planBlock.item.block_ref } : null}
+        />
+      ) : null}
       {chosen && selIds.length > 0 && <ChosenHere api={chosen} selIds={selIds} combine={combine} onlySeason={onlySeason} full={full} point={point} onInfo={onInfo} />}
 
       {rank.data.limiting_factors && <WhyNone lf={rank.data.limiting_factors} ground={point.ground_cover} />}

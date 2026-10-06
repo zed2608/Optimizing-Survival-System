@@ -40,9 +40,9 @@ export default function FieldSummary({ summary, observer, onObserver, onChanged 
       {s && (
         <>
           <ul className="nw-counts">
-            {['verified_plantable', 'not_plantable', 'needs_recheck'].map((k) => (
+            {['verified_plantable', 'not_plantable', 'needs_recheck', 'planted'].map((k) => (
               <li key={k}>
-                <Icon name={STATUS_SYMBOL[k]} /> {STATUS_LABEL[k]}: <strong>{s.by_status[k]}</strong>
+                <Icon name={STATUS_SYMBOL[k]} /> {STATUS_LABEL[k]}: <strong>{s.by_status[k] ?? 0}</strong>{k === 'planted' && s.trees_planted_total > 0 ? ` blocks · ${s.trees_planted_total} trees` : ''}
               </li>
             ))}
           </ul>

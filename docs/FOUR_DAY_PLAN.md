@@ -171,6 +171,14 @@ Acceptance (`tests/test_zone_rules.py`, `cdp_look`, all earlier browser checks w
 4. Dashboard: the ground-cover line with its tip and badges, the optional layer with a legend (colour + pattern + icon), corner markers in Detailed, the result-card line, the "Why few or no species suit this square" card, Data credits.
 Acceptance (`tests/test_landcover.py`, `cdp_ground`, all earlier browser checks with the API on and off): shares add up, dominant class, edge squares, missing coverage, flags at the thresholds, scores and plans identical with and without ground cover, square counts unchanged, kit notes and README sentence, API fields, `/grid/landcover` under 100 KB, the why-none numbers equal the species table (slope limits 15 to 70). 414 tests pass.
 
+## Planting blocks, tree counts, progress and top-up (feedback round 10a)
+1. Block model (provisional): 100 m block, 60% usable share, spacing = midpoint of the species limits rounded to 0.5 m, rows = trees per row = floor(77.46 m / spacing), capacity = rows x trees per row (table of all 45 species in `docs/PLANTING_BLOCKS.md`).
+2. Plan engine: `layout_mode` blocks (default; `n_saplings` = total trees, exact tree counts, blocks = ceil(trees / capacity), same Hungarian solver and rules, ties broken by distance to the centroid) or points (the plan of before).
+3. Progress: field-check status `planted` with `trees_planted` (safe migration, append-only kept), `GET /plans/{id}/progress`, `POST /plans/{id}/top-up` (parent link, name "<campaign> (top-up N)", parent squares and not-plantable squares excluded).
+4. Kit: waypoint per block, `blocks.csv`, README on laying out a block, PDF layout diagrams; `point-list.csv` columns unchanged.
+5. Dashboard: "Number of trees" with the blocks estimate, result card with trees / blocks / hectares and spacing and layout, blocks on the map, layout diagram, Planted / Can't plant here / Needs recheck, Progress card and "Plan top-up" (also in Campaign Logs).
+Acceptance (`tests/test_blocks_engine.py`, `tests/test_api_blocks.py`, `tests/test_field_migration.py`, `tests/test_kit_blocks.py`, `cdp_blocks`, all earlier browser checks with the API on and off): exact tree totals, capacity formula, points mode identical, no block below S 0.50, one block per square, excluded squares never used, progress totals, partial and problem blocks, top-up exclusions and parent link, import with counts and idempotent import, migration keeps every event and the database still refuses UPDATE and DELETE.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
 sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;

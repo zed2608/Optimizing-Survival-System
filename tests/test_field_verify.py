@@ -174,15 +174,15 @@ def test_list_filters_summary_and_export(client, data):
     assert [p["observed_at"] for p in lst()["points"]] == sorted((p["observed_at"] for p in lst()["points"]), reverse=True)
     assert client.get("/field-checks", params={"barangay": "Atlantis"}).status_code == 400 and client.get("/field-checks", params={"status": "x"}).status_code == 422
     s = client.get("/field-checks/summary").json()
-    assert s["by_status"] == {"verified_plantable": 1, "not_plantable": 2, "needs_recheck": 1} and s["points_checked"] == 4 and s["events"] == 4
+    assert s["by_status"] == {"verified_plantable": 1, "not_plantable": 2, "needs_recheck": 1, "planted": 0} and s["points_checked"] == 4 and s["events"] == 4
     assert s["by_reason"]["too_steep"] == 1 and s["by_reason"]["paved"] == 1 and sum(s["by_reason"].values()) == 2
-    assert s["by_barangay"]["Maly"] == {"verified_plantable": 1, "not_plantable": 1, "needs_recheck": 1} and s["left_out_of_rankings"] == 2
+    assert s["by_barangay"]["Maly"] == {"verified_plantable": 1, "not_plantable": 1, "needs_recheck": 1, "planted": 0} and s["left_out_of_rankings"] == 2
     assert client.get("/field-checks/99999999").status_code == 404
     r = client.get("/field-checks/export.csv")
     rows = list(csv.DictReader(io.StringIO(r.text)))
     assert r.headers["content-type"].startswith("text/csv") and "attachment" in r.headers["content-disposition"] and len(rows) == 4
     assert list(rows[0].keys()) == ["check_id", "point_id", "barangay", "status", "reason", "note", "observer", "observed_at", "gps_lat", "gps_lon",
-                                    "gps_accuracy_m", "moved_lat", "moved_lon", "source", "plan_id", "created_at"] and rows[0]["barangay"]
+                                    "gps_accuracy_m", "moved_lat", "moved_lon", "source", "plan_id", "created_at", "trees_planted"] and rows[0]["barangay"]
     add(client, maly[1], "verified_plantable", observer="Cy", note="checked again")
     assert len(list(csv.DictReader(io.StringIO(client.get("/field-checks/export.csv").text)))) == 5                        # the history stays
     assert len(list(csv.DictReader(io.StringIO(client.get("/field-checks/export.csv", params={"scope": "current"}).text)))) == 4

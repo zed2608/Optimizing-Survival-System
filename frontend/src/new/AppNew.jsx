@@ -382,7 +382,7 @@ export default function AppNew() {
     : win.error
     ? 'Fix the planting dates'
     : !nValid
-    ? 'Saplings: 1 to 2000'
+    ? 'Trees: 1 to 2000'
     : preview.status === 'loading' || preview.status === 'idle'
     ? 'Checking the area…'
     : preview.status === 'error'
@@ -405,6 +405,10 @@ export default function AppNew() {
   }
   const openSavedPlan = async (planId) => {
     const r = await apiGet(`/plans/${planId}`)
+    showPlanResult(r)
+    setTab('studio')
+  }
+  const openTopUp = (r) => {
     showPlanResult(r)
     setTab('studio')
   }
@@ -432,19 +436,24 @@ export default function AppNew() {
     if (planResult) {
       planResult.palette.filter((p) => p.placed > 0).forEach((p, k) => {
         const it = planResult.plan.find((x) => x.species_id === p.species_id)
-        m.set(p.species_id, { kind: k, code: it?.species_code ?? '???', common_name: p.species, count: p.placed, species_id: p.species_id })
+        m.set(p.species_id, { kind: k, code: it?.species_code ?? '???', common_name: p.species, count: p.placed, blocks: p.blocks_placed ?? null, species_id: p.species_id })
       })
     }
     return m
   }, [planResult])
-  const planItems = useMemo(() => (planResult ? planResult.plan.map((it) => ({ lon: it.lon, lat: it.lat, kind: planSpecies.get(it.species_id)?.kind ?? 0, code: it.species_code, barangay: it.barangay_display, unconfirmed: it.flags.includes('zoning_unconfirmed') })) : null), [planResult, planSpecies])
+  const planItems = useMemo(() => (planResult ? planResult.plan.map((it) => ({ lon: it.lon, lat: it.lat, kind: planSpecies.get(it.species_id)?.kind ?? 0, code: it.species_code, barangay: it.barangay_display, unconfirmed: it.flags.includes('zoning_unconfirmed'), ...(it.trees_planned != null ? { trees: it.trees_planned } : {}) })) : null), [planResult, planSpecies])
+  const planBlock = useMemo(() => {
+    if (!planResult || planResult.layout_mode !== 'blocks' || !pointId) return null
+    const item = planResult.plan.find((x) => x.point_id === pointId)
+    return item ? { item, kind: planSpecies.get(item.species_id)?.kind ?? 0, planId: planResult.plan_id } : null
+  }, [planResult, pointId, planSpecies])
   const nPlanUnconfirmed = useMemo(() => (planItems ? planItems.filter((x) => x.unconfirmed).length : 0), [planItems])
   const planLabeler = useMemo(
     () =>
       planResult
         ? (i) => {
             const it = planResult.plan[i]
-            return [`${it.point_ref} · ${it.species}`, `S ${fmt(it.S)} · P ${fmt(it.P)} · W ${fmt(it.W)}`, `Barangay: ${it.barangay_display || 'outside the barangay outlines'}`, it.flags.includes('zoning_unconfirmed') ? 'Zoning: not on the zoning map (not confirmed)' : `Zone: ${it.zone}`]
+            return [`${it.point_ref} · ${it.species}`, ...(it.trees_planned != null ? [`${it.trees_planned} trees · ${it.rows} rows of ${it.trees_per_row} · ${it.spacing_m} m apart`] : []), `S ${fmt(it.S)} · P ${fmt(it.P)} · W ${fmt(it.W)}`, `Barangay: ${it.barangay_display || 'outside the barangay outlines'}`, it.flags.includes('zoning_unconfirmed') ? 'Zoning: not on the zoning map (not confirmed)' : `Zone: ${it.zone}`]
           }
         : null,
     [planResult],
@@ -582,7 +591,7 @@ export default function AppNew() {
 
       {showGround && <GroundLegend data={landcover.status === 'ok' ? landcover.data : null} onHide={() => setShowGround(false)} />}
 
-      {planResult && <PlanLegend species={[...planSpecies.values()]} visible={showPlan} nUnconfirmed={nPlanUnconfirmed} />}
+      {planResult && <PlanLegend species={[...planSpecies.values()]} visible={showPlan} nUnconfirmed={nPlanUnconfirmed} blocks={planResult.layout_mode === 'blocks'} />}
 
       {/* TOP GLASS NAVIGATION BAR (look copied from the earlier dashboard) */}
       <header className="nw-topbar">
@@ -618,7 +627,7 @@ export default function AppNew() {
             </button>
           </div>
           {tab === 'history' ? (
-            <CampaignLogs today={win.today} onOpen={openSavedPlan} onStudio={() => setTab('studio')} />
+            <CampaignLogs today={win.today} onOpen={openSavedPlan} onStudio={() => setTab('studio')} fieldVersion={fieldVersion} onTopUp={openTopUp} />
           ) : tab === 'weather' ? (
             <WeatherTab
               purpose={purpose}
@@ -763,7 +772,7 @@ export default function AppNew() {
           id="plan"
           icon="clipboard"
           title="Plan"
-          summary={`${campaignName.trim() || 'No name yet'} · ${nSaplings} saplings${planResult ? ' · created' : ''}`}
+          summary={`${campaignName.trim() || 'No name yet'} · ${nSaplings} trees${planResult ? ' · created' : ''}`}
           open={openStep === 'plan'}
           onToggle={() => toggleStep('plan')}
           help="Creates a saved planting plan from the area, dates and species you chose in the steps above."
@@ -808,7 +817,7 @@ export default function AppNew() {
         >
           {activeTab === 'plan' && planResult ? (
             <div className="v2 v2-embedded">
-              <PlanResult result={planResult} speciesInfo={planSpecies} view={view} onView={setView} onOpenPoint={openPlanPoint} onAnother={anotherPlan} onOpenWeather={openWeatherForPlan} includeUnzoned={includeUnzoned} />
+              <PlanResult result={planResult} speciesInfo={planSpecies} view={view} onView={setView} onOpenPoint={openPlanPoint} onAnother={anotherPlan} onOpenWeather={openWeatherForPlan} includeUnzoned={includeUnzoned} fieldVersion={fieldVersion} onTopUp={openTopUp} onOpenPlan={(id) => openSavedPlan(id).catch((e) => setCreateError(e.message))} />
             </div>
           ) : activeTab === 'point' ? (
             <div className="v2 v2-embedded">
@@ -853,6 +862,7 @@ export default function AppNew() {
                   selIds={selIds}
                   combine={combine}
                   onlySeason={onlySeason}
+                  planBlock={planBlock}
                 />
               )}
             </div>

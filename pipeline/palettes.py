@@ -19,6 +19,8 @@ Rules          (1) all members share at least one planting month (species withou
 Note: with PALETTE_MAX_SPECIES_SHARE = 20% at least 5 species are needed to absorb every sapling, and the older plan's 10% cap
 would need at least 10 species, which is why 20% (provisional) is the default here.
 """
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -37,6 +39,63 @@ CFG = {
     "eps": 1e-9,
 }
 # =====================================================================================================================
+
+# =====================================================================================================================
+# PLANTING BLOCKS - one config block, ALL PROVISIONAL (to be set with the agriculturist). A block is one 100 m grid square planted at the species spacing.
+# =====================================================================================================================
+BLOCK_CFG = {
+    "block_side_m": 100.0,              # a block is one grid square: 100 m x 100 m
+    "usable_share": 0.6,                # part of the square that is really planted (paths, boundaries, rocks, access): 60% of its area
+    "spacing_round_m": 0.5,             # the planting distance is rounded to the nearest 0.5 m
+    "contour_slope_pct": 30.0,          # above this slope the layout note says "Plant along the contour"
+    "row_direction": "east-west",       # rows run east-west ...
+    "start_corner": "south-west",       # ... counted from the south-west corner of the usable area
+    "tiebreak_eps": 1e-6,               # weight of the distance to the area's centre in the matching cost (only separates squares whose W is practically equal)
+    "hectare_m2": 10000.0,
+}
+CONTOUR_NOTE = "Plant along the contour"
+# =====================================================================================================================
+
+
+def round_half(x, step):
+    """Round to the nearest multiple of step (halves go up): 12.25 -> 12.5 for step 0.5."""
+    return math.floor(x / step + 0.5) * step
+
+
+def species_spacing(spacing_min, spacing_max, cfg=None):
+    """The planting distance of a species: the midpoint of spacing_min_m and spacing_max_m rounded to 0.5 m; if only one limit exists that one; None when both are missing (never guessed)."""
+    c = BLOCK_CFG if cfg is None else cfg
+    lo = None if spacing_min is None or (isinstance(spacing_min, float) and math.isnan(spacing_min)) else float(spacing_min)
+    hi = None if spacing_max is None or (isinstance(spacing_max, float) and math.isnan(spacing_max)) else float(spacing_max)
+    if lo is None and hi is None:
+        return None
+    mid = lo if hi is None else hi if lo is None else (lo + hi) / 2.0
+    s = round_half(mid, c["spacing_round_m"])
+    return s if s > 0 else None
+
+
+def block_layout(spacing, cfg=None):
+    """Layout of one block for a planting distance: usable side = side x sqrt(usable_share); trees per row = rows = floor(usable side / spacing), at least 1; capacity = rows x trees per row."""
+    c = BLOCK_CFG if cfg is None else cfg
+    usable = c["block_side_m"] * math.sqrt(c["usable_share"])
+    n = max(1, int(math.floor(usable / spacing + 1e-9)))
+    return {"spacing_m": float(spacing), "usable_side_m": round(usable, 2), "rows": n, "trees_per_row": n, "capacity": n * n,
+            "row_direction": c["row_direction"], "start_corner": c["start_corner"]}
+
+
+def block_table(species, cfg=None):
+    """One row per species: species_id, common_name, spacing_m, rows, trees_per_row, capacity (NaN when the species has no spacing) and a plain `reason` when it cannot be planned in block mode."""
+    rows = []
+    for r in species.itertuples(index=False):
+        sp = species_spacing(getattr(r, "spacing_min_m", None), getattr(r, "spacing_max_m", None), cfg)
+        if sp is None:
+            rows.append({"species_id": int(r.species_id), "common_name": r.common_name, "spacing_m": np.nan, "rows": np.nan, "trees_per_row": np.nan, "capacity": np.nan,
+                         "reason": "The species has no planting distance (spacing_min_m and spacing_max_m are both missing), so it cannot be planned in blocks."})
+        else:
+            lay = block_layout(sp, cfg)
+            rows.append({"species_id": int(r.species_id), "common_name": r.common_name, "spacing_m": lay["spacing_m"], "rows": lay["rows"],
+                         "trees_per_row": lay["trees_per_row"], "capacity": lay["capacity"], "reason": ""})
+    return pd.DataFrame(rows)
 
 
 def parse_months(value):
@@ -109,11 +168,14 @@ def _common_months(month_sets):
     return out if out is not None else set()
 
 
-def eligible_pool(species, st, months, c):
-    """(indices of the species that may enter a palette, {species_id: reason} of those that may not). st = species_stats(...), months = parsed planting months."""
+def eligible_pool(species, st, months, c, block_cap=None):
+    """(indices of the species that may enter a palette, {species_id: reason} of those that may not). st = species_stats(...), months = parsed planting months.
+    block_cap (blocks mode): trees per block of every species, NaN = no planting distance, so the species cannot be planned in blocks."""
     excluded, pool = {}, []
     for i, sid in enumerate(species.species_id):
-        if st.n_eligible[i] == 0 or st.score[i] <= 0:
+        if block_cap is not None and not np.isfinite(block_cap[i]):
+            excluded[int(sid)] = "spacing_missing_cannot_plan_in_blocks"
+        elif st.n_eligible[i] == 0 or st.score[i] <= 0:
             excluded[int(sid)] = "no_eligible_points_in_area"
         elif months[i] is None:
             excluded[int(sid)] = "planting_months_missing"
@@ -124,17 +186,40 @@ def eligible_pool(species, st, months, c):
     return pool, excluded
 
 
-def count_eligible(species, S, P, cfg=None):
+def count_eligible(species, S, P, cfg=None, block_cap=None):
     """How many species (and how many different genera) could enter a palette for these points: used to relax the caps when the species were chosen by hand."""
     c = CFG if cfg is None else cfg
     species = species.reset_index(drop=True)
     st = species_stats(np.asarray(S, dtype=float), np.asarray(P, dtype=float), c["s_min"])
-    pool, _ = eligible_pool(species, st, [parse_months(v) for v in species.planting_months], c)
+    pool, _ = eligible_pool(species, st, [parse_months(v) for v in species.planting_months], c, block_cap)
     return len(pool), len({str(species.genus.iloc[i]) if pd.notna(species.genus.iloc[i]) else "?" for i in pool})
 
 
-def build_palette(species, S, P, n_saplings, cfg=None):
-    """Choose the palette. Returns a dict (see keys at the end); never hides what it dropped."""
+def fixed_palette(species, S, P, trees_by_species, cfg=None):
+    """A palette whose tree counts are GIVEN (a top-up plan restores the trees a plan lost, species by species). trees_by_species = {species_id: trees}. The species keep the order of the
+    given dict; nothing is chosen or dropped here (the matching reports what cannot be placed)."""
+    c = CFG if cfg is None else cfg
+    species = species.reset_index(drop=True)
+    S = np.asarray(S, dtype=float)
+    P = np.asarray(P, dtype=float)
+    st = species_stats(S, P, c["s_min"])
+    ids = species.species_id.astype(int).tolist()
+    members = [ids.index(int(s)) for s in trees_by_species if int(s) in ids]
+    n = int(sum(int(trees_by_species[int(species.species_id.iloc[i])]) for i in members))
+    q = [int(trees_by_species[int(species.species_id.iloc[i])]) for i in members]
+    dio = species.is_dioecious.fillna(False).astype(bool).to_numpy()
+    months = [parse_months(v) for v in species.planting_months]
+    return {"idx": members, "species_id": [int(species.species_id.iloc[i]) for i in members], "common_name": [str(species.common_name.iloc[i]) for i in members],
+            "quota": q, "share": [x / n if n else 0.0 for x in q], "score": [float(st.score.iloc[i]) for i in members],
+            "eligible_points": [int(st.n_eligible.iloc[i]) for i in members], "needs_both_sexes": [bool(dio[i]) for i in members],
+            "common_months": sorted(_common_months([months[i] or set() for i in members])) if members else [], "excluded": {}, "dioecious_rejected": [],
+            "warnings": [], "objective": 0.0, "n_saplings": n, "allocated": n, "unallocated": 0}
+
+
+def build_palette(species, S, P, n_saplings, cfg=None, block_cap=None):
+    """Choose the palette. Returns a dict (see keys at the end); never hides what it dropped.
+    block_cap (blocks mode): trees per block of every species (NaN = cannot be planned in blocks); n_saplings is then the number of TREES and a species can take at most
+    (eligible squares x its capacity) trees."""
     c = CFG if cfg is None else cfg
     species = species.reset_index(drop=True)
     S = np.asarray(S, dtype=float); P = np.asarray(P, dtype=float)
@@ -145,14 +230,15 @@ def build_palette(species, S, P, n_saplings, cfg=None):
     months = [parse_months(v) for v in species.planting_months]
     genus = species.genus.fillna("?").to_numpy(dtype=object)
     dioecious = species.is_dioecious.fillna(False).astype(bool).to_numpy()
-    pool, excluded = eligible_pool(species, st, months, c)
+    pool, excluded = eligible_pool(species, st, months, c, block_cap)
     rejected_dioecious = set()
+    cap_mult = np.ones(len(species)) if block_cap is None else np.where(np.isfinite(block_cap), block_cap, 1.0)
 
     def evaluate(members):
         """(value, quotas) of a member set, or (-inf, None) if a rule is broken."""
         if _common_months([months[i] for i in members]) == set():
             return -np.inf, None
-        q = allocate_quotas(st.score.to_numpy()[members], genus[members], st.n_eligible.to_numpy()[members], n,
+        q = allocate_quotas(st.score.to_numpy()[members], genus[members], (st.n_eligible.to_numpy() * cap_mult)[members], n,
                             c["max_species_share"], c["max_genus_share"], c["eps"])
         bad = [m for m, qi in zip(members, q) if dioecious[m] and qi < c["dioecious_min_quota"]]
         if bad:

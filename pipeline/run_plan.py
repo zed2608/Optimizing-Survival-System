@@ -39,6 +39,7 @@ CFG = {
     "plans_dir": "plans",
     "benchmark_file": "matching_benchmark.csv",
     "field_db": "data/field/field_checks.db",   # saved field checks (same file as api_v2.py); points whose latest check is not_plantable are left out
+    "layout_mode": "blocks",        # LAYOUT_MODE: "blocks" (n_saplings = total trees, planted in blocks at the species spacing) or "points" (one tree per 100 m square, the plan of before)
     "include_unzoned": True,        # INCLUDE_UNZONED: also plan on squares outside every zoning polygon (zoning_status unconfirmed); they carry the flag zoning_unconfirmed
 }
 # =====================================================================================================================
@@ -46,6 +47,11 @@ CFG = {
 UNCONFIRMED_FLAG = "zoning_unconfirmed"
 UNCONFIRMED_NOTE = "Land outside the zoning map: confirm with the LGU before planting"
 
+BLOCK_COLUMNS = ["trees_planned", "spacing_m", "rows", "trees_per_row", "capacity", "usable_side_m", "row_direction", "start_corner", "layout_note"]   # added to PLAN_COLUMNS in blocks mode
+BLOCK_LIMITS = ("Each block is one 100 m grid square, planted at the species spacing on its usable part (provisional share of the square); a plan places at most one block per square.",
+                "Block layout (usable share, spacing rounding, capacity) is provisional until the agriculturist signs it off.",
+                "Weights, caps and thresholds are provisional; site scores use the soft soil mode (texture mapping unverified).",
+                "S comes from rules, not from field survival data.")
 LIMITS = ("Each point is a ~100 m grid cell, so the plan places at most one tree per cell.",
           "Weights, caps and thresholds are provisional; site scores use the soft soil mode (texture mapping unverified).",
           "S comes from rules, not from field survival data.")
@@ -148,10 +154,105 @@ def selection_warnings(n_species):
     return []
 
 
-def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=None, method="hungarian", palette_cfg=None, species_ids=None):
+def _cap(species_df, blocks):
+    """Trees per block of every species of species_df (NaN = no planting distance), or None in points mode."""
+    return pal.block_table(species_df).capacity.to_numpy(dtype=float) if blocks else None
+
+
+def _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, palette, summary, seed, method, n_trees):
+    """Blocks mode: the palette gave TREES per species; blocks per species = ceil(trees / capacity); the matching assigns BLOCKS one-to-one to squares (same solver, S >= 0.50 only,
+    W = S x P). Squares whose W is practically equal are tied by their distance to the centre of the chosen area (weight 1e-6 in the cost), so that the blocks sit together.
+    Per species the best squares get full blocks and the worst matched square holds the remainder."""
+    bt = pal.block_table(species_df).set_index("species_id")
+    sids = sp.species_id.astype(int).to_numpy()
+    lay = [pal.block_layout(float(bt.loc[s, "spacing_m"])) for s in sids]
+    cap = np.array([l["capacity"] for l in lay], dtype=int)
+    trees_q = np.array(palette["quota"], dtype=int)
+    blocks_q = np.ceil(trees_q / cap).astype(int)
+    xy = ctx.sites.iloc[area_idx][["utm_e", "utm_n"]].to_numpy(dtype=float)
+    centre = xy.mean(axis=0)
+    dist = np.hypot(xy[:, 0] - centre[0], xy[:, 1] - centre[1])
+    tb = dist / dist.max() if dist.max() > 0 else np.zeros(len(dist))
+    fn = {"hungarian": mt.assign_hungarian, "greedy": mt.assign_greedy}[method]
+    res = fn(W, feas, blocks_q, seed, tiebreak=tb)
+    pi, si = res["point_idx"], res["species_idx"]
+    sites = ctx.sites.iloc[area_idx[pi]].reset_index(drop=True)
+    sid = sids[si]
+    info = fetch_pair_info(ctx.scores_path, set(zip(sites.point_id.astype(int), sid.astype(int))))
+    bc = pal.BLOCK_CFG
+    rows = []
+    trees_by_k = np.zeros(len(pi), dtype=int)
+    for j in range(len(members)):                                      # trees per block: best squares full, the worst matched square holds the remainder
+        ks = [k for k in range(len(pi)) if si[k] == j]
+        ks.sort(key=lambda k: (-float(W[pi[k], si[k]]), int(sites.point_id[k])))
+        for n_, k in enumerate(ks):
+            last_of_all = len(ks) == blocks_q[j] and n_ == len(ks) - 1
+            trees_by_k[k] = int(trees_q[j] - (blocks_q[j] - 1) * cap[j]) if last_of_all else int(cap[j])
+    for k in range(len(pi)):
+        pid, spid = int(sites.point_id[k]), int(sid[k])
+        conf, src_ids, flags = info.get((pid, spid), (np.nan, [], []))
+        flags = list(flags)
+        if palette["needs_both_sexes"][si[k]]:
+            flags.append("needs_both_sexes")
+        flags += ctx.species_flags.get(spid, [])
+        if conf == conf and conf < CFG["low_confidence_below"]:
+            flags.append("low_confidence")
+        if "zoning_status" in sites and sites.zoning_status[k] == "unconfirmed":
+            flags.append(UNCONFIRMED_FLAG)
+        if "ground_flags" in sites and isinstance(sites.ground_flags[k], str) and sites.ground_flags[k]:
+            flags += sites.ground_flags[k].split(";")
+        l = lay[si[k]]
+        slope = sites.slope_pct[k] if "slope_pct" in sites else np.nan
+        rows.append({"point_id": pid, "lon": sites.lon[k], "lat": sites.lat[k], "utm_e": sites.utm_e[k], "utm_n": sites.utm_n[k],
+                     "zone_desc": sites.zone_desc[k], "species_id": spid, "species": sp.common_name.iloc[si[k]],
+                     "S": round(float(Sm[pi[k], si[k]]), 4), "P": round(float(Pm[si[k]]), 4), "W": round(float(W[pi[k], si[k]]), 4),
+                     "confidence": conf, "flags": ";".join(dict.fromkeys(flags)), "site_scores_src_ids": ";".join(str(i) for i in src_ids),
+                     "trees_planned": int(trees_by_k[k]), "spacing_m": l["spacing_m"], "rows": l["rows"], "trees_per_row": l["trees_per_row"], "capacity": l["capacity"],
+                     "usable_side_m": l["usable_side_m"], "row_direction": l["row_direction"], "start_corner": l["start_corner"],
+                     "layout_note": pal.CONTOUR_NOTE if (slope == slope and slope > bc["contour_slope_pct"]) else ""})
+    plan = pd.DataFrame(rows, columns=PLAN_COLUMNS + BLOCK_COLUMNS)
+    plan = plan.sort_values(["species_id", "W", "point_id"], ascending=[True, False, True]).reset_index(drop=True)
+    if "ground_flags" in ctx.sites:
+        summary["ground_cover"] = ground_block(plan)
+    if "zoning_status" in ctx.sites and (ctx.sites.zoning_status == "unconfirmed").any():
+        summary["zoning"] = zoning_block(True, plan)
+    per = []
+    for j in range(len(members)):
+        mine = plan[plan.species_id == sids[j]]
+        placed_trees = int(mine.trees_planned.sum())
+        row = {"species_id": palette["species_id"][j], "species": palette["common_name"][j], "genus": str(sp.genus.iloc[j]), "quota": int(trees_q[j]),
+               "share": round(palette["share"][j], 4), "placed": placed_trees, "unmatched": int(trees_q[j]) - placed_trees, "species_score": round(palette["score"][j], 4),
+               "eligible_points_in_area": palette["eligible_points"][j], "needs_both_sexes": palette["needs_both_sexes"][j], "spacing_min_m": float(sp.spacing_min_m.iloc[j]),
+               "blocks": int(blocks_q[j]), "blocks_placed": int(len(mine)), "spacing_m": lay[j]["spacing_m"], "rows": lay[j]["rows"], "trees_per_row": lay[j]["trees_per_row"],
+               "capacity": int(cap[j])}
+        summary["palette"].append(row)
+        per.append({k: row[k] for k in ("species_id", "species", "quota", "placed", "blocks", "blocks_placed", "spacing_m", "rows", "trees_per_row", "capacity")})
+    trees_placed = int(plan.trees_planned.sum()) if len(plan) else 0
+    n_blocks = int(len(plan))
+    side = bc["block_side_m"]
+    summary["layout"] = {"mode": "blocks", "trees_requested": int(n_trees), "trees_placed": trees_placed, "blocks": n_blocks,
+                         "hectares_used": round(n_blocks * side * side / bc["hectare_m2"], 2), "block_side_m": side, "usable_share": bc["usable_share"],
+                         "usable_side_m": round(side * bc["usable_share"] ** 0.5, 2), "per_species": per,
+                         "centre_utm": [round(float(centre[0]), 1), round(float(centre[1]), 1)],
+                         "tiebreak": "squares whose W is practically equal are ordered by their distance to the centre of the chosen area (weight 1e-6 in the cost), so that the blocks sit together"}
+    summary.update({"saplings_allocated": palette["allocated"], "saplings_unallocated": palette["unallocated"], "saplings_placed": trees_placed,
+                    "saplings_unmatched": int(trees_q.sum()) - trees_placed, "blocks_placed": n_blocks, "blocks_requested": int(blocks_q.sum()),
+                    "unused_candidate_points": int(len(area_idx) - len(plan)),
+                    "mean_W": round(float(plan.W.mean()), 4) if len(plan) else None, "total_W": round(float(plan.W.sum()), 4),
+                    "mean_W_trees": round(float((plan.W * plan.trees_planned).sum() / plan.trees_planned.sum()), 4) if trees_placed else None,
+                    "spacing_check": "blocks are separate 100 m squares; inside a block the trees stand at the species spacing"})
+    return plan, summary
+
+
+def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=None, method="hungarian", palette_cfg=None, species_ids=None, layout_mode=None, species_trees=None):
     """Palette + matching for one purpose and area. Returns (plan DataFrame, summary dict).
-    species_ids (optional): plan with ONLY these species; the per-species and per-genus caps are relaxed to the minimum needed to place every sapling and the summary says so."""
+    species_ids (optional): plan with ONLY these species; the per-species and per-genus caps are relaxed to the minimum needed to place every sapling and the summary says so.
+    layout_mode: "blocks" (default, CFG layout_mode): n_saplings is the number of TREES, shared out per species, planted in blocks (one block per 100 m square, species spacing);
+    "points": one tree per square, exactly the plan of before. species_trees (blocks mode, optional): {species_id: trees} fixed tree counts (a top-up plan restores what a plan lost)."""
     seed = CFG["seed"] if seed is None else seed
+    blocks = (CFG["layout_mode"] if layout_mode is None else layout_mode) == "blocks"
+    if (CFG["layout_mode"] if layout_mode is None else layout_mode) not in ("blocks", "points"):
+        raise ValueError("layout_mode must be 'blocks' or 'points'")
     if purpose not in ctx.P:
         raise ValueError(f"purpose must be one of {sorted(ctx.P)}")
     in_area = mt.area_mask(ctx.sites, zone, bbox)
@@ -169,7 +270,7 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
             raise ValueError("none of the chosen species is in the species table")
         species_df, S_sel, P_sel = ctx.species.iloc[cols].reset_index(drop=True), S_area[:, cols], P[cols]
         base = dict(pal.CFG if palette_cfg is None else palette_cfg)
-        n_el, n_gen = pal.count_eligible(species_df, S_sel, P_sel, base)
+        n_el, n_gen = pal.count_eligible(species_df, S_sel, P_sel, base, _cap(species_df, blocks))
         cfg_used = dict(base)
         if n_el:
             cfg_used["max_species_share"], cfg_used["max_genus_share"] = relaxed_caps(base, n_saplings, n_el, n_gen)
@@ -178,7 +279,11 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                      "caps": {k: {"default": base[k], "used": round(cfg_used[k], 4)} for k in ("max_species_share", "max_genus_share")}, "caps_relaxed": relaxed,
                      "caps_note": ("The per-species and per-genus caps were raised to the minimum needed to place every sapling with only these species." if relaxed
                                    else "The default per-species and per-genus caps were enough.")}
-    palette = pal.build_palette(species_df, S_sel, P_sel, n_saplings, cfg_used)
+    if blocks and species_trees:
+        palette = pal.fixed_palette(species_df, S_sel, P_sel, species_trees, cfg_used)
+        n_saplings = int(palette["n_saplings"])
+    else:
+        palette = pal.build_palette(species_df, S_sel, P_sel, n_saplings, cfg_used, _cap(species_df, blocks))
     members = palette["idx"]
     summary = {"purpose": purpose, "n_saplings_requested": int(n_saplings), "method": method, "seed": seed,
                "area": {"zone": zone, "bbox": list(bbox) if bbox else None, "legal_points_in_area": int(in_area.sum()),
@@ -188,7 +293,9 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                                   else "no trees table given: no exclusion zone applied"),
                "palette": [], "palette_common_planting_months": palette["common_months"], "palette_warnings": list(palette["warnings"]),
                "palette_excluded_species": {str(k): v for k, v in palette["excluded"].items()},
-               "dioecious_species_left_out": palette["dioecious_rejected"], "limits": list(LIMITS)}
+               "dioecious_species_left_out": palette["dioecious_rejected"], "limits": list(BLOCK_LIMITS if blocks else LIMITS)}
+    if blocks:
+        summary["layout_mode"] = "blocks"
     if selection is not None:                                          # chosen by hand: the "palette smaller than min" note does not apply; say what is left out and the diversity risk
         in_palette = {int(species_df.species_id.iloc[i]) for i in members}
         left_out = {}
@@ -211,6 +318,8 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
     mt.assert_spacing_ok(sp.spacing_min_m.to_numpy())
     Sm, Pm = S_sel[:, members], P_sel[members]
     W, feas = mt.weights(Sm, Pm)
+    if blocks:
+        return _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, palette, summary, seed, method, int(n_saplings))
     fn = {"hungarian": mt.assign_hungarian, "greedy": mt.assign_greedy}[method]
     res = fn(W, feas, palette["quota"], seed)
     pi, si = res["point_idx"], res["species_idx"]
@@ -260,16 +369,19 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
 def ground_block(plan):
     """The 'ground_cover' block of the plan summary: planned trees on squares that look bare, built-up or watery in satellite land cover (ESA WorldCover 2021). Information only."""
     fl = plan["flags"].fillna("").astype(str) if len(plan) else pd.Series([], dtype=str)
-    by = {f: int(fl.str.contains(f).sum()) for f in lcv.FLAG_NOTES}
-    n = int(fl.str.contains("ground_").sum())
-    return {"placed_trees": int(len(plan)), "flagged_trees": n, "by_flag": by, "source": lcv.SOURCE["name"],
+    w = plan["trees_planned"].astype(int) if "trees_planned" in plan and len(plan) else pd.Series(1, index=fl.index)      # blocks plans count TREES, points plans one tree per row
+    by = {f: int(w[fl.str.contains(f)].sum()) for f in lcv.FLAG_NOTES}
+    n = int(w[fl.str.contains("ground_")].sum())
+    return {"placed_trees": int(w.sum()), "flagged_trees": n, "flagged_blocks": int(fl.str.contains("ground_").sum()), "placed_blocks": int(len(plan)), "by_flag": by, "source": lcv.SOURCE["name"],
             "note": "Trees on squares that look bare, built-up or like water in satellite land cover (2021): check them first. Information only: no score or plan depends on it."}
 
 
 def zoning_block(include_unzoned, plan):
     """The 'zoning' block of the plan summary: how many placed trees stand on land outside the zoning map (flag zoning_unconfirmed)."""
-    n_un = int(plan["flags"].fillna("").astype(str).str.contains(UNCONFIRMED_FLAG).sum()) if len(plan) else 0
-    return {"include_unzoned": bool(include_unzoned), "placed_trees": int(len(plan)), "unconfirmed_trees": n_un,
+    fl = plan["flags"].fillna("").astype(str) if len(plan) else pd.Series([], dtype=str)
+    w = plan["trees_planned"].astype(int) if "trees_planned" in plan and len(plan) else pd.Series(1, index=fl.index)
+    n_un = int(w[fl.str.contains(UNCONFIRMED_FLAG)].sum()) if len(plan) else 0
+    return {"include_unzoned": bool(include_unzoned), "placed_trees": int(w.sum()), "unconfirmed_trees": n_un, "unconfirmed_blocks": int(fl.str.contains(UNCONFIRMED_FLAG).sum()),
             "note": (UNCONFIRMED_NOTE + ". " if n_un else "") + "Unconfirmed = outside every zoning polygon (a gap in the zoning file); these squares are scored like the others."}
 
 
@@ -363,6 +475,7 @@ def main(argv=None):
     ap.add_argument("--campaign-unit", help="assigned unit (up to 80 characters), saved in the plan summary")
     ap.add_argument("--species-ids", help="plan with only these species, e.g. 1,7,8 (caps are relaxed to the minimum needed)")
     ap.add_argument("--field-db", default=str(ROOT / CFG["field_db"]), help="saved field checks; not_plantable points are left out of the plan")
+    ap.add_argument("--layout-mode", choices=("blocks", "points"), default=CFG["layout_mode"], help="blocks: --n-saplings is the number of TREES planted in blocks at the species spacing; points: one tree per square")
     ap.add_argument("--include-unzoned", dest="include_unzoned", action=argparse.BooleanOptionalAction, default=CFG["include_unzoned"],
                     help="also plan on squares outside the zoning map (flagged zoning_unconfirmed); --no-include-unzoned = confirmed legal-zone squares only")
     a = ap.parse_args(argv)
@@ -393,7 +506,7 @@ def main(argv=None):
             ap.error(f"--species-ids: unknown species id(s) {[i for i in species_ids if i not in known] or species_ids} (valid ids: {min(known)}-{max(known)})")
     ctx, field_checks = apply_field_checks(ctx, a.field_db, a.zone, a.bbox)
     print(f"field checks: {field_checks['excluded_points']} not-plantable point(s) left out of this area")
-    plan, s = make_plan(ctx, a.purpose, a.n_saplings, a.zone, a.bbox, trees, a.seed, species_ids=species_ids)
+    plan, s = make_plan(ctx, a.purpose, a.n_saplings, a.zone, a.bbox, trees, a.seed, species_ids=species_ids, layout_mode=a.layout_mode)
     if campaign:
         s["campaign"] = campaign
     s["field_checks"] = field_checks

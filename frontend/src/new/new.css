@@ -666,3 +666,31 @@
 .nw-glist li { display: flex; align-items: center; gap: 8px; }
 .nw-gswatch { flex: none; }
 .nw-gcorner { font-size: 12px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+
+
+/* ---- round 10a: planting blocks, layout diagram, progress, top-up ------------------------------------------------------------------------------ */
+.nw-estimate { margin: 6px 0 8px; padding: 8px 10px; border-radius: var(--nw-radius); background: rgba(16, 185, 129, 0.14); color: #a7f3d0; font-size: 12px; font-weight: 600; }
+.fc-b-planted { border-color: #2e7d32; background: #eaf6ea; }
+.fc-planted { background: #eaf6ea; color: #1b5e20; border-color: #2e7d32; }
+.fc-count { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; }
+.fc-count-input { width: 96px; }
+.nw-blocklayout { margin: 8px 0 0; }
+.nw-blocklayout svg { width: 100%; max-width: 340px; height: auto; display: block; margin: 0 auto; background: #f6f8fa; border-radius: var(--nw-radius); }
+.nw-blocklayout figcaption { margin-top: 8px; font-size: 13px; color: var(--nw-ink); line-height: 1.4; }
+.nw-bl-square { fill: #ffffff; stroke: #475569; stroke-width: 1.2; }
+.nw-bl-usable { fill: #f1f5f9; stroke: #64748b; stroke-width: 0.8; stroke-dasharray: 3 2; }
+.nw-bl-tree { stroke: #0f172a; stroke-width: 0.5; }
+.nw-bl-empty { fill: #ffffff; stroke: #94a3b8; stroke-width: 0.4; }
+.nw-bl-start { fill: #0f172a; }
+.nw-bl-dim { stroke: #0f172a; stroke-width: 0.8; marker-end: none; }
+.nw-bl-north { fill: none; stroke: #0f172a; stroke-width: 1.2; }
+.nw-bl-text { font-size: 5.2px; fill: #0f172a; font-family: system-ui, sans-serif; }
+.nw-progress { color: var(--nw-ink); }
+.nw-pbar { height: 14px; border-radius: 7px; background: #dfe5ec; overflow: hidden; border: 1px solid #b6c0cc; }
+.nw-pbar > span { display: block; height: 100%; background: var(--nw-accent-strong); }
+.nw-pnum { margin: 6px 0; font-size: 14px; }
+.nw-pcounts { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--nw-ink); }
+.nw-topup { margin-top: 10px; display: grid; gap: 6px; }
+.nw-topup .nw-check { color: var(--nw-ink); padding: 0; }
+.nw-logprogress { margin: 8px 0; }
+.nw-logprogress > summary { cursor: pointer; font-weight: 600; }

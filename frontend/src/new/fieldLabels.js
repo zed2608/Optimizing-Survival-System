@@ -1,7 +1,7 @@
 // Wording and symbols for saved field checks. Shape always comes with a word: never colour alone.
-export const STATUS_LABEL = { verified_plantable: 'Verified plantable', not_plantable: 'Not plantable', needs_recheck: 'Needs recheck' }
-export const STATUS_SYMBOL = { verified_plantable: 'ring', not_plantable: 'close', needs_recheck: 'triangle' } // icon names of Icon.jsx
-export const STATUS_SHAPE = { verified_plantable: 'ring', not_plantable: 'cross', needs_recheck: 'triangle' }
+export const STATUS_LABEL = { verified_plantable: 'Verified plantable', not_plantable: 'Not plantable', needs_recheck: 'Needs recheck', planted: 'Planted' }
+export const STATUS_SYMBOL = { verified_plantable: 'ring', not_plantable: 'close', needs_recheck: 'triangle', planted: 'tree' } // icon names of Icon.jsx
+export const STATUS_SHAPE = { verified_plantable: 'ring', not_plantable: 'cross', needs_recheck: 'triangle', planted: 'ring' }
 
 export const REASONS = [
   ['paved', 'Paved'],

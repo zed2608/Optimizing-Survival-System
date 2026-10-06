@@ -17,10 +17,13 @@ const REASONS = [
   { label: 'Other', reason: 'other' },
 ]
 
-const describe = (e) => (e.status === 'not_plantable' ? `Not plantable: ${REASON_LABEL[e.reason] ?? e.reason}` : STATUS_LABEL[e.status])
+const describe = (e) =>
+  e.status === 'not_plantable' ? `Not plantable: ${REASON_LABEL[e.reason] ?? e.reason}` : e.status === 'planted' ? `Planted: ${e.trees_planted} trees` : STATUS_LABEL[e.status]
 
 // The field-check card of the point panel: one short line (with a "?" for the full explanation), a compact row of three actions, the status chip and a collapsed history.
-export default function VerifyBar({ pointId, api, observer, onObserver, onSaved }) {
+// block = { planId, trees, ref } when the point is a block of the open plan: the first action is then "Planted" with a count box (default: all the trees of the block).
+export default function VerifyBar({ pointId, api, observer, onObserver, onSaved, block = null }) {
+  const [count, setCount] = useState(() => (block ? String(block.trees) : ''))
   const [editing, setEditing] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [askName, setAskName] = useState(() => observer.trim() === '')
@@ -30,20 +33,24 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved 
 
   const current = api.status === 'ok' ? api.data.current : null
   const history = api.status === 'ok' ? [...api.data.history].reverse() : []
-  const showButtons = api.status === 'ok' && (!current || editing)
+  const foreign = !!block && current?.status === 'planted' && current.plan_id !== block.planId // planted for ANOTHER plan: it does not count for this one
+  const showButtons = api.status === 'ok' && (!current || editing || foreign)
   const clearing = current?.status === 'not_plantable'
 
   async function save(choice) {
     setMsg(null)
     if (observer.trim() === '') return setMsg({ ok: false, text: 'Please type your name first (it is saved with the check).' })
     const status = choice.status ?? 'not_plantable'
+    if (status === 'planted' && !(/^\d+$/.test(count.trim()) && Number(count) <= block.trees)) return setMsg({ ok: false, text: `Trees planted: a whole number from 0 to ${block.trees}.` })
     if (clearing && status !== 'not_plantable' && note.trim() === '') return setMsg({ ok: false, text: 'A note is needed to clear a “not plantable” mark: say what you saw.' })
     setBusy(true)
     try {
       const body = { point_id: pointId, status, observer: observer.trim(), note: note.trim() || null }
       if (status === 'not_plantable') body.reason = choice.reason
+      if (block) body.plan_id = block.planId
+      if (status === 'planted') body.trees_planted = Number(count)
       await apiPost('/field-checks', body)
-      setMsg({ ok: true, text: `Saved: ${choice.label}` })
+      setMsg({ ok: true, text: status === 'planted' ? `Saved: ${count} of ${block.trees} trees planted` : `Saved: ${choice.label}` })
       setNote('')
       setEditing(false)
       setMenuOpen(false)
@@ -91,7 +98,8 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved 
           </span>
           {current.disputed && <div className="fc-warn"><Icon name="warn" /> Disputed: the latest two checks disagree.</div>}
           {current.status === 'needs_recheck' && <div className="fc-warn"><Icon name="warn" /> Needs a second look (still ranked).</div>}
-          {!editing && (
+          {foreign && <div className="fc-warn"><Icon name="warn" /> Planted for another plan ({current.plan_id ?? 'no plan'}): it does not count for this plan.</div>}
+          {!editing && !foreign && (
             <button type="button" className="fc-link" onClick={() => setEditing(true)}>
               Change
             </button>
@@ -110,16 +118,30 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved 
             </div>
           )}
           <div className="fc-row" role="group" aria-label="What did you find at this spot?">
-            <button type="button" className="fc-bigbtn fc-b-verified_plantable" disabled={busy} onClick={() => save({ label: 'Plantable', status: 'verified_plantable' })}>
-              <Icon name="ring" /> Plantable
-            </button>
+            {block ? (
+              <button type="button" className="fc-bigbtn fc-b-planted" disabled={busy} onClick={() => save({ label: 'Planted', status: 'planted' })}>
+                <Icon name="tree" /> Planted
+              </button>
+            ) : (
+              <button type="button" className="fc-bigbtn fc-b-verified_plantable" disabled={busy} onClick={() => save({ label: 'Plantable', status: 'verified_plantable' })}>
+                <Icon name="ring" /> Plantable
+              </button>
+            )}
             <button type="button" className="fc-bigbtn fc-b-not_plantable" aria-expanded={menuOpen} aria-haspopup="true" disabled={busy} onClick={() => setMenuOpen((o) => !o)}>
-              <Icon name="close" /> Not plantable <Icon name="down" size={14} />
+              <Icon name="close" /> {block ? "Can't plant here" : 'Not plantable'} <Icon name="down" size={14} />
             </button>
             <button type="button" className="fc-bigbtn fc-b-needs_recheck" disabled={busy} onClick={() => save({ label: 'Needs recheck', status: 'needs_recheck' })}>
               <Icon name="triangle" /> Needs recheck
             </button>
           </div>
+          {block && (
+            <div className="fc-count">
+              <label className="fc-label" htmlFor="nw-fc-count">
+                Trees planted (of {block.trees})
+              </label>
+              <input id="nw-fc-count" type="number" min="0" max={block.trees} className="fc-input fc-count-input" value={count} onChange={(e) => setCount(e.target.value)} inputMode="numeric" />
+            </div>
+          )}
           {menuOpen && (
             <div className="fc-menu" role="group" aria-label="Why is it not plantable?">
               {REASONS.map((o) => (

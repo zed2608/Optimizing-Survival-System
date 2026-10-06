@@ -137,8 +137,13 @@ def _result(point_idx, species_idx, quotas):
             "unmatched_saplings": int(np.sum(quotas) - len(pi))}
 
 
-def assign_hungarian(W, feasible, quotas, seed=None, big_cost=None):
-    """Optimal assignment of the slots to distinct points (minimum total cost 1 - W); infeasible pairs are dropped afterwards."""
+TIEBREAK_EPS = 1e-6      # weight of the tie-break term in the cost (blocks mode)
+
+
+def assign_hungarian(W, feasible, quotas, seed=None, big_cost=None, tiebreak=None):
+    """Optimal assignment of the slots to distinct points (minimum total cost 1 - W); infeasible pairs are dropped afterwards.
+    tiebreak (optional, one number in [0, 1] per point, for example the distance to the centre of the chosen area): added to the cost with the weight TIEBREAK_EPS, so it only
+    separates points whose W is practically equal; without it ties fall to a seeded random order (the plan of before)."""
     big = CFG["big_cost"] if big_cost is None else big_cost
     rng = np.random.default_rng(CFG["seed"] if seed is None else seed)
     cols = np.where(feasible.any(axis=1))[0]
@@ -147,15 +152,17 @@ def assign_hungarian(W, feasible, quotas, seed=None, big_cost=None):
     cols = cols[rng.permutation(len(cols))]                      # seeded tie-break order
     slot_sp = _slots(quotas)
     cost = np.where(feasible[cols][:, slot_sp].T, 1.0 - W[cols][:, slot_sp].T, big)
+    if tiebreak is not None:
+        cost = np.where(cost < big / 2, cost + TIEBREAK_EPS * np.asarray(tiebreak, dtype=float)[cols][None, :], cost)
     r, c = linear_sum_assignment(cost)
     keep = cost[r, c] < big / 2
     return _result(cols[c[keep]], slot_sp[r[keep]], quotas)
 
 
-def assign_greedy(W, feasible, quotas, seed=None):
-    """Repeatedly take the best remaining (point, species) pair that is feasible and still has quota."""
+def assign_greedy(W, feasible, quotas, seed=None, tiebreak=None):
+    """Repeatedly take the best remaining (point, species) pair that is feasible and still has quota. With a tiebreak (distance to the centre of the area) equal pairs go to the nearest point first."""
     rng = np.random.default_rng(CFG["seed"] if seed is None else seed)
-    perm = rng.permutation(W.shape[0])
+    perm = rng.permutation(W.shape[0]) if tiebreak is None else np.argsort(np.asarray(tiebreak, dtype=float), kind="stable")
     Wp, Fp = W[perm], feasible[perm]
     left = np.asarray(quotas, dtype=int).copy(); used = np.zeros(W.shape[0], dtype=bool)
     pts, sps = [], []

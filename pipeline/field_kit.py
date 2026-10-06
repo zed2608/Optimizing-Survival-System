@@ -65,6 +65,8 @@ CSV_COLUMNS = ["point_ref", "point_id", "species_code", "common_name", "scientif
                "zone", "spacing_min_m", "planting_months", "flags", "notes", "plan_id", "check_code", "status", "moved_lat", "moved_lon"]
 GPX_NS, KML_NS = "http://www.topografix.com/GPX/1/1", "http://www.opengis.net/kml/2.2"
 KIT_FILES = ["points.gpx", "points.kml", "point-list.csv", "README.txt"]
+BLOCK_CSV_COLUMNS = ["block_ref", "point_id", "lat", "lon", "utm_e", "utm_n", "species_code", "common_name", "trees_planned", "spacing_m", "rows", "trees_per_row", "row_direction",
+                     "start_corner", "barangay", "zone", "flags", "notes", "status", "trees_planted", "moved_lat", "moved_lon", "plan_id", "check_code"]   # plan_id and check_code last: they tie a filled file to its plan
 
 
 def _abs(p):
@@ -104,6 +106,41 @@ def make_codes(species_rows):
             code = next(c for c in cands if c not in used)
         used.add(code); out[sid] = code
     return out
+
+
+def is_blocks(plan):
+    """A plan made in blocks mode has the column trees_planned (one row = one block)."""
+    return "trees_planned" in plan.columns
+
+
+def make_refs(codes, blocks=False):
+    """References of a Series of species codes already sorted by (code, point_id): DUH-012 for points, DUH-B03 for blocks (the number counts per species)."""
+    n = codes.groupby(codes).cumcount() + 1
+    top = int(codes.groupby(codes).size().max())
+    if blocks:
+        return codes + "-B" + n.astype(str).str.zfill(max(2, len(str(top))))
+    return codes + "-" + n.astype(str).str.zfill(max(CFG["min_number_digits"], len(str(top))))
+
+
+def block_text(r):
+    """The layout of one block in plain words (GPX / KML description)."""
+    n, cap, tpr, rows = int(r.trees_planned), int(r.capacity), int(r.trees_per_row), int(r.rows)
+    used = -(-n // tpr)
+    half = float(r.usable_side_m) / 2
+    s = (f"Block {r.point_ref}: {n} {r.common_name} trees at {float(r.spacing_m):g} m spacing. Layout: {rows} rows of {tpr} trees (capacity {cap}), rows run {r.row_direction}, "
+         f"counted from the {r.start_corner} corner of the planted area (about {float(r.usable_side_m):.0f} m x {float(r.usable_side_m):.0f} m in the middle of the 100 m square; "
+         f"the waypoint is the centre, so the first tree is about {half:.0f} m south and {half:.0f} m west of it).")
+    if n < cap:
+        s += f" This block holds {n} of {cap} trees: {used} row{'s' if used != 1 else ''}."
+    if isinstance(r.layout_note, str) and r.layout_note:
+        s += f" {r.layout_note}."
+    return s
+
+
+def block_note_short(r):
+    n = int(r.trees_planned)
+    return (f"Block of {n} trees: {int(r.rows)} rows x {int(r.trees_per_row)} at {float(r.spacing_m):g} m, start {r.start_corner}, rows {r.row_direction}."
+            + (f" {r.layout_note}." if isinstance(r.layout_note, str) and r.layout_note else ""))
 
 
 def month_names(value):
@@ -169,10 +206,14 @@ def build_point_table(plan, species, code_by_id, plan_id, check, brgy_shp):
     df["spacing_min_m"] = df.species_id.map(sp.spacing_min_m)
     df["planting_months"] = df.species_id.map(sp.planting_months).map(month_names)
     df = df.sort_values(["species_code", "point_id"]).reset_index(drop=True)
-    width = max(CFG["min_number_digits"], len(str(df.groupby("species_code").size().max())))
-    df["point_ref"] = df.species_code + "-" + (df.groupby("species_code").cumcount() + 1).astype(str).str.zfill(width)
+    blocks = is_blocks(df)
+    df["point_ref"] = make_refs(df.species_code, blocks)
     df["zone"] = df.zone_desc.fillna("")
     df["notes"] = [flag_notes(fl, z) for fl, z in zip(df["flags"], df["zone"])]
+    if blocks:
+        df["block_ref"] = df.point_ref
+        df["layout_note"] = df["layout_note"].fillna("")
+        df["notes"] = [(block_note_short(r) + " " + n).strip() for r, n in zip(df.itertuples(index=False), df["notes"])]
     df["plan_id"], df["check_code"] = plan_id, check
     df["status"], df["moved_lat"], df["moved_lon"] = "", "", ""
     df["lat_s"], df["lon_s"] = df.lat.map(lambda v: f"{v:.6f}"), df.lon.map(lambda v: f"{v:.6f}")
@@ -187,6 +228,8 @@ def cell_note():
 def describe(r):
     parts = [f"{r.common_name} ({r.scientific_name}).", f"Planting months: {r.planting_months.replace(';', ', ') or 'not stated'}.",
              f"Flags: {r.flags.replace(';', ', ') or 'none'}."]
+    if hasattr(r, "trees_planned"):
+        parts.insert(0, block_text(r))
     if r.notes:
         parts.append(r.notes)
     parts.append(cell_note())
@@ -260,13 +303,101 @@ def write_csv(df, path):
     out.to_csv(path, index=False, quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
 
 
+def write_blocks_csv(df, path):
+    """blocks.csv: one row per block, with the columns the volunteers fill (status, trees_planted, moved_lat, moved_lon)."""
+    out = df.copy()
+    out["lat"], out["lon"] = df.lat_s, df.lon_s
+    out["utm_e"], out["utm_n"] = df.utm_e.round(1), df.utm_n.round(1)
+    out["spacing_m"] = df.spacing_m.map(lambda v: f"{float(v):g}")
+    out["trees_planted"] = ""
+    out[BLOCK_CSV_COLUMNS].to_csv(path, index=False, quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
+
+
 def palette_rows(df):
+    if "trees_planned" in df.columns:                                  # blocks: the number is trees, not rows
+        g = df.groupby(["species_code", "common_name"], sort=True).trees_planned.sum().reset_index(name="n")
+        dio = set(df[df["flags"].str.contains("needs_both_sexes")].species_code)
+        return [(r.species_code, r.common_name, int(r.n), r.species_code in dio) for r in g.itertuples(index=False)]
     g = df.groupby(["species_code", "common_name"], sort=True).size().reset_index(name="n")
     dio = set(df[df["flags"].str.contains("needs_both_sexes")].species_code)
     return [(r.species_code, r.common_name, int(r.n), r.species_code in dio) for r in g.itertuples(index=False)]
 
 
+def write_readme_blocks(df, meta, summary, path):
+    pal = "\n".join(f"  {c}  {n:<26} {k:>4} trees{'   <- plant BOTH male and female trees' if d else ''}" for c, n, k, d in palette_rows(df))
+    limits = "\n".join(f"  - {x}" for x in summary.get("limits", []))
+    s = summary
+    lay = s.get("layout", {})
+    ex = df.drop_duplicates("species_code")
+    spec = "\n".join(f"  {r.species_code}  {r.common_name:<26} every {float(r.spacing_m):g} m, {int(r.rows)} rows of {int(r.trees_per_row)} trees = {int(r.capacity)} trees in a full block"
+                      for r in ex.itertuples(index=False))
+    extra = []
+    if s.get("saplings_unmatched") or s.get("saplings_unallocated"):
+        extra.append(f"  - The plan could not place every tree: {s.get('saplings_unmatched', 0)} unmatched and {s.get('saplings_unallocated', 0)} not allocated (see manifest.json).")
+    extra.append(f"  - Existing trees: {s.get('existing_trees', 'not stated')}.")
+    first = df.point_ref.iloc[0]
+    txt = f"""FIELD KIT (PLANTING BLOCKS) - {meta['plan_id']}
+{'=' * 78}
+Plan id      : {meta['plan_id']}
+Check code   : {meta['check_code']}   (first {CFG['check_code_len']} characters of the sha256 of the plan CSV;
+               if the plan changes, the code changes. Only use files with the same code.)
+Dataset      : {meta['dataset_tag']}   hash {meta['dataset_hash']}
+Built on     : {meta['built_on']}      Purpose: {s.get('purpose', '?')}
+Trees        : {int(df.trees_planned.sum())} trees in {len(df)} blocks (about {lay.get('hectares_used', len(df))} ha of planting squares)
+
+WHAT IS IN THIS KIT
+  points.gpx      one waypoint per BLOCK for a phone map app     blocks.csv      the sheet to fill in the field (open in Excel)
+  points.kml      same blocks, one folder per species             point-list.csv  the same blocks in the older sheet format
+  field-map.pdf   printed map and a layout diagram per species (only if made)     manifest.json   every file with its size and sha256
+
+WHAT IS A BLOCK
+  A block is one 100 m x 100 m grid square planted at the species spacing, so that many trees stand close together. The planted part is a
+  square of about {lay.get('usable_side_m', 77.5):.0f} m x {lay.get('usable_side_m', 77.5):.0f} m in the middle of the grid square (the rest is left for paths, boundaries and rocks).
+  Each waypoint is named like {first} (species code, B for block, number). Tap it to read the layout.
+
+HOW TO LAY OUT A BLOCK (a tape measure or pacing is enough)
+  1. Walk to the waypoint. It is the CENTRE of the grid square.
+  2. Find the start: the south-west corner of the planted area, about {lay.get('usable_side_m', 77.5) / 2:.0f} m south and {lay.get('usable_side_m', 77.5) / 2:.0f} m west of the waypoint.
+     Use the compass of the phone. Put a stake there.
+  3. Rows run east-west. Plant the first tree at the stake. Walk east along the row and plant a tree every spacing (a tape, a marked rope, or count paces: one adult pace
+     is about 0.75 m, so a spacing of 7.5 m is 10 paces). The row is full after the number of trees per row.
+  4. Go north by one spacing and plant the next row from the west end. Stop when the block has its number of trees. A block that holds fewer trees than its capacity is filled row by
+     row from the south, so its last row may be short.
+  5. If the notes say "Plant along the contour" (slope above 30%), run the rows along the contour lines instead of straight east-west.
+  6. COUNT the trees you really planted in each block (do not count missing or dead saplings) and write the number in blocks.csv.
+
+SPACING AND CAPACITY OF THE SPECIES IN THIS PLAN
+{spec}
+
+GPS AND THE 100 m SQUARE
+  - GPS accuracy is {CFG['gps_accuracy_text']}.
+  - The waypoint is the centre of the square, not a surveyed spot. If the planted area meets a rock, a tree, a creek bank or a path, you may shift the block by up to
+    {CFG['nudge_max_m']:.0f} m. Write the REAL position of the block's centre in moved_lat and moved_lon (decimal degrees, from the phone).
+  - Dioecious species need BOTH sexes: plant male and female trees of that species in the same block.
+  - Plant only in the planting months listed for the species.
+  - A block flagged zoning_unconfirmed is on land outside the zoning map: confirm with the LGU before planting there.
+  - A block flagged ground_bare, ground_built_up or ground_water looks bare, built-up or like water in satellite land cover (ESA WorldCover 2021, 76.7% accurate worldwide): check it on the ground first.
+
+BRINGING THE RESULTS BACK
+  When you are done, fill blocks.csv: write "planted" in the status column and the number of trees you planted in trees_planted (from 0 up to trees_planned; fewer trees means the
+  block is only partly done). For a block that cannot be planted write the reason in status (paved, building, rock_or_ledge, creek_or_waterlogged, too_steep, existing_tree,
+  owner_refused or other). If you moved the block, also fill moved_lat and moved_lon. Then open the dashboard, type your name, and press "Import field checks (CSV)" and choose
+  blocks.csv. The plan id and the check code in the file must match this kit, or it is refused. Importing the same file twice adds nothing. (point-list.csv works too: "planted"
+  means all the trees of the block.)
+
+SPECIES CODES AND TREES
+{pal}
+
+KNOWN LIMITS (from the plan)
+{limits}
+{chr(10).join(extra)}
+"""
+    Path(path).write_text(txt, encoding="utf-8")
+
+
 def write_readme(df, meta, summary, path):
+    if "trees_planned" in df.columns:
+        return write_readme_blocks(df, meta, summary, path)
     pal = "\n".join(f"  {c}  {n:<26} {k:>4} trees{'   <- plant BOTH male and female trees' if d else ''}" for c, n, k, d in palette_rows(df))
     limits = "\n".join(f"  - {x}" for x in summary.get("limits", []))
     s = summary
@@ -331,10 +462,13 @@ def write_manifest(kit_dir, df, meta, summary, plan_csv, path):
         if p.name != "manifest.json" and p.is_file():
             files.append({"name": p.name, "size_bytes": p.stat().st_size, "sha256": sha256_file(p)})
     per = {c: {"common_name": n, "points": k, "needs_both_sexes": d} for c, n, k, d in palette_rows(df)}
+    if "trees_planned" in df.columns:
+        per = {c: {"common_name": n, "trees": k, "blocks": int((df.species_code == c).sum()), "points": int((df.species_code == c).sum()), "needs_both_sexes": d} for c, n, k, d in palette_rows(df)}
     m = {"plan_id": meta["plan_id"], "check_code": meta["check_code"], "built_on": meta["built_on"],
          "dataset": {"tag": meta["dataset_tag"], "hash": meta["dataset_hash"]},
          "plan_file": {"name": Path(plan_csv).name, "sha256": sha256_file(plan_csv)},
-         "counts": {"points": int(len(df)), "species": len(per), "per_species": per},
+         "counts": {"points": int(len(df)), "species": len(per), "per_species": per,
+                    **({"blocks": int(len(df)), "trees": int(df.trees_planned.sum())} if "trees_planned" in df.columns else {})},
          "files": files, "nudge_max_m": CFG["nudge_max_m"], "cell_m": CFG["cell_m"],
          "limits": summary.get("limits", []), "plan_summary": summary,
          "note": "manifest.json lists every other file of the kit; it cannot list its own hash."}
@@ -421,7 +555,47 @@ def write_pdf(df, meta, summary, path, landuse_shp):
                     ax.text(0.02, y - step * 0.42, "flags: " + r.flags.replace(";", ", "), fontsize=4.8, family="monospace", color="0.3")
             ax.text(0.02, 0.012, foot, fontsize=6.5)
             pdf.savefig(fig); plt.close(fig)
-    return len(pages) + 1
+        n_diag = 0
+        if "trees_planned" in df.columns:
+            n_diag = write_block_diagrams(pdf, plt, df, meta, foot, W, H)
+    return len(pages) + 1 + (n_diag if "trees_planned" in df.columns else 0)
+
+
+def write_block_diagrams(pdf, plt, df, meta, foot, W, H):
+    """One page per species: the layout of its block drawn to scale (the 100 m square, the planted area, every tree), the start corner, the spacing, and the list of its blocks."""
+    n = 0
+    for code, g in df.groupby("species_code", sort=True):
+        r0 = g.iloc[0]
+        rows, tpr, sp, us = int(r0.rows), int(r0.trees_per_row), float(r0.spacing_m), float(r0.usable_side_m)
+        fig = plt.figure(figsize=(W, H))
+        ax = fig.add_axes([0.05, 0.1, 0.5, 0.8])
+        ax.add_patch(plt.Rectangle((0, 0), 100, 100, fill=False, edgecolor="0.3", lw=1.2))
+        ox = (100 - us) / 2
+        ax.add_patch(plt.Rectangle((ox, ox), us, us, fill=True, facecolor="0.94", edgecolor="0.5", lw=0.8, ls="--"))
+        xs = [ox + k * sp for k in range(tpr)]
+        for ri in range(rows):
+            ax.scatter(xs, [ox + ri * sp] * tpr, s=14, facecolors="white", edgecolors="black", linewidths=0.6, zorder=3)
+        ax.scatter([ox], [ox], s=60, marker="s", color="black", zorder=4)
+        ax.annotate("START (south-west corner)", (ox, ox), xytext=(2, -9), textcoords="data", fontsize=7)
+        ax.annotate("", xy=(ox + min(us, 3 * sp), ox + 5), xytext=(ox, ox + 5), arrowprops={"arrowstyle": "->", "lw": 1.2})
+        ax.text(ox + 1.5 * sp, ox + 7, f"row direction: {r0.row_direction}", fontsize=6.5)
+        ax.annotate("", xy=(95, 98), xytext=(95, 88), arrowprops={"arrowstyle": "-|>", "lw": 1.3})
+        ax.text(95, 99, "N", ha="center", fontsize=9, weight="bold")
+        ax.set_xlim(-6, 106); ax.set_ylim(-14, 106); ax.set_aspect("equal"); ax.set_xticks([0, 50, 100]); ax.set_yticks([0, 50, 100]); ax.tick_params(labelsize=6)
+        ax.set_xlabel("metres (the 100 m square)", fontsize=7)
+        ax.set_title(f"Block layout - {code} {r0.common_name}", fontsize=10)
+        txt = [f"Spacing: {sp:g} m between trees and between rows", f"Layout: {rows} rows of {tpr} trees = {int(r0.capacity)} trees in a full block",
+               f"Planted area: about {us:.0f} m x {us:.0f} m in the middle of the square", "Start at the south-west corner of the planted area;",
+               "plant east along the first row, then go north one spacing for the next row.", "Count the trees you really plant in each block."]
+        if (g.layout_note.fillna("") != "").any():
+            txt.append("Plant along the contour where the slope is above 30% (see the list).")
+        fig.text(0.6, 0.9, "\n".join(txt), fontsize=8, va="top")
+        lines = [f"{r.point_ref:<10} grid {int(r.point_id):<6} {int(r.trees_planned):>4} trees   {str(r.barangay)[:18]:<18} {'contour' if isinstance(r.layout_note, str) and r.layout_note else ''}" for r in g.itertuples(index=False)]
+        fig.text(0.6, 0.62, "Blocks of this species:\n" + "\n".join(lines[:22]) + ("\n..." if len(lines) > 22 else ""), fontsize=6.5, family="monospace", va="top")
+        fig.text(0.02, 0.02, foot, fontsize=6.5)
+        pdf.savefig(fig); plt.close(fig)
+        n += 1
+    return n
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -456,6 +630,8 @@ def make_kit(plan_csv, out_dir, pdf=False, data_dir="data/processed", built_on=N
     write_gpx(df, meta, kit / "points.gpx")
     write_kml(df, meta, kit / "points.kml", colors)
     write_csv(df, kit / "point-list.csv")
+    if is_blocks(df):
+        write_blocks_csv(df, kit / "blocks.csv")
     write_readme(df, meta, summary, kit / "README.txt")
     pdf_note = None
     if pdf:

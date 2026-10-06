@@ -3,29 +3,33 @@ import Icon from './Icon.jsx'
 import { fmt, pct } from '../v2/scale.js'
 import HelpTip from './HelpTip.jsx'
 import KitControls from './KitControls.jsx'
+import PlanProgress from './PlanProgress.jsx'
 import PlanWeather from './PlanWeather.jsx'
 import { shapeColor, shapePath } from './planShapes.js'
 import { formatDay, monthsText } from './season.js'
 import ViewSwitch from './ViewSwitch.jsx'
 
 // The result card of a created plan: who/what/when, placed / requested, the mix, mean score, field-check exclusions, warnings, and a searchable list of the planned points.
-export default function PlanResult({ result, speciesInfo, view, onView, onOpenPoint, onAnother, onOpenWeather, includeUnzoned = true }) {
+export default function PlanResult({ result, speciesInfo, view, onView, onOpenPoint, onAnother, onOpenWeather, includeUnzoned = true, fieldVersion = 0, onTopUp, onOpenPlan }) {
   const [q, setQ] = useState('')
   const [only, setOnly] = useState('')
   const [shown, setShown] = useState(25)
   const full = view === 'full'
   const s = result.summary
+  const blocks = result.layout_mode === 'blocks'
+  const lay = s.layout
   const c = result.campaign
   const items = result.plan
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase()
-    return items.filter((it) => (!only || String(it.species_id) === only) && (!t || it.point_ref.toLowerCase().includes(t) || it.species_code.toLowerCase().includes(t) || it.species.toLowerCase().includes(t)))
+    return items.filter((it) => (!only || String(it.species_id) === only) && (!t || it.point_ref.toLowerCase().includes(t) || (it.block_ref ?? '').toLowerCase().includes(t) || it.species_code.toLowerCase().includes(t) || it.species.toLowerCase().includes(t)))
   }, [items, q, only])
   const stats = useMemo(() => {
     const m = new Map()
     items.forEach((it) => {
       const e = m.get(it.species_id) ?? { n: 0, S: 0, P: 0, W: 0 }
       e.n += 1
+      e.trees = (e.trees ?? 0) + (it.trees_planned ?? 1)
       e.S += it.S
       e.P += it.P
       e.W += it.W
@@ -52,10 +56,20 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
         <div className="nw-loc-line">Plan id {result.plan_id}</div>
         <div className="nw-pcard-head nw-plan-kpis">
           <span className="nw-chip fc-verified_plantable">
-            Placed {s.saplings_placed} of {s.n_saplings_requested}
+            {blocks ? `Trees ${s.saplings_placed} of ${s.n_saplings_requested}` : `Placed ${s.saplings_placed} of ${s.n_saplings_requested}`}
           </span>
+          {blocks && lay && <span className="nw-chip">{lay.blocks} blocks</span>}
+          {blocks && lay && <span className="nw-chip">{lay.hectares_used} ha</span>}
           <span className="nw-chip">Mean score W {fmt(s.mean_W)}</span>
         </div>
+        {result.parent_plan_id && (
+          <div className="nw-loc-line">
+            Top-up of{' '}
+            <button type="button" className="fc-link" onClick={() => onOpenPlan?.(result.parent_plan_id)}>
+              {result.parent_plan_id}
+            </button>
+          </div>
+        )}
         <div className="nw-loc-line">Area: {s.area_choice?.display_name ?? 'whole municipality'}</div>
         <div className="nw-loc-line">{s.field_checks?.excluded_points ?? 0} squares excluded by field checks</div>
         {s.ground_cover && (
@@ -70,6 +84,16 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
           </div>
         )}
       </section>
+
+      {blocks && (
+        <section className="nw-pcard" aria-label="Progress">
+          <div className="nw-pcard-head">
+            <h3>Progress</h3>
+            <HelpTip label="About progress">Counted from the saved field checks of this plan: mark each block Planted (with the number of trees), Can't plant here or Needs recheck in its point panel, or import the filled blocks.csv.</HelpTip>
+          </div>
+          <PlanProgress planId={result.plan_id} version={fieldVersion} full={full} onTopUp={onTopUp} onOpenPlan={onOpenPlan} />
+        </section>
+      )}
 
       {(warnings.length > 0 || both.length > 0) && (
         <section className="nw-pcard" aria-label="Warnings">
@@ -86,7 +110,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
       <section className="nw-pcard" aria-label="The mix">
         <div className="nw-pcard-head">
           <h3>The mix</h3>
-          <HelpTip label="About the mix">The 3-letter code is the one on the map and in the field kit. Share is the part of the saplings; count is the trees placed.</HelpTip>
+          <HelpTip label="About the mix">The 3-letter code is the one on the map and in the field kit. Share is the part of the trees; a block is one 100 m square planted at the species spacing, and its layout is rows of trees counted from the south-west corner.</HelpTip>
         </div>
         <table className="nw-table">
           <thead>
@@ -94,7 +118,9 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
               <th scope="col">Code</th>
               <th scope="col">Species</th>
               <th scope="col">Share</th>
-              <th scope="col">Count</th>
+              <th scope="col">{blocks ? 'Trees' : 'Count'}</th>
+              {blocks && <th scope="col">Blocks</th>}
+              {blocks && <th scope="col">Spacing and layout</th>}
               {full && <th scope="col">Mean S / P / W</th>}
             </tr>
           </thead>
@@ -113,6 +139,12 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
                   <td>{p.species}</td>
                   <td>{pct(p.placed / Math.max(s.saplings_placed, 1))}</td>
                   <td>{p.placed}</td>
+                  {blocks && <td>{p.blocks_placed}</td>}
+                  {blocks && (
+                    <td>
+                      {p.spacing_m} m · {p.rows} rows × {p.trees_per_row} ({p.capacity} per full block)
+                    </td>
+                  )}
                   {full && <td>{st ? `${fmt(st.S / st.n)} / ${fmt(st.P / st.n)} / ${fmt(st.W / st.n)}` : '-'}</td>}
                 </tr>
               )
@@ -127,7 +159,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
             <div>Shared planting months: {monthsText(s.palette_common_planting_months ?? [])}</div>
             {result.summary.season && <div>Months inside your dates: {monthsText(result.summary.season.palette_common_months_in_window)}</div>}
             <div>
-              Squares: {s.area?.candidate_points_after_exclusion} candidates, {s.unused_candidate_points} unused. Unplaced saplings: {s.saplings_unmatched} unmatched, {s.saplings_unallocated} not shared out.
+              Squares: {s.area?.candidate_points_after_exclusion} candidates, {s.unused_candidate_points} unused. Unplaced {blocks ? 'trees' : 'saplings'}: {s.saplings_unmatched} unmatched, {s.saplings_unallocated} not shared out.
             </div>
           </div>
         )}
@@ -147,14 +179,16 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
         <PlanWeather result={result} includeUnzoned={includeUnzoned} onOpenWeather={onOpenWeather} />
       </section>
 
-      <section className="nw-pcard" aria-label="Planned points">
+      <section className="nw-pcard" aria-label={blocks ? 'Planned blocks' : 'Planned points'}>
         <div className="nw-pcard-head">
-          <h3>Planned points ({rows.length})</h3>
+          <h3>
+            {blocks ? 'Planned blocks' : 'Planned points'} ({rows.length})
+          </h3>
         </div>
         <label className="sr-only" htmlFor="nw-plan-search">
           Search planned points
         </label>
-        <input id="nw-plan-search" type="search" className="fc-input" placeholder="Search by point ref or species code" value={q} onChange={(e) => { setQ(e.target.value); setShown(25) }} />
+        <input id="nw-plan-search" type="search" className="fc-input" placeholder={blocks ? 'Search by block ref or species code' : 'Search by point ref or species code'} value={q} onChange={(e) => { setQ(e.target.value); setShown(25) }} />
         <label className="sr-only" htmlFor="nw-plan-species">
           Filter by species
         </label>
@@ -172,7 +206,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
               <button type="button" className="nw-rowbtn" onClick={() => onOpenPoint(it)}>
                 {it.point_ref}
               </button>{' '}
-              {it.species} · W {fmt(it.W)} · {it.barangay_display || 'outside barangays'}
+              {it.species} · {blocks ? `${it.trees_planned} trees · ` : ''}W {fmt(it.W)} · {it.barangay_display || 'outside barangays'}
             </li>
           ))}
           {rows.length === 0 && <li className="muted">No planned point matches.</li>}

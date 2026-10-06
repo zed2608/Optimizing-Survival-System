@@ -4,6 +4,7 @@ import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { useApi } from '../v2/useApi.js'
 import { purposeLabel } from '../v2/labels.js'
 import KitControls from './KitControls.jsx'
+import PlanProgress from './PlanProgress.jsx'
 import { campaignStatus, formatSpanYear } from './season.js'
 import WeatherCard from './WeatherCard.jsx'
 
@@ -17,12 +18,13 @@ const FILTERS = ['all', 'active', 'upcoming', 'concluded', 'none']
 const LIMIT = 100 // the most the planning service returns at once
 
 // The "Campaign Logs" tab: every saved plan as a card with its campaign, dates, status, kit and weather advice. Nothing here deletes a plan.
-export default function CampaignLogs({ today, onOpen, onStudio }) {
+export default function CampaignLogs({ today, onOpen, onStudio, fieldVersion = 0, onTopUp }) {
   const api = useApi(`/plans?limit=${LIMIT}`)
   const [filter, setFilter] = useState('all')
   const [q, setQ] = useState('')
   const [opening, setOpening] = useState('')
   const [openError, setOpenError] = useState('')
+  const [progressOpen, setProgressOpen] = useState(() => new Set()) // plans whose Progress is open (it is only loaded then)
   const plans = useMemo(() => (api.status === 'ok' ? api.data.plans.map((p) => ({ ...p, status: campaignStatus(p.campaign.start, p.campaign.end, today) })) : []), [api.status, api.data, today])
   const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f, f === 'all' ? plans.length : plans.filter((p) => p.status === f).length])), [plans])
   const t = q.trim().toLowerCase()
@@ -87,8 +89,16 @@ export default function CampaignLogs({ today, onOpen, onStudio }) {
               <div className="nw-loc-line">{c.unit ? `Unit: ${c.unit}` : c.status === 'missing' ? 'Unit: missing (older plan)' : 'No unit given'}</div>
               <div className="nw-loc-line">{c.start && c.end ? `Planting window: ${formatSpanYear(c.start, c.end)}` : 'Planting window: missing (older plan)'}</div>
               <div className="nw-loc-line">
-                {purposeLabel(p.purpose)} · {p.n_placed} of {p.n_saplings_requested} trees placed · {p.n_species} species
+                {purposeLabel(p.purpose)} · {p.n_placed} of {p.n_saplings_requested} trees placed{p.layout_mode === 'blocks' && p.blocks != null ? ` in ${p.blocks} blocks` : ''} · {p.n_species} species
               </div>
+              {p.parent_plan_id && (
+                <div className="nw-loc-line">
+                  Top-up of{' '}
+                  <button type="button" className="fc-link" onClick={() => open(p.parent_plan_id)}>
+                    {p.parent_plan_id}
+                  </button>
+                </div>
+              )}
               <div className="nw-loc-line">
                 Plan id {p.plan_id} · {p.field_kit_built ? 'Kit built' : 'No kit yet'}
               </div>
@@ -97,6 +107,24 @@ export default function CampaignLogs({ today, onOpen, onStudio }) {
                   {opening === p.plan_id ? 'Opening…' : 'Open on map'}
                 </button>
               </div>
+              {p.layout_mode === 'blocks' && (
+                <details
+                  className="nw-pdetails nw-logprogress"
+                  open={progressOpen.has(p.plan_id) || undefined}
+                  onToggle={(e) => {
+                    const on = e.currentTarget.open
+                    setProgressOpen((s) => {
+                      const n = new Set(s)
+                      if (on) n.add(p.plan_id)
+                      else n.delete(p.plan_id)
+                      return n.size === s.size ? s : n
+                    })
+                  }}
+                >
+                  <summary>Progress and top-up</summary>
+                  {progressOpen.has(p.plan_id) && <PlanProgress planId={p.plan_id} version={fieldVersion} onTopUp={onTopUp} onOpenPlan={open} />}
+                </details>
+              )}
               <KitControls planId={p.plan_id} />
               <WeatherCard url={`/plans/${p.plan_id}/advisory`} />
             </li>
