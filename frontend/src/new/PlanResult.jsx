@@ -58,6 +58,12 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
         </div>
         <div className="nw-loc-line">Area: {s.area_choice?.display_name ?? 'whole municipality'}</div>
         <div className="nw-loc-line">{s.field_checks?.excluded_points ?? 0} squares excluded by field checks</div>
+        {s.ground_cover && (
+          <div className={`nw-loc-line ${s.ground_cover.flagged_trees > 0 ? 'nw-zoning is-unconfirmed' : ''}`}>
+            <Icon name="mountain" size={14} /> {s.ground_cover.flagged_trees} of {s.ground_cover.placed_trees} trees are on squares that look bare, built-up or watery in satellite land cover.
+            {s.ground_cover.flagged_trees > 0 ? ' Check them first.' : ''}
+          </div>
+        )}
         {zn && (
           <div className={`nw-loc-line ${zn.unconfirmed_trees > 0 ? 'nw-zoning is-unconfirmed' : ''}`}>
             <Icon name="dotring" size={14} /> {zn.unconfirmed_trees} of {zn.placed_trees} trees are on land outside the zoning map

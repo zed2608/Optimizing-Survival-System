@@ -164,6 +164,13 @@ Acceptance (`tests/test_api_unzoned.py`, `tests/test_api_weather_week.py`, brows
 3. Style: one icon set, calmer hierarchy (see `docs/VISUAL_STYLE.md`).
 Acceptance (`tests/test_zone_rules.py`, `cdp_look`, all earlier browser checks with the API on and off): moving Special Reserved to unconfirmed adds its 355 squares (counts add up, defaults unchanged); no circles or white outlines, hover and click on squares, grey tone, bubbles and shapes by zoom, codes only at zoom 17 in Detailed, Simple | Detailed remembered, own work visible in Simple, icons only (SVG, stroke 1.5), two font weights, one radius, draw time at overview (JS drawing under 1 ms). 400 tests pass.
 
+## Ground cover from satellite land cover and "why few species suit this square" (feedback round 8)
+1. Data: ESA WorldCover 10 m 2021 v200 (one window clipped once, then offline); `site_landcover.csv` with the shares of each class in every 100 m square; sources, licence, attribution and the accuracy statement in `docs/DATA_SOURCES.md`.
+2. Flags (information only, provisional): `ground_bare`, `ground_built_up`, `ground_water` in `/rank`, plan items, the kit (notes and README) and the plan summary; no score, rank, eligibility, plan or square count changes.
+3. API: `ground_cover` in `/rank` and the point search, `GET /grid/landcover`, `limiting_factors` in `/rank`.
+4. Dashboard: the ground-cover line with its tip and badges, the optional layer with a legend (colour + pattern + icon), corner markers in Detailed, the result-card line, the "Why few or no species suit this square" card, Data credits.
+Acceptance (`tests/test_landcover.py`, `cdp_ground`, all earlier browser checks with the API on and off): shares add up, dominant class, edge squares, missing coverage, flags at the thresholds, scores and plans identical with and without ground cover, square counts unchanged, kit notes and README sentence, API fields, `/grid/landcover` under 100 KB, the why-none numbers equal the species table (slope limits 15 to 70). 414 tests pass.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
 sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;

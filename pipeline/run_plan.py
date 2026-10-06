@@ -21,6 +21,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import field_verify as fv  # noqa: E402
+import landcover as lcv  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
 
@@ -50,7 +51,26 @@ LIMITS = ("Each point is a ~100 m grid cell, so the plan places at most one tree
           "S comes from rules, not from field survival data.")
 
 
+def attach_landcover(ctx, out_dir):
+    """Add the ground-cover shares and ground_flags of data/processed/site_landcover.csv to ctx.sites (information only: S, P, the squares and their order are untouched).
+    Without the file the context is returned as it is."""
+    f = Path(out_dir) / "site_landcover.csv"
+    if not f.is_file():
+        return ctx
+    import dataclasses
+    lc = pd.read_csv(f)
+    keep = ["point_id"] + lcv.SHARE_COLS + ["lc_coverage", "dominant_code", "ground_flags"]
+    sites = ctx.sites.merge(lc[keep], on="point_id", how="left")
+    sites["ground_flags"] = sites["ground_flags"].fillna("")
+    assert len(sites) == len(ctx.sites) and (sites.point_id.to_numpy() == ctx.sites.point_id.to_numpy()).all()
+    return dataclasses.replace(ctx, sites=sites)
+
+
 def load_context(out_dir="data/processed", scores_path=None, include_unzoned=None):
+    return attach_landcover(_load_context(out_dir, scores_path, include_unzoned), out_dir)
+
+
+def _load_context(out_dir="data/processed", scores_path=None, include_unzoned=None):
     """Like matching.load_context, but with the squares OUTSIDE the zoning map (zoning_status unconfirmed) when include_unzoned is true (default CFG["include_unzoned"]).
     include_unzoned=False returns exactly what matching.load_context returns (confirmed legal-zone squares only). Without a zoning_status column (older data) only the legal-zone
     squares exist. matching.py itself is unchanged."""
@@ -209,6 +229,8 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
             flags.append("low_confidence")
         if "zoning_status" in sites and sites.zoning_status[k] == "unconfirmed":
             flags.append(UNCONFIRMED_FLAG)
+        if "ground_flags" in sites and isinstance(sites.ground_flags[k], str) and sites.ground_flags[k]:      # satellite land cover: information only
+            flags += sites.ground_flags[k].split(";")
         rows.append({"point_id": pid, "lon": sites.lon[k], "lat": sites.lat[k], "utm_e": sites.utm_e[k], "utm_n": sites.utm_n[k],
                      "zone_desc": sites.zone_desc[k], "species_id": spid, "species": sp.common_name.iloc[si[k]],
                      "S": round(float(Sm[pi[k], si[k]]), 4), "P": round(float(Pm[si[k]]), 4), "W": round(float(W[pi[k], si[k]]), 4),
@@ -216,6 +238,8 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                      "site_scores_src_ids": ";".join(str(i) for i in src_ids)})
     plan = pd.DataFrame(rows, columns=PLAN_COLUMNS)
     plan = plan.sort_values(["species_id", "W", "point_id"], ascending=[True, False, True]).reset_index(drop=True)
+    if "ground_flags" in ctx.sites:
+        summary["ground_cover"] = ground_block(plan)
     if "zoning_status" in ctx.sites and (ctx.sites.zoning_status == "unconfirmed").any():       # only when squares outside the zoning map were available
         summary["zoning"] = zoning_block(True, plan)
     for j in range(len(members)):
@@ -231,6 +255,15 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                     "mean_W": round(float(plan.W.mean()), 4) if len(plan) else None, "total_W": round(float(plan.W.sum()), 4),
                     "spacing_check": "every palette species has spacing_min_m < 100 m, the grid spacing, so any two grid points are far enough apart"})
     return plan, summary
+
+
+def ground_block(plan):
+    """The 'ground_cover' block of the plan summary: planned trees on squares that look bare, built-up or watery in satellite land cover (ESA WorldCover 2021). Information only."""
+    fl = plan["flags"].fillna("").astype(str) if len(plan) else pd.Series([], dtype=str)
+    by = {f: int(fl.str.contains(f).sum()) for f in lcv.FLAG_NOTES}
+    n = int(fl.str.contains("ground_").sum())
+    return {"placed_trees": int(len(plan)), "flagged_trees": n, "by_flag": by, "source": lcv.SOURCE["name"],
+            "note": "Trees on squares that look bare, built-up or like water in satellite land cover (2021): check them first. Information only: no score or plan depends on it."}
 
 
 def zoning_block(include_unzoned, plan):

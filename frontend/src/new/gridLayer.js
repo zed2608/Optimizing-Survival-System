@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import { wLevel } from '../v2/scale.js'
 import { shapeColor, shapePath } from './planShapes.js'
+import { GROUND_GROUPS, GROUND_MISSING, GROUND_STYLE, patternTile } from './groundStyle.js'
 
 // The grid of scored points, drawn in ONE canvas pass (no per-point React components, no per-point Leaflet objects).
 // A custom Leaflet layer: a single <canvas> in the overlay pane, redrawn after every move/zoom. Hover and click are found with
@@ -34,6 +35,10 @@ const GridCanvasLayer = L.Layer.extend({
     this._radius = 3
     this._half = 1
     this._detailed = false
+    this._groundOn = false // the optional ground-cover layer: squares coloured (and patterned) by their dominant satellite land-cover class
+    this._gcls = null
+    this._gflags = null
+    this._corners = false
     this._clusters = []
     this._cn = 0 // the second, fainter layer: grid squares that are not planting zones (GET /grid/context)
     this._cvisible = true
@@ -150,6 +155,36 @@ const GridCanvasLayer = L.Layer.extend({
 
   setPlanLabeler(fn) {
     this._plabeler = fn
+  },
+
+  // g = { cls: Uint8Array (index into GROUND_GROUPS, 255 = missing) per grid column, flags: Uint8Array (bits 1 bare, 2 built-up, 4 water) } or null
+  setGround(g) {
+    this._gcls = g ? g.cls : null
+    this._gflags = g ? g.flags : null
+    this._gctxcls = g ? g.ctxCls : null
+    this._draw()
+  },
+
+  setGroundMode(on) {
+    this._groundOn = !!on
+    this._draw()
+  },
+
+  // a small corner marker on squares with a ground-cover flag (Detailed view)
+  setCorners(on) {
+    this._corners = !!on
+    this._draw()
+  },
+
+  _groundPatterns() {
+    const dpr = this._dpr || 1
+    if (!this._gpat || this._gpatDpr !== dpr) {
+      const ctx = this._canvas.getContext('2d')
+      this._gpat = {}
+      this._gpatDpr = dpr
+      for (const g of GROUND_GROUPS) this._gpat[g] = ctx.createPattern(patternTile(g, dpr), 'repeat')
+    }
+    return this._gpat
   },
 
   // the Simple view hides the codes; Detailed shows them (from CODES_FROM_ZOOM)
@@ -444,9 +479,12 @@ const GridCanvasLayer = L.Layer.extend({
     d.squarePx = (this._half * 2).toFixed(2)
     d.bubbleLabels = (this._clusters ?? []).map((c) => c.label).join('|')
     d.codesShown = String(!!this._codesShown)
+    d.groundMode = String(!!(this._groundOn && this._gcls))
+    d.groundDrawn = String(this._gdrawn ?? 0)
+    d.cornerDrawn = String(this._cornerDrawn ?? 0)
     d.fieldDrawn = String(this._fdrawn ?? 0)
     d.zoom = String(this._map ? this._map.getZoom() : 0)
-    d.contextDrawn = String(this._cvisible ? (this._cdrawn ?? 0) : 0)
+    d.contextDrawn = String(this._cvisible || (this._groundOn && this._gctxcls) ? (this._cdrawn ?? 0) : 0)
   },
 
   _update() {
@@ -509,20 +547,58 @@ const GridCanvasLayer = L.Layer.extend({
       }
       // one filled square per grid cell (100 m, scaled with the zoom), no outline; a 1 px gap only when zoomed in
       const gap = cellPx >= GAP_FROM_PX ? 1 : 0
+      const gmode = this._groundOn && this._gcls && this._gcls.length === this._n
+      this._gdrawn = 0
       ctx.globalAlpha = SQUARE_ALPHA
-      for (let lv = 0; lv < LEVEL_COLORS.length; lv++) {
-        ctx.fillStyle = LEVEL_COLORS[lv]
+      const rects = (test) => {
         ctx.beginPath()
+        let k = 0
         for (let i = 0; i < this._n; i++) {
-          if (inView[i] && level[i] === lv) {
+          if (inView[i] && test(i)) {
             const x0 = Math.round(px[i] - half)
             const y0 = Math.round(py[i] - half)
             ctx.rect(x0, y0, Math.max(1, Math.round(px[i] + half) - x0 - gap), Math.max(1, Math.round(py[i] + half) - y0 - gap))
+            k++
           }
         }
         ctx.fill()
+        return k
+      }
+      if (gmode) {                                                    // ground cover: one fill per class; a pattern too once the squares are big enough to show it
+        const pats = cellPx >= 10 ? this._groundPatterns() : null
+        GROUND_GROUPS.forEach((g, gi) => {
+          ctx.fillStyle = pats ? pats[g] : GROUND_STYLE[g].color
+          this._gdrawn += rects((i) => this._gcls[i] === gi)
+        })
+        ctx.fillStyle = GROUND_MISSING
+        this._gdrawn += rects((i) => this._gcls[i] === 255)
+      } else {
+        for (let lv = 0; lv < LEVEL_COLORS.length; lv++) {
+          ctx.fillStyle = LEVEL_COLORS[lv]
+          rects((i) => level[i] === lv)
+        }
       }
       ctx.globalAlpha = 1
+      this._cornerDrawn = 0
+      if (this._corners && this._gflags && this._gflags.length === this._n && cellPx >= 10) {
+        const sz = Math.min(12, cellPx * 0.3)
+        ctx.fillStyle = '#f59e0b'
+        ctx.strokeStyle = '#0f172a'
+        ctx.lineWidth = 1
+        for (let i = 0; i < this._n; i++) {
+          if (!inView[i] || !this._gflags[i]) continue
+          const rx = px[i] + half - (gap ? 1 : 0)
+          const ty = py[i] - half
+          ctx.beginPath()
+          ctx.moveTo(rx - sz, ty)
+          ctx.lineTo(rx, ty)
+          ctx.lineTo(rx, ty + sz)
+          ctx.closePath()
+          ctx.fill()
+          ctx.stroke()
+          this._cornerDrawn++
+        }
+      }
       if (this._field) this._drawField(ctx, px, py, Math.min(9, Math.max(3, half * 0.4)))   // symbols stay small however big the squares are
       const sel = this._selected
       if (sel >= 0 && sel < this._n) {
@@ -554,7 +630,8 @@ const GridCanvasLayer = L.Layer.extend({
 
   _drawContext(ctx, half, cellPx) {
     this._cdrawn = 0
-    if (!this._cn || !this._cvisible) return
+    const gmode = this._groundOn && this._gctxcls && this._gctxcls.length === this._cn
+    if (!this._cn || !(this._cvisible || gmode)) return
     const map = this._map
     const scale = 256 * Math.pow(2, map.getZoom())
     const o = map.getPixelOrigin()
@@ -563,21 +640,42 @@ const GridCanvasLayer = L.Layer.extend({
     this._crc = Math.max(half, 3)
     const { _cpx: px, _cpy: py, _cmx: mx, _cmy: my } = this
     const gap = cellPx >= GAP_FROM_PX ? 1 : 0
-    ctx.fillStyle = CONTEXT_FILL
-    ctx.beginPath()
+    const inView = new Uint8Array(this._cn)
     for (let i = 0; i < this._cn; i++) {
       const x = mx[i] * scale - ox
       const y = my[i] * scale - oy
       px[i] = x
       py[i] = y
-      if (x > -half - 2 && y > -half - 2 && x < this._w + half + 2 && y < this._h + half + 2) {
-        const x0 = Math.round(x - half)
-        const y0 = Math.round(y - half)
-        ctx.rect(x0, y0, Math.max(1, Math.round(x + half) - x0 - gap), Math.max(1, Math.round(y + half) - y0 - gap))
-        this._cdrawn++
-      }
+      if (x > -half - 2 && y > -half - 2 && x < this._w + half + 2 && y < this._h + half + 2) inView[i] = 1
     }
-    ctx.fill()
+    const rects = (test) => {
+      ctx.beginPath()
+      let k = 0
+      for (let i = 0; i < this._cn; i++) {
+        if (inView[i] && test(i)) {
+          const x0 = Math.round(px[i] - half)
+          const y0 = Math.round(py[i] - half)
+          ctx.rect(x0, y0, Math.max(1, Math.round(px[i] + half) - x0 - gap), Math.max(1, Math.round(py[i] + half) - y0 - gap))
+          k++
+        }
+      }
+      ctx.fill()
+      return k
+    }
+    if (gmode) {                                                      // ground-cover layer: the squares that are not planting zones (a quarry, for example) show their class too
+      const pats = cellPx >= 10 ? this._groundPatterns() : null
+      ctx.globalAlpha = 0.6
+      GROUND_GROUPS.forEach((g, gi) => {
+        ctx.fillStyle = pats ? pats[g] : GROUND_STYLE[g].color
+        this._cdrawn += rects((i) => this._gctxcls[i] === gi)
+      })
+      ctx.fillStyle = GROUND_MISSING
+      this._cdrawn += rects((i) => this._gctxcls[i] === 255)
+      ctx.globalAlpha = 1
+      return
+    }
+    ctx.fillStyle = CONTEXT_FILL
+    this._cdrawn = rects(() => true)
   },
 
   _drawField(ctx, px, py, r) {
@@ -661,7 +759,7 @@ const GridCanvasLayer = L.Layer.extend({
 
   // index of the grey square under a layer point, or -1 (only while that layer is shown)
   _hitContext(layerPoint) {
-    if (!this._cn || !this._cvisible || !this._topLeft) return -1
+    if (!this._cn || !(this._cvisible || (this._groundOn && this._gctxcls)) || !this._topLeft) return -1
     return this._hitSquares(this._cpx, this._cpy, this._cn, this._crc, layerPoint)
   },
 

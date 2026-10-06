@@ -55,6 +55,9 @@ FLAG_NOTES = {
     "low_confidence": "Some inputs for this point were missing, so the suitability score is less certain.",
     "barangay_nearest": "The point is outside every barangay polygon; the nearest barangay is listed.",
     "zoning_unconfirmed": "Land outside the zoning map: confirm with the LGU before planting.",
+    "ground_bare": "Satellite land cover (2021) looks bare: check on the ground before planting.",
+    "ground_built_up": "Satellite land cover (2021) looks built-up: check on the ground before planting.",
+    "ground_water": "Satellite land cover (2021) looks like water or wetland: check on the ground before planting.",
 }
 # =====================================================================================================================
 
@@ -302,6 +305,7 @@ GPS AND THE 100 m CELL
   - Dioecious species need BOTH sexes: plant male and female trees near each other.
   - Plant only in the planting months listed for the species.
   - A point flagged zoning_unconfirmed is on land outside the zoning map: confirm with the LGU before planting there.
+  - A point flagged ground_bare, ground_built_up or ground_water looks bare, built-up or like water in satellite land cover (ESA WorldCover 2021, 76.7% accurate worldwide): check it on the ground first.
 
 BRINGING THE RESULTS BACK
   When you are done, fill the status column of point-list.csv: write "planted" for a spot you planted,

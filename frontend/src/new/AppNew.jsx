@@ -3,6 +3,8 @@ import '../v2/v2.css'
 import './new.css'
 import Icon from './Icon.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
+import GroundLegend from './GroundLegend.jsx'
+import { GROUND_GROUPS, GROUND_STYLE } from './groundStyle.js'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { purposeLabel } from '../v2/labels.js'
 import { LEVEL_WORD, fmt, wLevel } from '../v2/scale.js'
@@ -91,6 +93,7 @@ export default function AppNew() {
   const [tab, setTab] = useState('studio')
   const [fieldVersion, setFieldVersion] = useState(0) // bumped after every saved field check: reloads what depends on them (and skips the browser cache)
   const [showField, setShowField] = useState(true)
+  const [showGround, setShowGround] = useState(false) // the optional ground-cover layer (default off)
   const [showOther, setShowOther] = useState(true) // the faint layer of grid squares that are not planting zones
   const [observer, setObserver] = useObserver()
   const [view, setView] = useViewMode() // Compact | Full details of the species lists
@@ -106,6 +109,7 @@ export default function AppNew() {
   const boundaries = useApi('/geo/boundaries')
   const zones = useApi('/geo/zones')
   const contextData = useApi(`/grid/context?${uz}`)
+  const landcover = useApi(showGround || detailed ? '/grid/landcover' : null) // dominant satellite land-cover class per square (for the layer and the Detailed corner marks)
   const sq = `${seasonQuery(win.applied, onlySeason)}&${uz}` // the dates (and 'only' or 'mark') and the zoning switch that every species-listing call carries
   const species = useApi(`/species?${seasonQuery(win.applied, false)}`) // all species, each with its season (the toggle hides the out-of-season ones here)
 
@@ -133,7 +137,7 @@ export default function AppNew() {
   const chosenQ = spot && spot.context === undefined && mode === 'species' && selIds.length > 0 ? `purpose=${purpose}&lat=${spot.lat.toFixed(6)}&lon=${spot.lon.toFixed(6)}&${fc}&${seasonQuery(win.applied, false)}&${spot.planned ? 'include_unzoned=true' : uz}` : null
   const chosenRank = useApi(chosenQ ? `/rank?${chosenQ}&limit=45&include_left_out=true` : null)
   const isContext = !!spot && spot.context !== undefined // a click on a grey square (not a planting zone)
-  const rank = useApi(spotQuery && !isContext ? `/rank?${spotQuery}&limit=${POINT_LIMIT}&include_left_out=true` : null)
+  const rank = useApi(spotQuery && !isContext ? `/rank?${spotQuery}&limit=${POINT_LIMIT}&include_left_out=true&explain=${view === 'full'}` : null)
   const viable = useApi(spotQuery && viableFor === spotQuery ? `/nearest-viable?${spotQuery}` : null)
   if (rank.status === 'ok' && (keptRank === null || keptRank.data !== rank.data)) setKeptRank({ data: rank.data, key: rankKey })
   const shownRank = rank.status === 'loading' && keptRank && keptRank.key === rankKey ? { ...rank, status: 'ok', data: keptRank.data } : rank
@@ -148,6 +152,31 @@ export default function AppNew() {
   const selNames = useMemo(() => selIds.map((id) => speciesNames.get(id) ?? `species ${id}`), [selIds, speciesNames])
   const columns = grid.data?.columns ?? null
   const indexById = useMemo(() => new Map((columns?.point_id ?? []).map((id, i) => [id, i])), [columns])
+  // ground cover per grid column: the group index and the flag bits of every scored square (aligned with the /grid columns)
+  const groundInfo = useMemo(() => {
+    if (landcover.status !== 'ok' || !columns) return null
+    const cc = contextData.status === 'ok' ? contextData.data.columns : null
+    const lc = landcover.data
+    const groupOfClass = lc.classes.map((c) => Math.max(0, GROUND_GROUPS.indexOf(c.group)))
+    const at = new Map(lc.columns.point_id.map((id, i) => [id, i]))
+    const cls = new Uint8Array(columns.point_id.length)
+    const flags = new Uint8Array(columns.point_id.length)
+    columns.point_id.forEach((id, i) => {
+      const k = at.get(id)
+      const c = k === undefined ? -1 : lc.columns.class[k]
+      cls[i] = c < 0 ? 255 : groupOfClass[c]
+      flags[i] = k === undefined ? 0 : lc.columns.flags[k]
+    })
+    const ctxCls = cc ? new Uint8Array(cc.point_id.length) : null
+    if (cc) {
+      cc.point_id.forEach((id, i) => {
+        const k = at.get(id)
+        const c = k === undefined ? -1 : lc.columns.class[k]
+        ctxCls[i] = c < 0 ? 255 : groupOfClass[c]
+      })
+    }
+    return { cls, flags, ctxCls }
+  }, [landcover.status, landcover.data, columns, contextData.status, contextData.data])
   const selected = rank.status === 'ok' ? (indexById.get(rank.data.point.point_id) ?? -1) : -1
   const locate = useCallback((lat, lon) => featureAt(barangayFeatures, lon, lat)?.properties.display_name ?? '', [barangayFeatures])
   const contextCols = contextData.status === 'ok' ? contextData.data.columns : null
@@ -206,13 +235,14 @@ export default function AppNew() {
       ]
       if (g.mode === 'all' || g.mode === 'any') lines.push(`${c.n_eligible_species[i]} of ${g.species_ids.length} selected species suit this point`)
       if (unconfirmed.has(i)) lines.push('Zoning: not on the zoning map (not confirmed)')
+      if (showGround && groundInfo) lines.push(`Ground cover (satellite 2021): ${groundInfo.cls[i] === 255 ? 'Data Unavailable' : GROUND_STYLE[GROUND_GROUPS[groundInfo.cls[i]]].label.toLowerCase()}${groundInfo.flags[i] ? ' (flagged: check on the ground)' : ''}`)
       if (fieldAt.has(i)) {
         const f = decodeFieldCode(fieldAt.get(i))
         lines.push(`Field check: ${STATUS_LABEL[f.status]}${f.disputed ? ' (disputed)' : ''}${f.status === 'not_plantable' ? ' - left out' : ''}`)
       }
       return lines.filter(Boolean)
     }
-  }, [grid.data, speciesNames])
+  }, [grid.data, speciesNames, showGround, groundInfo])
 
   const reveal = () => setHidden(false)
   const featureOf = (kind, name) => (kind === 'barangay' ? barangayFeatures : zoneFeatures).find((f) => f.properties.name === name)
@@ -458,7 +488,7 @@ export default function AppNew() {
     : 'Best species at each point'
 
   return (
-    <div className={`nw-root ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''}`}>
+    <div className={`nw-root ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
@@ -480,6 +510,8 @@ export default function AppNew() {
           contextCols={contextCols}
           contextVisible={detailed && showOther}
           detailed={detailed}
+          ground={groundInfo}
+          groundOn={showGround}
           contextLabeler={contextLabeler}
           safeArea={safeArea}
           planItems={planItems}
@@ -488,7 +520,7 @@ export default function AppNew() {
         />
       </div>
 
-      <MapViewMenu detailed={detailed} onDetailed={setDetailed} baseLayer={baseLayer} onBaseLayer={setBaseLayer} showField={showField} onShowField={setShowField} showOther={showOther} onShowOther={setShowOther} showPlan={showPlan} onShowPlan={setShowPlan} hasPlan={!!planResult} />
+      <MapViewMenu showGround={showGround} onShowGround={setShowGround} detailed={detailed} onDetailed={setDetailed} baseLayer={baseLayer} onBaseLayer={setBaseLayer} showField={showField} onShowField={setShowField} showOther={showOther} onShowOther={setShowOther} showPlan={showPlan} onShowPlan={setShowPlan} hasPlan={!!planResult} />
       <SearchBar locate={locate} onChoose={onSearchChoose} note={searchNote} onDismissNote={() => setSearchNote(null)} includeUnzoned={includeUnzoned} />
 
       {/* messages over the map */}
@@ -547,6 +579,8 @@ export default function AppNew() {
           <Icon name="legend" /> Legend
         </button>
       )}
+
+      {showGround && <GroundLegend data={landcover.status === 'ok' ? landcover.data : null} onHide={() => setShowGround(false)} />}
 
       {planResult && <PlanLegend species={[...planSpecies.values()]} visible={showPlan} nUnconfirmed={nPlanUnconfirmed} />}
 

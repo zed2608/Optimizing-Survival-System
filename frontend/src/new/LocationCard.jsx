@@ -1,9 +1,11 @@
 import { formatDay } from './season.js'
+import FlagList from './FlagList.jsx'
+import HelpTip from './HelpTip.jsx'
 import Icon from './Icon.jsx'
 
 // The header of the point panel (and of the grey-square panel): where exactly this is, one short line each.
 //   barangay (large) / "Forest Zone, grid 11809" / coordinates, elevation, slope / the planting window and today's date / how far from the click.
-export default function LocationCard({ barangay, zone, pointId, lat, lon, elev, slope, win, today, distance, searched, zoning = null, children }) {
+export default function LocationCard({ barangay, zone, pointId, lat, lon, elev, slope, win, today, distance, searched, zoning = null, ground = null, children }) {
   const coords = [`${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`]
   if (elev !== null && elev !== undefined) coords.push(`${elev} m elevation`)
   if (slope !== null && slope !== undefined) coords.push(`slope ${Number(slope).toFixed(0)} %`)
@@ -25,6 +27,18 @@ export default function LocationCard({ barangay, zone, pointId, lat, lon, elev, 
         <div className="nw-loc-line nw-zoning is-unconfirmed" role="note">
           <Icon name="dotring" size={14} /> {zone ? `Zoning: ${zone} (not confirmed)` : 'Zoning: not on the zoning map (not confirmed)'}
           <div className="nw-zoning-warn">{zone ? `${zone}: confirm with the LGU before planting.` : 'Land outside the zoning map: confirm with the LGU before planting.'}</div>
+        </div>
+      )}
+      {ground && (
+        <div className="nw-ground">
+          <div className="nw-opt-head">
+            <span className="nw-loc-line nw-grow">
+              <Icon name="tree" size={14} /> {ground.available ? ground.line : 'Ground cover (satellite 2021): Data Unavailable'}
+            </span>
+            <HelpTip label="Ground cover">{ground.accuracy_note}</HelpTip>
+          </div>
+          {ground.available && <FlagList flags={ground.flags} />}
+          {ground.available && ground.info && <div className="muted nw-ground-info">{ground.info}.</div>}
         </div>
       )}
       {children}

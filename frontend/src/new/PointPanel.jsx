@@ -14,6 +14,7 @@ import { BEST_MONTHS_NOTE } from './season.js'
 import VerifyBar from './VerifyBar.jsx'
 import ViableSuggestion from './ViableSuggestion.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
+import WhyNone from './WhyNone.jsx'
 
 // One species of the compact list: rank, name (opens the species card), score chip, short season badge, and ONE "Details" disclosure
 // (open from the start in the Full view).
@@ -86,9 +87,11 @@ export default function PointPanel({
   return (
     <div className="nw-ppanel">
       <ViewSwitch value={view} onChange={onView} />
-      <LocationCard zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
+      <LocationCard ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
       {pointId ? <VerifyBar key={pointId} pointId={pointId} api={fieldApi} observer={observer} onObserver={onObserver} onSaved={onSaved} /> : null}
       {chosen && selIds.length > 0 && <ChosenHere api={chosen} selIds={selIds} combine={combine} onlySeason={onlySeason} full={full} point={point} onInfo={onInfo} />}
+
+      {rank.data.limiting_factors && <WhyNone lf={rank.data.limiting_factors} ground={point.ground_cover} />}
 
       <section className="nw-pcard" aria-label="Best species for this spot">
         <div className="nw-pcard-head">

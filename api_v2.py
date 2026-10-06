@@ -31,6 +31,7 @@ sys.path.insert(0, str(ROOT / "pipeline"))
 import advisory as adv  # noqa: E402
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
+import landcover as lcv  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
 import run_plan as rp  # noqa: E402
@@ -635,6 +636,105 @@ def field_flags_for_plan(d, plan):
     return plan
 
 
+GROUND_SHARE_KEYS = {"share_tree": "tree", "share_shrub": "shrub", "share_grass": "grass", "share_crop": "crop", "share_built": "built", "share_bare": "bare",
+                     "share_water": "water", "share_wetland": "wetland", "share_mangrove": "mangrove", "share_other": "other"}
+GROUND_CODES = [10, 20, 30, 40, 50, 60, 80, 90, 95, 100]                     # the classes of /grid/landcover (index = position in this list)
+GROUND_GROUPS = {10: "tree", 20: "shrub_grass", 30: "shrub_grass", 40: "crop", 50: "built", 60: "bare", 80: "water", 90: "water", 95: "water", 100: "other"}
+GROUND_BITS = {"ground_bare": 1, "ground_built_up": 2, "ground_water": 4}
+
+
+def ground_cover_block(d, pid):
+    """Satellite land cover of one grid square (ESA WorldCover 2021): shares, the one-line text, the flags with their plain notes, and the accuracy note. None without data."""
+    if d.landcover is None or int(pid) not in d.landcover.index:
+        return None
+    r = d.landcover.loc[int(pid)]
+    src = lcv.SOURCE
+    base = {"year": src["year"], "source": src["name"], "doi": src["doi"], "license": src["license"], "attribution": src["attribution"],
+            "accuracy_note": f"Satellite land cover from 2021, about {src['accuracy'].split('%')[0].split()[-1]}% accurate worldwide (overall accuracy stated in the Product Validation Report V2.0). Check on the ground.",
+            "provisional_thresholds": {"bare": lcv.LC_CFG["flag_bare_share"], "built_up": lcv.LC_CFG["flag_built_share"], "water": lcv.LC_CFG["flag_water_share"]}}
+    if pd.isna(r["share_tree"]):
+        return {**base, "available": False, "line": None, "shares": {}, "flags": [], "flag_notes": {}, "note": "Data Unavailable: the satellite raster does not cover this square well enough."}
+    shares = {GROUND_SHARE_KEYS[c]: round(float(r[c]), 3) for c in GROUND_SHARE_KEYS}
+    flags = [f for f in str(r["ground_flags"]).split(";") if f] if isinstance(r["ground_flags"], str) else []
+    code = int(r["dominant_code"])
+    return {**base, "available": True, "line": lcv.describe(r), "shares": shares, "dominant_code": code, "dominant": lcv.CODE_NAME.get(code), "flags": flags,
+            "flag_notes": {f: lcv.FLAG_NOTES[f] for f in flags}, "coverage": py(r["lc_coverage"]) if "lc_coverage" in r else None,
+            "info": (f"Mostly tree cover ({round(100 * shares['tree'])}%)" if shares["tree"] >= lcv.LC_CFG["info_tree_share"] else None)}
+
+
+def build_landcover_body(d):
+    """GET /grid/landcover: the dominant class of every grid square and its ground flags, compact (point_id, class index, flag bits), cached at startup."""
+    ap = d.all_points
+    lc = d.landcover.reindex(ap.point_id.to_numpy())
+    idx = {c: i for i, c in enumerate(GROUND_CODES)}
+    codes = [(-1 if pd.isna(v) else idx[int(v)]) for v in lc.dominant_code]
+    bits = [sum(GROUND_BITS[f] for f in str(v).split(";") if f in GROUND_BITS) if isinstance(v, str) else 0 for v in lc.ground_flags]
+    doc = {"n": int(len(ap)), "year": lcv.SOURCE["year"], "source": lcv.SOURCE["name"], "attribution": lcv.SOURCE["attribution"], "accuracy": lcv.SOURCE["accuracy"],
+           "classes": [{"index": i, "code": c, "name": lcv.CODE_NAME[c], "group": GROUND_GROUPS[c]} for i, c in enumerate(GROUND_CODES)],
+           "flag_bits": GROUND_BITS, "missing": {"marker": -1, "note": "-1 = the satellite raster has no usable data for the square (never zero)"},
+           "columns": {"point_id": ap.point_id.astype(int).tolist(), "class": codes, "flags": bits},
+           "note": "Information only. The same squares as site_points_clean.csv; no score or ranking depends on it."}
+    return json.dumps(doc, separators=(",", ":")).encode("utf-8")
+
+
+def limiting_factors(d, pt, items, n_suit, requested):
+    """Why few (or no) species suit a square: for each hard gate how many species it excludes, the square's value and the lowest and highest species limit. Built from the
+    gate_failed lists of the saved site breakdown (nothing is recomputed); `items` = (eligible, W, S, k, species_id, confidence, breakdown) of ALL species."""
+    sp = d.ctx.species
+    n = len(items)
+    gates = {"zone": 0, "elevation": 0, "slope": 0, "soil": 0}
+    soil_mis = 0
+    no_gate_low = 0
+    for el, _w, _s, _k, _sid, _c, bd in items:
+        failed = bd.get("gate_failed", [])
+        for g_ in failed:
+            key = "zone" if g_ == "legal_zone" else g_
+            if key in gates:
+                gates[key] += 1
+        if "soil_unverified_mismatch" in bd.get("flags", []):
+            soil_mis += 1
+        if not el and not failed:
+            no_gate_low += 1
+    elev, slope = py(pt.elev_m), py(pt.slope_pct)
+    emin, emax = py(sp.elev_min_m.min()), py(sp.elev_max_m.max())
+    smin, smax = py(sp.max_slope_pct.min()), py(sp.max_slope_pct.max())
+    f_ = []
+    msgs = []
+    tex = py(pt.soil_texture_legacy)
+    f_.append({"gate": "zone", "label": "Zone", "species_excluded": gates["zone"], "n_species": n, "square_value": py(pt.zoning_status) if "zoning_status" in pt else None, "unit": None,
+               "species_limit_min": None, "species_limit_max": None, "message": None})
+    ex = gates["elevation"]
+    m = None
+    if ex and elev is not None:
+        if ex == n:
+            m = (f"Elevation {elev:.0f} m is higher than the limit of every species (highest allowed: {emax:.0f} m)." if elev > emax else
+                 f"Elevation {elev:.0f} m is lower than the limit of every species (lowest allowed: {emin:.0f} m)." if elev < emin else
+                 f"Elevation {elev:.0f} m is outside the range of every species (the ranges run from {emin:.0f} m to {emax:.0f} m).")
+        else:
+            m = f"Elevation {elev:.0f} m is outside the range of {ex} of {n} species (the limits run from {emin:.0f} m to {emax:.0f} m)."
+    f_.append({"gate": "elevation", "label": "Elevation", "species_excluded": ex, "n_species": n, "square_value": elev, "unit": "m", "species_limit_min": emin, "species_limit_max": emax, "message": m})
+    ex = gates["slope"]
+    m = None
+    if ex and slope is not None:
+        m = (f"Slope {slope:.0f}% is steeper than the limit of every species (highest allowed: {smax:.0f}%)." if ex == n else
+             f"Slope {slope:.0f}% is steeper than the limit of {ex} of {n} species (the limits run from {smin:.0f}% to {smax:.0f}%).")
+    f_.append({"gate": "slope", "label": "Slope", "species_excluded": ex, "n_species": n, "square_value": slope, "unit": "%", "species_limit_min": smin, "species_limit_max": smax, "message": m})
+    ex = gates["soil"]
+    m = None
+    if ex:
+        m = f"The soil texture ({tex}) rules out {ex} of {n} species."
+    elif soil_mis:
+        m = (f"The soil texture ({tex}, from a legacy and unverified soil map) does not match {soil_mis} of {n} species. This only lowers their score; it does not rule them out.")
+    f_.append({"gate": "soil", "label": "Soil", "species_excluded": ex, "n_species": n, "square_value": tex, "unit": None, "species_limit_min": None, "species_limit_max": None,
+               "species_with_mismatch": soil_mis, "message": m})
+    msgs = [x["message"] for x in f_ if x["message"]]
+    if no_gate_low:
+        msgs.append(f"{no_gate_low} of {n} species stay below the suitability limit of 0.50 even though no hard limit rules them out (several soft factors together).")
+    return {"applies": True, "shown_because": "requested" if requested and n_suit >= 3 else "fewer_than_3_species_suit", "n_species": n, "n_suitable": int(n_suit), "factors": f_,
+            "messages": msgs, "low_score_without_gate": int(no_gate_low),
+            "source": "the site_scores breakdown (gate_failed) and the species table limits; nothing is recomputed"}
+
+
 def mean_confidence(d, ctx):
     """{species_id: mean site confidence} over the scored squares of a context (from the scores database; {} for a csv)."""
     if not d.is_db:
@@ -738,6 +838,9 @@ def load_data(cfg=None):
     j_all = gpd.sjoin(pts_all, gs[["geometry"]].reset_index().rename(columns={"index": "b"}), how="left", predicate="intersects")
     d.allpt_barangay = j_all.drop_duplicates("i", keep="first").set_index("i").b.reindex(range(len(all_points))).fillna(cfg["missing_marker"]).astype(int).to_numpy()
     d.allpt_index = {int(p): i for i, p in enumerate(all_points.point_id)}
+    lcf = root / "site_landcover.csv"                                  # ground cover from satellite land cover (information only)
+    d.landcover = pd.read_csv(lcf).set_index("point_id") if lcf.is_file() else None
+    d.landcover_body = build_landcover_body(d) if d.landcover is not None else None
     d.places_sorted = sorted(d.places, key=lambda p: p["name"])           # same order as barangay_names (sorted by name)
     d.geo = SimpleNamespace(lock=threading.Lock(), last=None, clock=time.monotonic, sleep=time.sleep)
     d.plan_index_cache = OrderedDict()
@@ -985,6 +1088,8 @@ def health(d=Depends(D)):
             "counts": {"species": len(ctx.species), "grid_points": len(d.all_points), "legal_points": len(ctx.sites),
                        "species_point_scores": int(ctx.S.size), "sources": len(d.sources), "barangays": len(d.places)},
             "purposes": list(mt.PURPOSES), "limits": limits_of(d),
+            "ground_cover": {"available": d.landcover is not None, "source": lcv.SOURCE["name"], "attribution": lcv.SOURCE["attribution"], "accuracy": lcv.SOURCE["accuracy"],
+                             "squares": int(d.landcover.share_tree.notna().sum()) if d.landcover is not None else 0},
             "field_checks": {"events": d.field_n_events, "points_checked": len(d.field_current), "left_out_of_rankings": len(d.field_ex_ids),
                              "exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"])}}
 
@@ -1043,6 +1148,7 @@ def species_detail(species_id: int, season=Depends(season_q), d=Depends(D)):
 def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180),
          limit: int = Query(API_CFG["rank_default_limit"], ge=1, le=100), season=Depends(season_q),
          include_left_out: bool = Query(False, description="true: a point marked not plantable in the field is still ranked (for display only, greyed out) instead of answering 404"),
+         explain: bool = Query(False, description="true: always add limiting_factors (otherwise only when fewer than 3 species suit the square)"),
          d=Depends(D)):
     e, n = d.to_utm.transform(lon, lat)
     dist, i = d.tree_all.query([e, n])
@@ -1068,6 +1174,10 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
         items.append((bool(feas[0, k]), float(W[0, k]), float(S_row[k]), k, sid, conf, bd))
     items.sort(key=lambda t: (not t[0], -t[1], -t[2], t[4]))
     n_all = len(items)
+    n_suit = sum(t[0] for t in items)
+    lf = limiting_factors(d, pt, items, n_suit, explain) if (n_suit < 3 or explain) else None
+    gc = ground_cover_block(d, pt.point_id)
+    gflags = gc["flags"] if gc else []
     drop = set(season_drop_ids(d, season))
     if drop:                                                          # season_filter=only: out-of-season species are not ranked
         items = [t for t in items if t[4] not in drop]
@@ -1075,7 +1185,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
     for rnk, (el, w, s, k, sid, conf, bd) in enumerate(items[:limit], 1):
         terms = {t: {"value": v["value"], "weight": v["weight"], "sources": [source(d, x) for x in v["src"]]} for t, v in bd.get("terms", {}).items()}
         out.append({"rank": rnk, "species_id": sid, "common_name": d.ctx.species.common_name.iloc[k], "S": round(s, 4), "P": round(float(P[k]), 4),
-                    "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []),
+                    "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []) + gflags,
                     "site_breakdown": {"gate_failed": bd.get("gate_failed", []), "terms": terms},
                     "purpose_breakdown": purpose_breakdown(d, sid, purpose),
                     **({"season": season_object(d.species_months[k], season)} if season is not None else {})})
@@ -1087,10 +1197,11 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                       **({"zoning_status": py(pt.zoning_status),
                           "zoning_note": ((f"{pt.zone_desc}: confirm with the LGU before planting" if isinstance(pt.zone_desc, str) else "Land outside the zoning map: confirm with the LGU before planting")
                                           if unconf else "Inside a legal planting zone")} if d.zoning_on else {}),
-                      "site_inputs_source": "backend/Working_Points.csv (elevation, soil code); slope by finite differences on elevation; soil texture = legacy mapping (unverified)"},
+                      "site_inputs_source": "backend/Working_Points.csv (elevation, soil code); slope by finite differences on elevation; soil texture = legacy mapping (unverified)",
+                      **({"ground_cover": gc} if gc is not None else {})},
             "species_eligible": int(sum(t[0] for t in items)), "species_total": n_all, "returned": len(out), "ranking": out,
             "limits": limits_of(d), "w_definition": "W = S x P if S >= 0.50 else 0", **field_extra(d, int(pt.point_id)), **season_extra(d, season),
-            **({"left_out_by_field_check": True} if d.ex_mask[j] else {})}
+            **({"left_out_by_field_check": True} if d.ex_mask[j] else {}), **({"limiting_factors": lf} if lf else {})}
 
 
 @app.get("/rank/municipal")
@@ -1870,6 +1981,14 @@ def grid(purpose: Purpose,
     return _cached_json(body, d, live=True)
 
 
+@app.get("/grid/landcover")
+def grid_landcover(d=Depends(D)):
+    """The dominant satellite land-cover class (ESA WorldCover 2021) of every grid square and its ground flags, compact. Information only; the same for both views."""
+    if d.landcover_body is None:
+        raise HTTPException(404, "Data Unavailable: data/processed/site_landcover.csv does not exist yet (run python pipeline/landcover.py compute).")
+    return _cached_json(d.landcover_body, d)
+
+
 @app.get("/grid/context")
 def grid_context(d=Depends(D)):
     """The 1,837 grid squares that are not planting zones (outside the zoning map, special reserved, industrial, commercial, quarry, landfill), for a faint map layer. Not scored."""
@@ -2120,6 +2239,9 @@ def point_card(d, pid):
         card["note"] = "This grid point is not in a legal planting zone, so it has no ranking."
     if (legal or unconf) and d.field_current.get(int(pid)) is not None:
         card["field_check"] = field_view(d, int(pid))
+    gc = ground_cover_block(d, int(pid))
+    if gc is not None:
+        card["ground_cover"] = gc
     return card
 
 

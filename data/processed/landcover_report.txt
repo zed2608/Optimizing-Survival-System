@@ -1,0 +1,25 @@
+ground cover from ESA WorldCover 10 m 2021 v200 (10.5281/zenodo.7254221), CC BY 4.0
+raster: worldcover_2021_v200_sanmateo.tif
+squares: 8088; with shares: 8088; missing: 0
+dominant class: {'tree cover': 7243, 'built-up': 406, 'grassland': 240, 'cropland': 167, 'bare or sparse vegetation': 26, 'permanent water': 6}
+flags: {'ground_bare': 19, 'ground_built_up': 383, 'ground_water': 26}
+thresholds (provisional): bare >= 50%, built-up >= 50%, water >= 30%, tree-cover info >= 50%
+
+per barangay (squares by dominant class):
+dominant_class     bare or sparse vegetation  built-up  cropland  grassland  permanent water  tree cover
+barangay                                                                                                
+AMPID I                                    0        37         2          0                1          14
+AMPID II                                   0         8         6          8                0          17
+BANABA                                     0        47         0         11                0          28
+DULONG BAYAN I                             1         6        25          6                2          31
+DULONG BAYAN II                            6        16        11         24                0         335
+GUINAYANG                                  0        20        43         24                0         170
+GUITNANG BAYAN                             0        65         1         20                0         370
+GUITNANG BAYAN II                          2        35        10         13                0         425
+GULOD MALAYA                               0        25         0          2                0          87
+MALANDAY                                   2        18        19         14                0         246
+MALY                                       5        21        32         21                0         384
+PINTUNG BUKAWE                            10         0        14         69                3        4495
+SILANGAN                                   0        67         0         15                0         600
+STA ANA                                    0        15         4         13                0          30
+STO NINO                                   0        26         0          0                0          11

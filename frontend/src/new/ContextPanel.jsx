@@ -13,7 +13,7 @@ export default function ContextPanel({ data, index, win, today, searched, viable
   const d = info.status === 'ok' ? info.data : null
   return (
     <div className="nw-ppanel">
-      <LocationCard barangay={barangay} zone={zone} pointId={pid} lat={c.lat[index]} lon={c.lon[index]} elev={d?.elev_m} slope={d?.slope_pct} win={win} today={today} searched={searched} />
+      <LocationCard ground={d?.ground_cover} barangay={barangay} zone={zone} pointId={pid} lat={c.lat[index]} lon={c.lon[index]} elev={d?.elev_m} slope={d?.slope_pct} win={win} today={today} searched={searched} />
       <section className="nw-pcard" aria-label="Why there is no score">
         <h3>Not a planting zone</h3>
         <p className="nw-plain">{reason}.</p>

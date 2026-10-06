@@ -45,6 +45,17 @@ export default function MoreMenu({ health, fieldSummary, observer, onObserver, o
               <p className="nw-hint">{health.status === 'loading' ? 'Loading…' : 'The limits could not be loaded (the planning service is not reachable).'}</p>
             )}
           </Section>
+          <Section title="Data credits" open={sec === 'credits'} onToggle={() => pick('credits')}>
+            {health.status === 'ok' && health.data.ground_cover ? (
+              <div className="nw-credits">
+                <p className="nw-plain">Ground cover (satellite land cover): {health.data.ground_cover.source}.</p>
+                <p className="nw-plain">{health.data.ground_cover.attribution}</p>
+                <p className="nw-hint">Licence CC BY 4.0, DOI 10.5281/zenodo.7254221. {health.data.ground_cover.accuracy}. Information only: check on the ground.</p>
+              </div>
+            ) : (
+              <p className="nw-hint">{health.status === 'loading' ? 'Loading…' : 'The credits could not be loaded (the planning service is not reachable).'}</p>
+            )}
+          </Section>
           <Section title="Dataset version" open={sec === 'dataset'} onToggle={() => pick('dataset')}>
             <DatasetNote health={health} />
           </Section>
