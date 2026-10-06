@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
+import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import FlagBadges from '../v2/components/FlagBadges.jsx'
 import SourceLink from '../v2/components/SourceLink.jsx'
 import { useApi } from '../v2/useApi.js'
 import MonthStrip from './MonthStrip.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
-import { monthsText, parseMonths, seasonQuery } from './season.js'
+import WeatherCard from './WeatherCard.jsx'
+import { BEST_MONTHS_NOTE, monthsText, parseMonths, seasonQuery } from './season.js'
 
 const sourceOf = (f) => ({ url: f.source_url, rank: f.source_rank, rank_basis: f.rank_basis, off_list: f.off_list, flags: f.flags })
 const present = (v) => v !== null && v !== undefined && String(v).trim() !== '' && String(v).toLowerCase() !== 'nan'
@@ -59,7 +61,7 @@ function Section({ title, big = false, children }) {
 }
 
 // The species card: a right-hand drawer with everything the dataset says about one species (GET /species/{id}), every value with its source and rank.
-export default function SpeciesCard({ speciesId, window: win, onClose, onFindAreas }) {
+export default function SpeciesCard({ speciesId, window: win, onClose, onFindAreas, point = null }) {
   const api = useApi(`/species/${speciesId}?${seasonQuery(win, false)}`)
   const closeRef = useRef(null)
   const closeFn = useRef(onClose)
@@ -109,7 +111,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
           {d && <div className="nw-card-sci">{d.scientific_name}</div>}
         </div>
         <button type="button" className="btn btn-small" onClick={onClose} ref={closeRef}>
-          ✕ Close<span className="sr-only"> (Escape)</span>
+          <Icon name="close" /> Close<span className="sr-only"> (Escape)</span>
         </button>
       </div>
       <div className="nw-card-body">
@@ -144,6 +146,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
                     <SeasonBadge season={d.season} strip={false} />
                   </div>
                 }
+                note={BEST_MONTHS_NOTE}
               />
               <Fact label="Germination time" rows={[F.germination_raw]} large />
               <Fact label="Propagation method" rows={[F.propagation_method]} large />
@@ -188,6 +191,13 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
                 <Fact label="Both sexes needed" rows={[F.sexuality_raw]} text="This species has separate male and female trees. Plant both sexes near each other." />
               )}
             </Section>
+
+            {point && (
+              <section className="nw-card-sec" aria-label="Weather advice for this species">
+                <h3>Weather advice</h3>
+                <WeatherCard url={`/advisory/seasonal?species_id=${speciesId}&lat=${point.lat.toFixed(5)}&lon=${point.lon.toFixed(5)}`} title={`Weather advice for ${point.label}`} win={win} />
+              </section>
+            )}
           </>
         )}
       </div>

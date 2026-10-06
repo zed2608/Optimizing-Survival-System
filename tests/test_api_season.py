@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-PROCESSED = ROOT / "data" / "processed"
+PROCESSED = Path(__import__("os").environ.get("OS_DATA_DIR") or ROOT / "data" / "processed")      # OS_DATA_DIR = a temporary copy of the processed data
 pytestmark = pytest.mark.skipif(not (PROCESSED / "scores" / "site_scores.db").exists() or not (PROCESSED / "purpose_scores.csv").exists(),
                                 reason="run score_sites.py and score_purposes.py first")
 sys.path.insert(0, str(ROOT))
@@ -23,8 +23,12 @@ DEFAULT = {"start": "2026-10-05", "end": "2026-11-04"}      # "today to +30 days
 
 @pytest.fixture(scope="module")
 def client():
-    with TestClient(api_v2.app) as c:
-        yield c
+    api_v2.API_CFG["include_unzoned"] = False            # these tests pin the behaviour of include_unzoned=false (the squares outside the zoning map are not planting squares)
+    try:
+        with TestClient(api_v2.app) as c:
+            yield c
+    finally:
+        api_v2.API_CFG["include_unzoned"] = True
 
 
 @pytest.fixture(scope="module")

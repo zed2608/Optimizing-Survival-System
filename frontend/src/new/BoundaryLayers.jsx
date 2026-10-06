@@ -19,18 +19,42 @@ export default function BoundaryLayers({ boundaries }) {
     const barangays = boundaries.features.filter((f) => f.properties.kind === 'barangay')
     const group = L.layerGroup()
     const line = (features, style) => L.geoJSON({ type: 'FeatureCollection', features }, { pane: PANE, interactive: false, style: () => style })
-    line(municipality, { color: '#0f172a', weight: 7, opacity: 0.55, fill: false }).addTo(group)
-    line(barangays, { color: '#f8fafc', weight: 1.4, opacity: 0.9, dashArray: '5 4', fill: false }).addTo(group)
-    line(municipality, { color: '#fde68a', weight: 3, opacity: 1, fill: false }).addTo(group)
+    line(municipality, { color: '#0f172a', weight: 4, opacity: 0.3, fill: false }).addTo(group)
+    line(barangays, { color: '#f1f5f9', weight: 1, opacity: 0.5, dashArray: '4 4', fill: false }).addTo(group)
+    line(municipality, { color: '#fde68a', weight: 1.8, opacity: 0.85, fill: false }).addTo(group)
+    const labels = []
     barangays.forEach((f) => {
       const p = f.properties
-      L.tooltip({ permanent: true, direction: 'center', className: 'nw-brgy-label', interactive: false })
+      const tip = L.tooltip({ permanent: true, direction: 'center', className: 'nw-brgy-label', interactive: false })
         .setLatLng([p.label_point.lat, p.label_point.lon])
         .setContent(p.display_name)
         .addTo(group)
+      const b = p.bbox
+      labels.push({ tip, area: (b[2] - b[0]) * (b[3] - b[1]) })
     })
     group.addTo(map)
+    // hide the labels that would overlap an already shown one (the larger barangays win)
+    const declutter = () => {
+      const placed = []
+      labels
+        .slice()
+        .sort((a, b) => b.area - a.area)
+        .forEach(({ tip }) => {
+          const el = tip.getElement()
+          if (!el) return
+          el.style.visibility = 'visible'
+          const r = el.getBoundingClientRect()
+          const hit = placed.some((q) => !(r.right + 4 < q.left || r.left - 4 > q.right || r.bottom + 2 < q.top || r.top - 2 > q.bottom))
+          if (hit) el.style.visibility = 'hidden'
+          else placed.push(r)
+        })
+    }
+    const later = () => requestAnimationFrame(declutter)
+    map.on('zoomend moveend resize', later)
+    later()
+    setTimeout(declutter, 300)
     return () => {
+      map.off('zoomend moveend resize', later)
       group.remove()
     }
   }, [map, boundaries])

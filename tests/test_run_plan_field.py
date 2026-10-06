@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-PROCESSED = ROOT / "data" / "processed"
+PROCESSED = Path(__import__("os").environ.get("OS_DATA_DIR") or ROOT / "data" / "processed")      # OS_DATA_DIR = a temporary copy of the processed data
 SCORES = PROCESSED / "scores" / "site_scores.db"
 pytestmark = pytest.mark.skipif(not SCORES.exists() or not (PROCESSED / "purpose_scores.csv").exists(), reason="run score_sites.py and score_purposes.py first")
 sys.path.insert(0, str(ROOT / "pipeline"))
@@ -17,7 +17,7 @@ import field_verify as fv  # noqa: E402
 import matching as mt  # noqa: E402
 import run_plan as rp  # noqa: E402
 
-ARGS = ["--purpose", "urban", "--n-saplings", "40", "--seed", "1"]
+ARGS = ["--purpose", "urban", "--n-saplings", "40", "--seed", "1", "--no-include-unzoned"]      # these tests pin the plan made on confirmed legal-zone squares only
 
 
 @pytest.fixture(scope="module")

@@ -113,6 +113,57 @@ early October) shows the "Only 0 of 45" notice until the dates or the toggle are
 Acceptance: browser checks of the four steps, the Map view menu, the jump button (equals an independent computation), the card from ranking rows, area rows, the mix, the picker
 and search, one-tap verify (saved, confirmation, history, change adds a second event, point leaves the nearest-viable offers), with the API on and off.
 
+## Grey squares, point panel redesign, precise location, season wording (feedback round 3)
+1. `GET /grid/context`: the 1,837 grid squares that are not planting zones (outside zoning, special reserved, industrial, commercial, quarry, landfill), compact, cached at startup,
+   under 120 KB, no nulls. Map: a faint grey layer in the same canvas (ON by default, switch in Map view, legend count, hover and a short click panel with the nearest suitable spot,
+   no verify buttons). Known limits: "6,251 planting squares + 1,837 other squares = 8,088 map squares."
+2. Point panel as three cards (header, field check, best species), compact rows (5 / 10 / all) with one Details disclosure, tips for legends and explanations, the greyed state kept.
+3. Precise location: search suggestions with barangay and type, "Searched: ..." plus the same location block after choosing, barangay display names everywhere.
+4. Season wording: "Outside best months" with the best months and the note that planting outside them is possible but riskier. No score or filter change.
+Acceptance (`tests/test_api_grid_context.py`, browser checks with the API on and off): 1,837 rows and reasons adding up, size limit, grey layer + toggle + hover + click, header lines,
+compact actions, 5 default rows, Details, tips, suggestion text, new wording, plus the earlier modes, season, search, species card and verify checks.
+
+## Compact | Full details, chosen species, honest Plan here, map polish (feedback round 4a)
+1. A "Compact | Full details" switch (remembered, keyboard accessible) in the point panel and the area panels: Full opens every row's Details with S, P, W, confidence, the month strip and
+   its explanation, flags, the colour legend and the "Why this score?" breakdown (terms, weights, source links); nothing is hidden without a way to open it in Compact.
+2. "Your chosen species here" at the top of the point panel ("I have species"): S, P, W, confidence, season and a verdict for each chosen species (8, then "Show all") and the combined
+   score with its rule (suits all: lowest W; suits at least one: highest W), equal to the map's score.
+3. "Plan here" becomes a disabled "Plan here (next feature)" with a tooltip; the selection is still saved when an area row is chosen.
+4. The legend is a small collapsible button; hover cards never run into the results panel, the sidebar, the zoom buttons or the top bars; the "outside the zoning map" sentence in
+   the grey-square panel and in Known limits.
+Acceptance: browser checks (API on and off) of the switch in both panels, the chosen-species card in both combine modes, the disabled button and its tooltip, the legend, and hover cards
+near the panels and edges (rectangle-overlap test), plus the earlier modes, season, search, species-card, field-check and grey-layer checks.
+
+## Plan tool, part 1 (feedback round 5)
+1. API: POST /plan-event takes campaign {name, unit}, species_ids and barangay; campaign name, unit and dates are saved and returned; species_ids restrict the palette and relax the caps to the minimum
+   needed with a plain warning; /plans and /plans/{id} return campaign, n_species and n_placed (older plans: explicit missing markers); POST /plan-event/preview reports capacity without saving.
+   run_plan.py has --campaign-name, --campaign-unit, --species-ids. Defaults and existing outputs are unchanged.
+2. Sidebar step 5 "Plan": name, unit, saplings, summary, capacity and empty-season messages, one "Create plan" button with plain disabled reasons; "Plan here" opens it.
+3. Result card (Compact | Full), the Planned trees layer (one shape per species + code, legend, hover, click opens the point panel), searchable point list, "Make another plan".
+Acceptance (tests/test_api_plan_tool.py, browser checks with the API on and off): campaign fields saved and returned, invalid names rejected, species_ids restriction, cap relaxation message, unknown
+ids, unchanged defaults, command line equals API; step 5 reasons, plans in both modes, capacity and empty-season messages, shapes, legend, hover, click, field-checked points never planned.
+
+## Plan tool, part 2 (feedback round 6)
+1. Field kit in the dashboard: Build/Rebuild + Download kit (.zip) with details (built date, size, check code, PDF yes/no) in the plan result card and in every Campaign Logs card; GET /plans/{id}/field-kit.
+2. Weather advice: GET /plans/{id}/advisory (one forecast request, cache fallback, 503 if none); a card with forecast numbers and warnings grouped by kind (icon + words); honest message when the
+   planting dates are beyond the 16-day forecast; the same card in the species card.
+3. Campaign Logs: cards with status chips (Active / Upcoming / Concluded / No dates), filters with counts, search, Open on map. System Analytics: six counter cards from the service.
+Acceptance: tests/test_api_plan_part2.py (success, cached, 503, window beyond/partial/past/none, bad ids, kit info); browser checks with the API on and off (kit build + zip with points.gpx and matching check code,
+weather success/cached/offline/beyond forecast, Campaign Logs with past/current/future plans, filters, search, Open on map, Analytics counters) plus all earlier checks. 360 tests pass.
+
+## Land outside the zoning map and the Weather tab (feedback round 7a)
+1. Data: `zoning_status` (confirmed 6,251 / unconfirmed 1,279 / excluded 558) in `rebuild_site_grid.py`; `is_legal_zone` unchanged; `score_sites.py` scores confirmed + unconfirmed (7,530 squares) with the same rules.
+2. API: `include_unzoned` (config default True, query parameter on every endpoint); `false` = the results of before; flag `zoning_unconfirmed` in /rank, plan items, the kit's flags and notes (columns unchanged); plan summary counts the unconfirmed trees; Known limits and counts from the data.
+3. Dashboard: step 4 switch, dotted ring + legend, point-panel zoning line, result-card count.
+4. Weather tab: `GET /weather/week` (one forecast request, cached/offline handling, verdict with numbers, two species lists, held-back list) and the tab (location, purpose, 7 day cards, verdict, lists, Compact | Full).
+Acceptance (`tests/test_api_unzoned.py`, `tests/test_api_weather_week.py`, browser checks with the API on and off): counts 6,251 / 1,279 / 558; `include_unzoned=false` equals the old results; flags in rank, plans and the kit; excluded squares never planned; the switch changes /grid counts; weather success, cached, offline, empty season list, heavy rain, dry week; plus all earlier checks (with the switch off they give the old numbers). 396 tests pass.
+
+## Calmer `#/new` and configurable zone rules (feedback round 7b)
+1. Zone rules: one `ZONE_RULES` table in `rebuild_site_grid.py` (same results by default); a zone moved to unconfirmed is scored, flagged and named in the note; how to change a zone is in CLAUDE.md.
+2. Map: filled squares (no circles), faint flat grey squares, small tree shapes with bubbles at overview, outlines and labels lighter (overlapping labels hidden), Simple | Detailed (Simple by default; the user's own plan and marks always show).
+3. Style: one icon set, calmer hierarchy (see `docs/VISUAL_STYLE.md`).
+Acceptance (`tests/test_zone_rules.py`, `cdp_look`, all earlier browser checks with the API on and off): moving Special Reserved to unconfirmed adds its 355 squares (counts add up, defaults unchanged); no circles or white outlines, hover and click on squares, grey tone, bubbles and shapes by zoom, codes only at zoom 17 in Detailed, Simple | Detailed remembered, own work visible in Simple, icons only (SVG, stroke 1.5), two font weights, one radius, draw time at overview (JS drawing under 1 ms). 400 tests pass.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
 sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;

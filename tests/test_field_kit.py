@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "pipeline"))
 import field_kit as fk  # noqa: E402
 
-PROCESSED = ROOT / "data" / "processed"
+PROCESSED = Path(__import__("os").environ.get("OS_DATA_DIR") or ROOT / "data" / "processed")      # OS_DATA_DIR = a temporary copy of the processed data
 pytestmark = pytest.mark.skipif(not (PROCESSED / "species_clean.csv").exists(), reason="Day 1 outputs not generated")
 GPX, KML = {"g": "http://www.topografix.com/GPX/1/1"}, {"k": "http://www.opengis.net/kml/2.2"}
 SPECIAL = 'Chesa/Tiesa & <Co> "Q" \'x\' Niño'

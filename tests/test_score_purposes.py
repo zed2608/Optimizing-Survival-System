@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "pipeline"))
 import score_purposes as sp_mod  # noqa: E402
 
-PROCESSED = ROOT / "data" / "processed"
+PROCESSED = Path(__import__("os").environ.get("OS_DATA_DIR") or ROOT / "data" / "processed")      # OS_DATA_DIR = a temporary copy of the processed data
 WEIGHTS = ROOT / "data" / "config" / "purpose_weights.csv"
 TAGS = {"parks": "urban", "agroforestry": "planting", "watershed": "watershed"}
 

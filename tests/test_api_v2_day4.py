@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-PROCESSED = ROOT / "data" / "processed"
+PROCESSED = Path(__import__("os").environ.get("OS_DATA_DIR") or ROOT / "data" / "processed")      # OS_DATA_DIR = a temporary copy of the processed data
 pytestmark = pytest.mark.skipif(not (PROCESSED / "scores" / "site_scores.db").exists() or not (PROCESSED / "purpose_scores.csv").exists(),
                                 reason="run score_sites.py and score_purposes.py first")
 sys.path.insert(0, str(ROOT))
@@ -20,8 +20,12 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 @pytest.fixture(scope="module")
 def client():
-    with TestClient(api_v2.app) as c:
-        yield c
+    api_v2.API_CFG["include_unzoned"] = False            # these tests pin the behaviour of include_unzoned=false (the squares outside the zoning map are not planting squares)
+    try:
+        with TestClient(api_v2.app) as c:
+            yield c
+    finally:
+        api_v2.API_CFG["include_unzoned"] = True
 
 
 @pytest.fixture(scope="module")
@@ -55,7 +59,7 @@ def test_plan_event_saves_the_plan_and_summary_like_run_plan_and_returns_a_plan_
     assert list(saved.columns) == rp.PLAN_COLUMNS and len(saved) == len(j["plan"]) == 60            # exactly the run_plan.py format
     s = json.loads(js.read_text(encoding="utf-8"))
     assert s["purpose"] == "planting" and s["saplings_placed"] == 60 and s["plan_file"] == csv.name and s["seed"] == 5 and s["palette"] and s["limits"]
-    assert j["saved"] == {"plan_csv": csv.name, "summary_json": js.name, "folder": "data/processed/plans"} and j["next"]["build_field_kit"] == f"POST /plans/{pid}/field-kit"
+    assert j["saved"] == {"plan_csv": csv.name, "summary_json": js.name, "folder": f"{api_v2.API_CFG['data_dir']}/plans"} and j["next"]["build_field_kit"] == f"POST /plans/{pid}/field-kit"
     assert set(saved.point_id) == {i["point_id"] for i in j["plan"]}
 
 
@@ -194,7 +198,7 @@ def test_the_user_never_supplies_a_file_path(client):
         names = {p.name for p in paths[route].dependant.path_params}
         assert names <= {"plan_id", "filename"}
     body_fields = set(api_v2.PlanRequest.model_fields)
-    assert body_fields == {"purpose", "n_saplings", "polygon", "zone", "seed"}                     # nothing that names a file
+    assert body_fields == {"purpose", "n_saplings", "polygon", "zone", "barangay", "seed", "campaign", "species_ids"}                     # nothing that names a file
 
 
 # ---- weather advisory ------------------------------------------------------------------------------------------------

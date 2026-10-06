@@ -13,7 +13,7 @@ Writes data/processed/plans/plan_<purpose>_<timestamp>.csv and plan_<purpose>_<t
 Only legal-zone points count. Each point is a ~100 m grid cell, so a plan places at most ONE tree per cell.
 Unmatched saplings and unused candidate points are reported in the summary, never hidden.
 """
-import argparse, json, sqlite3, sys, time
+import argparse, json, math, sqlite3, sys, time
 from datetime import datetime
 from pathlib import Path
 import numpy as np
@@ -38,12 +38,51 @@ CFG = {
     "plans_dir": "plans",
     "benchmark_file": "matching_benchmark.csv",
     "field_db": "data/field/field_checks.db",   # saved field checks (same file as api_v2.py); points whose latest check is not_plantable are left out
+    "include_unzoned": True,        # INCLUDE_UNZONED: also plan on squares outside every zoning polygon (zoning_status unconfirmed); they carry the flag zoning_unconfirmed
 }
 # =====================================================================================================================
+
+UNCONFIRMED_FLAG = "zoning_unconfirmed"
+UNCONFIRMED_NOTE = "Land outside the zoning map: confirm with the LGU before planting"
 
 LIMITS = ("Each point is a ~100 m grid cell, so the plan places at most one tree per cell.",
           "Weights, caps and thresholds are provisional; site scores use the soft soil mode (texture mapping unverified).",
           "S comes from rules, not from field survival data.")
+
+
+def load_context(out_dir="data/processed", scores_path=None, include_unzoned=None):
+    """Like matching.load_context, but with the squares OUTSIDE the zoning map (zoning_status unconfirmed) when include_unzoned is true (default CFG["include_unzoned"]).
+    include_unzoned=False returns exactly what matching.load_context returns (confirmed legal-zone squares only). Without a zoning_status column (older data) only the legal-zone
+    squares exist. matching.py itself is unchanged."""
+    inc = CFG["include_unzoned"] if include_unzoned is None else include_unzoned
+    out = Path(out_dir)
+    base = mt.load_context(out_dir, scores_path)
+    all_sites = pd.read_csv(out / "site_points_clean.csv")
+    if not inc or "zoning_status" not in all_sites:
+        return base
+    sites = all_sites[all_sites.zoning_status.isin(["confirmed", "unconfirmed"])].reset_index(drop=True)
+    path = base.scores_path
+    if path.suffix == ".db":
+        con = sqlite3.connect(path)
+        sc = pd.read_sql_query("SELECT point_id, species_id, s_rule FROM site_scores", con)
+        con.close()
+    else:
+        sc = pd.read_csv(path, usecols=["point_id", "species_id", "s_rule"])
+    S = sc.pivot(index="point_id", columns="species_id", values="s_rule").reindex(index=sites.point_id, columns=base.species.species_id)
+    if S.isna().any().any():
+        raise ValueError("site_scores does not cover every confirmed and unconfirmed point x species pair; run score_sites.py (or use include_unzoned=False)")
+    return mt.Context(sites, base.species, S.to_numpy(dtype=float), base.P, path, base.species_flags)
+
+
+def confirmed_only(ctx):
+    """The same context without the unconfirmed squares (rows of sites and S): equals load_context(include_unzoned=False)."""
+    if "zoning_status" not in ctx.sites:
+        return ctx
+    keep = (ctx.sites.zoning_status == "confirmed").to_numpy()
+    if keep.all():
+        return ctx
+    import dataclasses
+    return dataclasses.replace(ctx, sites=ctx.sites[keep].reset_index(drop=True), S=ctx.S[keep])
 
 
 def fetch_pair_info(scores_path, pairs):
@@ -70,8 +109,28 @@ def fetch_pair_info(scores_path, pairs):
     return info
 
 
-def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=None, method="hungarian", palette_cfg=None):
-    """Palette + matching for one purpose and area. Returns (plan DataFrame, summary dict)."""
+def relaxed_caps(base_cfg, n_saplings, n_species, n_genera):
+    """Per-species and per-genus caps that can absorb every sapling when only a few species were chosen: the smallest cap that fits, i.e. 1 / number of species
+    (1 / number of genera for the genus cap) rounded up to a whole sapling. A cap is never lowered."""
+    n = int(n_saplings)
+    need_sp = math.ceil(n / max(n_species, 1)) / n
+    need_g = math.ceil(n / max(n_genera, 1)) / n
+    return max(base_cfg["max_species_share"], need_sp), max(base_cfg["max_genus_share"], need_g)
+
+
+def selection_warnings(n_species):
+    if n_species == 1:
+        return ["Single species planting: high pest and disease risk"]
+    if n_species == 2:
+        return ["Only 2 species: low diversity, higher pest risk"]
+    if n_species <= 4:
+        return [f"Only {n_species} species: low diversity, higher pest risk"]
+    return []
+
+
+def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=None, method="hungarian", palette_cfg=None, species_ids=None):
+    """Palette + matching for one purpose and area. Returns (plan DataFrame, summary dict).
+    species_ids (optional): plan with ONLY these species; the per-species and per-genus caps are relaxed to the minimum needed to place every sapling and the summary says so."""
     seed = CFG["seed"] if seed is None else seed
     if purpose not in ctx.P:
         raise ValueError(f"purpose must be one of {sorted(ctx.P)}")
@@ -81,7 +140,25 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
     if len(area_idx) == 0:
         raise ValueError("no legal-zone point left in the area")
     S_area, P = ctx.S[area_idx], ctx.P[purpose]
-    palette = pal.build_palette(ctx.species, S_area, P, n_saplings, palette_cfg)
+    species_df, S_sel, P_sel, selection, cfg_used = ctx.species, S_area, P, None, palette_cfg
+    if species_ids:
+        ids = list(dict.fromkeys(int(i) for i in species_ids))
+        have = ctx.species.species_id.astype(int).tolist()
+        cols = [k for k, sid_ in enumerate(have) if sid_ in set(ids)]
+        if not cols:
+            raise ValueError("none of the chosen species is in the species table")
+        species_df, S_sel, P_sel = ctx.species.iloc[cols].reset_index(drop=True), S_area[:, cols], P[cols]
+        base = dict(pal.CFG if palette_cfg is None else palette_cfg)
+        n_el, n_gen = pal.count_eligible(species_df, S_sel, P_sel, base)
+        cfg_used = dict(base)
+        if n_el:
+            cfg_used["max_species_share"], cfg_used["max_genus_share"] = relaxed_caps(base, n_saplings, n_el, n_gen)
+        relaxed = {k: {"default": base[k], "used": round(cfg_used[k], 4)} for k in ("max_species_share", "max_genus_share") if cfg_used[k] > base[k] + 1e-12}
+        selection = {"species_ids_requested": ids, "species_eligible_in_area": n_el, "genera_eligible_in_area": n_gen,
+                     "caps": {k: {"default": base[k], "used": round(cfg_used[k], 4)} for k in ("max_species_share", "max_genus_share")}, "caps_relaxed": relaxed,
+                     "caps_note": ("The per-species and per-genus caps were raised to the minimum needed to place every sapling with only these species." if relaxed
+                                   else "The default per-species and per-genus caps were enough.")}
+    palette = pal.build_palette(species_df, S_sel, P_sel, n_saplings, cfg_used)
     members = palette["idx"]
     summary = {"purpose": purpose, "n_saplings_requested": int(n_saplings), "method": method, "seed": seed,
                "area": {"zone": zone, "bbox": list(bbox) if bbox else None, "legal_points_in_area": int(in_area.sum()),
@@ -92,13 +169,27 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                "palette": [], "palette_common_planting_months": palette["common_months"], "palette_warnings": list(palette["warnings"]),
                "palette_excluded_species": {str(k): v for k, v in palette["excluded"].items()},
                "dioecious_species_left_out": palette["dioecious_rejected"], "limits": list(LIMITS)}
+    if selection is not None:                                          # chosen by hand: the "palette smaller than min" note does not apply; say what is left out and the diversity risk
+        in_palette = {int(species_df.species_id.iloc[i]) for i in members}
+        left_out = {}
+        for sid_ in selection["species_ids_requested"]:
+            if sid_ in in_palette or sid_ not in set(species_df.species_id.astype(int)):
+                continue
+            left_out[str(sid_)] = (palette["excluded"].get(sid_) or ("dioecious_species_needs_both_sexes_quota" if sid_ in palette["dioecious_rejected"]
+                                                                       else "shares_no_planting_month_with_the_others_or_not_needed"))
+        selection["species_ids_left_out"] = left_out
+        selection["n_species_planted"] = len(in_palette)
+        summary["palette_warnings"] = [w for w in summary["palette_warnings"] if not w.startswith("palette_smaller_than_min")] + selection_warnings(len(in_palette))
+        if selection["caps_relaxed"] and len(in_palette):
+            summary["palette_warnings"].append("Caps relaxed: " + selection["caps_note"])
+        summary["species_selection"] = selection
     if not members:
         summary.update({"saplings_allocated": 0, "saplings_unallocated": int(n_saplings), "saplings_placed": 0, "saplings_unmatched": 0,
                         "unused_candidate_points": int(len(area_idx)), "mean_W": None, "total_W": 0.0})
         return pd.DataFrame(columns=PLAN_COLUMNS), summary
-    sp = ctx.species.iloc[members]
+    sp = species_df.iloc[members]
     mt.assert_spacing_ok(sp.spacing_min_m.to_numpy())
-    Sm, Pm = S_area[:, members], P[members]
+    Sm, Pm = S_sel[:, members], P_sel[members]
     W, feas = mt.weights(Sm, Pm)
     fn = {"hungarian": mt.assign_hungarian, "greedy": mt.assign_greedy}[method]
     res = fn(W, feas, palette["quota"], seed)
@@ -116,6 +207,8 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
         flags += ctx.species_flags.get(spid, [])
         if conf == conf and conf < CFG["low_confidence_below"]:
             flags.append("low_confidence")
+        if "zoning_status" in sites and sites.zoning_status[k] == "unconfirmed":
+            flags.append(UNCONFIRMED_FLAG)
         rows.append({"point_id": pid, "lon": sites.lon[k], "lat": sites.lat[k], "utm_e": sites.utm_e[k], "utm_n": sites.utm_n[k],
                      "zone_desc": sites.zone_desc[k], "species_id": spid, "species": sp.common_name.iloc[si[k]],
                      "S": round(float(Sm[pi[k], si[k]]), 4), "P": round(float(Pm[si[k]]), 4), "W": round(float(W[pi[k], si[k]]), 4),
@@ -123,6 +216,8 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                      "site_scores_src_ids": ";".join(str(i) for i in src_ids)})
     plan = pd.DataFrame(rows, columns=PLAN_COLUMNS)
     plan = plan.sort_values(["species_id", "W", "point_id"], ascending=[True, False, True]).reset_index(drop=True)
+    if "zoning_status" in ctx.sites and (ctx.sites.zoning_status == "unconfirmed").any():       # only when squares outside the zoning map were available
+        summary["zoning"] = zoning_block(True, plan)
     for j in range(len(members)):
         summary["palette"].append({
             "species_id": palette["species_id"][j], "species": palette["common_name"][j], "genus": str(sp.genus.iloc[j]),
@@ -136,6 +231,13 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                     "mean_W": round(float(plan.W.mean()), 4) if len(plan) else None, "total_W": round(float(plan.W.sum()), 4),
                     "spacing_check": "every palette species has spacing_min_m < 100 m, the grid spacing, so any two grid points are far enough apart"})
     return plan, summary
+
+
+def zoning_block(include_unzoned, plan):
+    """The 'zoning' block of the plan summary: how many placed trees stand on land outside the zoning map (flag zoning_unconfirmed)."""
+    n_un = int(plan["flags"].fillna("").astype(str).str.contains(UNCONFIRMED_FLAG).sum()) if len(plan) else 0
+    return {"include_unzoned": bool(include_unzoned), "placed_trees": int(len(plan)), "unconfirmed_trees": n_un,
+            "note": (UNCONFIRMED_NOTE + ". " if n_un else "") + "Unconfirmed = outside every zoning polygon (a gap in the zoning file); these squares are scored like the others."}
 
 
 PLAN_COLUMNS = ["point_id", "lon", "lat", "utm_e", "utm_n", "zone_desc", "species_id", "species", "S", "P", "W", "confidence", "flags",
@@ -224,9 +326,14 @@ def main(argv=None):
     ap.add_argument("--out", default="data/processed")
     ap.add_argument("--scores", help="site_scores.db or .csv (default: <out>/scores/site_scores.db)")
     ap.add_argument("--benchmark", action="store_true", help="write matching_benchmark.csv and exit")
+    ap.add_argument("--campaign-name", help="campaign name (1-80 characters), saved in the plan summary")
+    ap.add_argument("--campaign-unit", help="assigned unit (up to 80 characters), saved in the plan summary")
+    ap.add_argument("--species-ids", help="plan with only these species, e.g. 1,7,8 (caps are relaxed to the minimum needed)")
     ap.add_argument("--field-db", default=str(ROOT / CFG["field_db"]), help="saved field checks; not_plantable points are left out of the plan")
+    ap.add_argument("--include-unzoned", dest="include_unzoned", action=argparse.BooleanOptionalAction, default=CFG["include_unzoned"],
+                    help="also plan on squares outside the zoning map (flagged zoning_unconfirmed); --no-include-unzoned = confirmed legal-zone squares only")
     a = ap.parse_args(argv)
-    ctx = mt.load_context(a.out, a.scores)
+    ctx = load_context(a.out, a.scores, a.include_unzoned)
     if a.benchmark:
         bench, f = run_benchmark(ctx, a.out)
         print(bench.to_string(index=False)); print(f"written to {f}")
@@ -234,9 +341,28 @@ def main(argv=None):
     if not a.purpose or not a.n_saplings:
         ap.error("--purpose and --n-saplings are required (or use --benchmark)")
     trees = pd.read_csv(a.trees_csv) if a.trees_csv else None
+    campaign = None
+    if a.campaign_name is not None or a.campaign_unit is not None:
+        name, unit = (a.campaign_name or "").strip(), (a.campaign_unit or "").strip()
+        if not 1 <= len(name) <= 80:
+            ap.error("--campaign-name is required with a campaign and must be 1 to 80 characters")
+        if len(unit) > 80:
+            ap.error("--campaign-unit must be at most 80 characters")
+        campaign = {"name": name, "unit": unit}
+    species_ids = None
+    if a.species_ids:
+        try:
+            species_ids = list(dict.fromkeys(int(x) for x in a.species_ids.split(",") if x.strip()))
+        except ValueError:
+            ap.error("--species-ids must be whole numbers separated by commas, e.g. 1,7,8")
+        known = set(ctx.species.species_id.astype(int))
+        if not species_ids or [i for i in species_ids if i not in known]:
+            ap.error(f"--species-ids: unknown species id(s) {[i for i in species_ids if i not in known] or species_ids} (valid ids: {min(known)}-{max(known)})")
     ctx, field_checks = apply_field_checks(ctx, a.field_db, a.zone, a.bbox)
     print(f"field checks: {field_checks['excluded_points']} not-plantable point(s) left out of this area")
-    plan, s = make_plan(ctx, a.purpose, a.n_saplings, a.zone, a.bbox, trees, a.seed)
+    plan, s = make_plan(ctx, a.purpose, a.n_saplings, a.zone, a.bbox, trees, a.seed, species_ids=species_ids)
+    if campaign:
+        s["campaign"] = campaign
     s["field_checks"] = field_checks
     f, sj = write_plan(a.out, a.purpose, plan, s)
     print(f"purpose {a.purpose} | area points {s['area']['candidate_points_after_exclusion']} | {s['existing_trees']}")

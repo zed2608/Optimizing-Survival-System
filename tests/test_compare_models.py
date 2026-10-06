@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT / "pipeline"))
 import compare_models as cm  # noqa: E402
 import make_pair_table as mpt  # noqa: E402
 
-PROCESSED = ROOT / "data" / "processed"
+PROCESSED = Path(__import__("os").environ.get("OS_DATA_DIR") or ROOT / "data" / "processed")      # OS_DATA_DIR = a temporary copy of the processed data
 FORBIDDEN = {"s_rule", "s_prob", "confidence", "breakdown_json", "suitable", "suitable_clean", "label_flipped"}
 
 

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import Icon from './Icon.jsx'
 import { apiGet } from '../v2/api.js'
 import { useApi } from '../v2/useApi.js'
 import { parseCoordinates } from './coords.js'
@@ -29,20 +30,20 @@ function writeRecent(list) {
 }
 
 // How one result is shown: icon, main line, second line, and which group it belongs to.
-function describe(it) {
+function describe(it, locate) {
   switch (it.type) {
     case 'coords':
-      return { group: 'coords', icon: '⌖', label: `Go to ${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}`, sub: it.note || 'Mark this spot and rank species for it' }
+      return { group: 'coords', icon: 'target', label: `Go to ${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}`, sub: `Coordinates · ${(locate && locate(it.lat, it.lon)) || 'Outside the barangay outlines'}${it.kind === 'utm' ? ' · UTM 51N' : ''}` }
     case 'barangay':
-      return { group: 'barangay', icon: '▦', label: it.display_name ?? it.name, sub: `Barangay · ${it.legal_points ?? 0} planting points` }
+      return { group: 'barangay', icon: 'grid', label: it.display_name ?? it.name, sub: `Barangay · ${it.legal_points ?? 0} planting squares` }
     case 'species':
-      return { group: 'species', icon: '❦', label: it.common_name, sub: it.scientific_name ? `Species · ${it.scientific_name}` : 'Species' }
+      return { group: 'species', icon: 'tree', label: it.common_name, sub: it.scientific_name ? `Species · ${it.scientific_name}` : 'Species' }
     case 'grid_point':
-      return { group: 'point', icon: '●', label: `Grid point ${it.point_id}`, sub: `${it.barangay_display || 'Outside the barangay outlines'} · ${it.legal_zone ? 'planting zone' : 'not a planting zone'}` }
+      return { group: 'point', icon: 'dot', label: `Grid point ${it.point_id}`, sub: `Grid point · ${it.barangay_display || 'Outside the barangay outlines'} · ${it.legal_zone ? it.zone || 'planting zone' : 'not a planting zone'}` }
     case 'plan_point':
-      return { group: 'point', icon: '◉', label: `${it.point_ref} · ${it.species}`, sub: `Plan ${it.plan_id} · ${it.barangay_display || 'barangay unknown'}` }
+      return { group: 'point', icon: 'pin', label: `${it.point_ref} · ${it.species}`, sub: `Plan point · ${it.barangay_display || 'barangay unknown'} · ${it.plan_id}` }
     case 'place':
-      return { group: 'place', icon: '⚑', label: it.name || it.display_name, sub: it.display_name }
+      return { group: 'place', icon: 'pin', label: it.name || it.display_name, sub: it.display_name }
     default:
       return { group: 'point', icon: '•', label: String(it.type), sub: '' }
   }
@@ -55,7 +56,7 @@ function looksLikeCoordinates(t) {
 // The search box at the top of the map. Suggestions come from GET /search/all after 2 characters and a short pause; coordinates are read in the
 // browser (coords.js); streets and landmarks (GET /search/geocode) are asked only when Enter is pressed on that row and only if the API says
 // the optional place search is on. Calls onChoose(item); the page decides what to do.
-export default function SearchBar({ onChoose, note, onDismissNote }) {
+export default function SearchBar({ onChoose, note, onDismissNote, locate, includeUnzoned = true }) {
   const uid = useId()
   const listId = `${uid}-list`
   const [text, setText] = useState('')
@@ -75,7 +76,7 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
 
   const coords = useMemo(() => (trimmed ? parseCoordinates(trimmed) : { ok: false }), [trimmed])
   const wantCall = debounced.length >= MIN_CHARS && debounced === trimmed && !coords.ok
-  const all = useApi(wantCall ? `/search/all?q=${encodeURIComponent(debounced)}&limit=${GROUP_LIMIT}` : null)
+  const all = useApi(wantCall ? `/search/all?q=${encodeURIComponent(debounced)}&limit=${GROUP_LIMIT}&include_unzoned=${includeUnzoned}` : null)
   const geocoderOn = all.status === 'ok' && all.data.geocoder_enabled === true
 
   // the flat list of choices, in the order shown
@@ -87,8 +88,8 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
       out.push(...d.barangays, ...d.species, ...d.points, ...d.plan_points)
     }
     if (places && places.q === trimmed && places.status === 'ok') out.push(...places.results.map((r) => ({ ...r, type: 'place', attribution: places.attribution })))
-    return out.map((it) => ({ it, ...describe(it) }))
-  }, [coords, all.status, all.data, places, trimmed])
+    return out.map((it) => ({ it, ...describe(it, locate) }))
+  }, [coords, all.status, all.data, places, trimmed, locate])
   const showHint = geocoderOn && trimmed.length >= 3 && !(places && places.q === trimmed)
   const showRecent = open && trimmed.length < MIN_CHARS && recent.length > 0
 
@@ -101,7 +102,7 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
 
   function choose(it) {
     remember(it)
-    setText(describe(it).label.replace(/^Go to /, ''))
+    setText(describe(it, locate).label.replace(/^Go to /, ''))
     setOpen(false)
     setActive(-1)
     onChoose(it)
@@ -174,7 +175,7 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
     <div className="nw-search" role="search">
       <div className="nw-search-box">
         <span className="nw-search-icon" aria-hidden="true">
-          ⌕
+          <Icon name="search" size={18} />
         </span>
         <input
           ref={inputRef}
@@ -204,7 +205,7 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
         />
         {text && (
           <button type="button" className="nw-search-clear" aria-label="Clear search" onMouseDown={(e) => e.preventDefault()} onClick={clear}>
-            ✕
+            <Icon name="close" />
           </button>
         )}
       </div>
@@ -227,11 +228,11 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
                 </button>
               </div>
               {recent.map((r, i) => {
-                const d = describe(r.item)
+                const d = describe(r.item, locate)
                 return (
                   <div key={r.key} id={`${uid}-opt-${i}`} role="option" aria-selected={active === i} className={`nw-search-opt ${active === i ? 'is-active' : ''}`} onClick={() => choose(r.item)}>
                     <span className="nw-search-ico" aria-hidden="true">
-                      ↺
+                      <Icon name="undo" />
                     </span>
                     <span>
                       <span className="nw-search-main">{d.label}</span>
@@ -253,7 +254,7 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
                 )}
                 <div id={`${uid}-opt-${i}`} role="option" aria-selected={active === i} className={`nw-search-opt ${active === i ? 'is-active' : ''}`} onClick={() => choose(r.it)}>
                   <span className="nw-search-ico" aria-hidden="true">
-                    {r.icon}
+                    <Icon name={r.icon} />
                   </span>
                   <span>
                     <span className="nw-search-main">{r.label}</span>
@@ -270,7 +271,7 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
               </div>
               <div id={`${uid}-opt-${rows.length}`} role="option" aria-selected={active === rows.length} className={`nw-search-opt ${active === rows.length ? 'is-active' : ''}`} onClick={runPlaceSearch}>
                 <span className="nw-search-ico" aria-hidden="true">
-                  ⚑
+                  <Icon name="search" />
                 </span>
                 <span>
                   <span className="nw-search-main">Search streets and landmarks for “{trimmed}”</span>
@@ -307,7 +308,7 @@ export default function SearchBar({ onChoose, note, onDismissNote }) {
             {note.attribution && <div className="nw-search-attr">{note.attribution}</div>}
           </div>
           <button type="button" className="nw-search-clear" aria-label="Dismiss this note" onClick={onDismissNote}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
       )}

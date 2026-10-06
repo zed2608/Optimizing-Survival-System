@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import Icon from './Icon.jsx'
 import { API_BASE } from '../v2/config.js'
 import { REASON_LABEL, STATUS_LABEL, STATUS_SYMBOL } from './fieldLabels.js'
 import { apiPostText } from './apiPost.js'
@@ -41,13 +42,18 @@ export default function FieldSummary({ summary, observer, onObserver, onChanged 
           <ul className="nw-counts">
             {['verified_plantable', 'not_plantable', 'needs_recheck'].map((k) => (
               <li key={k}>
-                <span aria-hidden="true">{STATUS_SYMBOL[k]}</span> {STATUS_LABEL[k]}: <strong>{s.by_status[k]}</strong>
+                <Icon name={STATUS_SYMBOL[k]} /> {STATUS_LABEL[k]}: <strong>{s.by_status[k]}</strong>
               </li>
             ))}
           </ul>
           <p className="nw-hint">
             {s.points_checked} point{s.points_checked === 1 ? '' : 's'} checked
-            {s.disputed_points > 0 ? ` · ⚠ ${s.disputed_points} disputed` : ''}
+            {s.disputed_points > 0 && (
+              <>
+                {' · '}
+                <Icon name="warn" /> {s.disputed_points} disputed
+              </>
+            )}
             {s.exclude_not_plantable ? ` · ${s.left_out_of_rankings} left out` : ' · exclusion is off'}.
           </p>
           {s.by_status.not_plantable > 0 && (

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import Icon from './Icon.jsx'
 import DatasetNote from './DatasetNote.jsx'
 import FieldSummary from './FieldSummary.jsx'
 
@@ -8,7 +9,7 @@ function Section({ title, open, onToggle, children }) {
     <div className="nw-more-sec">
       <button type="button" className="nw-more-item" aria-expanded={open} aria-controls={id} onClick={onToggle}>
         <span>{title}</span>
-        <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+        <Icon name={open ? 'down' : 'right'} size={14} />
       </button>
       {open && (
         <div id={id} className="nw-more-content">
@@ -29,7 +30,7 @@ export default function MoreMenu({ health, fieldSummary, observer, onObserver, o
     <section className="nw-more" aria-label="More">
       <button type="button" className="nw-more-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)}>
         <span>More</span>
-        <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+        <Icon name={open ? 'down' : 'right'} size={14} />
       </button>
       {open && (
         <div id={bodyId} className="nw-more-body">

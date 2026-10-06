@@ -24,17 +24,51 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-VALID_ZONES = [  # same list as generate_targets.py / filter_zones.py (includes the LGU typo 'Zonec')
-    "Parks and Recreation Zone", "Buffer Zone", "General Institutional Zone", "Institutional Research Zone",
-    "Forest Zone", "General Institutional Zonec", "Medium Density Residential Zone",
-    "High Density Residential - Mixed Use Zone", "Socialized Housing Zone", "Agricultural Zone", "Cemetery Zone",
-]
+# ZONE_RULES: what each land-use zone of data/LandUses.shp means for planting. ONE table; change a value, then re-run the scripts listed in CLAUDE.md
+# ("How to change a zone rule"). Values:
+#   confirmed   = a legal planting zone: scored, no flag                       (is_legal_zone = True)
+#   unconfirmed = scored like the others but flagged zoning_unconfirmed; the flag note names the zone (an LGU decision is still needed)
+#   excluded    = never scored, never planned (grey square)
+# Defaults reproduce the results before this table existed (6,251 confirmed / 1,279 unconfirmed / 558 excluded).
+ZONE_RULES = {
+    "Parks and Recreation Zone": "confirmed",                  # legal planting zone
+    "Buffer Zone": "confirmed",                                # legal planting zone
+    "General Institutional Zone": "confirmed",                 # legal planting zone
+    "Institutional Research Zone": "confirmed",                # legal planting zone
+    "Forest Zone": "confirmed",                                # legal planting zone
+    "General Institutional Zonec": "confirmed",                # legal planting zone (the LGU spelling 'Zonec' is kept as written in the layer)
+    "Medium Density Residential Zone": "confirmed",            # legal planting zone
+    "High Density Residential - Mixed Use Zone": "confirmed",  # legal planting zone
+    "Socialized Housing Zone": "confirmed",                    # legal planting zone
+    "Agricultural Zone": "confirmed",                          # legal planting zone
+    "Cemetery Zone": "confirmed",                              # legal planting zone
+    "Special Reserved Zone": "excluded",                       # 355 squares; not a planting zone until the LGU says so (set "unconfirmed" to score and flag them)
+    "Medium Industrial Zone": "excluded",                      # industrial land
+    "Light Industrial Zone": "excluded",                       # industrial land
+    "Minor Commercial - Mixed Use Zone": "excluded",           # commercial land
+    "Quarry Sub-Zone": "excluded",                             # quarry
+    "Sanitary Landfill": "excluded",                           # landfill
+}
+UNKNOWN_ZONE_RULE = "excluded"          # a zone name that is not in ZONE_RULES (the rebuild report lists it)
+OUTSIDE_ZONING_RULE = "unconfirmed"     # a square outside every zoning polygon: the satellite shows forest, the zoning file has a gap (set "excluded" to leave them out)
+RULE_VALUES = ("confirmed", "unconfirmed", "excluded")
+VALID_ZONES = [z for z, r in ZONE_RULES.items() if r == "confirmed"]   # the legal zones (kept for older readers of this module)
 # Legacy translation from backend/app.py. UNVERIFIED - needs a sourced mapping before it is used for hard limits.
 SOIL_LEGACY = {
     4478: ("Gleyic Cambisol", "Clay Loam"), 4413: ("Nitisol", "Clay"),
     4546: ("Rhodic Nitisol", "Clay"), 7001: ("Technosol", None),
 }
 REQUIRED = ["row_index", "col_index", "x", "y", "elevation_", "soil_type", "feature_x", "feature_y", "TYPE", "n", "distance"]
+
+def zoning_status(zone_desc, rules=None):
+    """confirmed | unconfirmed | excluded for every square, from ZONE_RULES (a square outside every polygon follows OUTSIDE_ZONING_RULE)."""
+    r = ZONE_RULES if rules is None else rules
+    bad = [v for v in list(r.values()) + [UNKNOWN_ZONE_RULE, OUTSIDE_ZONING_RULE] if v not in RULE_VALUES]
+    if bad:
+        raise ValueError(f"zone rules must be one of {RULE_VALUES}, got {bad}")
+    z = pd.Series(zone_desc)
+    return np.where(z.isna(), OUTSIDE_ZONING_RULE, z.map(lambda n: r.get(n, UNKNOWN_ZONE_RULE)))
+
 
 def derivative(Z, step, axis):
     """Finite difference along axis. Returns (d, kind) with kind 2=central, 1=one-sided, 0=none."""
@@ -113,12 +147,18 @@ def main():
         j = gpd.sjoin(pts, zones[["CODE", "DESCRIPTIO", "geometry"]], how="left", predicate="within").drop_duplicates("point_id")
         z = j.set_index("point_id")
         o["zone_code"] = o.point_id.map(z["CODE"]); o["zone_desc"] = o.point_id.map(z["DESCRIPTIO"])
-        o["is_legal_zone"] = o.zone_desc.isin(VALID_ZONES)
+        o["zoning_status"] = zoning_status(o.zone_desc)
+        o["is_legal_zone"] = o.zoning_status == "confirmed"                  # confirmed legal zone ONLY (unchanged meaning)
+        unknown = sorted(set(o.zone_desc.dropna()) - set(ZONE_RULES))
+        if unknown:
+            rep.append(f"WARNING: zones not in ZONE_RULES (treated as {UNKNOWN_ZONE_RULE}): {unknown}")
         rep.append(f"points with a land-use zone: {o.zone_desc.notna().sum()} of {len(o)}; legal zones: {int(o.is_legal_zone.sum())}")
+        rep.append("zoning_status: " + str(o.zoning_status.value_counts().to_dict())
+                   + "  (confirmed = inside a legal zone; unconfirmed = outside every zoning polygon, scored but flagged; excluded = a named non-planting zone, not scored)")
         rep.append("zones: " + str(o.zone_desc.fillna("(outside zoning)").value_counts().to_dict()))
     except Exception as e:                                               # geopandas missing or file missing
         rep.append(f"land-use join SKIPPED: {e}")
-        o["zone_code"] = None; o["zone_desc"] = None; o["is_legal_zone"] = None
+        o["zone_code"] = None; o["zone_desc"] = None; o["is_legal_zone"] = None; o["zoning_status"] = None
 
     rep.append("soil codes: " + str(o.soil_code.value_counts().to_dict()) + "  (texture mapping is UNVERIFIED)")
     rep.append("dropped columns: slope_1 (copy of elevation), soil_ph (synthetic), Recommende, Survivabil (legacy outputs), polygon/shape columns")

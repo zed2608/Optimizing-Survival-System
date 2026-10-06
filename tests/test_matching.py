@@ -11,7 +11,7 @@ import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
 import run_plan as rp  # noqa: E402
 
-PROCESSED = ROOT / "data" / "processed"
+PROCESSED = Path(__import__("os").environ.get("OS_DATA_DIR") or ROOT / "data" / "processed")      # OS_DATA_DIR = a temporary copy of the processed data
 CAP_SP, CAP_GEN = pal.CFG["max_species_share"], pal.CFG["max_genus_share"]
 
 

@@ -145,10 +145,12 @@ def forecast_table(daily, today=None):
     return rows
 
 
-def build_advisory(species, forecast, today=None, cfg=None):
+def build_advisory(species, forecast, today=None, cfg=None, window=None):
     """
     species: dict-like with species_id, common_name, planting_months ('5;6;7'), drought_tol (Low/Medium/High).
     forecast: the dict from fetch_forecast. Returns {"warnings": [...], "not_assessed": [...], "forecast": [...], "summary": {...}, ...}.
+    window (optional): {"months": [5, 6], "label": "1 May - 29 Jun 2027"}: the planting dates of a plan. The planting-window warning then compares the species' planting months
+    with THOSE months instead of today's month. Without it the check uses today's month, as before.
     """
     c = CFG if cfg is None else cfg
     today = today_local(c) if today is None else today
@@ -163,6 +165,15 @@ def build_advisory(species, forecast, today=None, cfg=None):
     # 1. planting window
     if months is None:
         not_assessed.append({"code": "not_in_planting_window", "reason": "the species has no planting_months in the dataset"})
+    elif window is not None:
+        win = list(window["months"])
+        inside = [m for m in win if m in months]
+        if len(inside) < len(win):
+            where = "outside that window" if not inside else "only partly inside that window"
+            warnings.append({"code": "not_in_planting_window",
+                             "message": f"{name} is usually planted in {', '.join(mn[m - 1] for m in months)}; your planting dates ({window['label']}) cover "
+                                        f"{', '.join(mn[m - 1] for m in win)}, {where}.",
+                             "numbers": {"window_months": win, "planting_months": months, "months_in_window": inside}})
     elif today.month not in months:
         warnings.append({"code": "not_in_planting_window",
                          "message": f"{name} is usually planted in {', '.join(mn[m - 1] for m in months)}; today is in {mn[today.month - 1]}, outside that window.",

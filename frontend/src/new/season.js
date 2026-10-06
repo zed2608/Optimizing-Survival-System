@@ -95,10 +95,10 @@ export function monthsText(months) {
 }
 
 export const SEASON_WORDS = {
-  in_season: { word: 'In season', glyph: '✓' },
-  partly: { word: 'Partly in season', glyph: '◐' },
-  out_of_season: { word: 'Out of season', glyph: '✕' },
-  unknown: { word: 'Season unknown', glyph: '?' },
+  in_season: { word: 'In season', glyph: 'check' },
+  partly: { word: 'Partly in season', glyph: 'half' },
+  out_of_season: { word: 'Outside best months', glyph: 'close' },
+  unknown: { word: 'Season unknown', glyph: 'question' },
 }
 
 // The query string every species-listing call carries: the dates and whether out-of-season species are removed ("only") or just labelled ("mark").
@@ -141,4 +141,39 @@ export function bestSeasonWindow(speciesMonths, today, days = NEXT_SEASON_DAYS, 
 export function formatSpan(start, end) {
   const cross = start.slice(0, 4) !== end.slice(0, 4)
   return `${formatDay(start, cross)} - ${formatDay(end, cross)}`
+}
+
+// Shown with every explanation of the season: the planting months are the best months from the species sources, not a ban.
+export const BEST_MONTHS_NOTE = 'Best months come from the species sources. You can still plant outside them, but expect more watering and more losses.'
+
+// "1 May - 29 Jun 2027" (both years when the span crosses a year end): the same wording as the planning service uses.
+export function formatSpanYear(start, end) {
+  if (start.slice(0, 4) !== end.slice(0, 4)) return `${formatDay(start, true)} - ${formatDay(end, true)}`
+  return `${formatDay(start)} - ${formatDay(end, true)}`
+}
+
+// How the planting dates relate to a forecast that runs from firstDay to lastDay (ISO dates). Returns { covered, overlap, message } in plain words.
+export function windowForecastMessage(start, end, firstDay, lastDay, n = 16) {
+  const label = formatSpanYear(start, end)
+  if (!firstDay || !lastDay) return { covered: false, overlap: null, message: 'The forecast has no days, so your planting dates cannot be compared with it.' }
+  if (start > lastDay) return { covered: false, overlap: null, message: `Your planting dates (${label}) are beyond the ${n}-day forecast. The advice below is for the next ${n} days only.` }
+  if (end < firstDay) return { covered: false, overlap: null, message: `Your planting dates (${label}) have already passed. The advice below is for the next ${n} days only.` }
+  const lo = start > firstDay ? start : firstDay
+  const hi = end < lastDay ? end : lastDay
+  const overlap = { start: lo, end: hi }
+  if (start >= firstDay && end <= lastDay) return { covered: true, overlap, message: `The ${n}-day forecast covers all of your planting dates (${label}).` }
+  return { covered: true, overlap, message: `The ${n}-day forecast covers ${formatSpanYear(lo, hi)} of your planting dates (${label}). The rest is outside the forecast, so the advice below is for the next ${n} days only.` }
+}
+
+// The status of a campaign from its dates and today: active (today is between start and end, inclusive), upcoming, concluded, or none (no dates saved).
+export function campaignStatus(start, end, today) {
+  if (!start || !end) return 'none'
+  if (start > today) return 'upcoming'
+  if (end < today) return 'concluded'
+  return 'active'
+}
+
+export function formatBytes(n) {
+  if (typeof n !== 'number') return 'Data Unavailable'
+  return n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / (1024 * 1024)).toFixed(1)} MB`
 }

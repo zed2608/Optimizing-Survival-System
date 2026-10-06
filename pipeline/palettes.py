@@ -109,6 +109,30 @@ def _common_months(month_sets):
     return out if out is not None else set()
 
 
+def eligible_pool(species, st, months, c):
+    """(indices of the species that may enter a palette, {species_id: reason} of those that may not). st = species_stats(...), months = parsed planting months."""
+    excluded, pool = {}, []
+    for i, sid in enumerate(species.species_id):
+        if st.n_eligible[i] == 0 or st.score[i] <= 0:
+            excluded[int(sid)] = "no_eligible_points_in_area"
+        elif months[i] is None:
+            excluded[int(sid)] = "planting_months_missing"
+        elif not species.spacing_min_m.iloc[i] < c["grid_spacing_m"]:
+            excluded[int(sid)] = "spacing_not_below_grid_spacing"
+        else:
+            pool.append(i)
+    return pool, excluded
+
+
+def count_eligible(species, S, P, cfg=None):
+    """How many species (and how many different genera) could enter a palette for these points: used to relax the caps when the species were chosen by hand."""
+    c = CFG if cfg is None else cfg
+    species = species.reset_index(drop=True)
+    st = species_stats(np.asarray(S, dtype=float), np.asarray(P, dtype=float), c["s_min"])
+    pool, _ = eligible_pool(species, st, [parse_months(v) for v in species.planting_months], c)
+    return len(pool), len({str(species.genus.iloc[i]) if pd.notna(species.genus.iloc[i]) else "?" for i in pool})
+
+
 def build_palette(species, S, P, n_saplings, cfg=None):
     """Choose the palette. Returns a dict (see keys at the end); never hides what it dropped."""
     c = CFG if cfg is None else cfg
@@ -121,17 +145,7 @@ def build_palette(species, S, P, n_saplings, cfg=None):
     months = [parse_months(v) for v in species.planting_months]
     genus = species.genus.fillna("?").to_numpy(dtype=object)
     dioecious = species.is_dioecious.fillna(False).astype(bool).to_numpy()
-    excluded = {}
-    pool = []
-    for i, sid in enumerate(species.species_id):
-        if st.n_eligible[i] == 0 or st.score[i] <= 0:
-            excluded[int(sid)] = "no_eligible_points_in_area"
-        elif months[i] is None:
-            excluded[int(sid)] = "planting_months_missing"
-        elif not species.spacing_min_m.iloc[i] < c["grid_spacing_m"]:
-            excluded[int(sid)] = "spacing_not_below_grid_spacing"
-        else:
-            pool.append(i)
+    pool, excluded = eligible_pool(species, st, months, c)
     rejected_dioecious = set()
 
     def evaluate(members):

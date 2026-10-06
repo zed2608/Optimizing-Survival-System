@@ -10,9 +10,9 @@ Palette and matching come from pipeline/palettes.py, pipeline/matching.py and pi
 Every value shown carries its source id, URL and rank where one exists (resolved from species_sources); inputs that come from a
 file rather than a cited source (site elevation, slope, soil code) say which file.
 """
-import dataclasses, hashlib, json, math, re, sqlite3, sys, threading, time, unicodedata, urllib.parse, urllib.request
+import dataclasses, hashlib, json, math, os, re, sqlite3, sys, threading, time, unicodedata, urllib.parse, urllib.request, zipfile
 from collections import OrderedDict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,7 +23,7 @@ import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from scipy.spatial import cKDTree
 
 ROOT = Path(__file__).resolve().parent
@@ -40,7 +40,8 @@ import score_sites as ss  # noqa: E402
 # CONFIG - every tunable number lives here. PROVISIONAL unless stated.
 # =====================================================================================================================
 API_CFG = {
-    "data_dir": "data/processed",
+    "data_dir": os.environ.get("OS_DATA_DIR") or "data/processed",   # OS_DATA_DIR: run on another (temporary) copy of the processed data
+    "include_unzoned": True,                        # INCLUDE_UNZONED: default of ?include_unzoned= (squares outside the zoning map are scored and flagged zoning_unconfirmed); false = confirmed legal zones only
     "barangay_shp": "data/BRGY_BOUNDARY.shp",
     "port": 8001,                                   # python -m uvicorn api_v2:app --port 8001 (the old api.py uses another port)
     "cors_origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -67,7 +68,7 @@ API_CFG = {
     "boundary_max_bytes": 300_000,                  # /geo/boundaries: the tolerance grows until the response is under this size
     "coord_decimals": 5,                            # coordinates in /geo/boundaries and /grid (5 decimals ~ 1 m)
     "grid_w_decimals": 3,                           # W in /grid
-    "grid_max_bytes": 250_000,                      # /grid should stay under this size (checked by the tests)
+    "grid_max_bytes": 300_000,                      # /grid should stay under this size (checked by the tests; 7,530 squares with include_unzoned=true ~ 286 KB, false stays under 250 KB)
     "missing_marker": -1,                           # /grid: the explicit "no value" marker (never null)
     "grid_cache_seconds": 300,                      # Cache-Control max-age of /geo/boundaries and /grid
     "landuse_shp": "data/LandUses.shp",             # /geo/zones
@@ -79,6 +80,12 @@ API_CFG = {
     "field_exclude_not_plantable": True,            # THE SWITCH: points whose latest field check is not_plantable are left out of rankings and plans
     "field_list_default_limit": 100,                # GET /field-checks
     "field_list_max_limit": 1000,
+    # ---- GET /grid/context: the map squares that are not planting zones ----
+    "context_zone_reasons": {                       # zone name (as in the land-use layer) -> reason code; a square with no zone is "outside_zoning"
+        "Special Reserved Zone": "special_reserved", "Medium Industrial Zone": "industrial", "Light Industrial Zone": "industrial",
+        "Minor Commercial - Mixed Use Zone": "commercial", "Quarry Sub-Zone": "quarry", "Sanitary Landfill": "landfill",
+    },
+    "context_max_bytes": 120_000,                   # the context body must stay below this size
     # ---- planting window (season) ----
     "season_max_days": 366,                         # start/end dates: the longest window accepted
     # ---- search ----
@@ -107,10 +114,35 @@ LIMITS = [
     "Each point is a ~100 m grid cell, so a plan places at most one tree per cell.",
     "Species data marked species_data_unverified cites a source file that was not provided.",
     "Scores are not valid outside the mapped municipality of San Mateo, Rizal.",
+    "{PLANTING} planting squares + {OTHER} other squares = {TOTAL} map squares.",
+    "{UNZONED_LIMIT}",
     "Field checks (verified plantable / not plantable / needs recheck) carry a name only: there is no login yet, and anyone with access to the dashboard can add one.",
     "While the field-check switch is on, points whose latest check is 'not plantable' are left out of rankings and plans; 'verified plantable' only adds a badge and never changes a score.",
 ]
 FIELD_LIMITS = LIMITS[-2:]
+
+
+def limits_of(d):
+    """The known limits with the numbers of THIS data and THIS view filled in (no hard-coded counts): planting squares, other squares, and what the zoning-map gap means."""
+    ap = d.all_points
+    n_plant, n_total = len(d.ctx.sites), len(ap)
+    n_un = int((d.ctx.sites.zoning_status == "unconfirmed").sum()) if "zoning_status" in d.ctx.sites else 0
+    n_named = int((d.ctx.sites.zoning_status.eq("unconfirmed") & d.ctx.sites.zone_desc.notna()).sum()) if n_un else 0
+    if n_named:                                                        # ZONE_RULES moved a named zone to unconfirmed
+        un = (f"{n_un:,} of the planting squares are not confirmed ({n_un - n_named:,} outside the zoning map, {n_named:,} in a named zone the LGU has not cleared). "
+              "They are scored like the others but flagged zoning_unconfirmed: check with the LGU before planting.")
+    elif n_un:
+        un = (f"{n_un:,} of the planting squares lie outside the zoning map (zoning not confirmed). They are scored like the others but flagged zoning_unconfirmed: "
+              "check with the LGU before planting.")
+    else:
+        un = "Land that is not covered by the zoning map is left out until the LGU confirms it is plantable."
+    fill = {"{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un}
+    out = []
+    for t in LIMITS:
+        for k, v in fill.items():
+            t = t.replace(k, v)
+        out.append(t)
+    return out
 # =====================================================================================================================
 
 Purpose = Literal["urban", "planting", "watershed"]
@@ -245,6 +277,9 @@ def _grid_doc(d, purpose, w, best, n_el, species_id, species_ids, mode, w_def, b
            "rounding": {"lon_lat_decimals": nd, "W_decimals": cfg["grid_w_decimals"]}}
     if field_active(d):
         doc["field"] = field_block(d)
+    if d.unconf_idx:                                                   # squares outside the zoning map: positions in the column arrays (absent when there are none)
+        doc["zoning"] = {"unconfirmed_index": d.unconf_idx, "n_unconfirmed": len(d.unconf_idx),
+                         "note": "These positions are squares outside the zoning map: scored like the others but not confirmed as planting zones. Check with the LGU before planting."}
     return json.dumps(doc, separators=(",", ":")).encode("utf-8")
 
 
@@ -281,6 +316,55 @@ def grid_body(d, purpose, species_id=None, drop=()):
         lru_put(d.multi_cache, ("g",) + key + (drop,), body, d.cfg["multi_cache_max"])
     else:
         d.grid_cache[key] = body
+    return body
+
+
+CONTEXT_REASONS = {                                   # reason code -> plain words (an unnamed zone that is not in the table above is "other")
+    "outside_zoning": "Outside the zoning map",
+    "special_reserved": "Special Reserved Zone: not a planting zone",
+    "industrial": "Industrial zone: not a planting zone",
+    "commercial": "Commercial zone: not a planting zone",
+    "quarry": "Quarry zone: not a planting zone",
+    "landfill": "Sanitary landfill: not a planting zone",
+    "other": "A zone that is not a planting zone",
+}
+
+
+def build_context_body(d):
+    """JSON bytes of GET /grid/context: the grid squares that are NOT planting zones, as compact arrays. Built once at startup. No nulls: -1 = no zone / no barangay."""
+    cfg = d.cfg
+    miss = cfg["missing_marker"]
+    ap = d.all_points
+    rows = np.where(~ap.point_id.isin(d.ctx.sites.point_id).to_numpy())[0]          # every square that is not a scored planting square in this view
+    sub = ap.iloc[rows]
+    zone_names = sorted(str(z) for z in sub.zone_desc.dropna().unique())
+    zone_idx = {z: i for i, z in enumerate(zone_names)}
+    reasons = list(CONTEXT_REASONS)
+    code, zcol = [], []
+    for z in sub.zone_desc:
+        if pd.isna(z):
+            code.append(reasons.index("outside_zoning"))
+            zcol.append(miss)
+        else:
+            code.append(reasons.index(cfg["context_zone_reasons"].get(str(z), "other")))
+            zcol.append(zone_idx[str(z)])
+    nd = cfg["coord_decimals"]
+    counts = {r: int(code.count(i)) for i, r in enumerate(reasons)}
+    doc = {"n": int(len(rows)), "legal_points": int(len(ap) - len(rows)), "total_points": int(len(ap)),
+           "columns": {"point_id": sub.point_id.astype(int).tolist(), "lon": np.round(sub.lon.to_numpy(), nd).tolist(), "lat": np.round(sub.lat.to_numpy(), nd).tolist(),
+                       "reason": code, "zone": zcol, "barangay": d.allpt_barangay[rows].tolist()},
+           "reasons": reasons, "reason_labels": CONTEXT_REASONS, "reason_counts": counts, "zones": zone_names,
+           "barangays": d.barangay_names, "barangays_display": d.barangay_display,
+           "missing": {"marker": miss, "columns": {"zone": f"{miss} = the square lies outside every zoning polygon", "barangay": f"{miss} = the square lies outside every barangay polygon"},
+                       "note": "No column contains null. reason is an index into reasons; zone an index into zones; barangay an index into barangays. These squares are NOT scored."}}
+    if d.zoning_on:                                                    # squares outside the zoning map are planting squares in this view: say what the table's "no zone" marker means
+        doc["zoning"] = {"unconfirmed_squares_are_planting_squares": True,
+                         "zone_table": [{"index": miss, "name": None, "label": "Outside the zoning map: the zoning file has no polygon here. Such squares are scored and flagged zoning_unconfirmed, so none of them is listed in this layer."}]
+                                       + [{"index": i, "name": z, "label": CONTEXT_REASONS[cfg["context_zone_reasons"].get(z, "other")]} for i, z in enumerate(zone_names)],
+                         "note": "With include_unzoned=true this layer holds only the squares in a named non-planting zone. With include_unzoned=false it also holds the squares outside the zoning map."}
+    body = json.dumps(doc, separators=(",", ":")).encode("utf-8")
+    if len(body) > cfg["context_max_bytes"]:
+        raise RuntimeError(f"/grid/context is {len(body)} bytes (limit {cfg['context_max_bytes']})")
     return body
 
 
@@ -482,7 +566,13 @@ def refresh_field(d):
     """
     Re-read the saved field checks and rebuild everything that depends on them: the current status of every point, the mask of points that are
     left out (not_plantable, when the switch is on) and the cached grids / area tables (they are rebuilt on the next request).
+    Done for every view of the data (include_unzoned true and false).
     """
+    for v in {id(x): x for x in (d, *getattr(d, "views", {}).values())}.values():
+        _refresh_one(v)
+
+
+def _refresh_one(d):
     cur = fv.current_status(d.field_db)
     d.field_current = cur
     d.field_ex_ids = fv.excluded_ids(cur) if d.cfg["field_exclude_not_plantable"] else set()
@@ -545,15 +635,70 @@ def field_flags_for_plan(d, plan):
     return plan
 
 
+def mean_confidence(d, ctx):
+    """{species_id: mean site confidence} over the scored squares of a context (from the scores database; {} for a csv)."""
+    if not d.is_db:
+        return {}
+    con = sqlite3.connect(ctx.scores_path)
+    ids = ",".join(str(int(i)) for i in ctx.sites.point_id)
+    mc = pd.read_sql_query(f"SELECT species_id, AVG(confidence) AS c FROM site_scores WHERE point_id IN ({ids}) GROUP BY species_id", con)
+    con.close()
+    return dict(zip(mc.species_id.astype(int), mc.c))
+
+
+def municipal_tables(ctx):
+    out = {}
+    for purpose in mt.PURPOSES:
+        st = pal.species_stats(ctx.S, ctx.P[purpose], mt.CFG["s_min"])
+        st.insert(0, "species_id", ctx.species.species_id.to_numpy())
+        out[purpose] = st.sort_values(["score", "species_id"], ascending=[False, True]).reset_index(drop=True)
+    return out
+
+
+class View:
+    """The data seen with include_unzoned=false: squares outside the zoning map are not planting squares, exactly as before zoning_status existed.
+    Whatever depends on the set of scored squares is held here; everything else (species, sources, outlines, field database ...) is read from the base data object."""
+    def __init__(self, base):
+        object.__setattr__(self, "_base", base)
+
+    def __getattr__(self, name):
+        return getattr(self._base, name)
+
+
+def confirmed_view(base):
+    cfg = base.cfg
+    v = View(base)
+    keep = (base.ctx.sites.zoning_status == "confirmed").to_numpy()
+    v.include_unzoned, v.zoning_on, v.unconf_idx = False, False, []
+    v.ctx = rp.confirmed_only(base.ctx)
+    v.tree_legal = cKDTree(v.ctx.sites[["utm_e", "utm_n"]].to_numpy(dtype=float))
+    v.legal_index = {int(p): i for i, p in enumerate(v.ctx.sites.point_id)}
+    v.point_index = v.legal_index
+    v.point_barangay, v.point_zone = base.point_barangay[keep], base.point_zone[keep]
+    v.mean_conf = mean_confidence(base, v.ctx)
+    v.municipal = municipal_tables(v.ctx)
+    v.boundaries_body, v.boundaries_info = build_boundaries(base.gs, base.barangay_names, base.barangay_display, v.point_barangay, cfg)
+    v.zones_body, v.zone_bbox = base.zones_body, base.zone_bbox        # zones hold confirmed squares only: identical in both views
+    v.grid_cache, v.multi_cache, v.areas_cache = {}, OrderedDict(), OrderedDict()
+    v.context_body = build_context_body(v)
+    _refresh_one(v)
+    return v
+
+
 def load_data(cfg=None):
     cfg = API_CFG if cfg is None else cfg
     root = ROOT / cfg["data_dir"]
-    ctx = mt.load_context(root)
+    ctx = rp.load_context(root, include_unzoned=True)                  # confirmed + unconfirmed squares; the confirmed-only view is derived below
     sources = pd.read_csv(root / "species_sources.csv")
     refs = pd.read_csv(root / "species_references.csv")
     ps = pd.read_csv(root / "purpose_scores.csv")
     all_points = pd.read_csv(root / "site_points_clean.csv")
+    if "zoning_status" not in all_points:                              # data made before zoning_status existed: derive it (confirmed = legal zone; no unconfirmed squares were scored)
+        all_points["zoning_status"] = np.where(all_points.is_legal_zone.astype(bool), "confirmed", "excluded")
     d = SimpleNamespace(cfg=cfg, root=root, work=root, ctx=ctx, sources=sources, refs=refs, purpose_scores=ps, all_points=all_points)
+    d.include_unzoned = True
+    d.zoning_on = bool((ctx.sites.zoning_status == "unconfirmed").any())          # False on older data: the switch then has nothing to do
+    d.unconf_idx = np.where((ctx.sites.zoning_status == "unconfirmed").to_numpy())[0].tolist()
     d.tree_all = cKDTree(all_points[["utm_e", "utm_n"]].to_numpy(dtype=float))
     d.tree_legal = cKDTree(ctx.sites[["utm_e", "utm_n"]].to_numpy(dtype=float))
     d.legal_index = {int(p): i for i, p in enumerate(ctx.sites.point_id)}
@@ -570,19 +715,9 @@ def load_data(cfg=None):
     con.close()
     d.dataset = {k: py(x) for k, x in v.iloc[0].to_dict().items()} if len(v) else {}
     d.is_db = ctx.scores_path.suffix == ".db"
-    if d.is_db:
-        con = sqlite3.connect(ctx.scores_path)
-        mc = pd.read_sql_query("SELECT species_id, AVG(confidence) AS c FROM site_scores GROUP BY species_id", con)
-        con.close()
-        d.mean_conf = dict(zip(mc.species_id.astype(int), mc.c))
-    else:
-        d.mean_conf = {}
+    d.mean_conf = mean_confidence(d, ctx)
     # municipal ranking per purpose (cheap, computed once)
-    d.municipal = {}
-    for purpose in mt.PURPOSES:
-        st = pal.species_stats(ctx.S, ctx.P[purpose], mt.CFG["s_min"])
-        st.insert(0, "species_id", ctx.species.species_id.to_numpy())
-        d.municipal[purpose] = st.sort_values(["score", "species_id"], ascending=[False, True]).reset_index(drop=True)
+    d.municipal = municipal_tables(ctx)
     # barangays
     import geopandas as gpd
     g = gpd.read_file(ROOT / cfg["barangay_shp"])
@@ -607,6 +742,7 @@ def load_data(cfg=None):
     d.geo = SimpleNamespace(lock=threading.Lock(), last=None, clock=time.monotonic, sleep=time.sleep)
     d.plan_index_cache = OrderedDict()
     d.species_months = [pal.parse_months(v) for v in ctx.species.planting_months]      # {5, 6, 7} or None (never guessed)
+    d.gs = gs
     d.boundaries_body, d.boundaries_info = build_boundaries(gs, d.barangay_names, d.barangay_display, d.point_barangay, cfg)
     d.barangay_keys = [norm_place(n, cfg["place_aliases"]) for n in d.barangay_names]
     d.barangay_bbox = [f["properties"]["bbox"] for f in json.loads(d.boundaries_body)["features"][1:]]
@@ -616,15 +752,20 @@ def load_data(cfg=None):
     d.grid_cache = {}
     d.multi_cache = OrderedDict()
     d.areas_cache = OrderedDict()
+    d.context_body = build_context_body(d)
     from shapely.geometry import shape as _shape
     d.muni_geom = _shape(json.loads(d.boundaries_body)["features"][0]["geometry"]).buffer(fv.CFG["municipality_buffer_deg"])
     d.point_index = d.legal_index
     d.field_db = ROOT / cfg["field_db"]
     fv.connect(d.field_db).close()                                    # creates data/field/ and the table on the first start
     refresh_field(d)
-    for purpose in mt.PURPOSES:
-        grid_body(d, purpose, None)
-    return d
+    d.views = {True: d, False: d}
+    if d.zoning_on:
+        d.views[False] = confirmed_view(d)
+    for v in {id(x): x for x in d.views.values()}.values():
+        for purpose in mt.PURPOSES:
+            grid_body(v, purpose, None)
+    return d.views[bool(cfg["include_unzoned"])]                        # app.state.data is the DEFAULT view; the other one is reached through ?include_unzoned=
 
 
 @asynccontextmanager
@@ -638,8 +779,13 @@ app.add_middleware(CORSMiddleware, allow_origins=API_CFG["cors_origins"], allow_
                    allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
 
 
-def D(request: Request):
-    return request.app.state.data
+def D(request: Request, include_unzoned: Optional[bool] = Query(None, description="true: squares outside the zoning map are planting squares too (scored, flagged zoning_unconfirmed); "
+                                                                                 "false: confirmed legal zones only, exactly as before. Default: API_CFG include_unzoned")):
+    d = request.app.state.data
+    views = getattr(d, "views", None)
+    if not views:
+        return d
+    return views[bool(d.cfg["include_unzoned"] if include_unzoned is None else include_unzoned)]
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -838,7 +984,7 @@ def health(d=Depends(D)):
             "dataset": d.dataset, "scores_file": str(ctx.scores_path.relative_to(ROOT)) if ctx.scores_path.is_relative_to(ROOT) else str(ctx.scores_path),
             "counts": {"species": len(ctx.species), "grid_points": len(d.all_points), "legal_points": len(ctx.sites),
                        "species_point_scores": int(ctx.S.size), "sources": len(d.sources), "barangays": len(d.places)},
-            "purposes": list(mt.PURPOSES), "limits": LIMITS,
+            "purposes": list(mt.PURPOSES), "limits": limits_of(d),
             "field_checks": {"events": d.field_n_events, "points_checked": len(d.field_current), "left_out_of_rankings": len(d.field_ex_ids),
                              "exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"])}}
 
@@ -904,7 +1050,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
         raise HTTPException(404, f"The nearest grid point is {dist:.0f} m away (limit {d.cfg['nearest_point_max_m']:.0f} m): "
                                  "the coordinate is outside the mapped area of San Mateo.")
     pt = d.all_points.iloc[int(i)]
-    if not bool(pt.is_legal_zone):
+    if int(pt.point_id) not in d.legal_index:
         zone = py(pt.zone_desc) or "outside the zoning map"
         raise HTTPException(404, f"The nearest grid point (id {int(pt.point_id)}, {dist:.0f} m away) is not in a legal planting zone ({zone}); no ranking is given.")
     j = d.legal_index[int(pt.point_id)]
@@ -913,6 +1059,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
         raise HTTPException(404, f"This point (id {int(pt.point_id)}) was marked not plantable in the field ({c['reason']}) by {c['observer']} on {c['observed_at'][:10]}"
                                  f"{': ' + c['note'] if c['note'] else ''}. It is left out of the ranking. Its history: GET /field-checks/{int(pt.point_id)}.")
     S_row, P = d.ctx.S[j], d.ctx.P[purpose]
+    unconf = bool(d.zoning_on and pt.zoning_status == "unconfirmed")
     W, feas = mt.weights(S_row[None, :], P)
     pairs = pair_rows(d, pt.point_id)
     items = []
@@ -928,7 +1075,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
     for rnk, (el, w, s, k, sid, conf, bd) in enumerate(items[:limit], 1):
         terms = {t: {"value": v["value"], "weight": v["weight"], "sources": [source(d, x) for x in v["src"]]} for t, v in bd.get("terms", {}).items()}
         out.append({"rank": rnk, "species_id": sid, "common_name": d.ctx.species.common_name.iloc[k], "S": round(s, 4), "P": round(float(P[k]), 4),
-                    "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf),
+                    "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []),
                     "site_breakdown": {"gate_failed": bd.get("gate_failed", []), "terms": terms},
                     "purpose_breakdown": purpose_breakdown(d, sid, purpose),
                     **({"season": season_object(d.species_months[k], season)} if season is not None else {})})
@@ -937,9 +1084,12 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                       "distance_m": round(float(dist), 1), "zone": py(pt.zone_desc), "elev_m": py(pt.elev_m), "slope_pct": py(pt.slope_pct),
                       "slope_method": py(pt.slope_method), "soil_texture_legacy": py(pt.soil_texture_legacy),
                       "soil_mapping_status": py(pt.soil_mapping_status),
+                      **({"zoning_status": py(pt.zoning_status),
+                          "zoning_note": ((f"{pt.zone_desc}: confirm with the LGU before planting" if isinstance(pt.zone_desc, str) else "Land outside the zoning map: confirm with the LGU before planting")
+                                          if unconf else "Inside a legal planting zone")} if d.zoning_on else {}),
                       "site_inputs_source": "backend/Working_Points.csv (elevation, soil code); slope by finite differences on elevation; soil texture = legacy mapping (unverified)"},
             "species_eligible": int(sum(t[0] for t in items)), "species_total": n_all, "returned": len(out), "ranking": out,
-            "limits": LIMITS, "w_definition": "W = S x P if S >= 0.50 else 0", **field_extra(d, int(pt.point_id)), **season_extra(d, season),
+            "limits": limits_of(d), "w_definition": "W = S x P if S >= 0.50 else 0", **field_extra(d, int(pt.point_id)), **season_extra(d, season),
             **({"left_out_by_field_check": True} if d.ex_mask[j] else {})}
 
 
@@ -960,7 +1110,7 @@ def rank_municipal(purpose: Purpose, limit: int = Query(API_CFG["municipal_defau
                       "flags": ctx.species_flags.get(sid, []), "source_ids": {"site_score": s_ids, "purpose_score": p_ids}})
     return {"purpose": purpose, "legal_points": len(ctx.sites), "species_total": len(ctx.species), "returned": len(items),
             "score_definition": "species_score = mean W over points where S >= 0.50, times the share of points where S >= 0.50",
-            "ranking": items, "sources": sources_map(d, ids), "limits": LIMITS}
+            "ranking": items, "sources": sources_map(d, ids), "limits": limits_of(d)}
 
 
 @app.get("/search/species")
@@ -1022,8 +1172,9 @@ def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: flo
         return {"purpose": purpose, "query": {"lat": lat, "lon": lon}, "already_viable": already, "search_ring": ring,
                 "ring_step_m": cfg["ring_step_m"], "distance_m": round(float(dist), 1),
                 "direction": None if already else compass(r.utm_e - e, r.utm_n - n),
-                "point": {"point_id": int(r.point_id), "lon": py(r.lon), "lat": py(r.lat), "utm_e": py(r.utm_e), "utm_n": py(r.utm_n), "zone": py(r.zone_desc)},
-                "best_species": b, "sources": sources_map(d, ids), "limits": LIMITS, **season_extra(d, season)}
+                "point": {"point_id": int(r.point_id), "lon": py(r.lon), "lat": py(r.lat), "utm_e": py(r.utm_e), "utm_n": py(r.utm_n), "zone": py(r.zone_desc),
+                          **({"zoning_status": py(r.zoning_status)} if d.zoning_on else {})},
+                "best_species": b, "sources": sources_map(d, ids), "limits": limits_of(d), **season_extra(d, season)}
 
     dist, i = d.tree_all.query([e, n])
     if dist <= cfg["nearest_point_max_m"]:                           # the spot itself
@@ -1042,12 +1193,41 @@ def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: flo
     raise HTTPException(404, f"No point with an eligible species (S >= 0.50) was found within {cfg['ring_max_m']:.0f} m of this spot.")
 
 
+CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+class CampaignIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80, description="campaign name, 1 to 80 characters")
+    unit: Optional[str] = Field(None, max_length=80, description="assigned unit (free text, up to 80 characters)")
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("the campaign name cannot be empty")
+        if CONTROL_CHARS.search(v):
+            raise ValueError("the campaign name cannot contain control characters")
+        return v
+
+    @field_validator("unit")
+    @classmethod
+    def _unit(cls, v):
+        v = (v or "").strip()
+        if CONTROL_CHARS.search(v):
+            raise ValueError("the assigned unit cannot contain control characters")
+        return v
+
+
 class PlanRequest(BaseModel):
     purpose: Purpose
     n_saplings: int = Field(ge=API_CFG["plan_min_saplings"], le=API_CFG["plan_max_saplings"])
     polygon: Optional[dict] = Field(None, description="GeoJSON Polygon / MultiPolygon (or a Feature holding one), lon/lat")
     zone: Optional[str] = Field(None, description="zone_desc, e.g. 'Forest Zone'")
+    barangay: Optional[str] = Field(None, description="barangay name (as written, or the display name, e.g. 'Santa Ana')")
     seed: Optional[int] = None
+    campaign: Optional[CampaignIn] = Field(None, description="campaign name and assigned unit, saved with the plan")
+    species_ids: Optional[list[int]] = Field(None, min_length=1, max_length=60, description="plan with only these species (caps are relaxed to the minimum needed)")
 
 
 def polygon_mask(sites, polygon, max_vertices):
@@ -1066,6 +1246,16 @@ def polygon_mask(sites, polygon, max_vertices):
     return shapely.contains_xy(g, sites.lon.to_numpy(), sites.lat.to_numpy())
 
 
+def campaign_info(s):
+    """The campaign of a saved plan. A plan made before campaigns existed has no name/unit: they come back as null and are listed in `missing` (never an error)."""
+    c, se = s.get("campaign"), s.get("season") or {}
+    start = (c or {}).get("start") or se.get("start")
+    end = (c or {}).get("end") or se.get("end")
+    out = {"status": "saved" if c else "missing", "name": c["name"] if c else None, "unit": c.get("unit", "") if c else None, "start": start, "end": end}
+    out["missing"] = [k for k in ("name", "unit", "start", "end") if out[k] is None]
+    return out
+
+
 def render_plan(d, plan, summary, plan_id=None, extra=None):
     """The JSON shown for a plan (a fresh one from POST /plan-event or a saved one from GET /plans/{id})."""
     purpose = summary["purpose"]
@@ -1079,8 +1269,8 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
     refs = {pid: ref for ref, pid in fv.plan_point_refs(plan, d.ctx.species).items()}
     for it in items:
         ref = refs[it["point_id"]]
-        j = d.legal_index.get(it["point_id"])
-        b = int(d.point_barangay[j]) if j is not None else -1
+        j = d.allpt_index.get(it["point_id"])                          # all grid squares (a saved plan may hold squares the current view does not score)
+        b = int(d.allpt_barangay[j]) if j is not None else -1
         it.update({"point_ref": ref, "species_code": ref.split("-")[0], "barangay": d.barangay_names[b] if b >= 0 else "",
                    "barangay_display": d.barangay_display[b] if b >= 0 else ""})
     palette = []
@@ -1095,7 +1285,8 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
            "unmatched": {"saplings_unmatched": summary["saplings_unmatched"], "saplings_unallocated_by_caps": summary["saplings_unallocated"],
                          "unused_candidate_points": summary["unused_candidate_points"],
                          "unmatched_by_species": {n: p["unmatched"] for n, p in pal_by_name.items() if p["unmatched"]}},
-           "sources": sources_map(d, ids), "limits": list(dict.fromkeys(summary.get("limits", []) + LIMITS))}
+           "sources": sources_map(d, ids), "limits": list(dict.fromkeys(summary.get("limits", []) + limits_of(d))),
+           "campaign": campaign_info(summary), "n_species": len(summary["palette"]), "n_placed": summary["saplings_placed"]}
     if extra:
         out.update(extra)
     return out
@@ -1147,20 +1338,33 @@ def save_plan(d, purpose, plan, summary):
     return f.stem, f, sj
 
 
-@app.post("/plan-event")
-def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
+def plan_scope(d, req, season, strict=True):
+    """The planting squares and species a plan request can use: the area (barangay / zone / polygon), the season rules, the field-check exclusions and the chosen species.
+    strict=True raises the plain-words 4xx errors of POST /plan-event; strict=False (the preview) reports an empty season in `empty` instead."""
     ctx = d.ctx
-    seed = d.cfg["default_seed"] if req.seed is None else req.seed
     if req.zone:
         zones = {z.strip().lower() for z in ctx.sites.zone_desc.dropna()}
         if req.zone.strip().lower() not in zones:
             raise HTTPException(400, f"Unknown zone '{req.zone}'. Legal zones: {sorted(ctx.sites.zone_desc.dropna().unique())}")
     sub = ctx
+    mask = np.ones(len(ctx.sites), dtype=bool)
+    area = {"type": "zone" if req.zone else "municipality", "name": req.zone or "San Mateo", "display_name": req.zone or "The whole municipality"}
+    if req.barangay is not None:
+        b_ = find_barangay(d, req.barangay)
+        if b_ is None:
+            raise HTTPException(400, f"Unknown barangay '{req.barangay}'. Barangays: {', '.join(d.barangay_display)}")
+        mask &= d.point_barangay == b_
+        area = {"type": "barangay", "name": d.barangay_names[b_], "display_name": d.barangay_display[b_] + (f", {req.zone}" if req.zone else "")}
     if req.polygon is not None:
         m = polygon_mask(ctx.sites, req.polygon, d.cfg["polygon_max_vertices"])
         if not m.any():
             raise HTTPException(400, "The polygon contains no legal-zone grid points (it may lie outside San Mateo or only cover non-planting zones).")
-        sub = dataclasses.replace(ctx, sites=ctx.sites[m].reset_index(drop=True), S=ctx.S[m])
+        mask &= m
+        area = {"type": "polygon", "name": "Drawn area", "display_name": "Drawn area" + (f", {req.zone}" if req.zone else "")}
+    if not mask.any():
+        raise HTTPException(400, "The area contains no planting-zone grid points.")
+    if req.barangay is not None or req.polygon is not None:
+        sub = dataclasses.replace(ctx, sites=ctx.sites[mask].reset_index(drop=True), S=ctx.S[mask])
     excluded_in_area = 0
     if d.field_ex_ids:                                                # points marked not plantable in the field are never planned
         gone = sub.sites.point_id.isin(d.field_ex_ids).to_numpy()
@@ -1170,27 +1374,87 @@ def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
             sub = dataclasses.replace(sub, sites=sub.sites[~gone].reset_index(drop=True), S=sub.S[~gone])
         if len(sub.sites) == 0:
             raise HTTPException(400, "Every planting point of this area is marked not plantable in the field, so no plan can be made.")
-    season = q_season
+    ids_req = list(dict.fromkeys(req.species_ids)) if req.species_ids else None
+    if ids_req:
+        unknown = [i for i in ids_req if i not in d.species_idx]
+        if unknown:
+            raise HTTPException(404, f"species_id {unknown} not found (valid ids: {int(ctx.species.species_id.min())}-{int(ctx.species.species_id.max())}). Choose species from the species list.")
     drop = season_drop_ids(d, season)
+    ids_kept, removed, empty, message = ids_req, [], None, ""
+    if ids_req and drop:
+        removed = [i for i in ids_req if i in drop]
+        ids_kept = [i for i in ids_req if i not in drop]
     if drop:                                                          # season_filter=only: species out of season are left out, planting months cut to the window
         sub = season_ctx(sub, season, drop)
         if len(sub.species) == 0:
-            raise HTTPException(400, f"Every species is out of season between {day_text(season.start)} and {day_text(season.end)}, so no plan can be made. "
-                                     "Change the dates, or send season_filter=mark to plan anyway and see the season labels.")
+            empty = "no_species_in_season"
+            message = (f"Every species is out of season between {day_text(season.start)} and {day_text(season.end)}, so no plan can be made. "
+                       "Change the dates, or send season_filter=mark to plan anyway and see the season labels.")
+        elif ids_req and not ids_kept:
+            empty = "chosen_species_outside_best_months"
+            message = (f"None of your chosen species can be planted between {day_text(season.start)} and {day_text(season.end)} (all are outside their best months). "
+                       "Change the dates, choose other species, or send season_filter=mark.")
+    if empty and strict:
+        raise HTTPException(400, message)
+    return SimpleNamespace(sub=sub, season=season, drop=drop, excluded_in_area=excluded_in_area, ids_req=ids_req, ids_kept=ids_kept, removed=removed, area=area,
+                           empty=empty, message=message)
+
+
+@app.post("/plan-event/preview")
+def plan_preview(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
+    """What a plan request could use, WITHOUT creating or saving anything: suitable squares in the area, species available, field-check exclusions and whether a plan can be made."""
+    sc = plan_scope(d, req, q_season, strict=False)
+    sub, n = sc.sub, int(req.n_saplings)
+    smin = mt.CFG["s_min"]
+    cols = [k for k, sid in enumerate(sub.species.species_id.astype(int)) if sc.ids_kept is None or sid in set(sc.ids_kept)]
+    suitable = int((sub.S[:, cols] >= smin).any(axis=1).sum()) if cols else 0
+    species_available = int((sub.S[:, cols] >= smin).any(axis=0).sum()) if cols else 0
+    can, reason, message = True, "", ""
+    if sc.empty:
+        can, reason, message = False, sc.empty, sc.message
+    elif suitable == 0:
+        can, reason, message = False, "no_suitable_squares", "No square of this area is suitable (S >= 0.50) for the species available, so no plan can be made."
+    return {"can_create": can, "reason": reason, "message": message,
+            "area": {**sc.area, "candidate_squares": int(len(sub.sites)), "suitable_squares": suitable},
+            "capacity": {"n_saplings": n, "max_placeable": suitable, "short": n > suitable,
+                         "message": (f"Only {suitable} suitable squares: at most {suitable} trees can be placed" if 0 < suitable < n else "")},
+            "species": {"mode": "chosen" if sc.ids_req else "auto", "requested": sc.ids_req, "removed_by_season": sc.removed, "available": species_available,
+                        "total": int(len(d.ctx.species))},
+            "excluded_by_field_checks": sc.excluded_in_area,
+            **season_extra(d, q_season, sc.ids_req)}
+
+
+@app.post("/plan-event")
+def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
+    seed = d.cfg["default_seed"] if req.seed is None else req.seed
+    season = q_season
+    sc = plan_scope(d, req, season, strict=True)
+    sub = sc.sub
     try:
-        plan, summary = rp.make_plan(sub, req.purpose, req.n_saplings, zone=req.zone, seed=seed)
+        plan, summary = rp.make_plan(sub, req.purpose, req.n_saplings, zone=req.zone, seed=seed, species_ids=sc.ids_kept)
     except ValueError as ex:
         raise HTTPException(400, f"{ex}" + (" (the zone has no legal points inside the polygon)" if req.zone and req.polygon is not None else ""))
     if not summary["palette"]:
+        if sc.ids_req:
+            raise HTTPException(400, "None of your chosen species can be planted in this area (no planting square has a suitability of 0.50 or more for them, or they share no "
+                                     "planting month). Choose other species or another area. " + " ".join(summary["palette_warnings"]).strip())
         raise HTTPException(400, "No species has eligible points (S >= 0.50) in this area, so no plan can be made. "
                                  f"{' '.join(summary['palette_warnings'])}".strip())
+    summary["area_choice"] = sc.area
     if season is not None:
         summary["season"] = plan_season(d, season, summary)
         for p_ in summary["palette"]:
             p_["season"] = season_object(d.species_months[d.species_idx[p_["species_id"]]], season)
-    summary["field_checks"] = {"exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"]), "excluded_points": excluded_in_area,
+    if req.campaign is not None:
+        summary["campaign"] = {"name": req.campaign.name, "unit": req.campaign.unit or "", "start": season.start.isoformat() if season else None,
+                               "end": season.end.isoformat() if season else None}
+    if sc.ids_req:
+        summary.setdefault("species_selection", {})["species_ids_removed_by_season"] = sc.removed
+    summary["field_checks"] = {"exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"]), "excluded_points": sc.excluded_in_area,
                                "note": "Points whose latest field check is not_plantable were left out of this plan." if d.cfg["field_exclude_not_plantable"]
                                else "The field-check switch is off: not_plantable points were NOT left out."}
+    if d.zoning_on:                                                   # how many placed trees stand on land outside the zoning map
+        summary["zoning"] = rp.zoning_block(True, plan)
     plan = field_flags_for_plan(d, plan)
     plan_id, f, sj = save_plan(d, req.purpose, plan, summary)
     return render_plan(d, plan, summary, plan_id,
@@ -1216,6 +1480,7 @@ def plans_list(limit: int = Query(API_CFG["plans_list_default_limit"], ge=1, le=
                 else datetime.fromtimestamp(sj.stat().st_mtime).isoformat(timespec="seconds"))
         items.append({"plan_id": plan_id, "purpose": s.get("purpose"), "n_saplings_requested": s.get("n_saplings_requested"),
                       "n_placed": s.get("saplings_placed"), "n_unmatched": s.get("saplings_unmatched"), "date": when,
+                      "campaign": campaign_info(s), "n_species": len(s.get("palette") or []),
                       "field_kit_built": kit_zip_path(d, plan_id).is_file()})
     items.sort(key=lambda x: (x["date"], x["plan_id"]), reverse=True)
     return {"count": len(items[:limit]), "total_saved": len(items), "plans": items[:limit]}
@@ -1243,6 +1508,27 @@ def build_field_kit(plan_id: str, d=Depends(D)):
     pdf_ok = (r["kit_dir"] / "field-map.pdf").is_file()
     return {"plan_id": plan_id, "check_code": r["check_code"], "download_url": f"/kits/{plan_id}.zip", "zip_size_bytes": r["zip"].stat().st_size,
             "pdf_included": pdf_ok, "pdf_note": None if pdf_ok else (r["pdf_note"] or "field-map.pdf was not built"), "manifest": r["manifest"]}
+
+
+@app.get("/plans/{plan_id}/field-kit")
+def field_kit_info(plan_id: str, d=Depends(D)):
+    """Does this plan have a field kit? When it does: when it was built, its size, its check code and whether the PDF map is inside (read from the zip, nothing is rebuilt)."""
+    plan_files(d, plan_id)                                             # strict plan id, 404 if the plan does not exist
+    path = kit_zip_path(d, plan_id)
+    if not path.is_file():
+        return {"plan_id": plan_id, "built": False, "download_url": None, "note": f"No field kit has been built for this plan yet (POST /plans/{plan_id}/field-kit)."}
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+            man = next((n for n in names if n.endswith("manifest.json")), None)
+            manifest = json.loads(z.read(man).decode("utf-8")) if man else {}
+    except (zipfile.BadZipFile, ValueError, OSError):
+        raise HTTPException(500, "The saved field kit could not be read. Build it again.")
+    pdf = any(n.endswith("field-map.pdf") for n in names)
+    return {"plan_id": plan_id, "built": True, "built_at": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"), "built_on": manifest.get("built_on"),
+            "zip_size_bytes": path.stat().st_size, "check_code": manifest.get("check_code"), "pdf_included": pdf,
+            "pdf_note": None if pdf else "field-map.pdf is not in this kit (it was skipped when the kit was built, for example because matplotlib is missing)",
+            "files": sorted(n.rsplit("/", 1)[-1] for n in names if not n.endswith("/")), "download_url": f"/kits/{plan_id}.zip"}
 
 
 @app.get("/kits/{filename}")
@@ -1286,6 +1572,264 @@ def advisory_seasonal(species_id: int, lat: float = Query(ge=-90, le=90), lon: f
             "network_error": fc["network_error"], **out, "sources": sources_map(d, ids)}
 
 
+def span_text(a, b):
+    """'1 May - 29 Jun 2027' (both years when the span crosses a year end)."""
+    if a.year != b.year:
+        return f"{day_text(a)} {a.year} - {day_text(b)} {b.year}"
+    return f"{day_text(a)} - {day_text(b)} {b.year}"
+
+
+def window_vs_forecast(win, rows):
+    """How the plan's planting dates relate to the forecast days. Returns (covered, overlap or None, plain message). covered = the dates and the forecast share at least one day."""
+    n = adv.CFG["forecast_days"]
+    if win is None:
+        return None, None, f"This plan has no planting dates saved, so the advice cannot be compared with them. It is for the next {n} days only."
+    if not rows:
+        return False, None, f"The forecast has no days, so your planting dates ({span_text(*win)}) cannot be compared with it."
+    fs, fe = date.fromisoformat(rows[0]["date"]), date.fromisoformat(rows[-1]["date"])
+    ws, we = win
+    label = span_text(ws, we)
+    if ws > fe:
+        return False, None, f"Your planting dates ({label}) are beyond the {n}-day forecast. The advice below is for the next {n} days only."
+    if we < fs:
+        return False, None, f"Your planting dates ({label}) have already passed. The advice below is for the next {n} days only."
+    lo, hi = max(ws, fs), min(we, fe)
+    if ws >= fs and we <= fe:
+        return True, {"start": lo.isoformat(), "end": hi.isoformat()}, f"The {n}-day forecast covers all of your planting dates ({label})."
+    return True, {"start": lo.isoformat(), "end": hi.isoformat()}, (f"The {n}-day forecast covers {span_text(lo, hi)} of your planting dates ({label}). "
+                                                                      "The rest is outside the forecast, so the advice below is for the next "
+                                                                      f"{n} days only.")
+
+
+@app.get("/plans/{plan_id}/advisory")
+def plan_advisory(plan_id: str, d=Depends(D)):
+    """Weather advice for a saved plan: ONE forecast for the centre of the planned trees, compared with the plan's planting dates, and the warnings of every species of the plan."""
+    csv, js = plan_files(d, plan_id)
+    plan = pd.read_csv(csv)
+    summary = json.loads(js.read_text(encoding="utf-8"))
+    lat, lon = round(float(plan.lat.mean()), 6), round(float(plan.lon.mean()), 6)
+    try:
+        fc = adv.fetch_forecast(lat, lon, d.work / d.cfg["cache_dir"])
+    except adv.ForecastUnavailable as ex:
+        raise HTTPException(503, str(ex))
+    today = adv.today_local()
+    rows = adv.forecast_table(fc["daily"], today)
+    camp = campaign_info(summary)
+    win = None
+    if camp["start"] and camp["end"]:
+        try:
+            win = (date.fromisoformat(camp["start"]), date.fromisoformat(camp["end"]))
+        except ValueError:
+            win = None
+    covered, overlap, wmsg = window_vs_forecast(win, rows)
+    window = {"months": window_month_list(*win), "label": span_text(*win)} if win else None
+    codes = {}
+    for it in plan_index(d, plan_id):
+        codes.setdefault(it["species_id"], it["species_code"])
+    sp_out, n_warn = [], 0
+    for p_ in summary["palette"]:
+        if p_.get("placed", 0) <= 0:
+            continue
+        i = d.species_idx[p_["species_id"]]
+        row = d.ctx.species.iloc[i]
+        a = adv.build_advisory({"species_id": p_["species_id"], "common_name": row.common_name, "planting_months": py(row.planting_months), "drought_tol": py(row.drought_tol)},
+                               fc, today, window=window)
+        n_warn += len(a["warnings"])
+        sp_out.append({"species_id": p_["species_id"], "common_name": row.common_name, "code": codes.get(p_["species_id"]), "planted": p_["placed"],
+                       "warnings": a["warnings"], "not_assessed": a["not_assessed"]})
+    k = adv.CFG["dry_spell_days"]
+    first = rows[:k]
+    rain7 = round(sum(r["rain_mm"] for r in first), 1) if len(first) == k and all(r["rain_mm"] is not None for r in first) else None
+    known = [r for r in rows if r["rain_mm"] is not None]
+    wettest = max(known, key=lambda r: r["rain_mm"]) if known else None
+    tmax = [r["tmax_c"] for r in rows if r["tmax_c"] is not None]
+    tmin = [r["tmin_c"] for r in rows if r["tmin_c"] is not None]
+    enso = {"status": adv.CFG["enso_status"], "source": adv.CFG["enso_source"], "note": "Set by hand in the configuration; the weather forecast cannot tell us this.",
+            "is_default": adv.CFG["enso_status"] == "none" and str(adv.CFG["enso_source"]).startswith("not set")}
+    return {"plan_id": plan_id, "location": {"lat": lat, "lon": lon, "note": "the centre of the planned trees"},
+            "window": ({"start": win[0].isoformat(), "end": win[1].isoformat(), "label": span_text(*win)} if win else None),
+            "window_covered_by_forecast": covered, "window_overlap": overlap, "window_message": wmsg,
+            "forecast": {"first_day": rows[0]["date"] if rows else None, "last_day": rows[-1]["date"] if rows else None, "days": len(rows),
+                         "rain_next_days": k, "rain_next_days_mm": rain7, "max_daily_rain_mm": wettest["rain_mm"] if wettest else None,
+                         "max_daily_rain_date": wettest["date"] if wettest else None, "tmax_c_max": max(tmax) if tmax else None, "tmin_c_min": min(tmin) if tmin else None,
+                         "missing_note": ("Some forecast values are missing and were not used." if len(known) < len(rows) or len(tmax) < len(rows) or len(tmin) < len(rows) else "")},
+            "species": sp_out, "n_warnings": n_warn, "enso": enso, "thresholds": {"dry_spell_mm": adv.CFG["dry_spell_mm"], "dry_spell_days": k, "heavy_rain_mm": adv.CFG["heavy_rain_mm"]},
+            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "forecast_fetched_at": fc["fetched_at"], "network_error": fc["network_error"],
+            "forecast_source": adv.SOURCE, "disclaimer": adv.DISCLAIMER}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# GET /weather/week: the next 7 days at one place, a plain verdict for planting that week, and the species to plant (or hold back) for a purpose
+# ---------------------------------------------------------------------------------------------------------------------
+WEEK_VERDICTS = {"good_to_plant": "Good to plant", "plant_with_care": "Plant with care", "avoid_this_week": "Avoid this week", "unknown": "Cannot judge this week"}
+
+
+def week_forecast(fc, today, n):
+    """The forecast restricted to the first n days from today (same shape as fetch_forecast gives, so adv.build_advisory judges THIS week only)."""
+    t = fc["daily"]["time"]
+    idx = []
+    for i, ds in enumerate(t):
+        try:
+            if date.fromisoformat(ds) >= today:
+                idx.append(i)
+        except ValueError:
+            continue
+    idx = idx[:n]
+    daily = {k: ([v[i] if i < len(v) else None for i in idx] if isinstance(v, list) else v) for k, v in fc["daily"].items()}
+    return {**fc, "daily": daily}
+
+
+def months_text(months):
+    """[5, 6, 7] -> 'May to July'; [5, 7] -> 'May, July'."""
+    names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    ms = sorted(months)
+    if len(ms) >= 3 and ms[-1] - ms[0] == len(ms) - 1:
+        return f"{names[ms[0] - 1]} to {names[ms[-1] - 1]}"
+    return ", ".join(names[m - 1] for m in ms)
+
+
+def week_verdict(days, c):
+    """good_to_plant | plant_with_care | avoid_this_week | unknown, from the existing thresholds (heavy rain in one day, dry spell over the week), with the numbers behind it."""
+    n, heavy_mm, dry_mm = c["dry_spell_days"], c["heavy_rain_mm"], c["dry_spell_mm"]
+    known = [r for r in days if r["rain_mm"] is not None]
+    thresholds = {"heavy_rain_mm": heavy_mm, "dry_spell_mm": dry_mm, "dry_spell_days": n}
+    total = round(sum(r["rain_mm"] for r in known), 1) if len(days) == n and len(known) == n else None
+    heavy = [r for r in known if r["rain_mm"] > heavy_mm]
+    if heavy:
+        worst = max(heavy, key=lambda r: r["rain_mm"])
+        code = "avoid_this_week"
+        reasons = [{"code": "heavy_rain", "message": f"Heavy rain is forecast: up to {worst['rain_mm']:g} mm on {day_text(date.fromisoformat(worst['date']))} (threshold {heavy_mm:g} mm in one day).",
+                    "numbers": {"max_daily_rain_mm": worst["rain_mm"], "date": worst["date"], "threshold_mm": heavy_mm,
+                                "days_above_threshold": [{"date": r["date"], "rain_mm": r["rain_mm"]} for r in heavy]}}]
+    elif not known:
+        code, reasons = "unknown", [{"code": "no_rain_values", "message": "The forecast has no rain values for this week, so it cannot be judged.", "numbers": {}}]
+    elif total is None:
+        code = "unknown"
+        reasons = [{"code": "rain_values_missing", "message": f"The forecast has rain values for only {len(known)} of the {n} days, so the week cannot be judged "
+                                                            "(no day is above the heavy-rain threshold, but the dry-spell check needs every day).",
+                    "numbers": {"days_with_rain_value": len(known), "days_needed": n, "heavy_rain_mm": heavy_mm}}]
+    elif total < dry_mm:
+        code = "plant_with_care"
+        reasons = [{"code": "dry_spell", "message": f"Only {total:g} mm of rain is forecast for the next {n} days (threshold {dry_mm:g} mm): new trees will need watering.",
+                    "numbers": {"forecast_rain_mm": total, "days": n, "threshold_mm": dry_mm}}]
+    else:
+        code = "good_to_plant"
+        reasons = [{"code": "no_warning", "message": f"{total:g} mm of rain is forecast for the next {n} days and no day is above {heavy_mm:g} mm: no dry spell and no heavy rain.",
+                    "numbers": {"forecast_rain_mm": total, "days": n, "dry_spell_mm": dry_mm, "heavy_rain_mm": heavy_mm,
+                                "max_daily_rain_mm": max(r["rain_mm"] for r in known)}}]
+    return {"code": code, "label": WEEK_VERDICTS[code], "reasons": reasons, "thresholds": thresholds}, total
+
+
+@app.get("/weather/week")
+def weather_week(purpose: Purpose, lat: Optional[float] = Query(None, ge=-90, le=90, description="default: the centre of San Mateo"),
+                 lon: Optional[float] = Query(None, ge=-180, le=180, description="default: the centre of San Mateo"), d=Depends(D)):
+    """The next 7 days at one place (ONE forecast request, cached 3 h, saved copy when the network fails), a plain verdict for planting this week with the numbers behind it,
+    and two species lists for the purpose: (a) in their best months this week and not hit by a weather warning, (b) outside their best months but with High drought tolerance
+    ('Only if you can water'). Species with a warning are listed apart as held_back. Ranked by the municipal species score. A planning aid, not a guarantee."""
+    a_ = d.all_points
+    if (lat is None) != (lon is None):
+        raise HTTPException(422, "Send both lat and lon, or neither (then the centre of San Mateo is used).")
+    if lat is None:
+        bb = d.boundaries_info["bbox"]
+        lon, lat = round((bb[0] + bb[2]) / 2, 5), round((bb[1] + bb[3]) / 2, 5)
+        centre = True
+    else:
+        centre = False
+        m = d.cfg["advisory_area_margin_deg"]
+        if not (a_.lat.min() - m <= lat <= a_.lat.max() + m and a_.lon.min() - m <= lon <= a_.lon.max() + m):
+            raise HTTPException(422, "The coordinate is outside the San Mateo area; the weather advice is only offered for the mapped municipality.")
+    try:
+        fc = adv.fetch_forecast(lat, lon, d.work / d.cfg["cache_dir"])
+    except adv.ForecastUnavailable as ex:
+        raise HTTPException(503, str(ex))
+    c = adv.CFG
+    n = c["dry_spell_days"]
+    today = adv.today_local()
+    fc7 = week_forecast(fc, today, n)
+    days = adv.forecast_table(fc7["daily"])
+    verdict, total = week_verdict(days, c)
+    known = [r for r in days if r["rain_mm"] is not None]
+    wettest = max(known, key=lambda r: r["rain_mm"]) if known else None
+    hot = [r for r in days if r["tmax_c"] is not None]
+    hottest = max(hot, key=lambda r: r["tmax_c"]) if hot else None
+    tmin = [r["tmin_c"] for r in days if r["tmin_c"] is not None]
+    missing = len(known) < len(days) or len(hot) < len(days) or len(tmin) < len(days)
+    week = {"first_day": days[0]["date"] if days else None, "last_day": days[-1]["date"] if days else None, "n_days": len(days), "days": days,
+            "rain_total_mm": total, "wettest_day": {"date": wettest["date"], "rain_mm": wettest["rain_mm"]} if wettest else None,
+            "hottest_day": {"date": hottest["date"], "tmax_c": hottest["tmax_c"]} if hottest else None,
+            "tmax_c_max": hottest["tmax_c"] if hottest else None, "tmin_c_min": min(tmin) if tmin else None,
+            "missing_note": ("Some forecast values are missing and were not used." if missing else ""),
+            "short_note": (f"The forecast has only {len(days)} of the next {n} days." if len(days) < n else "")}
+    # ---- species for the week
+    end = today + timedelta(days=max(n - 1, 0))
+    season = SimpleNamespace(start=today, end=end, months=window_month_list(today, end), days=n, filter="mark")
+    window = {"months": season.months, "label": span_text(today, end)}
+    mn = c["month_names"]
+    rank_of = {int(r.species_id): (k, float(r.score)) for k, r in enumerate(d.municipal[purpose].itertuples(index=False), 1)}
+    sp = d.ctx.species
+    items = {"best": [], "water": [], "held_back": []}
+    n_known_months = 0
+    month_counts = {}
+    ids = set()
+    for k, r in enumerate(sp.itertuples(index=False)):
+        sid = int(r.species_id)
+        months = d.species_months[k]
+        if months is None:
+            continue
+        n_known_months += 1
+        for mth in months:
+            month_counts[mth] = month_counts.get(mth, 0) + 1
+        so = season_object(months, season)
+        tol = py(r.drought_tol)
+        a = adv.build_advisory({"species_id": sid, "common_name": r.common_name, "planting_months": py(r.planting_months), "drought_tol": tol}, fc7, today, window=window)
+        warn = [w for w in a["warnings"] if w["code"] != "not_in_planting_window"]
+        best = so["status"] in ("in_season", "partly")
+        water = (not best) and tol == "High"
+        if not (best or water):
+            continue
+        names = ", ".join(mn[m - 1] for m in sorted(months))
+        if best:
+            why = (f"In its best months ({names})." if so["status"] == "in_season" else f"Only part of this week is in its best months ({names}).") + (f" Drought tolerance: {tol}." if tol else "")
+        else:
+            why = f"Outside its best months ({names}) but with High drought tolerance: only if you can water."
+        rk, sc = rank_of[sid]
+        fid = species_field_ids(d, sid, ["months_raw", "drought_tol"])
+        ids |= set(fid)
+        item = {"species_id": sid, "common_name": r.common_name, "rank": rk, "species_score": round(sc, 4), "list": "best_months" if best else "only_if_you_can_water",
+                "label": None if best else "Only if you can water", "reason": why, "season": so, "planting_months_names": [mn[m - 1] for m in sorted(months)], "drought_tol": tol,
+                "warnings": warn, "not_assessed": [x for x in a["not_assessed"] if x["code"] != "not_in_planting_window"],
+                "flags": d.ctx.species_flags.get(sid, []), "source_ids": {f: d.src_by_sf[(sid, f)] for f in ("months_raw", "drought_tol") if (sid, f) in d.src_by_sf}}
+        items["held_back" if warn else ("best" if best else "water")].append(item)
+    for lst in items.values():
+        lst.sort(key=lambda x: (x["rank"], x["species_id"]))
+    half = [m for m, cnt in month_counts.items() if n_known_months and cnt * 2 >= n_known_months]
+    most = {"months": sorted(half), "names": [mn[m - 1] for m in sorted(half)], "text": f"Most are best planted {months_text(half)}." if half else ""}
+    best_total = len(items["best"]) + sum(1 for x in items["held_back"] if x["list"] == "best_months")
+    if items["best"]:
+        e_best = None
+    elif best_total == 0:
+        e_best = {"code": "none_in_best_months", "message": f"No species are in their best months this week. {most['text']}".strip()}
+    else:
+        e_best = {"code": "all_held_back_by_warnings", "message": "Every species in its best months has a weather warning this week. They are listed below under 'Held back'."}
+    water_total = len(items["water"]) + sum(1 for x in items["held_back"] if x["list"] == "only_if_you_can_water")
+    e_water = None if items["water"] else ({"code": "no_drought_tolerant_species_out_of_season", "message": "No species with High drought tolerance is outside its best months this week."}
+                                          if water_total == 0 else {"code": "all_held_back_by_warnings", "message": "Every drought-tolerant species outside its best months has a weather warning this week."})
+    enso = {"status": adv.CFG["enso_status"], "source": adv.CFG["enso_source"], "note": "Set by hand in the configuration; the weather forecast cannot tell us this.",
+            "is_default": adv.CFG["enso_status"] == "none" and str(adv.CFG["enso_source"]).startswith("not set")}
+    return {"purpose": purpose, "include_unzoned": bool(d.include_unzoned), "today": today.isoformat(),
+            "location": {"lat": lat, "lon": lon, "forecast_for_lat": round(lat, c["cache_coord_decimals"]), "forecast_for_lon": round(lon, c["cache_coord_decimals"]),
+                         "note": "the centre of San Mateo" if centre else "the place you chose"},
+            "week": week, "verdict": verdict,
+            "species": {"best_months": {"label": "In their best months this week", "items": items["best"], "count": len(items["best"]), "empty_reason": e_best},
+                        "only_if_you_can_water": {"label": "Only if you can water", "items": items["water"], "count": len(items["water"]), "empty_reason": e_water},
+                        "held_back": items["held_back"], "n_species_total": int(len(sp)), "species_with_planting_months": n_known_months, "most_species_months": most,
+                        "ranking": "Ranked by the municipal species score for this purpose (GET /rank/municipal).",
+                        "week_months": [mn[m - 1] for m in season.months]},
+            "enso": enso, "thresholds": {"dry_spell_mm": c["dry_spell_mm"], "dry_spell_days": n, "heavy_rain_mm": c["heavy_rain_mm"]},
+            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "forecast_fetched_at": fc["fetched_at"], "network_error": fc["network_error"],
+            "forecast_source": adv.SOURCE, "disclaimer": adv.DISCLAIMER, "sources": sources_map(d, ids)}
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # map layers: boundaries and the grid of scored points (both built once at startup and served from memory)
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1324,6 +1868,12 @@ def grid(purpose: Purpose,
     if season is not None:
         body = with_season(body, season_block(d, season, sel))
     return _cached_json(body, d, live=True)
+
+
+@app.get("/grid/context")
+def grid_context(d=Depends(D)):
+    """The 1,837 grid squares that are not planting zones (outside the zoning map, special reserved, industrial, commercial, quarry, landfill), for a faint map layer. Not scored."""
+    return _cached_json(d.context_body, d)
 
 
 @app.get("/geo/zones")
@@ -1426,7 +1976,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(D)):
             "missing": {"marker": miss, "columns": {"mean_site_confidence": f"{miss} = no confidence value available", "p_confidence": f"{miss} = no confidence value available"},
                         "note": "No value is null. In sources, a missing rank is the marker and a missing text is an empty string."},
             "sources": {k: {f: ((miss if f == "rank" else "") if v is None else v) for f, v in src.items()} for k, src in sources_map(d, ids).items()},
-            "limits": LIMITS, **season_extra(d, season)}
+            "limits": limits_of(d), **season_extra(d, season)}
     if season is not None:
         out["mix"]["common_months_in_window"] = [m for m in season.months if m in pal_res["common_months"]]
     return out
@@ -1560,9 +2110,15 @@ def point_card(d, pid):
     card = {"type": "grid_point", "point_id": int(r.point_id), "lon": py(r.lon), "lat": py(r.lat), "utm_e": py(r.utm_e), "utm_n": py(r.utm_n),
             "legal_zone": legal, "zone": py(r.zone_desc) or "", "barangay": d.barangay_names[b] if b >= 0 else "",
             "barangay_display": d.barangay_display[b] if b >= 0 else "", "elev_m": py(r.elev_m), "slope_pct": py(r.slope_pct)}
-    if not legal:
+    unconf = bool(d.zoning_on and r.zoning_status == "unconfirmed")
+    if d.zoning_on:
+        card["zoning_status"] = py(r.zoning_status)
+    if unconf:
+        card["note"] = ((f"This grid point is in the {r.zone_desc} (zoning not confirmed). It is ranked, but confirm with the LGU before planting." if isinstance(r.zone_desc, str) else
+                         "This grid point is outside the zoning map (zoning not confirmed). It is ranked, but confirm with the LGU before planting."))
+    elif not legal:
         card["note"] = "This grid point is not in a legal planting zone, so it has no ranking."
-    elif d.field_current.get(int(pid)) is not None:
+    if (legal or unconf) and d.field_current.get(int(pid)) is not None:
         card["field_check"] = field_view(d, int(pid))
     return card
 

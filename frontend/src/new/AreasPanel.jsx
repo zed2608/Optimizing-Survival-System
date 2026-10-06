@@ -1,5 +1,9 @@
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
+import Icon from './Icon.jsx'
+import ColorLegend from '../v2/components/ColorLegend.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
+import HelpTip from './HelpTip.jsx'
+import ViewSwitch from './ViewSwitch.jsx'
 import { fmt, pct } from '../v2/scale.js'
 
 const MARKER = -1 // the API's documented "no value" marker
@@ -48,7 +52,7 @@ function AreaTable({ title, kind, api, activeKey, onSelect, onPlan }) {
                 <span className="nw-sub">
                   {r.suitable_points} of {r.legal_points} points
                 </span>
-                {r.not_plantable_points > 0 && <span className="nw-sub">✕ {r.not_plantable_points} not plantable (left out)</span>}
+                {r.not_plantable_points > 0 && <span className="nw-sub"><Icon name="close" /> {r.not_plantable_points} not plantable (left out)</span>}
               </td>
             </tr>
           ))}
@@ -59,12 +63,29 @@ function AreaTable({ title, kind, api, activeKey, onSelect, onPlan }) {
 }
 
 // Mode 1: barangays AND zones ranked for the selected species. Clicking a name zooms the map to it and highlights it.
-export default function AreasPanel({ speciesNames, combine, onCombine, byBarangay, byZone, activeKey, onSelect, onPlan, seasonNote, allRemoved }) {
+export default function AreasPanel({ speciesNames, combine, onCombine, byBarangay, byZone, activeKey, onSelect, onPlan, seasonNote, allRemoved, view = 'compact', onView = () => {} }) {
+  const definition = byBarangay.status === 'ok' ? byBarangay.data.score_definition : ''
   const none = !allRemoved && byBarangay.status === 'ok' && byBarangay.data.areas.every((r) => r.suitable_points === 0)
   return (
     <div className="v2 v2-embedded nw-areas">
       <div className="panel-body">
+        <ViewSwitch value={view} onChange={onView} />
         <h2>Where do they grow?</h2>
+        {view === 'full' ? (
+          <div className="nw-fullnote">
+            <div className="muted">Colours: green good, orange moderate, red poor, grey not suitable.</div>
+            <ColorLegend />
+            {definition && <div className="muted">{definition}</div>}
+          </div>
+        ) : (
+          <div className="nw-opt-head">
+            <span className="muted nw-grow">Colours and how the score is worked out</span>
+            <HelpTip label="Colours and the score">
+              <ColorLegend />
+              {definition}
+            </HelpTip>
+          </div>
+        )}
         <p className="muted">
           {speciesNames.length === 1 ? speciesNames[0] : `${speciesNames.length} species`} · {combine === 'all' ? 'must suit all selected' : 'suits at least one'}.
           Mean W is the average score over all planting-zone points of the area (0 where a point is not suitable). Click a name to zoom to it.

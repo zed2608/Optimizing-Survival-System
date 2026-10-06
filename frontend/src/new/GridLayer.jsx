@@ -6,7 +6,7 @@ import { createGridLayer } from './gridLayer.js'
 //   columns   the `columns` of GET /grid (null while loading: the old points stay until new ones arrive, unless `clear` is set)
 //   labeler   (index) -> lines of text for the hover tooltip
 //   selected  index of the selected point (or -1), spot = {lat, lon} of the last click (or null)
-export default function GridLayer({ columns, clear, labeler, selected, spot, onPick, meta, field }) {
+export default function GridLayer({ columns, clear, labeler, selected, spot, onPick, meta, field, contextCols, contextVisible, contextLabeler, safeArea, planItems, planVisible, planLabeler, detailed = false }) {
   const map = useMap()
   const layerRef = useRef(null)
 
@@ -28,6 +28,30 @@ export default function GridLayer({ columns, clear, labeler, selected, spot, onP
   useEffect(() => {
     layerRef.current?.setLabeler(labeler)
   }, [labeler])
+  useEffect(() => {
+    layerRef.current?.setPlan(planItems ?? null)
+  }, [planItems])
+  useEffect(() => {
+    layerRef.current?.setPlanVisible(planVisible)
+  }, [planVisible, planItems])
+  useEffect(() => {
+    layerRef.current?.setPlanLabeler(planLabeler)
+  }, [planLabeler])
+  useEffect(() => {
+    layerRef.current?.setDetailed(detailed)
+  }, [detailed])
+  useEffect(() => {
+    if (safeArea) layerRef.current?.setSafeArea(safeArea)
+  }, [safeArea])
+  useEffect(() => {
+    layerRef.current?.setContext(contextCols ?? null)
+  }, [contextCols])
+  useEffect(() => {
+    layerRef.current?.setContextVisible(contextVisible)
+  }, [contextVisible, contextCols])
+  useEffect(() => {
+    layerRef.current?.setContextLabeler(contextLabeler)
+  }, [contextLabeler])
   useEffect(() => {
     layerRef.current?.setHandlers({ onPick })
   }, [onPick])

@@ -1,16 +1,15 @@
 import { useState } from 'react'
+import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { REASON_LABEL, STATUS_LABEL, STATUS_SYMBOL, when } from './fieldLabels.js'
 import { apiPost } from './apiPost.js'
+import HelpTip from './HelpTip.jsx'
 
-// One tap = one saved check. Each choice is a NEW event of the existing POST /field-checks (never an edit of an old one).
-const CHOICES = [
-  { key: 'ok', label: 'Plantable', symbol: '◯', status: 'verified_plantable' },
-  { key: 'paved', label: 'Paved or road', symbol: '✕', status: 'not_plantable', reason: 'paved' },
-  { key: 'building', label: 'Building', symbol: '✕', status: 'not_plantable', reason: 'building' },
-  { key: 'creek', label: 'River or creek', symbol: '✕', status: 'not_plantable', reason: 'creek_or_waterlogged' },
-]
-const OTHER = [
+// Each choice is a NEW event of the existing POST /field-checks (never an edit of an old one).
+const REASONS = [
+  { label: 'Paved or road', reason: 'paved' },
+  { label: 'Building', reason: 'building' },
+  { label: 'River or creek', reason: 'creek_or_waterlogged' },
   { label: 'Rock or ledge', reason: 'rock_or_ledge' },
   { label: 'Too steep', reason: 'too_steep' },
   { label: 'Existing tree', reason: 'existing_tree' },
@@ -20,10 +19,10 @@ const OTHER = [
 
 const describe = (e) => (e.status === 'not_plantable' ? `Not plantable: ${REASON_LABEL[e.reason] ?? e.reason}` : STATUS_LABEL[e.status])
 
-// The top of the point panel: the 100 m warning, the big one-tap buttons, the current field status and the short history.
+// The field-check card of the point panel: one short line (with a "?" for the full explanation), a compact row of three actions, the status chip and a collapsed history.
 export default function VerifyBar({ pointId, api, observer, onObserver, onSaved }) {
   const [editing, setEditing] = useState(false)
-  const [otherOpen, setOtherOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [askName, setAskName] = useState(() => observer.trim() === '')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -47,7 +46,7 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved 
       setMsg({ ok: true, text: `Saved: ${choice.label}` })
       setNote('')
       setEditing(false)
-      setOtherOpen(false)
+      setMenuOpen(false)
       setAskName(false)
       onSaved()
     } catch (e) {
@@ -57,41 +56,41 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved 
     }
   }
 
-  const bigBtn = (c) => (
-    <button key={c.key ?? c.reason} type="button" className={`fc-bigbtn fc-b-${c.status ?? 'not_plantable'}`} disabled={busy} onClick={() => save(c)}>
-      <span aria-hidden="true">{c.symbol} </span>
-      {c.label}
-    </button>
-  )
-
   return (
-    <section className="fc fc-top" aria-label="Check this spot">
-      <p className="fc-warnline">
-        <span aria-hidden="true">⚠ </span>This is a map square of about 100 m, not an exact tree spot. Check it on the ground before planting.
-      </p>
+    <section className="nw-pcard fc fc-top" aria-label="Check this spot">
+      <div className="nw-pcard-head">
+        <h3>Field check</h3>
+        {current ? (
+          <span className={`nw-chip fc-chip fc-${current.status}`}>
+            <Icon name={STATUS_SYMBOL[current.status]} /> 
+            {describe(current)}
+          </span>
+        ) : api.status === 'ok' ? (
+          <span className="nw-chip">Not checked</span>
+        ) : null}
+      </div>
+      <div className="nw-opt-head fc-warnrow">
+        <span className="fc-warnline">Check this square on the ground before planting.</span>
+        <HelpTip label="Check this square">This is a map square of about 100 m, not an exact tree spot. Check it on the ground before planting.</HelpTip>
+      </div>
       {api.status === 'loading' && <Loading what="Loading the field checks" />}
       {api.status === 'error' && <ErrorBox error={api.error} onRetry={api.retry} title="Could not load the field checks" brief />}
 
       {msg && (
         <p className={msg.ok ? 'fc-ok fc-saved' : 'fc-bad'} role="status">
-          {msg.ok && <span aria-hidden="true">✔ </span>}
+          {msg.ok && <Icon name="check" />} 
           {msg.text}
         </p>
       )}
 
       {current && (
-        <div className={`fc-status fc-${current.status}`} role="status">
-          <strong>
-            <span aria-hidden="true">{STATUS_SYMBOL[current.status]} </span>
-            {describe(current)}
-          </strong>
-          <div className="muted">
+        <div className="fc-status-line" role="status">
+          <span className="muted">
             by {current.observer} · {when(current.observed_at)}
             {current.note ? ` · “${current.note}”` : ''}
-          </div>
-          {current.disputed && <div className="fc-warn">⚠ Disputed: the latest two checks come from different people and disagree. Please check again.</div>}
-          {current.status === 'needs_recheck' && <div className="fc-warn">⚠ Needs a second look (still ranked).</div>}
-          {current.status === 'verified_plantable' && <div className="muted">A badge only: the scores are not changed.</div>}
+          </span>
+          {current.disputed && <div className="fc-warn"><Icon name="warn" /> Disputed: the latest two checks disagree.</div>}
+          {current.status === 'needs_recheck' && <div className="fc-warn"><Icon name="warn" /> Needs a second look (still ranked).</div>}
           {!editing && (
             <button type="button" className="fc-link" onClick={() => setEditing(true)}>
               Change
@@ -105,23 +104,29 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved 
           {askName && (
             <div className="fc-name">
               <label className="fc-label" htmlFor="nw-fc-name">
-                Your name (asked once, remembered in this browser)
+                Your name (asked once, remembered)
               </label>
               <input id="nw-fc-name" className="fc-input" value={observer} maxLength={80} onChange={(e) => onObserver(e.target.value)} placeholder="e.g. Juan Dela Cruz" />
             </div>
           )}
-          <div className="fc-big" role="group" aria-label="What did you find at this spot?">
-            {CHOICES.map(bigBtn)}
-            <button type="button" className="fc-bigbtn fc-b-other" aria-expanded={otherOpen} disabled={busy} onClick={() => setOtherOpen((o) => !o)}>
-              <span aria-hidden="true">✕ </span>Other problem…
+          <div className="fc-row" role="group" aria-label="What did you find at this spot?">
+            <button type="button" className="fc-bigbtn fc-b-verified_plantable" disabled={busy} onClick={() => save({ label: 'Plantable', status: 'verified_plantable' })}>
+              <Icon name="ring" /> Plantable
+            </button>
+            <button type="button" className="fc-bigbtn fc-b-not_plantable" aria-expanded={menuOpen} aria-haspopup="true" disabled={busy} onClick={() => setMenuOpen((o) => !o)}>
+              <Icon name="close" /> Not plantable <Icon name="down" size={14} />
             </button>
             <button type="button" className="fc-bigbtn fc-b-needs_recheck" disabled={busy} onClick={() => save({ label: 'Needs recheck', status: 'needs_recheck' })}>
-              <span aria-hidden="true">△ </span>Needs recheck
+              <Icon name="triangle" /> Needs recheck
             </button>
           </div>
-          {otherOpen && (
-            <div className="fc-big fc-other" role="group" aria-label="Other problems">
-              {OTHER.map((o) => bigBtn({ ...o, symbol: '✕', status: 'not_plantable' }))}
+          {menuOpen && (
+            <div className="fc-menu" role="group" aria-label="Why is it not plantable?">
+              {REASONS.map((o) => (
+                <button key={o.reason} type="button" className="fc-menubtn" disabled={busy} onClick={() => save({ ...o, status: 'not_plantable' })}>
+                  <Icon name="close" size={14} /> {o.label}
+                </button>
+              ))}
             </div>
           )}
           <details className="fc-notebox" open={clearing}>
@@ -137,13 +142,13 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved 
       )}
 
       {history.length > 0 && (
-        <details className="fc-hist" open>
-          <summary>Field history ({history.length})</summary>
+        <details className="fc-hist">
+          <summary>History ({history.length})</summary>
           <ol className="fc-history">
             {history.map((e) => (
               <li key={e.check_id}>
                 <strong>
-                  <span aria-hidden="true">{STATUS_SYMBOL[e.status]} </span>
+                  <Icon name={STATUS_SYMBOL[e.status]} /> 
                   {describe(e)}
                 </strong>{' '}
                 · {e.observer} · {when(e.observed_at)}

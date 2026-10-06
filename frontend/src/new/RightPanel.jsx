@@ -1,3 +1,4 @@
+import Icon from './Icon.jsx'
 // The right-hand glass panel. It holds the result of the current mode and, when a point has been clicked, a second tab with the existing
 // ranking and "Why this score?" accordion. The caller passes the content (children) of the active tab.
 export default function RightPanel({ title, subtitle, tabs, activeTab, onTab, onClose, children }) {
@@ -9,7 +10,7 @@ export default function RightPanel({ title, subtitle, tabs, activeTab, onTab, on
           {subtitle && <div className="nw-right-sub">{subtitle}</div>}
         </div>
         <button type="button" className="nw-btn nw-btn-ghost" onClick={onClose}>
-          ✕ Close
+          <Icon name="close" /> Close
         </button>
       </div>
       {tabs.length > 1 && (

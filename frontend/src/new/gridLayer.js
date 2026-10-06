@@ -1,5 +1,6 @@
 import L from 'leaflet'
 import { wLevel } from '../v2/scale.js'
+import { shapeColor, shapePath } from './planShapes.js'
 
 // The grid of scored points, drawn in ONE canvas pass (no per-point React components, no per-point Leaflet objects).
 // A custom Leaflet layer: a single <canvas> in the overlay pane, redrawn after every move/zoom. Hover and click are found with
@@ -11,10 +12,14 @@ const LEVEL_INDEX = { none: 0, poor: 1, moderate: 2, good: 3 }
 const SELECT_COLOR = '#38bdf8'
 const TWO_PI = Math.PI * 2
 const CELL_M = 100 // the grid spacing, in metres
-const MIN_RADIUS = 2.4
-const MAX_RADIUS = 13
-const RADIUS_PER_CELL = 0.38 // radius as a share of the cell width on screen
-const HIT_EXTRA = 4 // extra pixels around a dot that still count as hovering it
+const HIT_EXTRA = 3 // extra pixels around a square that still count as hovering it
+const SQUARE_ALPHA = 0.8 // the colour of the grid squares is a little soft
+const GAP_FROM_PX = 8 // a 1 px gap between squares only when a square is at least this wide on screen (zoomed in)
+const CONTEXT_FILL = 'rgba(148,163,184,0.15)' // the squares that are not planting zones: one flat, very faint tone
+const BUBBLE_BELOW_ZOOM = 15 // planned trees are grouped into numbered bubbles below this zoom
+const BUBBLE_BARANGAY_BELOW_ZOOM = 14 // ... one bubble per barangay below this zoom, one per 500 m cell between the two
+const BUBBLE_CELL_M = 500 // one bubble per 500 m cell
+const CODES_FROM_ZOOM = 17 // the 3-letter codes appear from this zoom (in the Detailed view)
 const PAD = 0.5 // the canvas is this much larger than the screen on every side, so panning does not show blank edges
 
 const GridCanvasLayer = L.Layer.extend({
@@ -26,7 +31,19 @@ const GridCanvasLayer = L.Layer.extend({
     this._labeler = null
     this._field = null
     this._hover = -1
-    this._radius = MIN_RADIUS
+    this._radius = 3
+    this._half = 1
+    this._detailed = false
+    this._clusters = []
+    this._cn = 0 // the second, fainter layer: grid squares that are not planting zones (GET /grid/context)
+    this._cvisible = true
+    this._chover = -1
+    this._clabeler = null
+    this._safe = { left: 8, right: 8, top: 8, bottom: 8 }
+    this._pn = 0 // the planned trees (one shape per species) drawn on top of the grid
+    this._pvisible = true
+    this._phover = -1
+    this._plabeler = null
   },
 
   onAdd(map) {
@@ -80,6 +97,304 @@ const GridCanvasLayer = L.Layer.extend({
     this._draw()
   },
 
+  // cols = the `columns` object of GET /grid/context (point_id, lon, lat, ...). Drawn UNDER the scored points as small grey dots with low opacity.
+  setContext(cols) {
+    if (!cols) {
+      this._cn = 0
+      this._ccols = null
+    } else {
+      const n = cols.lon.length
+      this._cn = n
+      this._ccols = cols
+      this._cmx = new Float64Array(n)
+      this._cmy = new Float64Array(n)
+      for (let i = 0; i < n; i++) {
+        this._cmx[i] = (cols.lon[i] + 180) / 360
+        this._cmy[i] = 0.5 - Math.log(Math.tan(Math.PI / 4 + (cols.lat[i] * Math.PI) / 360)) / TWO_PI
+      }
+      this._cpx = new Float32Array(n)
+      this._cpy = new Float32Array(n)
+    }
+    this._chover = -1
+    this._closeTip()
+    this._draw()
+  },
+
+  // items = [{lon, lat, kind, code, unconfirmed}] of the planned trees; kind picks the shape and the colour; unconfirmed = land outside the zoning map (a dotted ring)
+  setPlan(items) {
+    const list = items ?? []
+    this._pn = list.length
+    this._punconf = list.filter((it) => it.unconfirmed).length
+    this._pitems = list
+    this._pmx = new Float64Array(this._pn)
+    this._pmy = new Float64Array(this._pn)
+    this._ppx = new Float32Array(this._pn)
+    this._ppy = new Float32Array(this._pn)
+    this._ppaths = new Map()
+    list.forEach((it, i) => {
+      this._pmx[i] = (it.lon + 180) / 360
+      this._pmy[i] = 0.5 - Math.log(Math.tan(Math.PI / 4 + (it.lat * Math.PI) / 360)) / TWO_PI
+      if (!this._ppaths.has(it.kind)) this._ppaths.set(it.kind, new Path2D(shapePath(it.kind)))
+    })
+    this._phover = -1
+    this._closeTip()
+    this._draw()
+  },
+
+  setPlanVisible(on) {
+    this._pvisible = !!on
+    this._phover = -1
+    this._closeTip()
+    this._draw()
+  },
+
+  setPlanLabeler(fn) {
+    this._plabeler = fn
+  },
+
+  // the Simple view hides the codes; Detailed shows them (from CODES_FROM_ZOOM)
+  setDetailed(on) {
+    this._detailed = !!on
+    this._draw()
+  },
+
+  _planR() {
+    const z = this._map.getZoom()
+    return z >= 17 ? 9 : z >= 16 ? 7.5 : 6.5
+  },
+
+  // planned trees as numbered bubbles ("Maly 12") per 500 m cell at overview zoom; single trees stay shapes
+  _bubbles() {
+    const z = this._map.getZoom()
+    if (z >= BUBBLE_BELOW_ZOOM || this._pn < 2) return null
+    const scale = 256 * Math.pow(2, z)
+    const mPerPx = (156543.03392 * Math.cos((14.69 * Math.PI) / 180)) / Math.pow(2, z)
+    const cs = BUBBLE_CELL_M / mPerPx
+    const cells = new Map()
+    for (let i = 0; i < this._pn; i++) {
+      const bn = this._pitems[i].barangay
+      const key = z < BUBBLE_BARANGAY_BELOW_ZOOM && bn ? `b:${bn}` : `${Math.floor((this._pmx[i] * scale) / cs)},${Math.floor((this._pmy[i] * scale) / cs)}`
+      let c = cells.get(key)
+      if (!c) cells.set(key, (c = []))
+      c.push(i)
+    }
+    return [...cells.values()]
+  },
+
+  _drawPlan(ctx) {
+    this._pdrawn = 0
+    this._pshapes = 0
+    this._pbubbles = 0
+    this._clusters = []
+    this._phidden = new Uint8Array(this._pn)
+    if (!this._pn || !this._pvisible) return
+    const map = this._map
+    const scale = 256 * Math.pow(2, map.getZoom())
+    const o = map.getPixelOrigin()
+    const ox = o.x + this._topLeft.x
+    const oy = o.y + this._topLeft.y
+    const R = this._planR()
+    const { _ppx: px, _ppy: py, _pmx: mx, _pmy: my } = this
+    for (let i = 0; i < this._pn; i++) {
+      px[i] = mx[i] * scale - ox
+      py[i] = my[i] * scale - oy
+    }
+    ctx.lineJoin = 'round'
+    const groups = this._bubbles()
+    const single = []
+    if (groups) {
+      for (const g of groups) {
+        if (g.length < 2) {
+          single.push(g[0])
+          continue
+        }
+        let sx = 0
+        let sy = 0
+        const names = new Map()
+        let unconf = false
+        for (const i of g) {
+          sx += px[i]
+          sy += py[i]
+          const nm = this._pitems[i].barangay || ''
+          names.set(nm, (names.get(nm) ?? 0) + 1)
+          if (this._pitems[i].unconfirmed) unconf = true
+          this._phidden[i] = 1
+        }
+        const x = sx / g.length
+        const y = sy / g.length
+        const top = [...names.entries()].sort((a, b) => b[1] - a[1])[0][0]
+        const label = top ? `${top} ${g.length}` : String(g.length)
+        this._clusters.push({ x, y, n: g.length, label, name: top, members: g, unconf })
+      }
+    } else {
+      for (let i = 0; i < this._pn; i++) single.push(i)
+    }
+    // bubbles: one pill with the barangay and the number
+    ctx.font = '600 11px system-ui, sans-serif'
+    for (const c of this._clusters) {
+      if (c.x < -80 || c.y < -30 || c.x > this._w + 80 || c.y > this._h + 30) continue
+      this._pbubbles++
+      this._pdrawn += c.n
+      const w = Math.max(26, ctx.measureText(c.label).width + 16)
+      const h = 20
+      c.w = w
+      c.h = h
+      ctx.fillStyle = 'rgba(15,23,42,0.88)'
+      ctx.strokeStyle = 'rgba(248,250,252,0.9)'
+      ctx.lineWidth = 1.2
+      ctx.beginPath()
+      ctx.roundRect(c.x - w / 2, c.y - h / 2, w, h, 10)
+      ctx.fill()
+      ctx.stroke()
+      if (c.unconf) {
+        ctx.save()
+        ctx.setLineDash([2, 3])
+        ctx.strokeStyle = '#f8fafc'
+        ctx.beginPath()
+        ctx.roundRect(c.x - w / 2 - 3, c.y - h / 2 - 3, w + 6, h + 6, 13)
+        ctx.stroke()
+        ctx.restore()
+      }
+      ctx.fillStyle = '#f8fafc'
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'center'
+      ctx.fillText(c.label, c.x, c.y + 0.5)
+    }
+    ctx.textAlign = 'start'
+    ctx.textBaseline = 'alphabetic'
+    // shapes: a thin dark outline only
+    const showCodes = this._detailed && map.getZoom() >= CODES_FROM_ZOOM
+    this._codesShown = showCodes
+    for (const i of single) {
+      const x = px[i]
+      const y = py[i]
+      if (x < -R - 12 || y < -R - 12 || x > this._w + R + 12 || y > this._h + R + 12) continue
+      const it = this._pitems[i]
+      this._pdrawn++
+      this._pshapes++
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.scale(R, R)
+      const path = this._ppaths.get(it.kind)
+      ctx.lineWidth = 1.2 / R
+      ctx.strokeStyle = 'rgba(15,23,42,0.95)'
+      ctx.fillStyle = shapeColor(it.kind)
+      ctx.fill(path)
+      ctx.stroke(path)
+      ctx.restore()
+      if (it.unconfirmed) {                                            // land outside the zoning map: a thin dotted ring
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(x, y, R + 4, 0, TWO_PI)
+        ctx.setLineDash([2, 3])
+        ctx.lineWidth = 1.6
+        ctx.strokeStyle = '#f8fafc'
+        ctx.stroke()
+        ctx.restore()
+      }
+      if (showCodes) {
+        ctx.font = '600 10px system-ui, sans-serif'
+        ctx.lineWidth = 3
+        ctx.strokeStyle = 'rgba(15,23,42,0.9)'
+        ctx.fillStyle = '#ffffff'
+        ctx.strokeText(it.code, x - 9, y + R + 11)
+        ctx.fillText(it.code, x - 9, y + R + 11)
+      }
+    }
+  },
+
+  // the bubble under a layer point, or null
+  _hitBubble(layerPoint) {
+    if (!this._clusters.length || !this._pvisible || !this._topLeft) return null
+    const x = layerPoint.x - this._topLeft.x
+    const y = layerPoint.y - this._topLeft.y
+    return this._clusters.find((c) => Math.abs(c.x - x) <= (c.w ?? 26) / 2 + 2 && Math.abs(c.y - y) <= (c.h ?? 20) / 2 + 2) ?? null
+  },
+
+  _hitPlan(layerPoint) {
+    if (!this._pn || !this._pvisible || !this._topLeft) return -1
+    const x = layerPoint.x - this._topLeft.x
+    const y = layerPoint.y - this._topLeft.y
+    const lim = (this._planR() + 3) ** 2
+    let best = -1
+    let bestD = lim
+    const { _ppx: px, _ppy: py } = this
+    for (let i = 0; i < this._pn; i++) {
+      if (this._phidden && this._phidden[i]) continue
+      const dx = px[i] - x
+      if (dx > 25 || dx < -25) continue
+      const d = dx * dx + (py[i] - y) ** 2
+      if (d <= bestD) {
+        bestD = d
+        best = i
+      }
+    }
+    return best
+  },
+
+  setContextVisible(on) {
+    this._cvisible = !!on
+    this._chover = -1
+    this._closeTip()
+    this._draw()
+  },
+
+  // The part of the map that is free (not under the sidebar, the results panel or the top bar), in container pixels from each edge: hover cards flip to stay inside it.
+  setSafeArea(a) {
+    this._safe = { left: a.left, right: a.right, top: a.top, bottom: a.bottom }
+  },
+
+  // Show the hover card at a place and put it on the side where it stays fully visible (above, below, left or right of the dot).
+  _showTip(latlng, lines) {
+    const el = document.createElement('div')
+    lines.forEach((t, k) => {
+      const row = document.createElement(k === 0 ? 'strong' : 'div')
+      row.textContent = t
+      el.appendChild(row)
+    })
+    this._tip.options.direction = 'top'
+    this._tip.options.offset = L.point(0, -6)
+    this._tip.setLatLng(latlng)
+    this._tip.setContent(el)
+    if (!this._map.hasLayer(this._tip)) this._map.openTooltip(this._tip)
+    this._placeTip(latlng)
+  },
+
+  _placeTip(latlng) {
+    const node = this._tip.getElement()
+    if (!node) return
+    const map = this._map
+    const size = map.getSize()
+    const p = map.latLngToContainerPoint(latlng)
+    const w = node.offsetWidth
+    const h = node.offsetHeight
+    const gap = 28
+    const s = this._safe
+    const roomAbove = p.y - h - gap >= s.top
+    const roomBelow = p.y + h + gap <= size.y - s.bottom
+    const midOk = p.y - h / 2 >= s.top && p.y + h / 2 <= size.y - s.bottom
+    const lo = p.x - w / 2
+    const hi = p.x + w / 2
+    const dx = lo < s.left ? s.left - lo : hi > size.x - s.right ? size.x - s.right - hi : 0
+    // preferred: above or below the dot, then beside it, and only then above or below shifted sideways so that it stays inside the free part of the map
+    const order = []
+    if (dx === 0 && roomAbove) order.push(['top', 0])
+    if (dx === 0 && roomBelow) order.push(['bottom', 0])
+    if (midOk && p.x - w - gap >= s.left) order.push(['left', 0])
+    if (midOk && p.x + w + gap <= size.x - s.right) order.push(['right', 0])
+    if (roomAbove) order.push(['top', dx])
+    if (roomBelow) order.push(['bottom', dx])
+    const [dir, shift] = order[0] ?? ['top', dx]
+    this._tip.options.direction = dir
+    this._tip.options.offset = L.point(Math.round(shift), dir === 'bottom' ? 14 : dir === 'top' ? -6 : 0)
+    this._tip.update()
+  },
+
+  // fn(index) -> array of text lines for the hover tooltip of a grey square
+  setContextLabeler(fn) {
+    this._clabeler = fn
+  },
+
   // field = { index: [...], status: [...] } of GET /grid (the field-checked points and their codes), or null to hide the symbols.
   // Symbols: 1 verified = ring, 2 not plantable = cross, 3 needs recheck = triangle; +4 (disputed) adds an exclamation mark. Shapes, never colour alone.
   setField(field) {
@@ -119,6 +434,19 @@ const GridCanvasLayer = L.Layer.extend({
     d.drawn = String(this._drawn ?? 0)
     d.purpose = this._meta?.purpose ?? ''
     d.species = this._meta?.species ?? ''
+    d.context = String(this._cn)
+    d.plan = String(this._pn)
+    d.planUnconfirmed = String(this._punconf ?? 0)
+    d.planDrawn = String(this._pvisible ? (this._pdrawn ?? 0) : 0)
+    d.planShapes = String(this._pvisible ? (this._pshapes ?? 0) : 0)
+    d.planBubbles = String(this._pvisible ? (this._pbubbles ?? 0) : 0)
+    d.drawMs = (this._drawMs ?? 0).toFixed(1)
+    d.squarePx = (this._half * 2).toFixed(2)
+    d.bubbleLabels = (this._clusters ?? []).map((c) => c.label).join('|')
+    d.codesShown = String(!!this._codesShown)
+    d.fieldDrawn = String(this._fdrawn ?? 0)
+    d.zoom = String(this._map ? this._map.getZoom() : 0)
+    d.contextDrawn = String(this._cvisible ? (this._cdrawn ?? 0) : 0)
   },
 
   _update() {
@@ -149,59 +477,65 @@ const GridCanvasLayer = L.Layer.extend({
   _draw() {
     const map = this._map
     if (!map || !this._canvas || !this._topLeft) return
+    const t0 = performance.now()
     const ctx = this._canvas.getContext('2d')
     ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0)
     ctx.clearRect(0, 0, this._w, this._h)
     this._drawn = 0
+    this._fdrawn = 0
+    const mPerPx = (156543.03392 * Math.cos((14.69 * Math.PI) / 180)) / Math.pow(2, map.getZoom())
+    const cellPx = CELL_M / mPerPx
+    const half = cellPx / 2
+    this._half = half
+    this._radius = Math.max(half, 3)
+    this._drawContext(ctx, half, cellPx)
     if (this._n > 0) {
       const scale = 256 * Math.pow(2, map.getZoom())
       const o = map.getPixelOrigin()
       const ox = o.x + this._topLeft.x
       const oy = o.y + this._topLeft.y
-      const mPerPx = (156543.03392 * Math.cos((14.69 * Math.PI) / 180)) / Math.pow(2, map.getZoom())
-      const r = Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, (CELL_M / mPerPx) * RADIUS_PER_CELL))
-      this._radius = r
       const { _px: px, _py: py, _level: level, _mx: mx, _my: my } = this
       const inView = new Uint8Array(this._n)
+      const m = half + 2
       for (let i = 0; i < this._n; i++) {
         const x = mx[i] * scale - ox
         const y = my[i] * scale - oy
         px[i] = x
         py[i] = y
-        if (x > -r && y > -r && x < this._w + r && y < this._h + r) {
+        if (x > -m && y > -m && x < this._w + m && y < this._h + m) {
           inView[i] = 1
           this._drawn++
         }
       }
-      ctx.lineWidth = 1
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+      // one filled square per grid cell (100 m, scaled with the zoom), no outline; a 1 px gap only when zoomed in
+      const gap = cellPx >= GAP_FROM_PX ? 1 : 0
+      ctx.globalAlpha = SQUARE_ALPHA
       for (let lv = 0; lv < LEVEL_COLORS.length; lv++) {
         ctx.fillStyle = LEVEL_COLORS[lv]
         ctx.beginPath()
         for (let i = 0; i < this._n; i++) {
           if (inView[i] && level[i] === lv) {
-            ctx.moveTo(px[i] + r, py[i])
-            ctx.arc(px[i], py[i], r, 0, TWO_PI)
+            const x0 = Math.round(px[i] - half)
+            const y0 = Math.round(py[i] - half)
+            ctx.rect(x0, y0, Math.max(1, Math.round(px[i] + half) - x0 - gap), Math.max(1, Math.round(py[i] + half) - y0 - gap))
           }
         }
         ctx.fill()
-        ctx.stroke()
       }
-      if (this._field) this._drawField(ctx, px, py, r)
+      ctx.globalAlpha = 1
+      if (this._field) this._drawField(ctx, px, py, Math.min(9, Math.max(3, half * 0.4)))   // symbols stay small however big the squares are
       const sel = this._selected
       if (sel >= 0 && sel < this._n) {
+        const h = Math.max(half, 4) + 3
         ctx.lineWidth = 3
         ctx.strokeStyle = '#0f172a'
-        ctx.beginPath()
-        ctx.arc(px[sel], py[sel], r + 5, 0, TWO_PI)
-        ctx.stroke()
-        ctx.lineWidth = 2
+        ctx.strokeRect(px[sel] - h, py[sel] - h, 2 * h, 2 * h)
+        ctx.lineWidth = 1.8
         ctx.strokeStyle = SELECT_COLOR
-        ctx.beginPath()
-        ctx.arc(px[sel], py[sel], r + 5, 0, TWO_PI)
-        ctx.stroke()
+        ctx.strokeRect(px[sel] - h, py[sel] - h, 2 * h, 2 * h)
       }
     }
+    this._drawPlan(ctx)
     if (this._spot) {
       const sx = (this._spot.lon + 180) / 360
       const sy = 0.5 - Math.log(Math.tan(Math.PI / 4 + (this._spot.lat * Math.PI) / 360)) / TWO_PI
@@ -210,11 +544,40 @@ const GridCanvasLayer = L.Layer.extend({
       ctx.strokeStyle = '#ffffff'
       ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.arc(x, y, 6, 0, TWO_PI)
+      ctx.arc(x, y, 5, 0, TWO_PI)
       ctx.fill()
       ctx.stroke()
     }
+    this._drawMs = performance.now() - t0
     this._writeMeta()
+  },
+
+  _drawContext(ctx, half, cellPx) {
+    this._cdrawn = 0
+    if (!this._cn || !this._cvisible) return
+    const map = this._map
+    const scale = 256 * Math.pow(2, map.getZoom())
+    const o = map.getPixelOrigin()
+    const ox = o.x + this._topLeft.x
+    const oy = o.y + this._topLeft.y
+    this._crc = Math.max(half, 3)
+    const { _cpx: px, _cpy: py, _cmx: mx, _cmy: my } = this
+    const gap = cellPx >= GAP_FROM_PX ? 1 : 0
+    ctx.fillStyle = CONTEXT_FILL
+    ctx.beginPath()
+    for (let i = 0; i < this._cn; i++) {
+      const x = mx[i] * scale - ox
+      const y = my[i] * scale - oy
+      px[i] = x
+      py[i] = y
+      if (x > -half - 2 && y > -half - 2 && x < this._w + half + 2 && y < this._h + half + 2) {
+        const x0 = Math.round(x - half)
+        const y0 = Math.round(y - half)
+        ctx.rect(x0, y0, Math.max(1, Math.round(x + half) - x0 - gap), Math.max(1, Math.round(y + half) - y0 - gap))
+        this._cdrawn++
+      }
+    }
+    ctx.fill()
   },
 
   _drawField(ctx, px, py, r) {
@@ -227,12 +590,14 @@ const GridCanvasLayer = L.Layer.extend({
       draw()
       ctx.stroke()
     }
+    this._fdrawn = 0
     for (let k = 0; k < index.length; k++) {
       const i = index[k]
       if (i >= this._n) continue
       const x = px[i]
       const y = py[i]
       if (x < -R || y < -R || x > this._w + R || y > this._h + R) continue
+      this._fdrawn++
       const status = code[k] % 4
       if (status === 1) {
         const ring = () => ctx.arc(x, y, R, 0, TWO_PI)
@@ -268,20 +633,25 @@ const GridCanvasLayer = L.Layer.extend({
     }
   },
 
-  // index of the point under a layer point (the nearest one within the dot radius), or -1
+  // index of the square under a layer point (the nearest centre among the squares that contain it), or -1
   _hit(layerPoint) {
     if (!this._n || !this._topLeft) return -1
+    return this._hitSquares(this._px, this._py, this._n, this._radius, layerPoint)
+  },
+
+  _hitSquares(px, py, n, half, layerPoint) {
     const x = layerPoint.x - this._topLeft.x
     const y = layerPoint.y - this._topLeft.y
-    const lim = (this._radius + HIT_EXTRA) ** 2
+    const lim = half + HIT_EXTRA
     let best = -1
-    let bestD = lim
-    const { _px: px, _py: py } = this
-    for (let i = 0; i < this._n; i++) {
+    let bestD = Infinity
+    for (let i = 0; i < n; i++) {
       const dx = px[i] - x
-      if (dx > 20 || dx < -20) continue
-      const d = dx * dx + (py[i] - y) ** 2
-      if (d <= bestD) {
+      if (dx > lim || dx < -lim) continue
+      const dy = py[i] - y
+      if (dy > lim || dy < -lim) continue
+      const d = dx * dx + dy * dy
+      if (d < bestD) {
         bestD = d
         best = i
       }
@@ -289,25 +659,56 @@ const GridCanvasLayer = L.Layer.extend({
     return best
   },
 
+  // index of the grey square under a layer point, or -1 (only while that layer is shown)
+  _hitContext(layerPoint) {
+    if (!this._cn || !this._cvisible || !this._topLeft) return -1
+    return this._hitSquares(this._cpx, this._cpy, this._cn, this._crc, layerPoint)
+  },
+
   _onMove(e) {
+    const bub = this._hitBubble(e.layerPoint)
+    if (bub) {
+      this._map.getContainer().style.cursor = 'pointer'
+      if (this._bhover !== bub) {
+        this._bhover = bub
+        this._hover = -2
+        this._chover = -1
+        this._phover = -1
+        this._showTip(this._map.layerPointToLatLng(L.point(bub.x + this._topLeft.x, bub.y + this._topLeft.y)), [bub.name ? `${bub.name}: ${bub.n} planned trees` : `${bub.n} planned trees`, 'Zoom in to see each tree'])
+      }
+      return
+    }
+    this._bhover = null
+    const pi = this._hitPlan(e.layerPoint)
+    if (pi >= 0) {
+      this._map.getContainer().style.cursor = 'pointer'
+      if (pi !== this._phover) {
+        this._phover = pi
+        this._hover = -2
+        this._chover = -1
+        this._showTip(L.latLng(this._pitems[pi].lat, this._pitems[pi].lon), this._plabeler ? this._plabeler(pi) : [])
+      }
+      return
+    }
+    if (this._phover >= 0) this._phover = -1
     const i = this._hit(e.layerPoint)
-    this._map.getContainer().style.cursor = i >= 0 ? 'pointer' : ''
+    const ci = i < 0 ? this._hitContext(e.layerPoint) : -1
+    this._map.getContainer().style.cursor = i >= 0 || ci >= 0 ? 'pointer' : ''
+    if (i < 0 && ci >= 0) {
+      if (ci === this._chover) return
+      this._hover = -1
+      this._chover = ci
+      this._showTip(L.latLng(this._ccols.lat[ci], this._ccols.lon[ci]), this._clabeler ? this._clabeler(ci) : [])
+      return
+    }
+    this._chover = -1
     if (i === this._hover) return
     this._hover = i
     if (i < 0) {
       this._closeTip()
       return
     }
-    const lines = this._labeler ? this._labeler(i) : []
-    const el = document.createElement('div')
-    lines.forEach((t, k) => {
-      const row = document.createElement(k === 0 ? 'strong' : 'div')
-      row.textContent = t
-      el.appendChild(row)
-    })
-    this._tip.setLatLng(L.latLng(this._cols.lat[i], this._cols.lon[i]))
-    this._tip.setContent(el)
-    if (!this._map.hasLayer(this._tip)) this._map.openTooltip(this._tip)
+    this._showTip(L.latLng(this._cols.lat[i], this._cols.lon[i]), this._labeler ? this._labeler(i) : [])
   },
 
   _onOut() {
@@ -321,8 +722,22 @@ const GridCanvasLayer = L.Layer.extend({
   },
 
   _onClick(e) {
+    const bub = this._hitBubble(e.layerPoint)
+    if (bub) {                                                          // a bubble: zoom in to its trees
+      const pts = bub.members.map((i) => L.latLng(this._pitems[i].lat, this._pitems[i].lon))
+      this._closeTip()
+      this._map.fitBounds(L.latLngBounds(pts).pad(0.4), { maxZoom: 17, animate: false })
+      this._map.setZoom(Math.max(this._map.getZoom(), BUBBLE_BELOW_ZOOM + 0.25), { animate: false })
+      return
+    }
+    const pi = this._hitPlan(e.layerPoint)
+    if (pi >= 0) {
+      if (this.options.onPick) this.options.onPick({ index: -1, context: -1, plan: pi, lat: e.latlng.lat, lon: e.latlng.lng })
+      return
+    }
     const i = this._hit(e.layerPoint)
-    if (this.options.onPick) this.options.onPick({ index: i, lat: e.latlng.lat, lon: e.latlng.lng })
+    const ci = i < 0 ? this._hitContext(e.layerPoint) : -1
+    if (this.options.onPick) this.options.onPick({ index: i, context: ci, lat: e.latlng.lat, lon: e.latlng.lng })
   },
 })
 

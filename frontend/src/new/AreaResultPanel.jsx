@@ -1,7 +1,13 @@
+import { useState } from 'react'
+import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import FlagBadges from '../v2/components/FlagBadges.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
 import { fmt, pct } from '../v2/scale.js'
+import ColorLegend from '../v2/components/ColorLegend.jsx'
+import HelpTip from './HelpTip.jsx'
+import ViewSwitch from './ViewSwitch.jsx'
+import { BEST_MONTHS_NOTE } from './season.js'
 import SeasonBadge from './SeasonBadge.jsx'
 import SeasonNotice from './SeasonNotice.jsx'
 import SourceGroup from './SourceGroup.jsx'
@@ -29,7 +35,9 @@ function MissingOr({ v, f }) {
 }
 
 // Mode 2: ranked species for a whole area, plus the suggested mix (shares from the palette code, with its caps).
-export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDates, onInfo }) {
+export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDates, onInfo, view = 'compact', onView = () => {} }) {
+  const [show, setShow] = useState(5)
+  const full = view === 'full'
   if (api.status === 'loading') return <div className="v2 v2-embedded"><div className="panel-body"><Loading what={`Ranking species for ${areaLabel}`} /></div></div>
   if (api.status === 'error') {
     const f = friendly(api.error)
@@ -56,14 +64,19 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
   return (
     <div className="v2 v2-embedded">
       <div className="panel-body">
-        <h2>Species for {r.area.display_name}</h2>
-        <p className="muted">
-          {r.area.legal_points} planting-zone grid points; {r.area.points_with_a_suitable_species} have at least one suitable species. {r.species_with_suitable_points} of{' '}
-          {r.species_total} species are suitable somewhere here. Showing the top {r.returned}.
-        </p>
+        <ViewSwitch value={view} onChange={onView} />
+        <h2 className="sr-only">Species for {r.area.display_name}</h2>
+        <div className="nw-opt-head">
+          <p className="nw-count-line nw-grow">
+            {r.species_with_suitable_points} of {r.species_total} species suitable somewhere here
+          </p>
+          <HelpTip label="About this list">
+            {r.area.legal_points} planting squares; {r.area.points_with_a_suitable_species} have at least one suitable species. Month strip: filled = planting months, ringed = your dates.
+          </HelpTip>
+        </div>
         {r.area.not_plantable_points > 0 && (
           <p className="notice" role="status">
-            ✕ {r.area.not_plantable_points} point{r.area.not_plantable_points === 1 ? ' is' : 's are'} marked <strong>not plantable</strong> in the field and left out of this ranking.
+            <Icon name="close" /> {r.area.not_plantable_points} point{r.area.not_plantable_points === 1 ? ' is' : 's are'} marked <strong>not plantable</strong> in the field and left out of this ranking.
           </p>
         )}
         {r.area.not_plantable_points === 0 && <p className="muted">No point of this area is marked not plantable in the field.</p>}
@@ -71,7 +84,6 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
         {sb && r.ranking.length === 0 && sb.removed > 0 && (
           <SeasonNotice light kept={sb.kept} total={sb.species_total} start={sb.start} end={sb.end} onShowAll={onShowAll} onChangeDates={onChangeDates} />
         )}
-        {sb && r.ranking.length > 0 && <p className="muted">Month strip: filled = planting months, ringed = your dates.</p>}
         <section className="nw-mix" aria-label="Suggested mix">
           <h3>Suggested mix</h3>
           {mix.species.length === 0 ? (
@@ -108,52 +120,84 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
         </section>
 
         <h3>Ranked species</h3>
-        <ol className="nw-spp">
-          {r.ranking.map((s) => (
-            <li key={s.species_id} className="nw-sp">
-              <div className="nw-sp-head">
+        {full && (
+          <div className="nw-fullnote">
+            <div className="muted">Colours: green good, orange moderate, red poor, grey not suitable. {r.area.legal_points} planting squares; {r.area.points_with_a_suitable_species} have at least one suitable species.</div>
+            <ColorLegend />
+          </div>
+        )}
+        <ol className="nw-plist">
+          {r.ranking.slice(0, show).map((s) => (
+            <li key={`${s.species_id}|${full}`} className="nw-prow nw-sp">
+              <div className="nw-prow-main">
                 <span className="rank-no">{s.rank}</span>
-                <strong>
-                  <button type="button" className="nw-namebtn" onClick={() => onInfo(s.species_id)}>
-                    {s.common_name}
-                    <span className="sr-only"> (species information)</span>
-                  </button>
-                </strong>
+                <button type="button" className="nw-namebtn nw-prow-name" onClick={() => onInfo(s.species_id)}>
+                  {s.common_name}
+                  <span className="sr-only"> (species information)</span>
+                </button>
                 <ScoreChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average score W where suitable" />
+                <SeasonBadge season={s.season} strip={false} best={false} />
               </div>
-              <dl className="scores">
-                <div>
-                  <dt>Suitable on</dt>
-                  <dd>
-                    {pct(s.share_of_area_suitable)} <span className="muted">({s.suitable_points} points)</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Purpose fitness (P)</dt>
-                  <dd>
-                    <MissingOr v={s.P} f={fmt} />
-                  </dd>
-                </div>
-                <div>
-                  <dt>Confidence</dt>
-                  <dd>
-                    site <MissingOr v={s.mean_site_confidence} f={pct} /> · purpose <MissingOr v={s.p_confidence} f={pct} />
-                  </dd>
-                </div>
-              </dl>
-              <SeasonBadge season={s.season} />
-              <FlagBadges flags={s.flags} />
-              <details>
+              <details className="nw-pdetails" open={full || undefined}>
                 <summary>
-                  Show sources<span className="sr-only"> for {s.common_name}</span>
+                  Details<span className="sr-only"> for {s.common_name}</span>
                 </summary>
-                <SourceGroup title="Site suitability inputs" ids={s.source_ids.site_score} map={r.sources} />
-                <SourceGroup title="Purpose fitness inputs" ids={s.source_ids.purpose_score} map={r.sources} />
+                <dl className="scores">
+                  <div>
+                    <dt>Suitable on</dt>
+                    <dd>
+                      {pct(s.share_of_area_suitable)} <span className="muted">({s.suitable_points} points)</span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Average score (W) where suitable</dt>
+                    <dd>
+                      <MissingOr v={s.mean_W_where_suitable} f={fmt} />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Purpose fitness (P)</dt>
+                    <dd>
+                      <MissingOr v={s.P} f={fmt} />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Confidence</dt>
+                    <dd>
+                      site <MissingOr v={s.mean_site_confidence} f={pct} /> · purpose <MissingOr v={s.p_confidence} f={pct} />
+                    </dd>
+                  </div>
+                </dl>
+                <SeasonBadge season={s.season} />
+                {full && s.season && <div className="muted">Month strip: filled = planting months, ringed = your dates. {BEST_MONTHS_NOTE}</div>}
+                <FlagBadges flags={s.flags} />
+                <details open={full || undefined}>
+                  <summary>
+                    Show sources<span className="sr-only"> for {s.common_name}</span>
+                  </summary>
+                  <SourceGroup title="Site suitability inputs" ids={s.source_ids.site_score} map={r.sources} />
+                  <SourceGroup title="Purpose fitness inputs" ids={s.source_ids.purpose_score} map={r.sources} />
+                </details>
               </details>
             </li>
           ))}
         </ol>
-        <p className="muted">{r.score_definition}</p>
+        {r.ranking.length > 5 && (
+          <div className="nw-more-row" role="group" aria-label="How many species to show">
+            <button type="button" className="btn btn-small" aria-pressed={show === 10} onClick={() => setShow((s) => (s === 10 ? 5 : 10))}>
+              {show === 10 ? 'Show 5' : 'Show 10'}
+            </button>
+            {r.ranking.length > 10 && (
+              <button type="button" className="btn btn-small" aria-pressed={show > 10} onClick={() => setShow((s) => (s > 10 ? 5 : 100))}>
+                {show > 10 ? 'Show 5' : 'Show all'}
+              </button>
+            )}
+          </div>
+        )}
+        <div className="nw-opt-head">
+          <span className="muted nw-grow">How the score is worked out</span>
+          <HelpTip label="How the score is worked out">{r.score_definition}</HelpTip>
+        </div>
       </div>
     </div>
   )

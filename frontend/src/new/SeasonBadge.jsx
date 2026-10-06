@@ -1,17 +1,19 @@
 import MonthStrip from './MonthStrip.jsx'
-import { monthsText, SEASON_WORDS } from './season.js'
+import Icon from './Icon.jsx'
+import { BEST_MONTHS_NOTE, monthsText, SEASON_WORDS } from './season.js'
 
 // The season of one species for the chosen dates: a badge with WORDS and a symbol (never colour alone) and the 12-month strip
 // (planting months filled, window months ringed). `season` is the season object of the API ({status, window_months, species_months, months_in_window}).
-export default function SeasonBadge({ season, strip = true, className = '' }) {
+export default function SeasonBadge({ season, strip = true, best = strip, className = '' }) {
   if (!season) return null
   const w = SEASON_WORDS[season.status] ?? SEASON_WORDS.unknown
   return (
     <span className={`nw-season-wrap ${className}`}>
       <span className={`nw-season nw-season-${season.status}`}>
-        <span aria-hidden="true">{w.glyph}</span> {w.word}
+        <Icon name={w.glyph} size={14} /> {w.word}
       </span>
       {strip && <MonthStrip filled={season.species_months} ring={season.window_months} />}
+      {best && season.status === 'out_of_season' && <span className="nw-bestmonths">Best months: {monthsText(season.species_months)}</span>}
     </span>
   )
 }
@@ -25,7 +27,7 @@ export function SeasonDetail({ season }) {
       <h4>Planting window</h4>
       <p>
         <span className={`nw-season nw-season-${season.status}`}>
-          <span aria-hidden="true">{w.glyph}</span> {w.word}
+          <Icon name={w.glyph} size={14} /> {w.word}
         </span>
       </p>
       <p>
@@ -34,6 +36,7 @@ export function SeasonDetail({ season }) {
         {season.months_in_window.length ? `; ${monthsText(season.months_in_window)} can be planted.` : '.'}
       </p>
       <MonthStrip filled={season.species_months} ring={season.window_months} size="large" />
+      <p className="muted">{BEST_MONTHS_NOTE}</p>
     </div>
   )
 }

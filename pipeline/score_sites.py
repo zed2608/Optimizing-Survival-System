@@ -102,7 +102,10 @@ def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance
 
     elev, slope = pv("elev_m"), pv("slope_pct")
     water = pv("water_dist_m") if "water_dist_m" in si else np.full((np_, 1), np.nan)
-    legal = si["is_legal_zone"].astype(bool).to_numpy()[:, None]
+    if "zoning_status" in si:                                # confirmed AND unconfirmed squares pass the zone gate; only named non-planting zones (excluded) fail
+        legal = (si["zoning_status"] != "excluded").to_numpy()[:, None]
+    else:
+        legal = si["is_legal_zone"].astype(bool).to_numpy()[:, None]
 
     # ---- elevation: gate = inside [min, max]; factor = distance inside the nearest edge / margin
     emin, emax = sv("elev_min_m"), sv("elev_max_m")
@@ -218,7 +221,10 @@ def run(out_dir, water_shp, soil_gate_mode=None):
     sources = pd.read_csv(out / "species_sources.csv")
     sites = pd.read_csv(out / "site_points_clean.csv")
     n_all = len(sites)
-    sites = sites[sites.is_legal_zone.astype(bool)].copy()           # acceptance: all LEGAL points x species
+    if "zoning_status" in sites:                                     # acceptance: all confirmed + unconfirmed points x species (excluded zones stay unscored)
+        sites = sites[sites.zoning_status.isin(["confirmed", "unconfirmed"])].copy()
+    else:
+        sites = sites[sites.is_legal_zone.astype(bool)].copy()
     sites["water_dist_m"] = distance_to_water(sites, water_shp) if water_shp else np.nan
     scores = score_pairs(species, sites, soil_gate_mode=soil_gate_mode)
     scores["breakdown_json"] = build_breakdown(scores, species, sites, source_lookup(sources))
@@ -236,7 +242,8 @@ def run(out_dir, water_shp, soil_gate_mode=None):
     con.commit(); con.close()
     viable = scores.groupby("species_id").s_rule.apply(lambda s: int((s >= 0.5).sum()))
     print(f"soil gate mode: {SOIL_GATE_MODE if soil_gate_mode is None else soil_gate_mode}")
-    print(f"legal points scored: {len(sites)} of {n_all} | species: {len(species)} | rows: {len(final)}")
+    zs = sites.zoning_status.value_counts().to_dict() if "zoning_status" in sites else {}
+    print(f"points scored: {len(sites)} of {n_all} {zs or ''}| species: {len(species)} | rows: {len(final)}")
     print(f"water distance available for {int(sites.water_dist_m.notna().sum())} points")
     print(f"S >= 0.50 pairs: {int((scores.s_rule >= 0.5).sum())} ({(scores.s_rule >= 0.5).mean():.1%}); S == 0: {(scores.s_rule == 0).mean():.1%}")
     print(f"species with no viable (S>=0.50) point: {int((viable == 0).sum())}")

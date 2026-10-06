@@ -54,6 +54,7 @@ FLAG_NOTES = {
     "species_data_unverified": "The species data for this tree cites a source file that was not provided.",
     "low_confidence": "Some inputs for this point were missing, so the suitability score is less certain.",
     "barangay_nearest": "The point is outside every barangay polygon; the nearest barangay is listed.",
+    "zoning_unconfirmed": "Land outside the zoning map: confirm with the LGU before planting.",
 }
 # =====================================================================================================================
 
@@ -137,6 +138,17 @@ def assign_barangay(df, shp):
     return names, nearest
 
 
+def flag_notes(flags, zone):
+    """The note text of a flag list. zoning_unconfirmed names the zone when the square lies in a named zone the LGU has not cleared (see ZONE_RULES in rebuild_site_grid.py)."""
+    out = []
+    for f in flags.split(";"):
+        if f == "zoning_unconfirmed" and zone:
+            out.append(f"{zone}: confirm with the LGU before planting.")
+        elif f in FLAG_NOTES:
+            out.append(FLAG_NOTES[f])
+    return " ".join(out)
+
+
 def build_point_table(plan, species, code_by_id, plan_id, check, brgy_shp):
     """One row per planned point with every CSV column; ordered by species code then grid point id."""
     sp = species.set_index("species_id")
@@ -157,7 +169,7 @@ def build_point_table(plan, species, code_by_id, plan_id, check, brgy_shp):
     width = max(CFG["min_number_digits"], len(str(df.groupby("species_code").size().max())))
     df["point_ref"] = df.species_code + "-" + (df.groupby("species_code").cumcount() + 1).astype(str).str.zfill(width)
     df["zone"] = df.zone_desc.fillna("")
-    df["notes"] = [" ".join(FLAG_NOTES[f] for f in fl.split(";") if f in FLAG_NOTES) for fl in df["flags"]]
+    df["notes"] = [flag_notes(fl, z) for fl, z in zip(df["flags"], df["zone"])]
     df["plan_id"], df["check_code"] = plan_id, check
     df["status"], df["moved_lat"], df["moved_lon"] = "", "", ""
     df["lat_s"], df["lon_s"] = df.lat.map(lambda v: f"{v:.6f}"), df.lon.map(lambda v: f"{v:.6f}")
@@ -289,6 +301,7 @@ GPS AND THE 100 m CELL
     stake in moved_lat and moved_lon (decimal degrees, from the phone) in point-list.csv.
   - Dioecious species need BOTH sexes: plant male and female trees near each other.
   - Plant only in the planting months listed for the species.
+  - A point flagged zoning_unconfirmed is on land outside the zoning map: confirm with the LGU before planting there.
 
 BRINGING THE RESULTS BACK
   When you are done, fill the status column of point-list.csv: write "planted" for a spot you planted,

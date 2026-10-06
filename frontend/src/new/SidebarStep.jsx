@@ -1,8 +1,9 @@
 import { useId } from 'react'
+import Icon from './Icon.jsx'
 import HelpTip from './HelpTip.jsx'
 
 // One collapsible step of the sidebar. Collapsed it shows a one-line summary of the choice; the caller keeps only one step open at a time.
-export default function SidebarStep({ n, title, summary, open, onToggle, help, id: stepId, children }) {
+export default function SidebarStep({ n, title, summary, open, onToggle, help, id: stepId, icon = null, children }) {
   const uid = useId()
   const bodyId = `${uid}-body`
   return (
@@ -13,11 +14,14 @@ export default function SidebarStep({ n, title, summary, open, onToggle, help, i
             {n}
           </span>
           <span className="nw-step-text">
-            <span className="nw-step-title">{title}</span>
+            <span className="nw-step-title">
+              {icon && <Icon name={icon} size={16} className="nw-step-icon" />}
+              {title}
+            </span>
             {!open && <span className="nw-step-sum">{summary}</span>}
           </span>
           <span className="nw-chev" aria-hidden="true">
-            {open ? '▾' : '▸'}
+            <Icon name={open ? 'down' : 'right'} size={14} />
           </span>
         </button>
         {help && <HelpTip label={title}>{help}</HelpTip>}
