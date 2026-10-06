@@ -79,5 +79,5 @@ def test_the_body_is_small_has_no_nulls_and_is_cached_at_startup(client, data):
 
 def test_the_known_limits_say_how_the_8088_squares_split(client):
     assert "6,251 planting squares + 1,837 other squares = 8,088 map squares." in client.get("/health").json()["limits"]
-    assert "Land that is not covered by the zoning map is left out until the LGU confirms it is plantable." in client.get("/health").json()["limits"]
+    assert "Land that is not covered by our zoning map (the CLUP 2021-2031 shows it as Forest Reserve, Watershed) is left out until MENRO and DENR confirm it is plantable." in client.get("/health").json()["limits"]
     assert api_v2.FIELD_LIMITS[0].startswith("Field checks")                        # the last two limits (field checks) are still the last two

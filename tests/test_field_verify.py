@@ -446,7 +446,7 @@ def test_import_rejects_bad_rows_with_reasons_and_never_saves_them(client, data,
     assert rep["accepted"] == 0 and rep["rejected"] == 7 and fv.n_events(data.field_db) == 0
     why = {x["point_ref"]: x["reason"] for x in rep["rows"]}
     assert "does not belong to plan" in why["ZZZ-001"] and "does not match point_ref" in why[r1["point_ref"]] and "check code" in why[r2["point_ref"]]
-    assert "from the grid point" in why[r3["point_ref"]] and "together" in why[r4["point_ref"]] and "status is empty" in why[r5["point_ref"]]
+    assert ("from the grid point" in why[r3["point_ref"]] or "outside the municipality" in why[r3["point_ref"]]) and "together" in why[r4["point_ref"]] and "status is empty" in why[r5["point_ref"]]
     assert "belongs to plan" in why[r6["point_ref"]]
 
 

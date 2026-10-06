@@ -143,7 +143,7 @@ def test_on_changes_the_municipal_ranking_inputs_and_the_context_layer(client):
     assert c["n"] == 558 and c["legal_points"] == 7530 and c["total_points"] == 8088 and c["reason_counts"]["outside_zoning"] == 0
     assert sum(c["reason_counts"].values()) == 558
     labels = {t["index"]: t["label"] for t in c["zoning"]["zone_table"]}
-    assert "Outside the zoning map" in labels[-1] and all(i < 0 or "not a planting zone" in t for i, t in labels.items())
+    assert "Outside our zoning map" in labels[-1] and all(i < 0 or "not a planting zone" in t for i, t in labels.items())
 
 
 def test_health_and_known_limits_use_the_numbers_of_the_data(client):
@@ -152,8 +152,8 @@ def test_health_and_known_limits_use_the_numbers_of_the_data(client):
     assert on["counts"]["legal_points"] == 7530 and off["counts"]["legal_points"] == 6251 and on["counts"]["grid_points"] == off["counts"]["grid_points"] == 8088
     assert "7,530 planting squares + 558 other squares = 8,088 map squares." in on["limits"]
     assert "6,251 planting squares + 1,837 other squares = 8,088 map squares." in off["limits"]
-    assert any("1,279 of the planting squares lie outside the zoning map" in x and "check with the LGU" in x for x in on["limits"])
-    assert "Land that is not covered by the zoning map is left out until the LGU confirms it is plantable." in off["limits"]
+    assert any("1,279 of the planting squares lie outside our zoning map" in x and "Forest Reserve (Watershed)" in x and "MENRO and DENR" in x for x in on["limits"])
+    assert "Land that is not covered by our zoning map (the CLUP 2021-2031 shows it as Forest Reserve, Watershed) is left out until MENRO and DENR confirm it is plantable." in off["limits"]
 
 
 def test_areas_and_zone_counts_follow_the_switch(client):
@@ -178,7 +178,7 @@ def test_rank_an_unconfirmed_square_is_flagged_and_off_it_is_refused(client, sit
     on = client.get("/rank", params={"purpose": "urban", "lat": lat, "lon": lon, "limit": 45})
     assert on.status_code == 200
     j = on.json()
-    assert j["point"]["point_id"] == pid and j["point"]["zoning_status"] == "unconfirmed" and "confirm with the LGU before planting" in j["point"]["zoning_note"]
+    assert j["point"]["point_id"] == pid and j["point"]["zoning_status"] == "unconfirmed" and "coordinate with MENRO and DENR before planting" in j["point"]["zoning_note"]
     assert j["returned"] == 45 and all("zoning_unconfirmed" in it["flags"] for it in j["ranking"])
     off = client.get(f"/rank?purpose=urban&lat={lat}&lon={lon}&{F}")
     assert off.status_code == 404 and "outside the zoning map" in off.json()["detail"]
@@ -213,7 +213,7 @@ def test_nearest_viable_marks_the_status_and_off_never_offers_an_unconfirmed_squ
 def test_search_point_says_where_an_unconfirmed_square_stands(client, sites):
     _, _, pid = an_unconfirmed(sites, 5)
     on = client.get(f"/search/point?q={pid}").json()
-    assert on["zoning_status"] == "unconfirmed" and on["legal_zone"] is False and "outside the zoning map" in on["note"]
+    assert on["zoning_status"] == "unconfirmed" and on["legal_zone"] is False and "outside our zoning map" in on["note"]
     off = client.get(f"/search/point?q={pid}&{F}").json()
     assert "zoning_status" not in off and "not in a legal planting zone" in off["note"]
 
@@ -235,7 +235,7 @@ def test_plans_flag_the_unconfirmed_trees_and_count_them(client, sites):
     assert flagged and all(st[it["point_id"]] == "unconfirmed" for it in flagged)
     assert all(("zoning_unconfirmed" in it["flags"]) == (st[it["point_id"]] == "unconfirmed") for it in j["plan"])
     z = j["summary"]["zoning"]
-    assert z["include_unzoned"] is True and z["unconfirmed_trees"] == len(flagged) and z["placed_trees"] == len(j["plan"]) and "confirm with the LGU before planting" in z["note"]
+    assert z["include_unzoned"] is True and z["unconfirmed_trees"] == len(flagged) and z["placed_trees"] == len(j["plan"]) and "coordinate with MENRO and DENR before planting" in z["note"]
     assert j["plan"] and "zoning" in j["summary"]
     got = client.get(f"/plans/{j['plan_id']}").json()                       # the saved plan keeps the flags and the count
     assert got["summary"]["zoning"] == z and [it["flags"] for it in got["plan"]] == [it["flags"] for it in j["plan"]]
@@ -252,10 +252,10 @@ def test_the_kit_point_list_flags_and_notes_unconfirmed_points_and_its_columns_a
     assert list(rows[0].keys()) == ["point_ref", "point_id", "species_code", "common_name", "scientific_name", "lat", "lon", "utm_e", "utm_n", "barangay",
                                     "zone", "spacing_min_m", "planting_months", "flags", "notes", "plan_id", "check_code", "status", "moved_lat", "moved_lon"] == fk.CSV_COLUMNS
     un = [r for r in rows if "zoning_unconfirmed" in r["flags"].split(";")]
-    assert len(un) == n_un and all("Land outside the zoning map: confirm with the LGU before planting" in r["notes"] for r in un)
-    assert all("zoning_unconfirmed" not in r["flags"] and "outside the zoning map" not in r["notes"] for r in rows if r not in un)
+    assert len(un) == n_un and all("Land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting" in r["notes"] for r in un)
+    assert all("zoning_unconfirmed" not in r["flags"] and "outside our zoning map" not in r["notes"] for r in rows if r not in un)
     readme = z.read([n for n in z.namelist() if n.endswith("README.txt")][0]).decode("utf-8")
-    assert "zoning_unconfirmed is on land outside the zoning map: confirm with the LGU before planting" in " ".join(readme.split())
+    assert "zoning_unconfirmed is on land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting" in " ".join(readme.split())
 
 
 def test_excluded_squares_are_never_planned_and_off_equals_the_old_plan(client, sites, old_ctx):

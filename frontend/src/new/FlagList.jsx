@@ -3,7 +3,8 @@ import Icon from './Icon.jsx'
 
 // Words for the flags that were added after the first dashboard (the earlier word list in v2/labels.js is left as it was).
 const EXTRA = {
-  zoning_unconfirmed: { label: 'Land outside the zoning map', help: 'Zoning not confirmed: check with the LGU before planting.', icon: 'dotring' },
+  zoning_unconfirmed: { label: 'Land outside our zoning map', help: 'Outside our zoning map. The CLUP 2021-2031 shows this land as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting.', icon: 'dotring' },
+  soil_provisional: { label: 'Soil: LGU map, provisional', help: 'Soil from the LGU soil map, digitized by us: provisional, not yet verified by the agriculturist.', icon: 'layers' },
   ground_bare: { label: 'Looks bare in satellite land cover', help: 'Satellite land cover (2021) looks bare: check on the ground before planting.', icon: 'mountain' },
   ground_built_up: { label: 'Looks built-up in satellite land cover', help: 'Satellite land cover (2021) looks built-up: check on the ground before planting.', icon: 'building' },
   ground_water: { label: 'Looks like water in satellite land cover', help: 'Satellite land cover (2021) looks like water or wetland: check on the ground before planting.', icon: 'drop' },

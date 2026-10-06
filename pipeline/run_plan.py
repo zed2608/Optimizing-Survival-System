@@ -45,7 +45,7 @@ CFG = {
 # =====================================================================================================================
 
 UNCONFIRMED_FLAG = "zoning_unconfirmed"
-UNCONFIRMED_NOTE = "Land outside the zoning map: confirm with the LGU before planting"
+UNCONFIRMED_NOTE = "Land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting"
 
 BLOCK_COLUMNS = ["trees_planned", "spacing_m", "rows", "trees_per_row", "capacity", "usable_side_m", "row_direction", "start_corner", "layout_note"]   # added to PLAN_COLUMNS in blocks mode
 BLOCK_LIMITS = ("Each block is one 100 m grid square, planted at the species spacing on its usable part (provisional share of the square); a plan places at most one block per square.",
@@ -382,7 +382,7 @@ def zoning_block(include_unzoned, plan):
     w = plan["trees_planned"].astype(int) if "trees_planned" in plan and len(plan) else pd.Series(1, index=fl.index)
     n_un = int(w[fl.str.contains(UNCONFIRMED_FLAG)].sum()) if len(plan) else 0
     return {"include_unzoned": bool(include_unzoned), "placed_trees": int(w.sum()), "unconfirmed_trees": n_un, "unconfirmed_blocks": int(fl.str.contains(UNCONFIRMED_FLAG).sum()),
-            "note": (UNCONFIRMED_NOTE + ". " if n_un else "") + "Unconfirmed = outside every zoning polygon (a gap in the zoning file); these squares are scored like the others."}
+            "note": (UNCONFIRMED_NOTE + ". " if n_un else "") + "Unconfirmed = outside every zoning polygon of our zoning file (the CLUP 2021-2031 shows this land as Forest Reserve, Watershed); these squares are scored like the others."}
 
 
 PLAN_COLUMNS = ["point_id", "lon", "lat", "utm_e", "utm_n", "zone_desc", "species_id", "species", "S", "P", "W", "confidence", "flags",

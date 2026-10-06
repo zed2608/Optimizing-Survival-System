@@ -21,3 +21,6 @@ data/field/
 
 # downloaded external rasters (ESA WorldCover window, see docs/DATA_SOURCES.md)
 data/external/
+
+# LGU documents (CLUP, LCCAP, DRRM plan) and the soil map renders, see docs/DATA_SOURCES.md
+data/external/lgu/

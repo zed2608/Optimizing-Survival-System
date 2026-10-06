@@ -188,7 +188,7 @@ def soil_classes(text):
     if text is None: return [], [], False
     t = " " + text.lower().replace("-", " ") + " "
     found, tags = [], []
-    for key, cls in (("sandy loam", "Sandy Loam"), ("clay loam", "Clay Loam"), ("sandy clay", "Sandy Clay"), ("silty clay", "Silty Clay")):
+    for key, cls in (("sandy loam", "Sandy Loam"), ("clay loam", "Clay Loam"), ("sandy clay", "Sandy Clay"), ("silty clay", "Silty Clay"), ("silt loam", "Silt Loam")):   # Silt Loam added in round 11 (no species text uses it today: nothing changes)
         if key in t: found.append(cls); t = t.replace(key, " ")
     if "loam" in t: found.append("Loam")
     if re.search(r'\bclay\b', t): found.append("Clay")

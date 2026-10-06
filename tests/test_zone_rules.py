@@ -61,7 +61,7 @@ def test_moving_special_reserved_to_unconfirmed_scores_flags_and_names_the_zone(
     plan, summary = rp.make_plan(ctx, "urban", 25, zone="Special Reserved Zone", seed=1)
     assert len(plan) == 25 and plan["flags"].str.contains("zoning_unconfirmed").all() and summary["zoning"]["unconfirmed_trees"] == 25
     assert fk.flag_notes("zoning_unconfirmed", "Special Reserved Zone") == "Special Reserved Zone: confirm with the LGU before planting."
-    assert fk.flag_notes("zoning_unconfirmed", "") == "Land outside the zoning map: confirm with the LGU before planting."
+    assert fk.flag_notes("zoning_unconfirmed", "") == "Land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting."
     # the API on this copy
     import api_v2
     from fastapi.testclient import TestClient
@@ -76,7 +76,7 @@ def test_moving_special_reserved_to_unconfirmed_scores_flags_and_names_the_zone(
         on, off = c.get("/grid/context").json(), c.get("/grid/context?include_unzoned=false").json()
         assert on["n"] == 203 and on["legal_points"] == 7885 and off["n"] == 1837 and off["legal_points"] == 6251
         health = c.get("/health").json()["limits"]
-        assert any("1,634 of the planting squares are not confirmed (1,279 outside the zoning map, 355 in a named zone" in x for x in health)
+        assert any("1,634 of the planting squares are not confirmed (1,279 outside our zoning map, 355 in a named zone" in x for x in health)
         r = c.post("/plan-event", json={"purpose": "urban", "n_saplings": 20, "zone": "Special Reserved Zone", "seed": 2}).json()
         assert r["summary"]["zoning"]["unconfirmed_trees"] == 20
         assert c.post(f"/plans/{r['plan_id']}/field-kit").status_code == 200

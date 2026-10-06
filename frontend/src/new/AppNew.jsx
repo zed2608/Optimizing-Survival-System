@@ -234,7 +234,7 @@ export default function AppNew() {
         sname ? `${label}: ${sname}` : null,
       ]
       if (g.mode === 'all' || g.mode === 'any') lines.push(`${c.n_eligible_species[i]} of ${g.species_ids.length} selected species suit this point`)
-      if (unconfirmed.has(i)) lines.push('Zoning: not on the zoning map (not confirmed)')
+      if (unconfirmed.has(i)) lines.push('Zoning: outside our zoning map (CLUP: Forest Reserve, Watershed)')
       if (showGround && groundInfo) lines.push(`Ground cover (satellite 2021): ${groundInfo.cls[i] === 255 ? 'Data Unavailable' : GROUND_STYLE[GROUND_GROUPS[groundInfo.cls[i]]].label.toLowerCase()}${groundInfo.flags[i] ? ' (flagged: check on the ground)' : ''}`)
       if (fieldAt.has(i)) {
         const f = decodeFieldCode(fieldAt.get(i))
@@ -576,7 +576,7 @@ export default function AppNew() {
               {grid.data?.zoning && (
                 <div>
                   <Icon name="dotring" size={14} /> 
-                  {grid.data.zoning.n_unconfirmed.toLocaleString('en-US')} of the planting squares are outside the zoning map (not confirmed)
+                  {grid.data.zoning.n_unconfirmed.toLocaleString('en-US')} of the planting squares are outside our zoning map (CLUP: Forest Reserve, Watershed)
                 </div>
               )}
             </div>

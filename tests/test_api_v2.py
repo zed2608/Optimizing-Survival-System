@@ -258,7 +258,7 @@ def test_plan_event_300_saplings_finishes_in_under_ten_seconds(client):
     assert r.status_code == 200 and dt < 10.0, f"{dt:.1f}s"
     j = r.json()
     assert len(j["plan"]) == 300 and j["unmatched"]["saplings_unmatched"] == 0 and 6 <= len(j["palette"]) <= 10
-    assert abs(sum(p["share"] for p in j["palette"]) - 1.0) < 1e-6
+    assert abs(sum(p["share"] for p in j["palette"]) - 1.0) < 1e-3                   # each share is rounded to 4 decimals
 
 
 def test_plan_event_response_content_and_sources(client):

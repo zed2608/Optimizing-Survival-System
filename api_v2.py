@@ -111,7 +111,7 @@ API_CFG = {
 LIMITS = [
     "Soil pH is not scored (there is no real pH layer); rainfall, temperature, canopy and exposure are not scored either.",
     "Slope comes from ~100 m grid cells (finite differences); about 22% of cells have a one-axis slope that may under-estimate it.",
-    "The soil texture mapping is a legacy mapping and is UNVERIFIED; by default a texture mismatch only lowers the score and is flagged soil_unverified_mismatch.",
+    "{SOIL_LIMIT}",
     "All weights, caps, thresholds and purpose scores are PROVISIONAL until the agriculturist signs off.",
     "Suitability S comes from rules written from the species dataset, not from field survival data.",
     "Each point is a ~100 m grid cell, so a plan places at most one tree per cell.",
@@ -125,6 +125,21 @@ LIMITS = [
 FIELD_LIMITS = LIMITS[-2:]
 
 
+UNZONED_NOTE = "Land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting"
+
+
+def soil_facts(pt):
+    """The soil facts of a grid square for /rank and the point search: the LGU series, its texture, the source and the purity (None when the square is outside the soil map or the data has no
+    LGU columns), and the legacy texture. Nothing is invented: a missing value stays None."""
+    if "soil_texture_lgu" not in pt.index:
+        return {}
+    ser = py(pt.soil_series_lgu)
+    return {"soil": {"series": ser, "texture": py(pt.soil_texture_lgu), "source": py(pt.soil_source) if ser else None, "purity": py(pt.soil_purity),
+                     "status": "provisional" if ser else "Data Unavailable",
+                     "note": ("Soil from the LGU soil map, digitized by us: provisional" if ser else "This square lies outside the LGU soil map: no soil texture, so the soil term is not scored."),
+                     "legacy_texture": py(pt.soil_texture_legacy)}}
+
+
 def limits_of(d):
     """The known limits with the numbers of THIS data and THIS view filled in (no hard-coded counts): planting squares, other squares, and what the zoning-map gap means."""
     ap = d.all_points
@@ -132,14 +147,22 @@ def limits_of(d):
     n_un = int((d.ctx.sites.zoning_status == "unconfirmed").sum()) if "zoning_status" in d.ctx.sites else 0
     n_named = int((d.ctx.sites.zoning_status.eq("unconfirmed") & d.ctx.sites.zone_desc.notna()).sum()) if n_un else 0
     if n_named:                                                        # ZONE_RULES moved a named zone to unconfirmed
-        un = (f"{n_un:,} of the planting squares are not confirmed ({n_un - n_named:,} outside the zoning map, {n_named:,} in a named zone the LGU has not cleared). "
-              "They are scored like the others but flagged zoning_unconfirmed: check with the LGU before planting.")
+        un = (f"{n_un:,} of the planting squares are not confirmed ({n_un - n_named:,} outside our zoning map, {n_named:,} in a named zone the LGU has not cleared). "
+              f"The {n_un - n_named:,} outside our zoning map are shown in the CLUP 2021-2031 as Forest Reserve (Watershed). They are scored like the others but flagged zoning_unconfirmed: "
+              "coordinate with MENRO and DENR before planting.")
     elif n_un:
-        un = (f"{n_un:,} of the planting squares lie outside the zoning map (zoning not confirmed). They are scored like the others but flagged zoning_unconfirmed: "
-              "check with the LGU before planting.")
+        un = (f"{n_un:,} of the planting squares lie outside our zoning map. The CLUP 2021-2031 shows this land as Forest Reserve (Watershed), part of the Upper Marikina River Basin, "
+              "which the Sangguniang Bayan resolved to co-manage with DENR. They are scored like the others but flagged zoning_unconfirmed: coordinate with MENRO and DENR before planting.")
     else:
-        un = "Land that is not covered by the zoning map is left out until the LGU confirms it is plantable."
-    fill = {"{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un}
+        un = "Land that is not covered by our zoning map (the CLUP 2021-2031 shows it as Forest Reserve, Watershed) is left out until MENRO and DENR confirm it is plantable."
+    if "soil_texture_lgu" in d.ctx.sites:
+        n_nosoil = int(d.ctx.sites.soil_texture_lgu.isna().sum())
+        soil = ("Soil comes from the LGU soil map (Bureau of Soils and Water Management), digitized by us from a scanned figure: approximate, and not yet verified by the agriculturist. "
+                f"{n_nosoil:,} of the planting squares lie outside that map (the upper watershed area), have no soil texture, and are scored without the soil term. A texture mismatch only lowers the score "
+                "and is flagged soil_unverified_mismatch; scores that use the LGU soil carry the flag soil_provisional. The old soil layer (four world-soil-database codes, legacy) is kept in the data and is also unverified.")
+    else:
+        soil = "The soil texture mapping is a legacy mapping and is UNVERIFIED; by default a texture mismatch only lowers the score and is flagged soil_unverified_mismatch."
+    fill = {"{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil}
     out = []
     for t in LIMITS:
         for k, v in fill.items():
@@ -282,7 +305,7 @@ def _grid_doc(d, purpose, w, best, n_el, species_id, species_ids, mode, w_def, b
         doc["field"] = field_block(d)
     if d.unconf_idx:                                                   # squares outside the zoning map: positions in the column arrays (absent when there are none)
         doc["zoning"] = {"unconfirmed_index": d.unconf_idx, "n_unconfirmed": len(d.unconf_idx),
-                         "note": "These positions are squares outside the zoning map: scored like the others but not confirmed as planting zones. Check with the LGU before planting."}
+                         "note": "These positions are squares outside our zoning map (the CLUP 2021-2031 shows this land as Forest Reserve, Watershed): scored like the others but not confirmed as planting zones. Coordinate with MENRO and DENR before planting."}
     return json.dumps(doc, separators=(",", ":")).encode("utf-8")
 
 
@@ -362,7 +385,7 @@ def build_context_body(d):
                        "note": "No column contains null. reason is an index into reasons; zone an index into zones; barangay an index into barangays. These squares are NOT scored."}}
     if d.zoning_on:                                                    # squares outside the zoning map are planting squares in this view: say what the table's "no zone" marker means
         doc["zoning"] = {"unconfirmed_squares_are_planting_squares": True,
-                         "zone_table": [{"index": miss, "name": None, "label": "Outside the zoning map: the zoning file has no polygon here. Such squares are scored and flagged zoning_unconfirmed, so none of them is listed in this layer."}]
+                         "zone_table": [{"index": miss, "name": None, "label": "Outside our zoning map (CLUP: Forest Reserve, Watershed): the zoning file has no polygon here. Such squares are scored and flagged zoning_unconfirmed, so none of them is listed in this layer."}]
                                        + [{"index": i, "name": z, "label": CONTEXT_REASONS[cfg["context_zone_reasons"].get(z, "other")]} for i, z in enumerate(zone_names)],
                          "note": "With include_unzoned=true this layer holds only the squares in a named non-planting zone. With include_unzoned=false it also holds the squares outside the zoning map."}
     body = json.dumps(doc, separators=(",", ":")).encode("utf-8")
@@ -702,7 +725,9 @@ def limiting_factors(d, pt, items, n_suit, requested):
     smin, smax = py(sp.max_slope_pct.min()), py(sp.max_slope_pct.max())
     f_ = []
     msgs = []
-    tex = py(pt.soil_texture_legacy)
+    lgu = "soil_texture_lgu" in pt.index
+    tex = py(pt.soil_texture_lgu) if lgu else py(pt.soil_texture_legacy)
+    tex_src = "from the LGU soil map, digitized by us and unverified" if lgu else "from a legacy and unverified soil map"
     f_.append({"gate": "zone", "label": "Zone", "species_excluded": gates["zone"], "n_species": n, "square_value": py(pt.zoning_status) if "zoning_status" in pt else None, "unit": None,
                "species_limit_min": None, "species_limit_max": None, "message": None})
     ex = gates["elevation"]
@@ -726,7 +751,7 @@ def limiting_factors(d, pt, items, n_suit, requested):
     if ex:
         m = f"The soil texture ({tex}) rules out {ex} of {n} species."
     elif soil_mis:
-        m = (f"The soil texture ({tex}, from a legacy and unverified soil map) does not match {soil_mis} of {n} species. This only lowers their score; it does not rule them out.")
+        m = (f"The soil texture ({tex}, {tex_src}) does not match {soil_mis} of {n} species. This only lowers their score; it does not rule them out.")
     f_.append({"gate": "soil", "label": "Soil", "species_excluded": ex, "n_species": n, "square_value": tex, "unit": None, "species_limit_min": None, "species_limit_max": None,
                "species_with_mismatch": soil_mis, "message": m})
     msgs = [x["message"] for x in f_ if x["message"]]
@@ -1197,9 +1222,11 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                       "slope_method": py(pt.slope_method), "soil_texture_legacy": py(pt.soil_texture_legacy),
                       "soil_mapping_status": py(pt.soil_mapping_status),
                       **({"zoning_status": py(pt.zoning_status),
-                          "zoning_note": ((f"{pt.zone_desc}: confirm with the LGU before planting" if isinstance(pt.zone_desc, str) else "Land outside the zoning map: confirm with the LGU before planting")
+                          "zoning_note": ((f"{pt.zone_desc}: confirm with the LGU before planting" if isinstance(pt.zone_desc, str) else UNZONED_NOTE)
                                           if unconf else "Inside a legal planting zone")} if d.zoning_on else {}),
-                      "site_inputs_source": "backend/Working_Points.csv (elevation, soil code); slope by finite differences on elevation; soil texture = legacy mapping (unverified)",
+                      **soil_facts(pt),
+                      "site_inputs_source": "backend/Working_Points.csv (elevation); slope by finite differences on elevation; soil texture = " + (
+                          "the LGU soil map (BSWM), digitized by us, provisional" if "soil_texture_lgu" in d.all_points else "legacy mapping (unverified)"),
                       **({"ground_cover": gc} if gc is not None else {})},
             "species_eligible": int(sum(t[0] for t in items)), "species_total": n_all, "returned": len(out), "ranking": out,
             "limits": limits_of(d), "w_definition": "W = S x P if S >= 0.50 else 0", **field_extra(d, int(pt.point_id)), **season_extra(d, season),
@@ -2519,9 +2546,10 @@ def point_card(d, pid):
         card["zoning_status"] = py(r.zoning_status)
     if unconf:
         card["note"] = ((f"This grid point is in the {r.zone_desc} (zoning not confirmed). It is ranked, but confirm with the LGU before planting." if isinstance(r.zone_desc, str) else
-                         "This grid point is outside the zoning map (zoning not confirmed). It is ranked, but confirm with the LGU before planting."))
+                         "This grid point is outside our zoning map (the CLUP 2021-2031 shows it as Forest Reserve, Watershed). It is ranked, but coordinate with MENRO and DENR before planting."))
     elif not legal:
         card["note"] = "This grid point is not in a legal planting zone, so it has no ranking."
+    card.update(soil_facts(r))
     if (legal or unconf) and d.field_current.get(int(pid)) is not None:
         card["field_check"] = field_view(d, int(pid))
     gc = ground_cover_block(d, int(pid))

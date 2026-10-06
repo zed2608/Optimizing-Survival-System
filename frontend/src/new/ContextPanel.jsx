@@ -19,7 +19,7 @@ export default function ContextPanel({ data, index, win, today, searched, viable
         <p className="nw-plain">{reason}.</p>
         {data.reasons[c.reason[index]] === 'outside_zoning' && (
           <>
-            <p className="nw-plain">This land is not covered by the zoning map. It is left out while “Include land outside the zoning map” is off.</p>
+            <p className="nw-plain">This land is outside our zoning map (the CLUP 2021-2031 shows it as Forest Reserve, Watershed). It is left out while “Include land outside the zoning map” is off.</p>
             {onIncludeUnzoned && (
               <button type="button" className="btn btn-small" onClick={onIncludeUnzoned}>
                 Include land outside the zoning map

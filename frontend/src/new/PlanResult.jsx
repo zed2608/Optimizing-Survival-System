@@ -41,7 +41,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
   const both = planted.filter((p) => p.needs_both_sexes).map((p) => p.species)
   const warnings = [...(s.palette_warnings ?? [])]
   const zn = s.zoning ?? null
-  if (zn && zn.unconfirmed_trees > 0) warnings.push(`${zn.unconfirmed_trees} of ${zn.placed_trees} trees are on land outside the zoning map: confirm with the LGU before planting.`)
+  if (zn && zn.unconfirmed_trees > 0) warnings.push(`${zn.unconfirmed_trees} of ${zn.placed_trees} trees are on land outside our zoning map (the CLUP 2021-2031 shows it as Forest Reserve, Watershed): coordinate with MENRO and DENR before planting.`)
   const sel = s.species_selection
 
   return (
@@ -80,7 +80,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
         )}
         {zn && (
           <div className={`nw-loc-line ${zn.unconfirmed_trees > 0 ? 'nw-zoning is-unconfirmed' : ''}`}>
-            <Icon name="dotring" size={14} /> {zn.unconfirmed_trees} of {zn.placed_trees} trees are on land outside the zoning map
+            <Icon name="dotring" size={14} /> {zn.unconfirmed_trees} of {zn.placed_trees} trees are on land outside our zoning map (CLUP: Forest Reserve, Watershed)
           </div>
         )}
       </section>

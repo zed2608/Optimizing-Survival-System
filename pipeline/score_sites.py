@@ -29,6 +29,19 @@ MARGIN_FRACTION = 0.10          # soft fall-off margin = this fraction of the sp
 SOIL_GATE_MODE = "soft"         # "soft": texture mismatch -> low soil factor + flag, S not zeroed (legacy soil mapping is UNVERIFIED)
                                 # "hard": texture mismatch -> S = 0. Switch to "hard" after the agriculturist verifies the mapping.
 SOIL_MISMATCH_FACTOR = 0.25     # soil factor on a texture mismatch in "soft" mode (provisional, no source)
+SOIL_SOURCE = "lgu"             # "lgu": the soil match uses soil_texture_lgu (the LGU soil map digitized by us, pipeline/lgu_soil.py); "legacy": soil_texture_legacy (the old four-code layer).
+                                # Both are UNVERIFIED. A square with no texture never lowers a score (the soil term is simply not evaluated for it).
+# SOIL_COMPAT: which species soil words fit a site texture (PROVISIONAL, for the agriculturist; explained in docs/DATA_SOURCES.md). A site texture matches a species when the species list
+# holds ANY of the words on its row. Clay, Clay Loam and Loam keep today's rule (the same word); Silt Loam also counts as Loam; Sandy Loam also counts as the species' plain "Sandy".
+SOIL_COMPAT = {
+    "clay": {"clay"},
+    "clay loam": {"clay loam"},
+    "loam": {"loam"},
+    "silt loam": {"silt loam", "loam"},
+    "sandy loam": {"sandy loam", "sandy"},
+}
+SOIL_PROVISIONAL_FLAG = "soil_provisional"   # on a pair whose soil term was evaluated from the LGU soil map
+SOIL_PROVISIONAL_NOTE = "Soil from the LGU soil map, digitized by us: provisional"
 TERM_WEIGHTS = {                # weight of each soft factor in S (equal weights; provisional, not from any source)
     "elevation": 0.25, "slope": 0.25, "soil": 0.25, "wetness": 0.25,
 }
@@ -78,8 +91,18 @@ def _edge_factor(dist_inside, margin):
     return np.clip(f, 0.0, 1.0)
 
 
+def site_texture_column(sites, soil_source=None):
+    """(column, source) of the site texture used: soil_texture_lgu when SOIL_SOURCE is 'lgu' and the column exists, else soil_texture_legacy."""
+    src = SOIL_SOURCE if soil_source is None else soil_source
+    if src not in ("lgu", "legacy"):
+        raise ValueError(f"soil_source must be 'lgu' or 'legacy', got {src!r}")
+    if src == "lgu" and "soil_texture_lgu" in sites:
+        return "soil_texture_lgu", "lgu"
+    return "soil_texture_legacy", "legacy"
+
+
 def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance_m=None, soil_gate_mode=None,
-                soil_mismatch_factor=None):
+                soil_mismatch_factor=None, soil_source=None):
     """
     Vectorised S for every (site, species) pair. Returns one row per pair with numeric terms (no JSON yet).
 
@@ -126,12 +149,14 @@ def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance
     # ---- soil: gate = species texture list contains the site texture, or any texture is fine
     tex_lists = [set(t.strip().lower() for t in str(v).split(";") if t.strip()) if pd.notna(v) else set() for v in sp["soil_textures"]]
     any_tex = sp["soil_any_texture"].astype(bool).to_numpy()[None, :]
-    site_tex = si["soil_texture_legacy"].fillna("").astype(str).str.strip().str.lower().to_numpy()
+    tex_col, tex_src = site_texture_column(si, soil_source)
+    site_tex = si[tex_col].fillna("").astype(str).str.strip().str.lower().to_numpy()
     has_list = np.array([bool(s) for s in tex_lists])[None, :]
     match = np.zeros((np_, ns), dtype=bool)
     for j, s in enumerate(tex_lists):
         if s:
-            match[:, j] = np.isin(site_tex, list(s))
+            fits = [t for t in np.unique(site_tex) if t and (SOIL_COMPAT.get(t, {t}) & s)]     # site textures that fit this species
+            match[:, j] = np.isin(site_tex, fits)
     site_known = (site_tex != "")[:, None]
     soil_known = any_tex | (site_known & has_list)           # gate can be evaluated
     soil_mismatch = soil_known & ~(any_tex | match)
@@ -172,6 +197,7 @@ def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance
     for k, g in gate_fail.items():
         rows["gate_fail_" + k] = np.ascontiguousarray(g).ravel()
     rows["soil_unverified_mismatch"] = (soil_mismatch & (mode == "soft")).ravel()
+    rows["soil_lgu_used"] = ((soil_known & site_known & has_list & ~any_tex) if tex_src == "lgu" else np.zeros((np_, ns), dtype=bool)).ravel()   # the soil term was evaluated from the LGU map
     for k, ok in (("elevation", elev_known), ("slope", slope_known), ("soil", soil_known), ("wetness", wet_known)):
         rows["known_" + k] = np.broadcast_to(ok, (np_, ns)).ravel()
     rows["s_prob"] = np.full(np_ * ns, np.nan)
@@ -209,11 +235,13 @@ def build_breakdown(scores, species, sites, src, weights=None):
                            "weight": w[term], "src": term_src[(sid, term)]}
         gates = [g for g in ("legal_zone", "elevation", "slope", "soil") if getattr(r, "gate_fail_" + g)]
         flags = ["soil_unverified_mismatch"] if r.soil_unverified_mismatch else []
+        if r.soil_lgu_used:
+            flags.append(SOIL_PROVISIONAL_FLAG)
         out.append(json.dumps({"gate_failed": gates, "flags": flags, "terms": terms}, separators=(",", ":")))
     return out
 
 
-def run(out_dir, water_shp, soil_gate_mode=None):
+def run(out_dir, water_shp, soil_gate_mode=None, soil_source=None):
     out = Path(out_dir)
     dest = out / "scores"
     dest.mkdir(parents=True, exist_ok=True)
@@ -226,7 +254,7 @@ def run(out_dir, water_shp, soil_gate_mode=None):
     else:
         sites = sites[sites.is_legal_zone.astype(bool)].copy()
     sites["water_dist_m"] = distance_to_water(sites, water_shp) if water_shp else np.nan
-    scores = score_pairs(species, sites, soil_gate_mode=soil_gate_mode)
+    scores = score_pairs(species, sites, soil_gate_mode=soil_gate_mode, soil_source=soil_source)
     scores["breakdown_json"] = build_breakdown(scores, species, sites, source_lookup(sources))
     final = scores[["point_id", "species_id", "s_rule", "s_prob", "breakdown_json", "confidence"]].copy()
     final["s_rule"] = final.s_rule.round(4); final["confidence"] = final.confidence.round(4)
@@ -242,6 +270,8 @@ def run(out_dir, water_shp, soil_gate_mode=None):
     con.commit(); con.close()
     viable = scores.groupby("species_id").s_rule.apply(lambda s: int((s >= 0.5).sum()))
     print(f"soil gate mode: {SOIL_GATE_MODE if soil_gate_mode is None else soil_gate_mode}")
+    col, src = site_texture_column(sites, soil_source)
+    print(f"soil source: {src} ({col}); squares with a texture: {int(sites[col].notna().sum())} of {len(sites)}")
     zs = sites.zoning_status.value_counts().to_dict() if "zoning_status" in sites else {}
     print(f"points scored: {len(sites)} of {n_all} {zs or ''}| species: {len(species)} | rows: {len(final)}")
     print(f"water distance available for {int(sites.water_dist_m.notna().sum())} points")
@@ -255,8 +285,9 @@ def main():
     ap.add_argument("--out", default="data/processed")
     ap.add_argument("--water", default="data/SMR_WATERBODIES_POLY.shp", help="waterbodies layer for the wetness term")
     ap.add_argument("--soil-gate-mode", choices=("soft", "hard"), default=None, help=f"override SOIL_GATE_MODE ({SOIL_GATE_MODE})")
+    ap.add_argument("--soil-source", choices=("lgu", "legacy"), default=None, help=f"override SOIL_SOURCE ({SOIL_SOURCE})")
     a = ap.parse_args()
-    run(a.out, a.water, a.soil_gate_mode)
+    run(a.out, a.water, a.soil_gate_mode, a.soil_source)
 
 
 if __name__ == "__main__":

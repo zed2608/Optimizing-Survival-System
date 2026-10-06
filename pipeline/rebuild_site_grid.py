@@ -53,6 +53,10 @@ UNKNOWN_ZONE_RULE = "excluded"          # a zone name that is not in ZONE_RULES 
 OUTSIDE_ZONING_RULE = "unconfirmed"     # a square outside every zoning polygon: the satellite shows forest, the zoning file has a gap (set "excluded" to leave them out)
 RULE_VALUES = ("confirmed", "unconfirmed", "excluded")
 VALID_ZONES = [z for z, r in ZONE_RULES.items() if r == "confirmed"]   # the legal zones (kept for older readers of this module)
+# SOIL_SOURCE: where the soil texture of the scores comes from. "lgu" = the LGU soil map (BSWM), digitized by us (pipeline/lgu_soil.py; PROVISIONAL, not verified by the agriculturist);
+# "legacy" = the four world-soil-database codes with their legacy textures (also UNVERIFIED). The legacy columns are always kept; with "legacy" nothing else is written.
+SOIL_SOURCE = "lgu"
+SOIL_SOURCE_TEXT = "LGU soil map (BSWM), digitized by us, provisional"
 # Legacy translation from backend/app.py. UNVERIFIED - needs a sourced mapping before it is used for hard limits.
 SOIL_LEGACY = {
     4478: ("Gleyic Cambisol", "Clay Loam"), 4413: ("Nitisol", "Clay"),
@@ -85,6 +89,8 @@ def main():
     ap.add_argument("--input", default="backend/Working_Points.csv")
     ap.add_argument("--landuse", default="data/LandUses.shp", help="optional; needs geopandas")
     ap.add_argument("--out", default="data/processed")
+    ap.add_argument("--soil-source", choices=("lgu", "legacy"), default=None, help=f"override SOIL_SOURCE ({SOIL_SOURCE}); legacy = the output of before, byte for byte")
+    ap.add_argument("--soil-csv", default=None, help="the digitized LGU soil table (default <out>/site_soil_lgu.csv, made by pipeline/lgu_soil.py)")
     a = ap.parse_args()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     rep = []
@@ -160,6 +166,21 @@ def main():
         rep.append(f"land-use join SKIPPED: {e}")
         o["zone_code"] = None; o["zone_desc"] = None; o["is_legal_zone"] = None; o["zoning_status"] = None
 
+    soil_source = a.soil_source or SOIL_SOURCE
+    if soil_source not in ("lgu", "legacy"):
+        sys.exit(f"SOIL_SOURCE must be 'lgu' or 'legacy', got {soil_source!r}")
+    if soil_source == "lgu":                                             # the LGU soil map digitized by pipeline/lgu_soil.py (the legacy columns above are KEPT)
+        f = Path(a.soil_csv) if a.soil_csv else out / "site_soil_lgu.csv"
+        if not f.is_file():
+            sys.exit(f"SOIL_SOURCE is 'lgu' but {f} is missing: run  python pipeline/lgu_soil.py compute --out {out}  first (or use --soil-source legacy)")
+        s = pd.read_csv(f).set_index("point_id")
+        o["soil_series_lgu"] = o.point_id.map(s["soil_series"])
+        o["soil_texture_lgu"] = o.point_id.map(s["soil_texture"])
+        o["soil_purity"] = o.point_id.map(s["purity"])
+        o["soil_source"] = np.where(o.soil_series_lgu.notna(), SOIL_SOURCE_TEXT, None)
+        rep.append(f"soil source: LGU soil map ({f.name}): series for {int(o.soil_series_lgu.notna().sum())} of {len(o)} squares ({int(o.soil_series_lgu.isna().sum())} without: outside the soil map); "
+                   + str(o.soil_series_lgu.value_counts().to_dict()))
+        rep.append("soil texture (LGU): " + str(o.soil_texture_lgu.value_counts().to_dict()) + "  (PROVISIONAL: scanned map digitized by us, not verified by the agriculturist)")
     rep.append("soil codes: " + str(o.soil_code.value_counts().to_dict()) + "  (texture mapping is UNVERIFIED)")
     rep.append("dropped columns: slope_1 (copy of elevation), soil_ph (synthetic), Recommende, Survivabil (legacy outputs), polygon/shape columns")
     rep.append("NOT available yet: real soil pH, rainfall, temperature, existing mature trees, canopy context")

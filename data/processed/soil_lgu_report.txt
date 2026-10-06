@@ -1,0 +1,14 @@
+graticule lines found: meridians x = [np.float64(351.1), np.float64(630.1), np.float64(908.5)] px (spacing [279.0, 278.4] px, equal spacing confirms the unlabelled middle line), parallels y = [np.float64(308.0), np.float64(594.6)] px
+first fit (graticule only, 6 control points): 12.88 m per pixel; residual at the control points RMS 1.7 m, max 2.3 m
+legend colours (RGB): Antipolo Clay (151, 160, 197); Antipolo Clay Loam (215, 96, 86); Binangonan Clay (190, 147, 170); Marikina Clay Loam (214, 144, 120); Marikina Loam (133, 172, 128); Marikina Silt Loam (216, 190, 131); Novaliches Clay Loam (131, 162, 190); Quingua Sandy Loam (203, 214, 217)
+outline fit: IoU with the part of the barangay union inside the map's extent 0.834 (graticule fit alone); the outline fit would give 0.877 with a shift of 250 m (dE 246, dN -47) and a mean outline distance of 111 m (graticule alone: 164 m)
+refinement REJECTED: it needs a shift of 250 m (more than 150 m) and gains almost nothing, so the graticule fit is kept (it is exact to 2 m at its control points)
+final transform: graticule crossings are 1.6 m on average (max 2.3 m) from their true positions; outline IoU 0.834
+WARNING: the map outline and the barangay outline differ by 164 m on average on the sides they share (more than 150 m); no shift of the whole map reduces it, so it is a difference between the two drawn outlines, not a placement error
+outline distance on the shared sides (89% of the outline points are within 800 m of the other outline): mean 164 m, 95th percentile 337 m
+coverage: 94.1% of the coloured map area lies inside the barangay union; the map covers 56.9% of the municipality (the rest, the upper watershed area, is left white on the map)
+residual check: worst control-point residual 2 m <= 150 m: OK
+squares: 8088; with a series 4695; filled from a neighbour (valid share < 0.3): 298; left empty (nothing within 300 m): 3393
+squares per series: {"Antipolo Clay": 2903, "Binangonan Clay": 789, "Marikina Silt Loam": 502, "Marikina Loam": 254, "Antipolo Clay Loam": 146, "Quingua Sandy Loam": 75, "Novaliches Clay Loam": 26}
+squares per texture: {"Clay": 3692, "Silt Loam": 502, "Loam": 254, "Clay Loam": 172, "Sandy Loam": 75}
+purity below 0.6: 45 squares; mean purity 0.983

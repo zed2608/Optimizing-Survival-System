@@ -20,7 +20,7 @@ export default function PlanLegend({ species, visible, nUnconfirmed = 0, blocks 
           <svg viewBox="-2 -2 4 4" width="20" height="20" aria-hidden="true">
             <circle r="1.4" fill="none" stroke="#0f172a" strokeWidth="0.5" strokeDasharray="0.45 0.55" />
           </svg>{' '}
-          Dotted ring = land outside the zoning map (not confirmed) <span className="nw-plan-count">× {nUnconfirmed}</span>
+          Dotted ring = land outside our zoning map (CLUP: Forest Reserve, Watershed) <span className="nw-plan-count">× {nUnconfirmed}</span>
         </div>
       )}
     </div>

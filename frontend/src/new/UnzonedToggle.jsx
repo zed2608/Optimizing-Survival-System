@@ -8,7 +8,7 @@ export default function UnzonedToggle({ value, onChange }) {
         <input id="nw-include-unzoned" type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
         <span>Include land outside the zoning map</span>
       </label>
-      <HelpTip label="Include land outside the zoning map">Zoning not confirmed: check with the LGU before planting.</HelpTip>
+      <HelpTip label="Include land outside the zoning map">Outside our zoning map. The CLUP 2021-2031 shows this land as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting.</HelpTip>
     </div>
   )
 }

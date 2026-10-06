@@ -54,7 +54,8 @@ FLAG_NOTES = {
     "species_data_unverified": "The species data for this tree cites a source file that was not provided.",
     "low_confidence": "Some inputs for this point were missing, so the suitability score is less certain.",
     "barangay_nearest": "The point is outside every barangay polygon; the nearest barangay is listed.",
-    "zoning_unconfirmed": "Land outside the zoning map: confirm with the LGU before planting.",
+    "zoning_unconfirmed": "Land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting.",
+    "soil_provisional": "Soil from the LGU soil map, digitized by us: provisional.",
     "ground_bare": "Satellite land cover (2021) looks bare: check on the ground before planting.",
     "ground_built_up": "Satellite land cover (2021) looks built-up: check on the ground before planting.",
     "ground_water": "Satellite land cover (2021) looks like water or wetland: check on the ground before planting.",
@@ -375,7 +376,8 @@ GPS AND THE 100 m SQUARE
     {CFG['nudge_max_m']:.0f} m. Write the REAL position of the block's centre in moved_lat and moved_lon (decimal degrees, from the phone).
   - Dioecious species need BOTH sexes: plant male and female trees of that species in the same block.
   - Plant only in the planting months listed for the species.
-  - A block flagged zoning_unconfirmed is on land outside the zoning map: confirm with the LGU before planting there.
+  - A block flagged zoning_unconfirmed is on land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting there.
+  - The flag soil_provisional means the soil of the block comes from the LGU soil map, digitized by us: provisional, not yet verified by the agriculturist.
   - A block flagged ground_bare, ground_built_up or ground_water looks bare, built-up or like water in satellite land cover (ESA WorldCover 2021, 76.7% accurate worldwide): check it on the ground first.
 
 BRINGING THE RESULTS BACK
@@ -435,7 +437,8 @@ GPS AND THE 100 m CELL
     stake in moved_lat and moved_lon (decimal degrees, from the phone) in point-list.csv.
   - Dioecious species need BOTH sexes: plant male and female trees near each other.
   - Plant only in the planting months listed for the species.
-  - A point flagged zoning_unconfirmed is on land outside the zoning map: confirm with the LGU before planting there.
+  - A point flagged zoning_unconfirmed is on land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting there.
+  - The flag soil_provisional means the soil of the point comes from the LGU soil map, digitized by us: provisional, not yet verified by the agriculturist.
   - A point flagged ground_bare, ground_built_up or ground_water looks bare, built-up or like water in satellite land cover (ESA WorldCover 2021, 76.7% accurate worldwide): check it on the ground first.
 
 BRINGING THE RESULTS BACK
