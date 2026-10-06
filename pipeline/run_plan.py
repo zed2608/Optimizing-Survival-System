@@ -400,39 +400,48 @@ def write_plan(out_dir, purpose, plan, summary, stamp=None):
     return f, s
 
 
-def run_benchmark(ctx, out_dir):
-    """Hungarian vs greedy vs random (constraint-blind and feasible-only), same palette per purpose, whole municipality."""
+def run_benchmark(ctx, out_dir, layout_modes=("points", "blocks")):
+    """Hungarian vs greedy vs random (constraint-blind and feasible-only), same palette per purpose, whole municipality, for each layout mode.
+    points: one sapling per square (the plan of before round 10a). blocks: the saplings are TREES, the palette gives trees per species, the slots are BLOCKS (ceil(trees / capacity) per species),
+    one block per square; total_W is then the sum of W over blocks and `placed` counts blocks. Column layout_mode says which."""
     n = CFG["bench_saplings"]
     rows = []
     xy = ctx.sites[["utm_e", "utm_n"]].to_numpy(dtype=float)
-    for purpose in mt.PURPOSES:
-        palette = pal.build_palette(ctx.species, ctx.S, ctx.P[purpose], n)
-        m = palette["idx"]
-        sp = ctx.species.iloc[m]
-        mt.assert_spacing_ok(sp.spacing_min_m.to_numpy())
-        Sm, Pm = ctx.S[:, m], ctx.P[purpose][m]
-        W, feas = mt.weights(Sm, Pm)
-        q = np.array(palette["quota"])
-        sp_cap = int(np.floor(pal.CFG["max_species_share"] * n + 1e-9)); g_cap = int(np.floor(pal.CFG["max_genus_share"] * n + 1e-9))
-        methods = [("hungarian", lambda s: mt.assign_hungarian(W, feas, q, s), 1), ("greedy", lambda s: mt.assign_greedy(W, feas, q, s), 1),
-                   ("random_feasible", lambda s: mt.assign_random(W, feas, q, s, True), CFG["bench_random_repeats"]),
-                   ("random_blind", lambda s: mt.assign_random(W, feas, q, s, False), CFG["bench_random_repeats"])]
-        for name, fn, reps in methods:
-            vals = []
-            for r in range(reps):
-                t0 = time.perf_counter(); res = fn(CFG["seed"] + r); dt = time.perf_counter() - t0
-                v = mt.check_assignment(xy, Sm, sp.spacing_min_m.to_numpy(), res, q, max_species_quota=sp_cap, max_genus_quota=g_cap,
-                                        genera=sp.genus.to_numpy())
-                pi, si = res["point_idx"], res["species_idx"]
-                tw = float(W[pi, si].sum())
-                vals.append({"total_W": tw, "mean_W_per_placed": tw / len(pi) if len(pi) else np.nan, "placed": len(pi),
-                             "unmatched_saplings": res["unmatched_saplings"], "viol_below_threshold": v["below_threshold"],
-                             "viol_point_reused": v["point_reused"], "viol_over_quota": v["over_quota"] + v.get("over_species_cap", 0) + v.get("over_genus_cap", 0),
-                             "viol_spacing": v["spacing_conflicts"], "runtime_s": dt})
-            d = pd.DataFrame(vals).mean()
-            row = {"purpose": purpose, "method": name, "n_saplings": n, "n_repeats": reps, "palette_species": len(m), **d.to_dict()}
-            row["violations_total"] = sum(row[k] for k in ("viol_below_threshold", "viol_point_reused", "viol_over_quota", "viol_spacing"))
-            rows.append(row)
+    for layout in layout_modes:
+        blocks = layout == "blocks"
+        for purpose in mt.PURPOSES:
+            palette = pal.build_palette(ctx.species, ctx.S, ctx.P[purpose], n, None, _cap(ctx.species, True) if blocks else None)
+            m = palette["idx"]
+            sp = ctx.species.iloc[m]
+            mt.assert_spacing_ok(sp.spacing_min_m.to_numpy())
+            Sm, Pm = ctx.S[:, m], ctx.P[purpose][m]
+            W, feas = mt.weights(Sm, Pm)
+            if blocks:
+                cap = pal.block_table(sp).capacity.to_numpy(dtype=float)
+                q = np.ceil(np.array(palette["quota"]) / cap).astype(int)
+                sp_cap = g_cap = None
+            else:
+                q = np.array(palette["quota"])
+                sp_cap = int(np.floor(pal.CFG["max_species_share"] * n + 1e-9)); g_cap = int(np.floor(pal.CFG["max_genus_share"] * n + 1e-9))
+            methods = [("hungarian", lambda s_: mt.assign_hungarian(W, feas, q, s_), 1), ("greedy", lambda s_: mt.assign_greedy(W, feas, q, s_), 1),
+                       ("random_feasible", lambda s_: mt.assign_random(W, feas, q, s_, True), CFG["bench_random_repeats"]),
+                       ("random_blind", lambda s_: mt.assign_random(W, feas, q, s_, False), CFG["bench_random_repeats"])]
+            for name, fn, reps in methods:
+                vals = []
+                for r in range(reps):
+                    t0 = time.perf_counter(); res = fn(CFG["seed"] + r); dt = time.perf_counter() - t0
+                    v = mt.check_assignment(xy, Sm, sp.spacing_min_m.to_numpy(), res, q, max_species_quota=sp_cap, max_genus_quota=g_cap,
+                                            genera=sp.genus.to_numpy())
+                    pi, si = res["point_idx"], res["species_idx"]
+                    tw = float(W[pi, si].sum())
+                    vals.append({"total_W": tw, "mean_W_per_placed": tw / len(pi) if len(pi) else np.nan, "placed": len(pi),
+                                 "unmatched_saplings": res["unmatched_saplings"], "viol_below_threshold": v["below_threshold"],
+                                 "viol_point_reused": v["point_reused"], "viol_over_quota": v["over_quota"] + v.get("over_species_cap", 0) + v.get("over_genus_cap", 0),
+                                 "viol_spacing": v["spacing_conflicts"], "runtime_s": dt})
+                d = pd.DataFrame(vals).mean()
+                row = {"purpose": purpose, "layout_mode": layout, "method": name, "n_saplings": n, "n_repeats": reps, "palette_species": len(m), **d.to_dict()}
+                row["violations_total"] = sum(row[k] for k in ("viol_below_threshold", "viol_point_reused", "viol_over_quota", "viol_spacing"))
+                rows.append(row)
     out = pd.DataFrame(rows)
     for c in ("total_W", "mean_W_per_placed"):
         out[c] = out[c].round(4)

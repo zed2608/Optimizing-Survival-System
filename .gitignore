@@ -11,7 +11,8 @@ node_modules/
 
 # GIS Heavy Files
 *.tif
-*.ovrsan_mateo_rf_model.pkl
+*.ovr
+*.pkl
 
 data/processed/scores/
 data/processed/plans/

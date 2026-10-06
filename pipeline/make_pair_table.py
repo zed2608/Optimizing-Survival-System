@@ -21,6 +21,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import score_sites as ss  # noqa: E402                              # the water-distance code, the scored-squares rule and the site texture column of the scoring step
+
 # =====================================================================================================================
 # CONFIG - every tunable number lives here.
 # =====================================================================================================================
@@ -56,12 +59,20 @@ def feature_columns(table):
     return cols
 
 
+def scored_sites(sites):
+    """The squares that score_sites.py scores: confirmed AND unconfirmed zoning (round 7a; 7,530 squares), never the excluded ones. A grid without zoning_status (older data): the legal-zone squares."""
+    if "zoning_status" in sites:
+        return sites[sites.zoning_status.isin(["confirmed", "unconfirmed"])].copy()
+    return sites[sites.is_legal_zone.astype(bool)].copy()
+
+
 def build_pair_table(sites, species, scores, water_dist, threshold=None):
     """sites/species: Day 1 tables; scores: DataFrame(point_id, species_id, s_rule); water_dist: Series indexed like sites."""
     thr = S_THRESHOLD if threshold is None else threshold
     s = sites.reset_index(drop=True).copy()
     s["water_dist_m"] = pd.Series(water_dist).reset_index(drop=True).to_numpy()
-    tex = s.soil_texture_legacy.fillna("").astype(str).str.strip()
+    tex_col, _ = ss.site_texture_column(s)                           # the SAME site texture as the scores: the LGU soil map when the grid has it, else the legacy texture
+    tex = s[tex_col].fillna("").astype(str).str.strip()
     site = s[["point_id", "cell_row", "cell_col", "elev_m", "slope_pct", "water_dist_m"]].copy()
     for t in sorted(t for t in tex.unique() if t):
         site[SITE_TEX_PREFIX + slug(t)] = (tex == t).astype(int).to_numpy()
@@ -104,11 +115,8 @@ def main():
     ap.add_argument("--seed", type=int, default=NOISE_SEED)
     ap.add_argument("--water", default=WATER_SHP)
     a = ap.parse_args()
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import score_sites as ss                                         # same water-distance code as the scoring step
     out = Path(a.out)
-    sites = pd.read_csv(out / "site_points_clean.csv")
-    sites = sites[sites.is_legal_zone.astype(bool)].copy()
+    sites = scored_sites(pd.read_csv(out / "site_points_clean.csv"))
     species = pd.read_csv(out / "species_clean.csv")
     scores = pd.read_csv(out / "scores" / "site_scores.csv", usecols=["point_id", "species_id", "s_rule"])
     water = ss.distance_to_water(sites, a.water)

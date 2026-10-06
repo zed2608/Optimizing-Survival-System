@@ -186,6 +186,12 @@ Acceptance (`tests/test_blocks_engine.py`, `tests/test_api_blocks.py`, `tests/te
 4. Dry season: LCCAP Type I climate (dry December to May) recorded in `docs/DATA_SOURCES.md` with the LCCAP temperature values; no other statement of season months existed.
 Acceptance (`tests/test_lgu_soil.py`, `cdp_soil`, all earlier browser checks with the API on and off): georeferencing on a synthetic image, legend classification, majority per square, filling rule, texture table, legacy rebuild identical, only soil-related results change, flags, API fields, wording; the control-point residual is 2 m (stop rule 150 m); 3,393 squares outside the map have no soil.
 
+## Release candidate: default page, refreshed tables, housekeeping and documentation (feedback round 9)
+1. The new dashboard (`#/new`) is the default page; `#/legacy` and `#/v2` stay; "Old dashboard" link in the More menu.
+2. `make_pair_table.py` fixed (same squares, species and soil texture as the scores) and tested; pair table, model comparison and matching benchmark (points and blocks) refreshed on release v1.0-review with the LGU soil layer; the old files kept as `*_before_round9.*`; soft versus strict soil mode sensitivity run.
+3. `requirements-day1.txt` completed, `.gitignore` fixed (`*.ovr`, `*.pkl`), `README.md`, `scripts/start_dev.ps1` and `docs/DEMO_SCRIPT.md` written.
+Acceptance (`tests/test_dashboard_default.py`, `tests/test_pair_table_scored_squares.py`, `tests/test_matching.py`, `cdp_modes`, all earlier browser checks with the API on and off): the default address shows the new dashboard, the old one at `#/legacy`; the pair table covers all 338,850 scored pairs; the benchmark has 24 rows with no violations for Hungarian, greedy and random-feasible.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
 sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;

@@ -254,8 +254,10 @@ def test_real_scores_csv_fallback_gives_the_same_S(ctx):
 @needs_data
 def test_real_benchmark_hungarian_is_best_and_random_blind_violates(ctx, tmp_path):
     bench, f = rp.run_benchmark(ctx, tmp_path)
-    assert f.exists() and len(bench) == 3 * 4 and set(bench.n_saplings) == {300}
-    for purpose, g in bench.groupby("purpose"):
+    assert f.exists() and len(bench) == 2 * 3 * 4 and set(bench.n_saplings) == {300} and set(bench.layout_mode) == {"points", "blocks"}      # points and blocks (round 9)
+    assert bench[bench.layout_mode == "points"].groupby("purpose").placed.max().eq(300).all()                                              # points: one sapling per square
+    assert (bench[(bench.layout_mode == "blocks") & (bench.method == "hungarian")].placed < 60).all()                                      # blocks: a few squares hold the 300 trees
+    for (layout, purpose), g in bench.groupby(["layout_mode", "purpose"]):
         g = g.set_index("method")
         assert g.total_W["hungarian"] >= g.total_W["greedy"] - 1e-6
         assert g.total_W["hungarian"] >= g.total_W["random_feasible"] and g.total_W["hungarian"] > g.total_W["random_blind"]

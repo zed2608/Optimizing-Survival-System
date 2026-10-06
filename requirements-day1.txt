@@ -1,12 +1,27 @@
+# Python packages of the whole project (despite the file name): the data pipeline, the API (api_v2.py), the tests and the legacy server.
+# Install in a virtual environment:   python -m venv .venv   then   .venv\Scripts\python.exe -m pip install -r requirements-day1.txt
+# No versions are pinned. The versions below are the ones the project was last tested with (Python 3.14.4, Windows 11, round 9, 2026-10-06):
+#   pandas 3.0.5, numpy 2.4.4, geopandas 1.1.4, pyogrio 0.13.0, shapely 2.1.2, pyproj 3.7.2, scipy 1.18.0, scikit-learn 1.9.0, rasterio 1.5.1,
+#   matplotlib 3.10.9, opencv-python 4.13.0.92, pymupdf 1.28.2, fastapi 0.141.1, pydantic 2.13.4, uvicorn 0.52.1, pytest 9.1.1
+#   (the project's .venv has numpy 2.5.2 and uvicorn 0.52.4 and the legacy server's Flask 3.1.3 and flask-cors 6.0.5; it did NOT have matplotlib,
+#   pytest, httpx, opencv-python or pymupdf before this file listed them: install them with the command above.)
 pandas
 numpy
 geopandas
 pyogrio
 shapely
 pyproj
+scipy                # pipeline/lgu_soil.py, landcover.py, api_v2.py
+scikit-learn         # pipeline/compare_models.py (model comparison)
+matplotlib           # pipeline/field_kit.py (the printed PDF map and block layouts), lgu_soil.py (QA pictures)
+rasterio>=1.3        # pipeline/landcover.py (ESA WorldCover window)
+opencv-python        # pipeline/lgu_soil.py (reads and cleans the LGU soil map picture); the import name is cv2
+pymupdf              # pipeline/lgu_soil.py render step (extracts the soil map picture from the LGU PDFs); the import name is pymupdf
+fastapi              # api_v2.py (the backend); pydantic comes with it
+pydantic
+uvicorn              # runs api_v2.py:   python -m uvicorn api_v2:app --port 8001
+httpx                # the tests call the API through FastAPI's TestClient, which needs httpx
 pytest
-fastapi
-uvicorn
-httpx
-matplotlib
-rasterio>=1.3   # pipeline/landcover.py (ESA WorldCover window)
+# The old dashboard (#/legacy) still calls the small Flask server backend/app.py (python backend/app.py, port 5000):
+Flask
+flask-cors

@@ -1,0 +1,18 @@
+Soil mode sensitivity (round 9, release v1.0-review, LGU soil layer, 7,530 scored squares): soft mode (the default) versus strict mode (--soil-gate-mode hard: a texture mismatch sets S to 0).
+Made with: python pipeline/score_sites.py --out <temporary copy> --soil-gate-mode hard; nothing in data/processed was changed by it.
+pairs 338850
+suitable (S>=0.5) soft 228919 | strict 130974
+suitable in soft -> not suitable in strict: 97945 | not suitable in soft -> suitable in strict: 0
+pairs with a different S: 98006 | strict S is 0 where soft S > 0: 98006
+soft-mode mismatch pairs (flag soil_unverified_mismatch): 132212 | of which suitable in soft: 97945
+squares that lose at least one species: 4120 of 7530
+species losing most squares: {'Molave': 4002, 'Kasoy': 3646, 'Clumping Bamboo': 3275, 'Dao': 3193, 'Narra': 3154, 'Santol': 3152, 'Talisay': 3079, 'Katmon': 3027}
+urban SOFT   [('Kamagong', 0.687), ('Molave', 0.52), ('Duhat', 0.481), ('Weeping Fig (Balete)', 0.471), ('Katmon', 0.453)]
+urban STRICT [('Kamagong', 0.681), ('Weeping Fig (Balete)', 0.459), ('Sampalok', 0.447), ('Duhat', 0.421), ('Palosapis', 0.381)]
+   same top 5 in the same order: False | same set: False
+planting SOFT   [('Kamagong', 0.534), ('Yakal', 0.499), ('Apitong', 0.491), ('Kasoy', 0.482), ('Red Lauan', 0.481)]
+planting STRICT [('Kamagong', 0.53), ('Palosapis', 0.452), ('Batikuling', 0.427), ('Kalumpit', 0.418), ('Duhat', 0.395)]
+   same top 5 in the same order: False | same set: False
+watershed SOFT   [('Clumping Bamboo', 0.721), ('Dao', 0.576), ('Kalumpit', 0.511), ('Molave', 0.48), ('Palosapis', 0.45)]
+watershed STRICT [('Kalumpit', 0.463), ('Clumping Bamboo', 0.442), ('Palosapis', 0.437), ('Kamagong', 0.34), ('Dao', 0.334)]
+   same top 5 in the same order: False | same set: False

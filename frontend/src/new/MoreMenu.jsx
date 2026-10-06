@@ -63,7 +63,7 @@ export default function MoreMenu({ health, fieldSummary, observer, onObserver, o
             <FieldSummary summary={fieldSummary} observer={observer} onObserver={onObserver} onChanged={onChanged} />
           </Section>
           <p className="nw-links">
-            <a href="#/legacy">Earlier dashboard</a> · <a href="#/v2">First v2 page</a>
+            <a href="#/legacy">Old dashboard</a> · <a href="#/v2">First v2 page</a>
           </p>
         </div>
       )}
