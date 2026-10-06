@@ -1,0 +1,22 @@
+dataset release v1.0-review
+date: 2026-10-06
+status: frozen for agriculturist review; NOT signed off
+species file: species_directsource.csv
+  sha256: 13787b81cf3de9503a51defd5d977c7ce683686d41aaeaabe1f0889b86f9d8ec
+sources file: sources_list.csv
+  sha256: 88edfb30b9dc92c6020d4991636ce608a252f18f01d7edeb6c59e9dd06210e23
+combined hash (12 characters): 34964a09fe44  = first 12 characters of sha256(species sha256 text + one newline + sources sha256 text)
+species: 45
+cited cells: 2347
+ingest issues in total: 190
+issues by severity: {'high': 34, 'medium': 51, 'low': 8, 'info': 97}
+issues by kind (severity, issue: count):
+  high, file_source_not_provided: 34
+  info, no_type_I_preference: 6
+  info, scheme_not_named: 44
+  info, species_key_had_source_tag: 45
+  info, urban_tag_qualifier_dropped: 2
+  low, missing_marker: 8
+  medium, nonstandard_citation: 20
+  medium, off_list_source: 30
+  medium, soil_text_unmapped: 1

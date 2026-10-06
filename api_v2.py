@@ -113,6 +113,7 @@ LIMITS = [
     "Slope comes from ~100 m grid cells (finite differences); about 22% of cells have a one-axis slope that may under-estimate it.",
     "{SOIL_LIMIT}",
     "All weights, caps, thresholds and purpose scores are PROVISIONAL until the agriculturist signs off.",
+    "{DATASET_LIMIT}",
     "Suitability S comes from rules written from the species dataset, not from field survival data.",
     "Each point is a ~100 m grid cell, so a plan places at most one tree per cell.",
     "Species data marked species_data_unverified cites a source file that was not provided.",
@@ -162,7 +163,16 @@ def limits_of(d):
                 "and is flagged soil_unverified_mismatch; scores that use the LGU soil carry the flag soil_provisional. The old soil layer (four world-soil-database codes, legacy) is kept in the data and is also unverified.")
     else:
         soil = "The soil texture mapping is a legacy mapping and is UNVERIFIED; by default a texture mismatch only lowers the score and is flagged soil_unverified_mismatch."
-    fill = {"{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil}
+    ds, ic = getattr(d, "dataset", {}) or {}, getattr(d, "ingest_counts", {}) or {}
+    if ds.get("tag"):
+        left = [f"{ic[k]} cells cite a file that was not provided" if k == "file_source_not_provided" else f"{ic[k]} cite sources outside the supplied list" if k == "off_list_source" else
+                f"{ic[k]} citations are non-standard" if k == "nonstandard_citation" else f"{ic[k]} species have no Type I climate preference" if k == "no_type_I_preference" else
+                f"{ic[k]} species soil text is unmapped" for k in ("file_source_not_provided", "off_list_source", "nonstandard_citation", "no_type_I_preference", "soil_text_unmapped") if ic.get(k)]
+        dset = (f"Species data release {ds['tag']} (hash {ds.get('combined_hash12') or str(ds.get('file_hash'))[:12]}): {ds.get('note') or 'not signed off'}. "
+                + (f"Known issues left for the agriculturist: {'; '.join(left)}." if left else ""))
+    else:
+        dset = "The species data release is not named."
+    fill = {"{DATASET_LIMIT}": dset, "{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil}
     out = []
     for t in LIMITS:
         for k, v in fill.items():
@@ -841,6 +851,8 @@ def load_data(cfg=None):
     v = pd.read_sql_query("SELECT * FROM dataset_versions ORDER BY dataset_version_id DESC LIMIT 1", con)
     con.close()
     d.dataset = {k: py(x) for k, x in v.iloc[0].to_dict().items()} if len(v) else {}
+    ir = root / "ingest_report.csv"                                    # what the ingest found in the species data (counts shown in Known limits)
+    d.ingest_counts = pd.read_csv(ir).groupby("issue").size().to_dict() if ir.is_file() else {}
     d.is_db = ctx.scores_path.suffix == ".db"
     d.mean_conf = mean_confidence(d, ctx)
     # municipal ranking per purpose (cheap, computed once)
@@ -1111,6 +1123,8 @@ def flags_for(d, species_id, breakdown, conf):
 def health(d=Depends(D)):
     ctx = d.ctx
     return {"status": "ok", "dataset_version": d.dataset.get("tag"), "dataset_file_hash": d.dataset.get("file_hash"),
+            "dataset_hash": d.dataset.get("combined_hash12"), "dataset_species_file_sha256": d.dataset.get("file_hash"), "dataset_sources_file_sha256": d.dataset.get("sources_file_hash"),
+            "dataset_note": d.dataset.get("note"),
             "dataset": d.dataset, "scores_file": str(ctx.scores_path.relative_to(ROOT)) if ctx.scores_path.is_relative_to(ROOT) else str(ctx.scores_path),
             "counts": {"species": len(ctx.species), "grid_points": len(d.all_points), "legal_points": len(ctx.sites),
                        "species_point_scores": int(ctx.S.size), "sources": len(d.sources), "barangays": len(d.places)},

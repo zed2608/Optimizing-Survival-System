@@ -102,13 +102,12 @@ Coconut,timber_density_raw,medium,off_list_source,https://iopscience.iop.org/art
 Kamias,timber_density_raw,medium,off_list_source,https://apps.worldagroforestry.org/atlas-documents/ENGLISH/Averrhoa%20bilimbi.pdf
 Salinggogon,common_problems,medium,off_list_source,https://agriculture.com.ph/2021/06/10/philippine-native-tree-that-resembles-japans-cherry-blossoms-grows-in-rizal/
 Batikuling,soil_types_allowed,medium,soil_text_unmapped,Top soil and manure 10:1
-Batikuling,sexuality_raw,medium,truncated_url,Dioecioushttps [Source: //tropical.theferns.info/viewtropical.php?id=Litsea+leytensis]
-Batikuling,sexuality_raw,medium,url_missing_scheme,Dioecioushttps [Source: //tropical.theferns.info/viewtropical.php?id=Litsea+leytensis]
 Balai Lamok,timber_density_raw,low,missing_marker,N/A
 Banana - Latundan,timber_density_raw,low,missing_marker,N.A
 Banana - Saba,timber_density_raw,low,missing_marker,N/A
 Calamansi,timber_density_raw,low,missing_marker,N/A
 Lemon,timber_density_raw,low,missing_marker,N/A
+Palosapis,rain_max_mm,low,missing_marker,-
 Peacock Flower Tree,timber_density_raw,low,missing_marker,N/A
 Weeping Fig (Balete),timber_density_raw,low,missing_marker,N/A
 Apitong,preferred_corona_climate,info,no_type_I_preference,"Type II, III, IV"

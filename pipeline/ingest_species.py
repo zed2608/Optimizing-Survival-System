@@ -463,8 +463,15 @@ def main():
     db = out / "optimizing_survival.db"
     con = sqlite3.connect(db)
     con.executescript("DROP TABLE IF EXISTS species_sources; DROP TABLE IF EXISTS species_references; DROP TABLE IF EXISTS species; DROP TABLE IF EXISTS dataset_versions;")
-    con.execute("CREATE TABLE dataset_versions (dataset_version_id INTEGER PRIMARY KEY, tag TEXT, file_hash TEXT, source_file TEXT, ingested_at TEXT, note TEXT)")
-    con.execute("INSERT INTO dataset_versions VALUES (1,?,?,?,?,?)", (a.tag, file_hash, Path(a.input).name, dt.datetime.now().isoformat(timespec="seconds"), "draft - not signed by the agriculturist"))
+    # release naming: sha256 of each raw file and a combined 12-character hash = the first 12 characters of sha256(species_sha256 + "\n" + sources_sha256) (species file first)
+    sources_hash = hashlib.sha256(Path(a.sources).read_bytes()).hexdigest() if a.sources else None
+    combined12 = hashlib.sha256((file_hash + "\n" + (sources_hash or "")).encode("ascii")).hexdigest()[:12]
+    frozen = a.tag.startswith("v1.")
+    note = "frozen for agriculturist review - not signed off" if frozen else "draft - not signed by the agriculturist"
+    con.execute("CREATE TABLE dataset_versions (dataset_version_id INTEGER PRIMARY KEY, tag TEXT, file_hash TEXT, source_file TEXT, ingested_at TEXT, note TEXT, "
+                "sources_file TEXT, sources_file_hash TEXT, combined_hash12 TEXT)")
+    con.execute("INSERT INTO dataset_versions VALUES (1,?,?,?,?,?,?,?,?)", (a.tag, file_hash, Path(a.input).name, dt.datetime.now().isoformat(timespec="seconds"), note,
+                                                                           Path(a.sources).name if a.sources else None, sources_hash, combined12))
     sp_df.assign(dataset_version_id=1).to_sql("species", con, index=False)
     src_df.assign(dataset_version_id=1).to_sql("species_sources", con, index=False)
     ref_df.to_sql("species_references", con, index=False)
@@ -473,7 +480,15 @@ def main():
     con.commit(); con.close()
 
     # ---- console summary
-    print(f"species: {len(sp_df)} | cited cells: {len(src_df)} | file hash: {file_hash[:12]}")
+    by_issue = rep.groupby(["severity", "issue"]).size() if len(rep) else pd.Series(dtype=int)
+    release = [f"dataset release {a.tag}", f"date: {dt.date.today().isoformat()}", "status: frozen for agriculturist review; NOT signed off" if frozen else "status: draft; NOT signed off",
+               f"species file: {Path(a.input).name}", f"  sha256: {file_hash}", f"sources file: {Path(a.sources).name if a.sources else '(none)'}", f"  sha256: {sources_hash}",
+               f"combined hash (12 characters): {combined12}  = first 12 characters of sha256(species sha256 text + one newline + sources sha256 text)",
+               f"species: {len(sp_df)}", f"cited cells: {len(src_df)}", f"ingest issues in total: {len(rep)}",
+               "issues by severity: " + str(dict(Counter(rep.severity))) if len(rep) else "issues by severity: none", "issues by kind (severity, issue: count):"]
+    release += [f"  {s}, {i}: {n}" for (s, i), n in by_issue.items()]
+    (out / "dataset_release.txt").write_text("\n".join(release) + "\n", encoding="utf-8")
+    print(f"species: {len(sp_df)} | cited cells: {len(src_df)} | file hash: {file_hash[:12]} | combined hash: {combined12}")
     print("source ranks:", dict(Counter(src_df.source_rank.fillna(-1).astype(int))))
     if len(rep):
         print("issues by severity:", dict(Counter(rep.severity)))

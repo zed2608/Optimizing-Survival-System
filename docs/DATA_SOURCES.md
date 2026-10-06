@@ -85,3 +85,20 @@ LCCAP page 12, chart "Temperature - Rizal, Philippines" (monthly values printed 
 | Low (deg C) | 21.9 | 21.7 | 22.4 | 23.2 | 24.0 | 23.8 | 23.3 | 23.5 | 23.1 | 23.3 | 23.3 | 22.8 |
 
 (The same page has a wind chart: 6.1 to 11.7 km/h, highest from November to February.) Nothing in the scoring, the thresholds or the weather advice uses these values or the season months. A search of the code, docs, kit text, advisory notes and dashboard text found no other statement of dry or wet season months, so there was nothing to correct (the species planting months May to September come from the species sources and are unchanged).
+
+## Species data release v1.0-review (frozen for the agriculturist's review, 2026-10-06)
+
+| | |
+|---|---|
+| Tag | `v1.0-review` (the tag of the data, in `dataset_versions`, `dataset_release.txt`, `GET /health`, Known limits and the dashboard's Dataset version note) |
+| Species file | `data/raw/species_directsource.csv`, sha256 `13787b81cf3de9503a51defd5d977c7ce683686d41aaeaabe1f0889b86f9d8ec` (copied unedited from `species_directsource_v1.0-review_candidate.csv`, found in `C:\Users\user\Downloads`) |
+| Sources file | `data/raw/sources_list.csv`, sha256 `88edfb30b9dc92c6020d4991636ce608a252f18f01d7edeb6c59e9dd06210e23` (from `sources_list_v1.0-review_candidate.csv`; byte-identical to the file it replaced) |
+| Combined hash | **`34964a09fe44`** = the first 12 characters of sha256(species sha256 text + one newline + sources sha256 text) |
+| Content | 45 species, 2,347 cited cells, 190 ingest findings (34 high, 51 medium, 8 low, 97 info), listed in `data/processed/dataset_release.txt` and `ingest_report.csv` |
+| Status | **Not signed off.** Frozen so that the agriculturist reviews one fixed version; weights, tag maps and soil are provisional. |
+
+**What changed since the draft (`v0.1-draft`)**: two cells of the species file. 1) *Palosapis* `annual_rainfall_max_mm` was removed (it was 3500, cited to the Anisoptera thurifera page of The Ferns; the cell is now `-`, i.e. missing, never guessed). 2) The *Batikuling* `Sexuality` citation URL was repaired (`Dioecioushttps [Source: //tropical.theferns.info/...]` is now `Dioecious [Source: https://tropical.theferns.info/...]`; the value was already read as Dioecious, the citation is now a clean URL and no longer flagged `truncated_url` / `url_missing_scheme`). Effect on `species_clean.csv`: only Palosapis `rain_max_mm` (3500 to empty), `n_cells_cited` (52 to 51) and `confidence_r12` (0.154 to 0.157). **Every one of the 338,850 site scores S and every confidence is identical** to before; the `breakdown_json` texts differ only in renumbered source ids (the removed cell shifts the ids that follow). Rain is not scored.
+
+**Known issues left for the agriculturist** (counts from the ingest report): 34 cells cite a file that was not provided (`file_source_not_provided`, all Batikuling: "RISE Volume 29 No. 3 - Batikuling (Litsea leytensis Merr.).pdf"); 30 cells cite sources outside the supplied SOURCES list (`off_list_source`); 20 non-standard citations (`nonstandard_citation`); 6 species with no Type I climate preference (`no_type_I_preference`: Katmon, Batikuling, White Lauan, Red Lauan, Bagtikan, Apitong); the Batikuling soil text "Top soil and manure 10:1" is unmapped to a texture (`soil_text_unmapped`). Also informational: the endangered scheme (DENR or IUCN) is mostly unnamed (44 `scheme_not_named`).
+
+**How to reproduce**: `python pipeline/ingest_species.py --input data/raw/species_directsource.csv --sources data/raw/sources_list.csv --out data/processed --tag v1.0-review`, then `score_sites.py`, `score_purposes.py` and `qa_day1.py` (`make_pair_table.py` does not work with the unconfirmed squares since round 7a and nothing uses its output; it was left alone). `/health` also gives `dataset_hash` (the 12-character hash), `dataset_species_file_sha256`, `dataset_sources_file_sha256` and `dataset_note`; `dataset_file_hash` stays the species file's sha256. The `#/v2` page footer (not changed) shows the tag and the species file's sha256.

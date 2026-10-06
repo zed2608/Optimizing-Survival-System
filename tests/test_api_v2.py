@@ -61,7 +61,7 @@ def test_health_reports_version_hash_counts_and_limits(client):
     r = client.get("/health")
     assert r.status_code == 200
     j = r.json()
-    assert j["status"] == "ok" and j["dataset_version"] == "v0.1-draft" and len(j["dataset_file_hash"]) == 64
+    assert j["status"] == "ok" and j["dataset_version"] == "v1.0-review" and len(j["dataset_file_hash"]) == 64 and len(j["dataset_hash"]) == 12 and len(j["dataset_sources_file_sha256"]) == 64
     assert j["counts"]["species"] == 45 and j["counts"]["legal_points"] == 6251 and j["counts"]["grid_points"] == 8088
     assert j["counts"]["species_point_scores"] == 6251 * 45
     text = " ".join(j["limits"]).lower()

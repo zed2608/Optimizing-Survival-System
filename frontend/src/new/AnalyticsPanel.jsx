@@ -59,8 +59,8 @@ export default function AnalyticsPanel({ includeUnzoned = true }) {
         title="Dataset"
         value={ok(health) ? (health.data.dataset_version ?? 'Data Unavailable') : down(health) ?? '…'}
         status={health.status}
-        label={ok(health) ? `${n(health.data.counts.species)} species. Draft data: weights are provisional.` : 'The version of the species data.'}
-        extra={ok(health) && <div className="nw-mono nw-counter-hash">hash {health.data.dataset_file_hash ?? 'Data Unavailable'}</div>}
+        label={ok(health) ? `${n(health.data.counts.species)} species. ${String(health.data.dataset_note ?? '').startsWith('frozen') ? 'Frozen for review' : 'Draft data'}; weights and soil are provisional.` : 'The version of the species data.'}
+        extra={ok(health) && <div className="nw-mono nw-counter-hash">hash {health.data.dataset_hash ?? health.data.dataset_file_hash ?? 'Data Unavailable'}</div>}
       />
     </div>
   )
