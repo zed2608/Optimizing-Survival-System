@@ -192,6 +192,12 @@ Acceptance (`tests/test_lgu_soil.py`, `cdp_soil`, all earlier browser checks wit
 3. `requirements-day1.txt` completed, `.gitignore` fixed (`*.ovr`, `*.pkl`), `README.md`, `scripts/start_dev.ps1` and `docs/DEMO_SCRIPT.md` written.
 Acceptance (`tests/test_dashboard_default.py`, `tests/test_pair_table_scored_squares.py`, `tests/test_matching.py`, `cdp_modes`, all earlier browser checks with the API on and off): the default address shows the new dashboard, the old one at `#/legacy`; the pair table covers all 338,850 scored pairs; the benchmark has 24 rows with no violations for Hungarian, greedy and random-feasible.
 
+## Field kit accuracy and layout (feedback round 13)
+1. One geometry (`palettes.block_geometry`): planted rectangle n x spacing centred in the 100 m square, trees at cell centres, partial blocks plant trees 1..N; capacity unchanged.
+2. Kit: blocks.csv gets appended start/first-tree/rectangle columns, GPX gets START and corner waypoints, KML gets planted-rectangle polygons and START placemarks, README rewritten; field-map.pdf has a to-scale overview, one page per block and a table; footer carries the release tag and the 12-character hash.
+3. Dashboard diagram uses the same geometry and wording.
+Acceptance (`tests/test_kit_geometry.py`, `blockGeometry.test.mjs`, `cdp_blocks`): symmetric margins, first tree at margin + spacing/2, corners round-trip within 0.5 m, new columns last, PDF for 1, 2, 6 and 30 blocks, footer without the long sha.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
 sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;

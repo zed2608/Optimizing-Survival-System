@@ -684,6 +684,9 @@
 .nw-bl-start { fill: #0f172a; }
 .nw-bl-dim { stroke: #0f172a; stroke-width: 0.8; marker-end: none; }
 .nw-bl-north { fill: none; stroke: #0f172a; stroke-width: 1.2; }
+.nw-bl-num { fill: #0f172a; font-family: system-ui, sans-serif; font-weight: 600; paint-order: stroke; stroke: #ffffff; stroke-width: 0.5px; }
+.nw-bl-num-empty { fill: #64748b; font-weight: 400; }
+.nw-bl-strong { font-weight: 600; }
 .nw-bl-text { font-size: 5.2px; fill: #0f172a; font-family: system-ui, sans-serif; }
 .nw-progress { color: var(--nw-ink); }
 .nw-pbar { height: 14px; border-radius: 7px; background: #dfe5ec; overflow: hidden; border: 1px solid #b6c0cc; }

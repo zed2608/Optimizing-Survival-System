@@ -22,6 +22,8 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import palettes as pal  # noqa: E402
 
 # =====================================================================================================================
 # CONFIG - every tunable number lives here. PROVISIONAL until the LGU / agriculturist sign off.
@@ -39,6 +41,9 @@ CFG = {
     "pdf_rows_per_page": 26,
     "pdf_label_fontsize": 5.5,
     "pdf_marker_size": 22,
+    "pdf_block_rows_per_page": 9,       # block table rows per page
+    "pdf_overview_margin_m": 300.0,     # overview map margin around the blocks
+    "pdf_block_window_m": 300.0,        # local map window of a block page
     "pdf_margin_m": 500.0,              # map margin around the planned points
     "pdf_scale_bar_options_m": [100, 200, 500, 1000, 2000, 5000],
     "pdf_scale_bar_target_fraction": 0.22,
@@ -60,6 +65,19 @@ FLAG_NOTES = {
     "ground_built_up": "Satellite land cover (2021) looks built-up: check on the ground before planting.",
     "ground_water": "Satellite land cover (2021) looks like water or wetland: check on the ground before planting.",
 }
+PLAIN_WARNINGS = {
+    "soil_provisional": "Soil from the LGU soil map (provisional)",
+    "ground_built_up": "Looks built-up in the satellite land cover: check on the ground first",
+    "ground_bare": "Looks bare in the satellite land cover: check on the ground first",
+    "ground_water": "Looks like water in the satellite land cover: check on the ground first",
+    "zoning_unconfirmed": "Outside our zoning map: Forest Reserve, coordinate with MENRO and DENR",
+    "needs_both_sexes": "Separate sexes: plant both",
+    "soil_unverified_mismatch": "Soil may not suit the species: check on site",
+    "species_data_unverified": "Species data cites a file we do not have",
+    "low_confidence": "Some inputs were missing: less certain score",
+    "barangay_nearest": "Outside every barangay outline: nearest one listed",
+}
+GROUND_WARN = ("ground_built_up", "ground_bare", "ground_water")
 # =====================================================================================================================
 
 CSV_COLUMNS = ["point_ref", "point_id", "species_code", "common_name", "scientific_name", "lat", "lon", "utm_e", "utm_n", "barangay",
@@ -67,7 +85,18 @@ CSV_COLUMNS = ["point_ref", "point_id", "species_code", "common_name", "scientif
 GPX_NS, KML_NS = "http://www.topografix.com/GPX/1/1", "http://www.opengis.net/kml/2.2"
 KIT_FILES = ["points.gpx", "points.kml", "point-list.csv", "README.txt"]
 BLOCK_CSV_COLUMNS = ["block_ref", "point_id", "lat", "lon", "utm_e", "utm_n", "species_code", "common_name", "trees_planned", "spacing_m", "rows", "trees_per_row", "row_direction",
-                     "start_corner", "barangay", "zone", "flags", "notes", "status", "trees_planted", "moved_lat", "moved_lon", "plan_id", "check_code"]   # plan_id and check_code last: they tie a filled file to its plan
+                     "start_corner", "barangay", "zone", "flags", "notes", "status", "trees_planted", "moved_lat", "moved_lon", "plan_id", "check_code",
+                     "start_lat", "start_lon", "start_utm_e", "start_utm_n", "first_tree_lat", "first_tree_lon", "rect_side_m", "margin_m"]   # plan_id and check_code tie a filled file to its plan; the round 13 columns are only appended
+
+
+def plain_warnings(flags):
+    """Flag codes -> plain words (unknown flags are kept as written, never dropped)."""
+    out = []
+    for f in (flags or "").split(";"):
+        f = f.strip()
+        if f:
+            out.append(PLAIN_WARNINGS.get(f, f.replace("_", " ")))
+    return out
 
 
 def _abs(p):
@@ -123,16 +152,20 @@ def make_refs(codes, blocks=False):
     return codes + "-" + n.astype(str).str.zfill(max(CFG["min_number_digits"], len(str(top))))
 
 
+def fmt_m(v):
+    return f"{float(v):g}" if abs(float(v) - round(float(v))) < 1e-9 else f"{float(v):.2f}".rstrip("0").rstrip(".")
+
+
 def block_text(r):
     """The layout of one block in plain words (GPX / KML description)."""
     n, cap, tpr, rows = int(r.trees_planned), int(r.capacity), int(r.trees_per_row), int(r.rows)
-    used = -(-n // tpr)
-    half = float(r.usable_side_m) / 2
-    s = (f"Block {r.point_ref}: {n} {r.common_name} trees at {float(r.spacing_m):g} m spacing. Layout: {rows} rows of {tpr} trees (capacity {cap}), rows run {r.row_direction}, "
-         f"counted from the {r.start_corner} corner of the planted area (about {float(r.usable_side_m):.0f} m x {float(r.usable_side_m):.0f} m in the middle of the 100 m square; "
-         f"the waypoint is the centre, so the first tree is about {half:.0f} m south and {half:.0f} m west of it).")
+    side, mg, sp = float(r.rect_side_m), float(r.margin_m), float(r.spacing_m)
+    s = (f"Block {r.point_ref}: {n} {r.common_name} trees at {fmt_m(sp)} m spacing. Layout: {rows} rows of {tpr} trees (capacity {cap}). "
+         f"Planted area {fmt_m(side)} m x {fmt_m(side)} m in the middle of the 100 m square, {fmt_m(mg)} m from each edge. "
+         f"Start at the START corner (south-west corner of the planted area); tree 1 is {fmt_m(sp / 2)} m east and {fmt_m(sp / 2)} m north of it. "
+         f"Rows run {r.row_direction}: plant trees 1 to {n} row by row, east first, then one spacing north for the next row.")
     if n < cap:
-        s += f" This block holds {n} of {cap} trees: {used} row{'s' if used != 1 else ''}."
+        s += f" This block holds {n} of {cap} trees: leave the rest empty."
     if isinstance(r.layout_note, str) and r.layout_note:
         s += f" {r.layout_note}."
     return s
@@ -140,7 +173,8 @@ def block_text(r):
 
 def block_note_short(r):
     n = int(r.trees_planned)
-    return (f"Block of {n} trees: {int(r.rows)} rows x {int(r.trees_per_row)} at {float(r.spacing_m):g} m, start {r.start_corner}, rows {r.row_direction}."
+    return (f"Block of {n} trees: {int(r.rows)} rows x {int(r.trees_per_row)} at {fmt_m(r.spacing_m)} m, planted area {fmt_m(r.rect_side_m)} m square centred ({fmt_m(r.margin_m)} m margin), "
+            f"start {r.start_corner} corner of it, rows {r.row_direction}."
             + (f" {r.layout_note}." if isinstance(r.layout_note, str) and r.layout_note else ""))
 
 
@@ -151,12 +185,20 @@ def month_names(value):
 
 
 def dataset_info(data_dir):
+    """Release tag and the combined 12-character hash, read from dataset_release.txt (never the long sha256); falls back to the database row."""
+    f = Path(data_dir) / "dataset_release.txt"
+    if f.exists():
+        txt = f.read_text(encoding="utf-8")
+        t = re.search(r"dataset release (\S+)", txt)
+        h = re.search(r"combined hash[^:]*:\s*([0-9a-f]{12})", txt)
+        if t and h:
+            return {"tag": t.group(1), "hash": h.group(1)}
     db = Path(data_dir) / "optimizing_survival.db"
     try:
         con = sqlite3.connect(db)
-        row = con.execute("SELECT tag, file_hash FROM dataset_versions ORDER BY dataset_version_id DESC LIMIT 1").fetchone()
+        row = con.execute("SELECT tag, combined_hash12 FROM dataset_versions ORDER BY dataset_version_id DESC LIMIT 1").fetchone()
         con.close()
-        if row:
+        if row and row[1]:
             return {"tag": row[0], "hash": row[1]}
     except sqlite3.Error:
         pass
@@ -190,6 +232,34 @@ def flag_notes(flags, zone):
     return " ".join(out)
 
 
+def attach_geometry(df):
+    """Blocks only: the planted rectangle of every block from the ONE shared function (palettes.block_geometry), with lat/lon of its corners and of tree 1.
+    Local metres are from the south-west corner of the 100 m square; the square centre is (utm_e, utm_n); the grid is assumed aligned to UTM north."""
+    from pyproj import Transformer
+    tr = Transformer.from_crs(CFG["site_crs"], "EPSG:4326", always_xy=True)
+    geos = []
+    for r in df.itertuples(index=False):
+        g = pal.block_geometry(float(r.spacing_m), int(r.trees_per_row), int(r.rows), int(r.trees_planned))
+        half = g["side_m"] / 2.0
+        def ll(x, y):
+            lon, lat = tr.transform(float(r.utm_e) - half + x, float(r.utm_n) - half + y)
+            return lat, lon
+        g["ll"] = {k: ll(*v) for k, v in g["corners"].items()}
+        g["first_ll"] = ll(*g["first_tree"])
+        g["utm_sw"] = (float(r.utm_e) - half + g["corners"]["SW"][0], float(r.utm_n) - half + g["corners"]["SW"][1])
+        geos.append(g)
+    df["geo"] = geos
+    df["start_lat"] = [f"{g['ll']['SW'][0]:.6f}" for g in geos]
+    df["start_lon"] = [f"{g['ll']['SW'][1]:.6f}" for g in geos]
+    df["start_utm_e"] = [f"{g['utm_sw'][0]:.1f}" for g in geos]
+    df["start_utm_n"] = [f"{g['utm_sw'][1]:.1f}" for g in geos]
+    df["first_tree_lat"] = [f"{g['first_ll'][0]:.6f}" for g in geos]
+    df["first_tree_lon"] = [f"{g['first_ll'][1]:.6f}" for g in geos]
+    df["rect_side_m"] = [fmt_m(g["rect_side_m"]) for g in geos]
+    df["margin_m"] = [fmt_m(g["margin_m"]) for g in geos]
+    return df
+
+
 def build_point_table(plan, species, code_by_id, plan_id, check, brgy_shp):
     """One row per planned point with every CSV column; ordered by species code then grid point id."""
     sp = species.set_index("species_id")
@@ -209,6 +279,8 @@ def build_point_table(plan, species, code_by_id, plan_id, check, brgy_shp):
     df = df.sort_values(["species_code", "point_id"]).reset_index(drop=True)
     blocks = is_blocks(df)
     df["point_ref"] = make_refs(df.species_code, blocks)
+    if blocks:
+        attach_geometry(df)
     df["zone"] = df.zone_desc.fillna("")
     df["notes"] = [flag_notes(fl, z) for fl, z in zip(df["flags"], df["zone"])]
     if blocks:
@@ -264,6 +336,18 @@ def write_gpx(df, meta, path):
         ET.SubElement(w, q("name")).text = r.point_ref
         ET.SubElement(w, q("desc")).text = describe(r)
         ET.SubElement(w, q("type")).text = r.species_code
+        if hasattr(r, "geo"):
+            sw, se, ne, nw = (r.geo["ll"][k] for k in ("SW", "SE", "NE", "NW"))
+            for suffix, (la, lo), text in (
+                    ("START", sw, f"START of block {r.point_ref}: south-west corner of the planted area ({fmt_m(r.rect_side_m)} m square, {fmt_m(r.margin_m)} m inside the grid square). "
+                                  f"Put a stake here and plant tree 1 {fmt_m(r.geo['spacing_m'] / 2)} m east and north of it. Then walk east along the row."),
+                    ("SE", se, f"South-east corner of the planted area of block {r.point_ref}: end of the first side ({fmt_m(r.rect_side_m)} m east of START). Use it to line up the rows."),
+                    ("NE", ne, f"North-east corner of the planted area of block {r.point_ref}. Use it to check the square: {fmt_m(r.rect_side_m)} m north of the SE corner."),
+                    ("NW", nw, f"North-west corner of the planted area of block {r.point_ref}: {fmt_m(r.rect_side_m)} m north of START. Use it to line up the rows.")):
+                c = ET.SubElement(root, q("wpt"), {"lat": f"{la:.6f}", "lon": f"{lo:.6f}"})
+                ET.SubElement(c, q("name")).text = f"{r.point_ref}-{suffix}"
+                ET.SubElement(c, q("desc")).text = text + " GPS is good to a few metres and worse under trees; the square is a map cell, not an exact planting spot."
+                ET.SubElement(c, q("type")).text = r.species_code
     _write_xml(root, path)
 
 
@@ -285,6 +369,9 @@ def write_kml(df, meta, path, color_by_code):
         ET.SubElement(ic, q("color")).text = kml_color(col)
         ET.SubElement(ic, q("scale")).text = str(CFG["kml_icon_scale"])
         ET.SubElement(ET.SubElement(st, q("LabelStyle")), q("color")).text = kml_color(col)
+        ps = ET.SubElement(doc, q("Style"), {"id": f"p_{code}"})
+        ET.SubElement(ET.SubElement(ps, q("LineStyle")), q("color")).text = kml_color(col)
+        ET.SubElement(ET.SubElement(ps, q("PolyStyle")), q("color")).text = "66" + kml_color(col)[2:]    # semi-transparent fill, the species colour
     for code, g in df.groupby("species_code", sort=True):
         f = ET.SubElement(doc, q("Folder"))
         ET.SubElement(f, q("name")).text = f"{code} - {g.common_name.iloc[0]} ({len(g)})"
@@ -294,6 +381,19 @@ def write_kml(df, meta, path, color_by_code):
             ET.SubElement(p, q("description")).text = describe(r)
             ET.SubElement(p, q("styleUrl")).text = f"#s_{code}"
             ET.SubElement(ET.SubElement(p, q("Point")), q("coordinates")).text = f"{r.lon_s},{r.lat_s},0"
+            if hasattr(r, "geo"):
+                pa = ET.SubElement(f, q("Placemark"))
+                ET.SubElement(pa, q("name")).text = f"{r.point_ref} planted area"
+                ET.SubElement(pa, q("description")).text = (f"Planted area of block {r.point_ref}: {fmt_m(r.rect_side_m)} m x {fmt_m(r.rect_side_m)} m, centred in the 100 m square "
+                                                            f"({fmt_m(r.margin_m)} m margin). {r.trees_planned} trees of {r.capacity}.")
+                ET.SubElement(pa, q("styleUrl")).text = f"#p_{code}"
+                ring = [r.geo["ll"][k] for k in ("SW", "SE", "NE", "NW", "SW")]
+                ET.SubElement(ET.SubElement(ET.SubElement(ET.SubElement(pa, q("Polygon")), q("outerBoundaryIs")), q("LinearRing")), q("coordinates")).text =                     " ".join(f"{lo:.6f},{la:.6f},0" for la, lo in ring)
+                st_ = ET.SubElement(f, q("Placemark"))
+                ET.SubElement(st_, q("name")).text = f"{r.point_ref} START"
+                ET.SubElement(st_, q("description")).text = f"START corner of block {r.point_ref}: south-west corner of the planted area. Tree 1 is {fmt_m(r.geo['spacing_m'] / 2)} m east and north of it."
+                ET.SubElement(st_, q("styleUrl")).text = f"#s_{code}"
+                ET.SubElement(ET.SubElement(st_, q("Point")), q("coordinates")).text = f"{r.start_lon},{r.start_lat},0"
     _write_xml(root, path)
 
 
@@ -337,6 +437,7 @@ def write_readme_blocks(df, meta, summary, path):
         extra.append(f"  - The plan could not place every tree: {s.get('saplings_unmatched', 0)} unmatched and {s.get('saplings_unallocated', 0)} not allocated (see manifest.json).")
     extra.append(f"  - Existing trees: {s.get('existing_trees', 'not stated')}.")
     first = df.point_ref.iloc[0]
+    ex0 = df.iloc[0]
     txt = f"""FIELD KIT (PLANTING BLOCKS) - {meta['plan_id']}
 {'=' * 78}
 Plan id      : {meta['plan_id']}
@@ -349,29 +450,33 @@ Trees        : {int(df.trees_planned.sum())} trees in {len(df)} blocks (about {l
 WHAT IS IN THIS KIT
   points.gpx      one waypoint per BLOCK for a phone map app     blocks.csv      the sheet to fill in the field (open in Excel)
   points.kml      same blocks, one folder per species             point-list.csv  the same blocks in the older sheet format
-  field-map.pdf   printed map and a layout diagram per species (only if made)     manifest.json   every file with its size and sha256
+  field-map.pdf   printed map, one page per block, table (only if made)     manifest.json   every file with its size and sha256
 
 WHAT IS A BLOCK
-  A block is one 100 m x 100 m grid square planted at the species spacing, so that many trees stand close together. The planted part is a
-  square of about {lay.get('usable_side_m', 77.5):.0f} m x {lay.get('usable_side_m', 77.5):.0f} m in the middle of the grid square (the rest is left for paths, boundaries and rocks).
-  Each waypoint is named like {first} (species code, B for block, number). Tap it to read the layout.
+  A block is one 100 m x 100 m grid square planted at the species spacing, so that many trees stand close together. The planted area is a square of
+  (trees per row x spacing) metres on each side, CENTRED in the grid square, so the same margin is left on all four sides for paths, boundaries and rocks.
+  For {ex0.species_code} that is {fmt_m(ex0.rect_side_m)} m x {fmt_m(ex0.rect_side_m)} m with a margin of {fmt_m(ex0.margin_m)} m. Each waypoint is named like {first} (species code, B for block, number) and
+  is the CENTRE of the grid square. Tap it to read the layout. The corners of the planted area are waypoints too: {first}-START (south-west), -SE, -NE, -NW.
 
 HOW TO LAY OUT A BLOCK (a tape measure or pacing is enough)
-  1. Walk to the waypoint. It is the CENTRE of the grid square.
-  2. Find the start: the south-west corner of the planted area, about {lay.get('usable_side_m', 77.5) / 2:.0f} m south and {lay.get('usable_side_m', 77.5) / 2:.0f} m west of the waypoint.
-     Use the compass of the phone. Put a stake there.
-  3. Rows run east-west. Plant the first tree at the stake. Walk east along the row and plant a tree every spacing (a tape, a marked rope, or count paces: one adult pace
-     is about 0.75 m, so a spacing of 7.5 m is 10 paces). The row is full after the number of trees per row.
-  4. Go north by one spacing and plant the next row from the west end. Stop when the block has its number of trees. A block that holds fewer trees than its capacity is filled row by
-     row from the south, so its last row may be short.
-  5. If the notes say "Plant along the contour" (slope above 30%), run the rows along the contour lines instead of straight east-west.
-  6. COUNT the trees you really planted in each block (do not count missing or dead saplings) and write the number in blocks.csv.
+  1. Walk to the {first}-START waypoint (or to the block waypoint and then go to the corner). START is the south-west corner of the planted area.
+     In blocks.csv the same corner is in start_lat / start_lon; first_tree_lat / first_tree_lon is tree 1. Put a stake at START.
+  2. Tree 1 is half a spacing east and half a spacing north of START (for {ex0.species_code}: {fmt_m(float(ex0.spacing_m) / 2)} m each). Trees stand at the CENTRES of the cells of the planted area,
+     so the first tree is {fmt_m(float(ex0.margin_m) + float(ex0.spacing_m) / 2)} m from the south and west edges of the grid square.
+  3. Rows run east-west (the grid is assumed to be aligned to UTM north: this is an assumption, check it with the compass of the phone). Plant tree 1, then walk east and plant a tree
+     every spacing (a tape, a marked rope, or count paces: one adult pace is about 0.75 m, so a spacing of 7.5 m is 10 paces). The row is full after the number of trees per row.
+  4. Go north by one spacing and plant the next row from the west end. Number the trees in your head row by row. A block that holds fewer trees than its capacity plants trees
+     1 to N in that order, so the last row may be short: leave the rest empty (the printed page of each block shows which).
+  5. Use the other corners (SE, NE, NW) to check that the area is square: the sides are the same length. With two tapes or a rope you can set out the corners first and then divide the sides.
+  6. If a house, road, creek or an existing tree is in the way, move the tree or the block (up to {CFG['nudge_max_m']:.0f} m) and write the real position in moved_lat and moved_lon. Never plant on paved or built land.
+  7. If the notes say "Plant along the contour" (slope above 30%), run the rows along the contour lines instead of straight east-west.
+  8. COUNT the trees you really planted in each block (do not count missing or dead saplings) and write the number in blocks.csv.
 
 SPACING AND CAPACITY OF THE SPECIES IN THIS PLAN
 {spec}
 
 GPS AND THE 100 m SQUARE
-  - GPS accuracy is {CFG['gps_accuracy_text']}.
+  - GPS accuracy is {CFG['gps_accuracy_text']}: GPS is good to a few metres and worse under trees, and the square is a map cell, not an exact planting spot.
   - The waypoint is the centre of the square, not a surveyed spot. If the planted area meets a rock, a tree, a creek bank or a path, you may shift the block by up to
     {CFG['nudge_max_m']:.0f} m. Write the REAL position of the block's centre in moved_lat and moved_lon (decimal degrees, from the phone).
   - Dioecious species need BOTH sexes: plant male and female trees of that species in the same block.
@@ -479,8 +584,262 @@ def write_manifest(kit_dir, df, meta, summary, plan_csv, path):
     return m
 
 
-def write_pdf(df, meta, summary, path, landuse_shp):
+# ---------------------------------------------------------------------------------------------------------------------
+# field-map.pdf for blocks (round 13): overview to scale, one page per block, table
+# ---------------------------------------------------------------------------------------------------------------------
+GROUND_STYLE = {   # class group -> (label, face colour, hatch); the hatch keeps the meaning in a black-and-white print
+    "tree": ("Trees", "#dcebd0", ""),
+    "built": ("Built-up", "#d6d6d6", "///"),
+    "bare": ("Bare or sparse", "#efe0bb", "..."),
+    "water": ("Water", "#c9def0", "xx"),
+    "other": ("Grass, crop, other", "#fbfaf3", ""),
+}
+GROUND_GROUP = {"tree cover": "tree", "built-up": "built", "bare or sparse vegetation": "bare", "permanent water": "water", "herbaceous wetland": "water", "mangroves": "water"}
+
+
+def ground_squares(data_dir):
+    """Grid squares with their dominant satellite ground class (None when the files are missing: the page then says so)."""
+    try:
+        d = Path(data_dir)
+        pts = pd.read_csv(d / "site_points_clean.csv", usecols=["point_id", "utm_e", "utm_n"])
+        lc = pd.read_csv(d / "site_landcover.csv", usecols=["point_id", "dominant_class"])
+        m = pts.merge(lc, on="point_id", how="left")
+        m["group"] = m.dominant_class.map(lambda v: GROUND_GROUP.get(v, "other") if isinstance(v, str) else "")
+        return m
+    except Exception:
+        return None
+
+
+def _lum(hexrgb):
+    r, g, b = (int(hexrgb[i:i + 2], 16) for i in (0, 2, 4))
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def _draw_cover(ax, plt, sq, x0, x1, y0, y1):
+    from matplotlib.collections import PatchCollection
+    if sq is None:
+        return False
+    w = sq[(sq.utm_e > x0 - 100) & (sq.utm_e < x1 + 100) & (sq.utm_n > y0 - 100) & (sq.utm_n < y1 + 100) & (sq.group != "")]
+    for grp, (label, fc, hatch) in GROUND_STYLE.items():
+        g = w[w.group == grp]
+        if g.empty:
+            continue
+        patches = [plt.Rectangle((e - 50, n - 50), 100, 100) for e, n in zip(g.utm_e, g.utm_n)]
+        ax.add_collection(PatchCollection(patches, facecolor=fc, edgecolor=(0, 0, 0, 0.10), linewidth=0.3, hatch=hatch or None, zorder=1))
+    return True
+
+
+def _cover_legend(ax, plt, has_cover, loc="lower left"):
+    from matplotlib.patches import Patch
+    if not has_cover:
+        ax.text(0.01, 0.01, "Ground cover not available", transform=ax.transAxes, fontsize=6, color="0.4")
+        return
+    hs = [Patch(facecolor=fc, edgecolor="0.5", hatch=h or None, linewidth=0.4, label=lab) for lab, fc, h in GROUND_STYLE.values()]
+    leg = ax.legend(handles=hs, loc=loc, fontsize=5.5, title="Satellite ground cover 2021", title_fontsize=6, framealpha=0.9, borderpad=0.5)
+    leg.set_zorder(9)
+
+
+def _zoning(ax, lu, x0, x1, y0, y1):
+    if lu is None:
+        return
+    try:
+        from shapely.geometry import box
+        lu[lu.intersects(box(x0, y0, x1, y1))].boundary.plot(ax=ax, color="0.78", linewidth=0.4, zorder=2)
+    except Exception:
+        pass
+
+
+def _scalebar(ax, plt, x0, x1, y0, y1, length, pad=0.04):
+    bx, by, h = x1 - (x1 - x0) * pad - length, y0 + (y1 - y0) * pad, (y1 - y0) * 0.012
+    for k in range(4):
+        ax.add_patch(plt.Rectangle((bx + k * length / 4, by), length / 4, h, facecolor="black" if k % 2 == 0 else "white", edgecolor="black", linewidth=0.5, zorder=8))
+    ax.text(bx, by + h * 1.6, f"{length:g} m" if length < 1000 else f"{length / 1000:g} km", fontsize=6, zorder=8)
+
+
+def _north(ax):
+    ax.annotate("", xy=(0.94, 0.95), xytext=(0.94, 0.86), xycoords="axes fraction", arrowprops={"arrowstyle": "-|>", "color": "black", "lw": 1.3}, zorder=9)
+    ax.text(0.94, 0.965, "N", transform=ax.transAxes, ha="center", fontsize=9, weight="bold", zorder=9)
+
+
+def pdf_footer(fig, meta, page, total):
+    fig.text(0.02, 0.015, f"{stamp_text(meta)} | page {page}/{total}", fontsize=6.5)
+
+
+def block_warning_lines(r):
+    return plain_warnings(r.flags)
+
+
+def block_has_ground_warning(r):
+    return any(f in (r.flags or "").split(";") for f in GROUND_WARN)
+
+
+def write_pdf_blocks(df, meta, summary, path, landuse_shp, data_dir):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+    import textwrap
+    matplotlib.rcParams["hatch.linewidth"] = 0.3
+    matplotlib.rcParams["hatch.color"] = "#9a9a9a"
+    c = CFG
+    W, H = c["pdf_page_inches"]
+    codes = sorted(df.species_code.unique())
+    colour = {code: "#" + c["kml_colors"][i % len(c["kml_colors"])] for i, code in enumerate(codes)}
+    sq = ground_squares(data_dir)
+    try:
+        import geopandas as gpd
+        lu = gpd.read_file(_abs(landuse_shp)).to_crs(c["site_crs"])
+    except Exception:
+        lu = None
+    rows = list(df.itertuples(index=False))
+    per = c["pdf_block_rows_per_page"]
+    table_pages = max(1, -(-len(rows) // per))
+    total = 1 + len(rows) + table_pages
+    nb, nt = len(rows), int(df.trees_planned.sum())
+    with PdfPages(path, metadata={"Title": f"Field map {meta['plan_id']}", "Subject": stamp_text(meta)}) as pdf:
+        # ---- page 1: overview, every 100 m square and its planted rectangle to scale
+        fig = plt.figure(figsize=(W, H))
+        ax = fig.add_axes([0.06, 0.09, 0.64, 0.82]); lg = fig.add_axes([0.72, 0.09, 0.26, 0.82]); lg.axis("off")
+        m = c["pdf_overview_margin_m"]
+        x0, x1 = df.utm_e.min() - 50 - m, df.utm_e.max() + 50 + m
+        y0, y1 = df.utm_n.min() - 50 - m, df.utm_n.max() + 50 + m
+        ratio = (0.82 * H) / (0.64 * W)                                      # the axes box: height / width
+        span = max(x1 - x0, (y1 - y0) / ratio)
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        x0, x1 = cx - span / 2, cx + span / 2
+        y0, y1 = cy - span * ratio / 2, cy + span * ratio / 2
+        has = _draw_cover(ax, plt, sq, x0, x1, y0, y1)
+        _zoning(ax, lu, x0, x1, y0, y1)
+        for r in rows:
+            g = r.geo
+            ex, ny = float(r.utm_e) - 50, float(r.utm_n) - 50
+            ax.add_patch(plt.Rectangle((ex, ny), 100, 100, fill=False, edgecolor="black", linewidth=0.8, zorder=4))
+            sx, sy = g["corners"]["SW"]
+            ax.add_patch(plt.Rectangle((ex + sx, ny + sy), g["rect_w_m"], g["rect_h_m"], facecolor=colour[r.species_code], alpha=0.75, edgecolor="black", linewidth=0.5, zorder=5))
+            ax.plot([ex + sx], [ny + sy], marker="s", color="black", markersize=2.2, zorder=6)
+            label = f"{r.point_ref}\n{int(r.trees_planned)} trees"
+            if block_has_ground_warning(r):
+                label += "\n! check on the ground"
+                ax.add_patch(plt.Rectangle((ex - 4, ny - 4), 108, 108, fill=False, edgecolor="#c0392b", linewidth=1.3, linestyle="--", zorder=6))
+            ax.text(float(r.utm_e), float(r.utm_n) + 58, label, fontsize=c["pdf_label_fontsize"], ha="center", va="bottom", zorder=7,
+                    bbox={"boxstyle": "round,pad=0.12", "fc": "white", "ec": "none", "alpha": 0.7})
+        ax.set_xlim(x0, x1); ax.set_ylim(y0, y1); ax.set_aspect("equal")
+        ax.ticklabel_format(useOffset=False, style="plain"); ax.tick_params(labelsize=6); ax.set_xlabel("UTM 51N easting (m)", fontsize=7); ax.set_ylabel("northing (m)", fontsize=7)
+        ax.grid(True, color="0.9", linewidth=0.3, zorder=0)
+        length = max((o for o in c["pdf_scale_bar_options_m"] if o <= span * 0.22), default=c["pdf_scale_bar_options_m"][0])
+        _scalebar(ax, plt, x0, x1, y0, y1, length)
+        _north(ax)
+        ax.set_title(f"{nb} block{'s' if nb != 1 else ''}, {nt} trees - {meta['plan_id']}", fontsize=10)
+        lg.text(0, 1.0, "Legend", fontsize=9, weight="bold", va="top")
+        y = 0.94
+        for code, name, n, d in palette_rows(df):
+            lg.add_patch(plt.Rectangle((0.0, y - 0.013), 0.05, 0.026, facecolor=colour[code], edgecolor="black", linewidth=0.5, alpha=0.75, transform=lg.transAxes))
+            lg.text(0.08, y, f"{code}  {name}  ({n} trees){'  M+F' if d else ''}", fontsize=7.5, va="center", transform=lg.transAxes)
+            y -= 0.045
+        lg.text(0, y - 0.01, "Black square = the 100 m grid square (a map cell,\nnot an exact planting spot). Coloured rectangle = the\nplanted area. Dot = START corner.\n"
+                "Red dashed frame, ! check = the satellite shows built-up,\nbare or water land: check on the ground.\nGrey lines = land-use zone outlines.\nM+F = plant both sexes.", fontsize=6.8, va="top", transform=lg.transAxes)
+        lgc = fig.add_axes([0.72, 0.09, 0.26, 0.2]); lgc.axis("off")
+        _cover_legend(lgc, plt, has, loc="center left")
+        pdf_footer(fig, meta, 1, total)
+        pdf.savefig(fig); plt.close(fig)
+        # ---- one page per block
+        for bi, r in enumerate(rows, 1):
+            g = r.geo
+            fig = plt.figure(figsize=(W, H))
+            lax = fig.add_axes([0.04, 0.12, 0.44, 0.74])
+            win = c["pdf_block_window_m"] / 2
+            ex, ny = float(r.utm_e), float(r.utm_n)
+            _draw_cover(lax, plt, sq, ex - win, ex + win, ny - win, ny + win)
+            _zoning(lax, lu, ex - win, ex + win, ny - win, ny + win)
+            lax.add_patch(plt.Rectangle((ex - 50, ny - 50), 100, 100, fill=False, edgecolor="black", linewidth=1.2, zorder=4))
+            sx, sy = g["corners"]["SW"]
+            lax.add_patch(plt.Rectangle((ex - 50 + sx, ny - 50 + sy), g["rect_w_m"], g["rect_h_m"], facecolor=colour[r.species_code], alpha=0.7, edgecolor="black", linewidth=0.8, zorder=5))
+            lax.plot([ex - 50 + sx], [ny - 50 + sy], marker="s", color="black", markersize=6, zorder=7)
+            lax.annotate("START", (ex - 50 + sx, ny - 50 + sy), xytext=(-6, -10), textcoords="offset points", fontsize=7, weight="bold", ha="right", zorder=8)
+            lax.set_xlim(ex - win, ex + win); lax.set_ylim(ny - win, ny + win); lax.set_aspect("equal")
+            lax.ticklabel_format(useOffset=False, style="plain"); lax.tick_params(labelsize=5.5)
+            lax.set_xlabel("UTM 51N easting (m)", fontsize=6.5)
+            _scalebar(lax, plt, ex - win, ex + win, ny - win, ny + win, 50)
+            _north(lax)
+            lax.set_title(f"Local map (300 m window) - Brgy. {r.barangay}", fontsize=8.5)
+            _cover_legend(lax, plt, sq is not None, loc="upper left")
+            # layout diagram
+            dax = fig.add_axes([0.53, 0.19, 0.44, 0.55])
+            dax.add_patch(plt.Rectangle((0, 0), 100, 100, fill=False, edgecolor="0.2", lw=1.2))
+            dax.add_patch(plt.Rectangle((sx, sy), g["rect_w_m"], g["rect_h_m"], facecolor="0.95", edgecolor="0.4", lw=0.8, ls="--"))
+            cap, npl = g["capacity"], g["trees_planned"]
+            tpr = int(r.trees_per_row)
+            size = max(6, min(150, 9000 / max(1, cap) * (g["spacing_m"] / 10)))
+            fc = colour[r.species_code]
+            txtcol = "white" if _lum(fc[1:]) < 140 else "black"
+            numfs = max(3.5, min(8, 90 / max(tpr, 1)))
+            for t in g["trees"]:
+                if t["planted"]:
+                    dax.scatter([t["x"]], [t["y"]], s=size, facecolors=fc, edgecolors="black", linewidths=0.5, zorder=3)
+                else:
+                    dax.scatter([t["x"]], [t["y"]], s=size, facecolors="white", edgecolors="0.6", linewidths=0.6, zorder=3)
+                if cap <= 100 or t["k"] == 1 or (t["k"] - 1) % tpr == 0 or t["k"] == npl:
+                    dax.text(t["x"], t["y"], str(t["k"]), fontsize=numfs, ha="center", va="center", zorder=4, color=txtcol if t["planted"] else "0.45")
+            dax.plot([sx], [sy], marker="s", color="black", markersize=6, zorder=5)
+            dax.annotate("START", (sx, sy), xytext=(-4, -9), textcoords="offset points", fontsize=7, weight="bold", ha="right", zorder=6)
+            dax.annotate("", xy=(sx + min(g["rect_w_m"], 3 * g["spacing_m"]), sy - 3.5), xytext=(sx, sy - 3.5), arrowprops={"arrowstyle": "->", "lw": 1.1})
+            dax.text(sx + 3.2 * g["spacing_m"], sy - 5.2, "rows run east", fontsize=6.5)
+            dax.annotate("", xy=(0, 50), xytext=(sx, 50), arrowprops={"arrowstyle": "<->", "lw": 0.7, "color": "0.3"})
+            dax.text(sx / 2, 51.5, f"{fmt_m(g['margin_m'])} m", fontsize=6, ha="center", color="0.3")
+            if tpr >= 2:
+                t1, t2 = g["trees"][0], g["trees"][1]
+                yy = g["rect_h_m"] + sy + 3
+                dax.annotate("", xy=(t2["x"], yy), xytext=(t1["x"], yy), arrowprops={"arrowstyle": "<->", "lw": 0.7, "color": "0.3"})
+                dax.text((t1["x"] + t2["x"]) / 2, yy + 1.5, f"{fmt_m(g['spacing_m'])} m", fontsize=6, ha="center", color="0.3")
+            dax.annotate("", xy=(95, 98), xytext=(95, 90), arrowprops={"arrowstyle": "-|>", "lw": 1.2}); dax.text(95, 99, "N", ha="center", fontsize=8, weight="bold")
+            dax.set_xlim(-8, 108); dax.set_ylim(-12, 108); dax.set_aspect("equal"); dax.set_xticks([0, 50, 100]); dax.set_yticks([0, 50, 100]); dax.tick_params(labelsize=6)
+            dax.set_xlabel("metres from the south-west corner of the 100 m square", fontsize=6.5)
+            dax.set_title(f"Layout - {r.point_ref} {r.common_name}", fontsize=9)
+            msg = f"Plant trees 1 to {npl}" + ("" if npl >= cap else f"; leave the rest empty ({cap - npl} empty)") + ". Row by row, east first, then one spacing north."
+            fig.text(0.53, 0.105, textwrap.fill(msg, 72), fontsize=8, weight="bold", va="top")
+            warn = block_warning_lines(r)
+            head = f"{r.point_ref}   {int(r.trees_planned)} trees of {cap}   spacing {fmt_m(g['spacing_m'])} m   {int(r.rows)} rows x {tpr} trees"
+            info = [f"Planted area {fmt_m(g['rect_side_m'])} m x {fmt_m(g['rect_side_m'])} m in the middle of the square, margin {fmt_m(g['margin_m'])} m; tree 1 is {fmt_m(g['margin_m'] + g['spacing_m'] / 2)} m from the south and west edges.",
+                    f"START (south-west corner): {r.start_lat}, {r.start_lon}    Zone: {str(r.zone)[:40]}"]
+            fig.text(0.04, 0.955, head, fontsize=9, weight="bold", va="top")
+            fig.text(0.04, 0.925, "\n".join(textwrap.fill(x, 150) for x in info), fontsize=7, va="top")
+            fig.text(0.53, 0.865, "\n".join(["Warnings:"] + [f"- {x}" for x in warn]) if warn else "Warnings: none", fontsize=6.8, va="top", color="#8e2a1c" if warn else "0.3")
+            fig.text(0.04, 0.045, "GPS is good to a few metres and worse under trees; the square is a map cell, not an exact planting spot. If a house, road, creek or tree is in the way, move and record it; never plant on paved or built land.",
+                     fontsize=6.2, color="0.3")
+            pdf_footer(fig, meta, 1 + bi, total)
+            pdf.savefig(fig); plt.close(fig)
+        # ---- table pages
+        cols = [("Ref", 0.02), ("Species", 0.095), ("Trees", 0.225), ("Spacing; rows x per row", 0.27), ("Barangay, zone", 0.385), ("Start corner (lat, lon)", 0.515),
+                ("Warnings", 0.63), ("Done", 0.835), ("Planted / moved", 0.875)]
+        for pi in range(table_pages):
+            chunk = rows[pi * per:(pi + 1) * per]
+            fig = plt.figure(figsize=(W, H)); ax = fig.add_axes([0, 0, 1, 1]); ax.axis("off"); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+            ax.text(0.02, 0.95, f"Block table - {nb} blocks, {nt} trees - page {pi + 1}/{table_pages}", fontsize=10, weight="bold")
+            for name, x in cols:
+                ax.text(x, 0.915, name, fontsize=6.5, weight="bold")
+            ax.plot([0.02, 0.98], [0.905, 0.905], color="black", lw=0.8)
+            step = 0.80 / per
+            for k, r in enumerate(chunk):
+                y = 0.89 - k * step
+                warn = "\n".join(textwrap.fill(x, 38) for x in block_warning_lines(r)) or "none"
+                vals = [r.point_ref, textwrap.fill(r.common_name, 16), f"{int(r.trees_planned)}/{int(r.capacity)}", f"{fmt_m(r.spacing_m)} m; {int(r.rows)} x {int(r.trees_per_row)}",
+                        textwrap.fill(f"{r.barangay}, {r.zone}", 22), f"{r.start_lat}\n{r.start_lon}", warn]
+                for (name, x), v in zip(cols, vals):
+                    ax.text(x, y, v, fontsize=5.8, va="top")
+                ax.text(0.84, y, "[   ]", fontsize=7, va="top")
+                ax.text(0.875, y, "planted ____", fontsize=6, va="top")
+                ax.text(0.875, y - step * 0.32, "moved lat ____", fontsize=5.5, va="top")
+                ax.text(0.875, y - step * 0.58, "moved lon ____", fontsize=5.5, va="top")
+                ax.plot([0.02, 0.98], [y - step + 0.004, y - step + 0.004], color="0.85", lw=0.4)
+            pdf_footer(fig, meta, 1 + nb + pi + 1, total)
+            pdf.savefig(fig); plt.close(fig)
+    return total
+
+
+def write_pdf(df, meta, summary, path, landuse_shp, data_dir=None):
     """field-map.pdf, A4 landscape: overview map (shapes + labels, scale bar, north arrow, legend) and the point table."""
+    if "trees_planned" in df.columns and "geo" in df.columns:
+        return write_pdf_blocks(df, meta, summary, path, landuse_shp, data_dir or "data/processed")
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -644,7 +1003,7 @@ def make_kit(plan_csv, out_dir, pdf=False, data_dir="data/processed", built_on=N
             pdf_note = "matplotlib is not installed: field-map.pdf was skipped (pip install matplotlib, then run again with --pdf)"
             print(pdf_note)
         else:
-            write_pdf(df, meta, summary, kit / "field-map.pdf", landuse_shp or CFG["landuse_shp"])
+            write_pdf(df, meta, summary, kit / "field-map.pdf", landuse_shp or CFG["landuse_shp"], data_dir)
     manifest = write_manifest(kit, df, meta, summary, plan_csv, kit / "manifest.json")
     zpath = Path(out_dir) / f"field_kit_{plan_id}.zip"
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:

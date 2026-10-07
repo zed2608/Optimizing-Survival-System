@@ -1412,6 +1412,12 @@ def campaign_info(s):
     return out
 
 
+def block_geometry_fields(r):
+    """The planted rectangle of a block from the ONE shared function (pipeline/palettes.block_geometry): side and margin in metres, tree 1 from the square's south-west corner."""
+    g = pal.block_geometry(float(r.spacing_m), int(r.trees_per_row), int(r.rows), int(r.trees_planned))
+    return {"rect_side_m": round(g["rect_side_m"], 3), "margin_m": round(g["margin_m"], 3), "first_tree_m": [round(g["first_tree"][0], 3), round(g["first_tree"][1], 3)]}
+
+
 def render_plan(d, plan, summary, plan_id=None, extra=None):
     """The JSON shown for a plan (a fresh one from POST /plan-event or a saved one from GET /plans/{id})."""
     purpose = summary["purpose"]
@@ -1428,7 +1434,7 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
         for it, r in zip(items, plan.itertuples(index=False)):
             it.update({"trees_planned": int(r.trees_planned), "spacing_m": py(r.spacing_m), "rows": int(r.rows), "trees_per_row": int(r.trees_per_row), "capacity": int(r.capacity),
                        "usable_side_m": py(r.usable_side_m), "row_direction": r.row_direction, "start_corner": r.start_corner,
-                       "layout_note": r.layout_note if isinstance(r.layout_note, str) else ""})
+                       "layout_note": r.layout_note if isinstance(r.layout_note, str) else "", **block_geometry_fields(r)})
     for it in items:
         ref = refs[it["point_id"]]
         if blocks:

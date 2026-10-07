@@ -28,6 +28,7 @@ def kit(tmp_path_factory):
 def test_blocks_csv_has_the_agreed_columns_and_one_row_per_block(kit):
     rows = list(csv.DictReader((kit["dir"] / "blocks.csv").open(encoding="utf-8")))
     assert list(rows[0]) == fk.BLOCK_CSV_COLUMNS and fk.BLOCK_CSV_COLUMNS[:22][-4:] == ["status", "trees_planted", "moved_lat", "moved_lon"]
+    assert fk.BLOCK_CSV_COLUMNS[22:24] == ["plan_id", "check_code"] and len(fk.BLOCK_CSV_COLUMNS) == 32      # round 13 only appended columns at the end
     assert len(rows) == len(kit["plan"]) and sum(int(r["trees_planned"]) for r in rows) == 300
     for r in rows:
         assert r["rows"] == r["trees_per_row"] and int(r["trees_planned"]) <= int(r["rows"]) ** 2 and r["plan_id"] == kit["res"]["plan_id"] and r["check_code"] == kit["res"]["check_code"]
@@ -48,13 +49,16 @@ def test_point_list_keeps_its_columns_and_carries_the_block_summary_in_notes(kit
 def test_gpx_and_kml_have_one_waypoint_per_block_with_the_layout(kit):
     n = len(kit["plan"])
     gpx = ET.parse(kit["dir"] / "points.gpx").getroot()
-    wpts = [e for e in gpx.iter() if e.tag.endswith("wpt")]
-    assert len(wpts) == n
+    allw = [e for e in gpx.iter() if e.tag.endswith("wpt")]
+    name = lambda w: next(c for c in w if c.tag.endswith("name")).text
+    wpts = [w for w in allw if "-" in name(w) and name(w).rsplit("-", 1)[1] not in ("START", "SE", "NE", "NW")]
+    assert len(wpts) == n and len(allw) == 5 * n                                              # the block waypoint plus START, SE, NE, NW
     desc = [next(c for c in w if c.tag.endswith("desc")).text for w in wpts]
     assert all("rows of" in d and "south-west" in d and "spacing" in d for d in desc)
     kml = ET.parse(kit["dir"] / "points.kml").getroot()
     pms = [e for e in kml.iter() if e.tag.endswith("Placemark")]
-    assert len(pms) == n and all("rows of" in "".join(x.itertext()) for x in pms)
+    assert len(pms) == 3 * n                                                                   # the block point, the planted rectangle and the START corner
+    assert sum("rows of" in "".join(x.itertext()) for x in pms) >= n
 
 
 def test_readme_explains_the_layout_in_plain_words(kit):
@@ -73,4 +77,4 @@ def test_manifest_counts_and_pdf_has_a_layout_page_per_species(kit):
     pdf = kit["dir"] / "field-map.pdf"
     assert pdf.is_file() and pdf.stat().st_size > 5000
     pages = len(re.findall(rb"/Type\s*/Page(?![s\w])", pdf.read_bytes()))
-    assert pages >= 1 + kit["plan"].species_id.nunique()                                     # the map pages plus one layout diagram per species
+    assert pages >= 1 + len(kit["plan"]) + 1                                                  # overview + one page per block + a table page

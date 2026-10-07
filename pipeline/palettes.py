@@ -83,6 +83,28 @@ def block_layout(spacing, cfg=None):
             "row_direction": c["row_direction"], "start_corner": c["start_corner"]}
 
 
+def block_geometry(spacing, trees_per_row, rows, trees_planned=None, cfg=None):
+    """The planted rectangle of ONE block in metres from the south-west corner of its 100 m square (the ONE geometry used by the kit files, the PDF, the dashboard and the tests).
+    The rectangle is trees_per_row x spacing wide and rows x spacing high, CENTRED in the square (margin = (100 - side) / 2 on every side). Trees sit at the centres of its cells:
+    tree k (1-based) runs row by row from the south-west, east first, then one spacing north. A block with fewer trees than its capacity plants trees 1..N; the rest stay empty.
+    Rows run east-west and the grid is assumed aligned to UTM north (an assumption, see the README of the kit)."""
+    c = BLOCK_CFG if cfg is None else cfg
+    side = float(c["block_side_m"])
+    sp, tpr, nrows = float(spacing), int(trees_per_row), int(rows)
+    cap = tpr * nrows
+    n = cap if trees_planned is None else max(0, min(int(trees_planned), cap))
+    w, h = tpr * sp, nrows * sp
+    mx, my = (side - w) / 2.0, (side - h) / 2.0
+    trees = []
+    for k in range(cap):
+        j, i = divmod(k, tpr)
+        trees.append({"k": k + 1, "x": mx + sp * (i + 0.5), "y": my + sp * (j + 0.5), "planted": k < n})
+    return {"spacing_m": sp, "side_m": side, "rect_w_m": w, "rect_h_m": h, "rect_side_m": w, "margin_m": mx, "margin_y_m": my,
+            "capacity": cap, "trees_planned": n, "trees": trees,
+            "corners": {"SW": (mx, my), "SE": (mx + w, my), "NE": (mx + w, my + h), "NW": (mx, my + h)},
+            "first_tree": (trees[0]["x"], trees[0]["y"]), "last_tree": (trees[n - 1]["x"], trees[n - 1]["y"]) if n else None}
+
+
 def block_table(species, cfg=None):
     """One row per species: species_id, common_name, spacing_m, rows, trees_per_row, capacity (NaN when the species has no spacing) and a plain `reason` when it cannot be planned in block mode."""
     rows = []

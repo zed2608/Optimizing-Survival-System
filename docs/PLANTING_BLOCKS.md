@@ -25,6 +25,20 @@ For every species:
 3. **capacity** = rows x trees per row.
 4. Rows run **east-west**, counted from the **south-west corner** of the planted part. A block holding fewer trees than its capacity fills row by row from the south.
 
+### Planted rectangle and tree positions (round 13)
+
+The number of trees does not change (the capacity table below is the same as before). What changed is where the trees stand:
+
+* The planted rectangle is **trees per row x spacing** on each side (not the 77.46 m usable side) and is **centred** in the 100 m square: margin = (100 - n x spacing) / 2 on every side.
+* Trees stand at the **centres of the n x n cells**: tree k (1-based, row by row from the south-west corner, east first, then one spacing north) is at
+  x = margin + spacing x (i + 0.5), y = margin + spacing x (j + 0.5), in metres from the south-west corner of the grid square.
+* Example, 12.5 m spacing, 6 x 6: rectangle 12.5 to 87.5 m (75 m x 75 m), trees at 18.75, 31.25, 43.75, 56.25, 68.75, 81.25 m. Tree 1 is at (18.75, 18.75), tree 36 at (81.25, 81.25).
+  Before round 13 the first tree was drawn at (11.5, 11.5) and the last at (74, 74) in a 77.46 m box: no margin left and bottom, 14.5 m unused right and top.
+* A block with fewer trees than its capacity plants trees 1..N in that order; the others are shown as empty places.
+* Rows run east-west and the grid is **assumed to be aligned to UTM north** (zone 51N, EPSG:32651); the kit says so. Corner and tree-1 coordinates are the local metres moved to UTM and back to lat/lon.
+* ONE function does all of this: `pipeline/palettes.py` `block_geometry`. The kit files (blocks.csv, GPX, KML, README, PDF) and the tests use it; the dashboard diagram uses its JavaScript mirror
+  `frontend/src/new/blockGeometry.js` (a test compares the two). The API plan items also carry `rect_side_m`, `margin_m` and `first_tree_m`.
+
 ### Spacing, rows and capacity of all 45 species
 
 | id | Species | spacing_min - max (m) | spacing used (m) | rows | trees per row | capacity |
@@ -104,14 +118,20 @@ Capacity ranges from 9 (Weeping Fig, 20 m) to 900 (Malunggay and Papaya, 2.5 m);
 
 ## Field kit
 
-One waypoint per block in `points.gpx` / `points.kml` with the layout in the description; a new `blocks.csv` (columns of the specification, then `plan_id` and `check_code` so a filled file
-can be matched to its plan); `point-list.csv` keeps its exact columns and carries the block summary in `notes`; the README explains how to lay out a block with a tape or by pacing, where
-to start, how to count trees and how to bring `blocks.csv` back; the PDF has a layout diagram per species when matplotlib is installed.
+One waypoint per block in `points.gpx` / `points.kml` with the layout in the description; in the GPX also `<ref>-START` (south-west corner of the planted rectangle) and `<ref>-SE`, `-NE`, `-NW`;
+in the KML a semi-transparent polygon of the planted rectangle (species colour) and a START placemark per block. `blocks.csv` has the columns of the specification, then `plan_id` and `check_code` (so a
+filled file can be matched to its plan), then the round 13 columns `start_lat`, `start_lon`, `start_utm_e`, `start_utm_n`, `first_tree_lat`, `first_tree_lon`, `rect_side_m`, `margin_m` (new columns are only
+appended at the end; importing a filled file works as before). `point-list.csv` keeps its exact columns and carries the block summary in `notes`. The README explains how to lay out a block with a tape or by
+pacing, where to start, how to count trees, what to do when something is in the way and how to bring `blocks.csv` back. `field-map.pdf` (needs matplotlib, optional): page 1 overview to scale (every 100 m
+square and planted rectangle, labelled with block ref and tree count, lightly shaded by satellite ground cover, a red "check on the ground" frame on built-up, bare or water squares), then ONE landscape
+page per block (a 300 m local map and the numbered layout diagram, full or partial), then the block table (ref, species, trees, spacing and rows, barangay and zone, start corner, warnings in plain words,
+Done, trees planted, moved lat/lon). The footer carries the plan id, the check code, the release tag and the 12-character hash from `dataset_release.txt`, never the long sha256.
 
 ## Assumptions and limits
 
 * Midpoint spacing, 60% usable share and a 100 m block are placeholders for the agriculturist.
-* The waypoint of a block is the **centre of the grid square**; the start corner is about 39 m south and 39 m west of it.
+* The waypoint of a block is the **centre of the grid square**; the start corner is the south-west corner of the planted rectangle ((100 - n x spacing) / 2 from the square's south and west edges).
+* The grid is assumed to be aligned to UTM north. GPS is good to a few metres and worse under trees; the square is a map cell, not an exact planting spot.
 * The 100 m grid is not a surveyed parcel: ownership, boundaries and obstacles are checked on the ground.
 * A top-up is planned on the same area and dates; squares outside the zoning map are used only if the parent plan could use them.
 * "Planted" in `point-list.csv` of a blocks plan means all the trees of the block; use `blocks.csv` for counts.

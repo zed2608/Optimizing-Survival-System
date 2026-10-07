@@ -81,10 +81,11 @@ def test_gpx_parses_has_one_waypoint_per_plan_row_and_matching_coordinates(kit):
 def test_kml_parses_one_folder_per_species_distinct_colours_and_matching_coordinates(kit):
     root = ET.parse(kit["dir"] / "points.kml").getroot()
     doc = root.find("k:Document", KML)
-    marks = doc.findall(".//k:Placemark", KML)
+    pts_names = set(kit["res"]["points"].point_ref)
+    marks = [m for m in doc.findall(".//k:Placemark", KML) if m.find("k:name", KML).text in pts_names]      # round 13 adds a polygon and a START placemark per block
     plan = kit["plan"]
     assert len(marks) == len(plan) and len(doc.findall("k:Folder", KML)) == plan.species_id.nunique()
-    colors = [s.find("k:IconStyle/k:color", KML).text for s in doc.findall("k:Style", KML)]
+    colors = [s.find("k:IconStyle/k:color", KML).text for s in doc.findall("k:Style", KML) if s.find("k:IconStyle/k:color", KML) is not None]
     assert len(colors) == len(set(colors)) == plan.species_id.nunique()
     pts = kit["res"]["points"].set_index("point_ref"); by_id = plan.set_index("point_id")
     for m in marks:
@@ -153,7 +154,7 @@ def test_readme_has_the_stamps_the_nudge_rule_and_the_limits(kit):
                  "BOTH sexes", "offline map app", "airplane mode", "a few metres", "KNOWN LIMITS", "at most one tree per cell"):
         assert must in t, must
     assert len(t.splitlines()) < 75                                                    # about one page
-    assert len(r["meta"]["dataset_hash"]) == 64
+    assert len(r["meta"]["dataset_hash"]) == 12                                    # round 13: the combined 12-character hash, never the long sha256
 
 
 def test_the_nudge_distance_is_a_config_value(tmp_path, monkeypatch):

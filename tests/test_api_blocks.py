@@ -332,7 +332,7 @@ def test_kit_has_blocks_csv_with_the_agreed_columns_and_point_list_keeps_its_own
     assert {"blocks.csv", "point-list.csv", "points.gpx", "points.kml", "README.txt", "manifest.json"} <= names
     cols = list(blocks[0])
     assert cols[:22] == ["block_ref", "point_id", "lat", "lon", "utm_e", "utm_n", "species_code", "common_name", "trees_planned", "spacing_m", "rows", "trees_per_row", "row_direction",
-                         "start_corner", "barangay", "zone", "flags", "notes", "status", "trees_planted", "moved_lat", "moved_lon"] and cols[22:] == ["plan_id", "check_code"]
+                         "start_corner", "barangay", "zone", "flags", "notes", "status", "trees_planted", "moved_lat", "moved_lon"] and cols[22:24] == ["plan_id", "check_code"] and len(cols) == 32
     assert len(blocks) == len(j["plan"]) and sum(int(b["trees_planned"]) for b in blocks) == 300 and {b["block_ref"] for b in blocks} == {i["block_ref"] for i in j["plan"]}
     assert all(b["status"] == "" and b["trees_planted"] == "" for b in blocks)
     assert list(points[0]) == ["point_ref", "point_id", "lat", "lon", "utm_e", "utm_n", "species_code", "common_name", "flags", "notes", "status", "moved_lat", "moved_lon", "plan_id", "check_code"] \
