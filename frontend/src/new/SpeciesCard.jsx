@@ -5,6 +5,7 @@ import FlagBadges from '../v2/components/FlagBadges.jsx'
 import SourceLink from '../v2/components/SourceLink.jsx'
 import { useApi } from '../v2/useApi.js'
 import MonthStrip from './MonthStrip.jsx'
+import PartnersSection from './PartnersSection.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 import WeatherCard from './WeatherCard.jsx'
 import { BEST_MONTHS_NOTE, monthsText, parseMonths, seasonQuery } from './season.js'
@@ -191,6 +192,8 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
                 <Fact label="Both sexes needed" rows={[F.sexuality_raw]} text="This species has separate male and female trees. Plant both sexes near each other." />
               )}
             </Section>
+
+            <PartnersSection speciesId={speciesId} query={seasonQuery(win, false)} />
 
             {point && (
               <section className="nw-card-sec" aria-label="Weather advice for this species">

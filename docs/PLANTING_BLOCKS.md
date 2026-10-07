@@ -127,6 +127,10 @@ square and planted rectangle, labelled with block ref and tree count, lightly sh
 page per block (a 300 m local map and the numbered layout diagram, full or partial), then the block table (ref, species, trees, spacing and rows, barangay and zone, start corner, warnings in plain words,
 Done, trees planted, moved lat/lon). The footer carries the plan id, the check code, the release tag and the 12-character hash from `dataset_release.txt`, never the long sha256.
 
+## Tree counts per species (round 14)
+
+Instead of one total and an automatic mix, a plan can name the trees of every species (`species_counts` {species_id: trees}, total 1 to 2000; `--species-counts "8:30,7:20"` on the command line). Blocks per species = ceil(trees / capacity of the species), the last block of a species holds the remainder, for example 30 Kamagong (36 per full block) = 1 block of 30 trees and 20 Duhat (49 per block) = 1 block of 20. The 20% species and 30% genus caps do not apply to counts chosen by hand; the plan warns instead (one species, or 80% or more of the trees from one species). A species that cannot be fully placed (not enough suitable squares, or the squares went to the other chosen species) is reported as requested versus placed with the reason in `summary.species_counts`.
+
 ## Assumptions and limits
 
 * Midpoint spacing, 60% usable share and a 100 m block are placeholders for the agriculturist.

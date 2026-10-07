@@ -23,7 +23,7 @@ import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from scipy.spatial import cKDTree
 
 ROOT = Path(__file__).resolve().parent
@@ -878,6 +878,8 @@ def load_data(cfg=None):
     d.allpt_barangay = j_all.drop_duplicates("i", keep="first").set_index("i").b.reindex(range(len(all_points))).fillna(cfg["missing_marker"]).astype(int).to_numpy()
     d.allpt_index = {int(p): i for i, p in enumerate(all_points.point_id)}
     lcf = root / "site_landcover.csv"                                  # ground cover from satellite land cover (information only)
+    pf = root / "species_partners.csv"                                  # "Works well with": starting rules from pipeline/partners.py (provisional)
+    d.partners = pd.read_csv(pf) if pf.is_file() else None
     d.landcover = pd.read_csv(lcf).set_index("point_id") if lcf.is_file() else None
     d.landcover_body = build_landcover_body(d) if d.landcover is not None else None
     d.places_sorted = sorted(d.places, key=lambda p: p["name"])           # same order as barangay_names (sorted by name)
@@ -1185,6 +1187,91 @@ def species_detail(species_id: int, season=Depends(season_q), d=Depends(D)):
             "purpose_scores": {p: purpose_breakdown(d, species_id, p) for p in mt.PURPOSES}}
 
 
+PARTNER_NONE = "No good partner found in our data"
+PARTNER_NOTE = "These are starting rules from the species data. The agriculturist will check them."
+
+
+def partners_of(d, species_id):
+    """Rows of species_partners.csv for one main species, best first (empty when the table is not built or the species has no listed partner)."""
+    if d.partners is None:
+        return d.partners
+    return d.partners[d.partners.species_id == species_id].sort_values(["score", "partner_id"], ascending=[False, True])
+
+
+def partner_pairs_in(d, species_ids):
+    """Listed pairs (either direction) among the given species: [(main_id, partner_id)]. Used for the one-line note of a plan with two or more species."""
+    ids = {int(i) for i in species_ids}
+    if d.partners is None or len(ids) < 2:
+        return []
+    t = d.partners[d.partners.species_id.isin(ids) & d.partners.partner_id.isin(ids)]
+    seen, out = set(), []
+    for r in t.sort_values("score", ascending=False).itertuples(index=False):
+        k = tuple(sorted((int(r.species_id), int(r.partner_id))))
+        if k not in seen:
+            seen.add(k)
+            out.append((int(r.species_id), int(r.partner_id)))
+    return out
+
+
+def partner_note(d, species_ids):
+    """One sentence for a mix of two or more species: do the starting partner rules link any two of them?"""
+    ids = list(dict.fromkeys(int(i) for i in species_ids))
+    if len(ids) < 2 or d.partners is None:
+        return None
+    pairs = partner_pairs_in(d, ids)
+    names = dict(zip(d.ctx.species.species_id.astype(int), d.ctx.species.common_name))
+    if not pairs:
+        return {"text": "No partner rule applies", "pairs": [], "provisional": True, "note": PARTNER_NOTE}
+    return {"text": "These species suit each other" if len(pairs) >= len(ids) - 1 else "Some of these species suit each other",
+            "pairs": [{"species_id": a, "partner_id": b, "species": names.get(a), "partner": names.get(b)} for a, b in pairs[:6]], "provisional": True, "note": PARTNER_NOTE}
+
+
+@app.get("/species/{species_id}/partners")
+def species_partners(species_id: int, purpose: Optional[Purpose] = None, barangay: Optional[str] = Query(None, description="barangay name: adds the squares of that barangay where both species suit"),
+                     season=Depends(season_q), d=Depends(D)):
+    """Up to 5 partner species ("Works well with") with plain reasons; provisional starting rules (pipeline/partners.py). An explicit empty list when none is found."""
+    i = d.species_idx.get(species_id)
+    if i is None:
+        raise HTTPException(404, f"species_id {species_id} not found (valid ids: {int(d.ctx.species.species_id.min())}-{int(d.ctx.species.species_id.max())})")
+    if d.partners is None:
+        raise HTTPException(503, "The partner table is not built yet: run python pipeline/partners.py.")
+    sp = d.ctx.species
+    main = sp.iloc[i]
+    mask, area = None, None
+    if barangay is not None:
+        b = find_barangay(d, barangay)
+        if b is None:
+            raise HTTPException(400, f"Unknown barangay '{barangay}'. Barangays: {', '.join(d.barangay_display)}")
+        mask = d.point_barangay == b
+        area = {"name": d.barangay_names[b], "display_name": d.barangay_display[b], "squares": int(mask.sum())}
+    text = py(main.plant_partners)
+    base = {"species_id": species_id, "common_name": main.common_name, "purpose": purpose, "area": area, "provisional": True, "note": PARTNER_NOTE,
+            "sources_say": text, "source_ids": species_field_ids(d, species_id, ["plant_partners"]), "max_partners": 5}
+    if season is not None:
+        base["season_window"] = season_block(d, season)
+    t = partners_of(d, species_id).head(5)
+    if len(t) == 0:
+        return {**base, "partners": [], "message": PARTNER_NONE}
+    out = []
+    smin = mt.CFG["s_min"]
+    for r in t.itertuples(index=False):
+        j = d.species_idx[int(r.partner_id)]
+        pr = sp.iloc[j]
+        item = {"species_id": int(r.partner_id), "common_name": pr.common_name, "scientific_name": py(pr.scientific_name), "score": py(r.score),
+                "reasons": [x for x in str(r.reasons).split(" | ") if x], "source_named": bool(r.source_named), "overlap_share": py(r.overlap_share)}
+        if mask is not None:
+            a_, b_ = d.ctx.S[mask][:, i] >= smin, d.ctx.S[mask][:, j] >= smin
+            small = min(int(a_.sum()), int(b_.sum()))
+            item["overlap_in_area"] = {"squares_both": int((a_ & b_).sum()), "squares_main": int(a_.sum()), "squares_partner": int(b_.sum()),
+                                       "share_of_smaller": round(float((a_ & b_).sum() / small), 4) if small else None}
+        if season is not None:
+            item["season"] = season_object(d.species_months[j], season)
+        if purpose is not None:
+            item["purpose_fit"] = round(float(d.ctx.P[purpose][j]), 4)
+        out.append(item)
+    return {**base, "partners": out, "message": ""}
+
+
 @app.get("/rank")
 def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180),
          limit: int = Query(API_CFG["rank_default_limit"], ge=1, le=100), season=Depends(season_q),
@@ -1375,7 +1462,9 @@ class CampaignIn(BaseModel):
 
 class PlanRequest(BaseModel):
     purpose: Purpose
-    n_saplings: int = Field(ge=API_CFG["plan_min_saplings"], le=API_CFG["plan_max_saplings"])
+    n_saplings: Optional[int] = Field(None, ge=API_CFG["plan_min_saplings"], le=API_CFG["plan_max_saplings"], description="total trees (the automatic mix), or leave it out and send species_counts")
+    species_counts: Optional[dict[int, int]] = Field(None, description="trees per species, {species_id: trees}: exactly these counts are placed (the 20% / 30% caps do not apply); "
+                                                                       "each at least 1, total 1 to 2000 (in points mode every tree has its own square)")
     polygon: Optional[dict] = Field(None, description="GeoJSON Polygon / MultiPolygon (or a Feature holding one), lon/lat")
     zone: Optional[str] = Field(None, description="zone_desc, e.g. 'Forest Zone'")
     barangay: Optional[str] = Field(None, description="barangay name (as written, or the display name, e.g. 'Santa Ana')")
@@ -1384,6 +1473,29 @@ class PlanRequest(BaseModel):
     species_ids: Optional[list[int]] = Field(None, min_length=1, max_length=60, description="plan with only these species (caps are relaxed to the minimum needed)")
     layout_mode: Optional[Literal["blocks", "points"]] = Field(None, description="blocks (default): n_saplings = total TREES, planted in blocks (one 100 m square per block, species spacing); "
                                                                                  "points: one tree per square, exactly the plan of before")
+
+    @model_validator(mode="after")
+    def _ways_to_ask(self):
+        """n_saplings (automatic mix) or species_counts (counts by hand), never a mix of the two ways."""
+        lo, hi = API_CFG["plan_min_saplings"], API_CFG["plan_max_saplings"]
+        if self.species_counts:
+            c = self.species_counts
+            if len(c) > 60:
+                raise ValueError("species_counts can name at most 60 species")
+            if any(v < 1 for v in c.values()):
+                raise ValueError("Every species in species_counts needs at least 1 tree")
+            tot = sum(c.values())
+            if not lo <= tot <= hi:
+                raise ValueError(f"The total of species_counts must be {lo} to {hi} trees (it is {tot})")
+            if self.n_saplings is not None and int(self.n_saplings) != tot:
+                raise ValueError(f"n_saplings ({self.n_saplings}) is not the total of species_counts ({tot}): send only one of them")
+            if self.species_ids and set(self.species_ids) != set(c):
+                raise ValueError("species_ids and species_counts name different species: send only species_counts")
+            self.n_saplings = tot
+            self.species_ids = list(c)
+        elif self.n_saplings is None:
+            raise ValueError("Send n_saplings (the automatic mix) or species_counts (trees per species)")
+        return self
 
 
 def polygon_mask(sites, polygon, max_vertices):
@@ -1458,6 +1570,9 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
            "sources": sources_map(d, ids), "limits": list(dict.fromkeys(summary.get("limits", []) + limits_of(d))),
            "campaign": campaign_info(summary), "n_species": len(summary["palette"]), "n_placed": summary["saplings_placed"],
            "layout_mode": "blocks" if blocks else "points", "parent_plan_id": summary.get("parent_plan_id")}
+    pn = partner_note(d, [p["species_id"] for p in summary["palette"]])
+    if pn is not None:
+        out["partners"] = pn
     if blocks:
         out["blocks"] = {"trees": int(summary.get("saplings_placed", 0)), "blocks": int(len(items)), "hectares": (summary.get("layout") or {}).get("hectares_used")}
     if extra:
@@ -1605,6 +1720,19 @@ def plan_preview(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
                    "blocks_about": about, "blocks_low": int(math.ceil(n / caps.max())), "blocks_high": int(math.ceil(n / caps.min())),
                    "hectares_about": round(about * bc["block_side_m"] ** 2 / bc["hectare_m2"], 2),
                    "basis": "typical = the median trees per full block of the species that have a suitable square in this area; the real count depends on the species mix the plan chooses"}
+    if getattr(req, "species_counts", None) and layout == "blocks":
+        bt_all = pal.block_table(d.ctx.species).set_index("species_id")
+        names_ = dict(zip(d.ctx.species.species_id.astype(int), d.ctx.species.common_name))
+        per_ = []
+        for sid_, cnt_ in req.species_counts.items():
+            cap_ = bt_all.capacity.get(int(sid_)) if int(sid_) in bt_all.index else None
+            ok_ = cap_ is not None and cap_ == cap_
+            per_.append({"species_id": int(sid_), "species": names_.get(int(sid_), str(sid_)), "trees": int(cnt_), "capacity": int(cap_) if ok_ else None,
+                         "blocks": int(math.ceil(cnt_ / cap_)) if ok_ else None})
+        nb_ = sum(x["blocks"] or 0 for x in per_)
+        bc_ = pal.BLOCK_CFG
+        est = {"trees": n, "typical_trees_per_block": max(1, round(n / nb_)) if nb_ else 1, "min_trees_per_block": 1, "max_trees_per_block": n, "blocks_about": nb_, "blocks_low": nb_, "blocks_high": nb_, "hectares_about": round(nb_ * bc_["block_side_m"] ** 2 / bc_["hectare_m2"], 2),
+               "per_species": per_, "basis": "exact: blocks of a species = trees of the species divided by its trees per full block, rounded up"}
     if sc.empty:
         can, reason, message = False, sc.empty, sc.message
     elif suitable == 0:
@@ -1632,6 +1760,7 @@ def request_snapshot(d, req, season, layout, seed):
     """The settings of a blocks plan, saved in its summary so that a top-up can repeat them (same area, species, dates, campaign and views)."""
     return {"purpose": req.purpose, "n_saplings": int(req.n_saplings), "layout_mode": layout, "zone": req.zone, "barangay": req.barangay, "polygon": req.polygon, "seed": seed,
             "species_ids": list(req.species_ids) if req.species_ids else None,
+            "species_counts": {str(k): int(v) for k, v in req.species_counts.items()} if getattr(req, "species_counts", None) else None,
             "campaign": {"name": req.campaign.name, "unit": req.campaign.unit or ""} if req.campaign is not None else None,
             "start": season.start.isoformat() if season else None, "end": season.end.isoformat() if season else None,
             "season_filter": season.filter if season else None, "include_unzoned": bool(d.zoning_on)}
@@ -1640,8 +1769,16 @@ def request_snapshot(d, req, season, layout, seed):
 def create_plan(d, req, season, sc, seed, layout, species_trees=None, topup=None):
     """Make, complete and save one plan (POST /plan-event and POST /plans/{id}/top-up). topup = {parent_plan_id, ...} marks a top-up plan."""
     sub = sc.sub
+    counts = getattr(req, "species_counts", None) or None
+    if counts:
+        names = dict(zip(d.ctx.species.species_id.astype(int), d.ctx.species.common_name))
+        if sc.removed:
+            who = ", ".join(names.get(i, str(i)) for i in sc.removed)
+            raise HTTPException(400, f"{who} {'is' if len(sc.removed) == 1 else 'are'} outside the best months for these dates, so the tree counts cannot be placed. "
+                                     "Change the dates, take the species out, or turn off 'Only species for my dates'.")
     try:
-        plan, summary = rp.make_plan(sub, req.purpose, req.n_saplings, zone=req.zone, seed=seed, species_ids=sc.ids_kept, layout_mode=layout, species_trees=species_trees)
+        plan, summary = rp.make_plan(sub, req.purpose, req.n_saplings, zone=req.zone, seed=seed, species_ids=sc.ids_kept, layout_mode=layout, species_trees=species_trees,
+                                     species_counts=counts)
     except ValueError as ex:
         raise HTTPException(400, f"{ex}" + (" (the zone has no legal points inside the polygon)" if req.zone and req.polygon is not None else ""))
     if not summary["palette"]:

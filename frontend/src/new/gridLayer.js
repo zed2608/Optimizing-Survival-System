@@ -353,6 +353,15 @@ const GridCanvasLayer = L.Layer.extend({
         ctx.stroke()
         ctx.restore()
       }
+      if (it.focus) {                                                  // "Show these on the map": a solid amber ring
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(x, y, R + 7, 0, TWO_PI)
+        ctx.lineWidth = 3
+        ctx.strokeStyle = '#f59e0b'
+        ctx.stroke()
+        ctx.restore()
+      }
       if (it.trees != null) {                                         // the number of trees of the block, in a small pill beside the shape
         const label = String(it.trees)
         ctx.font = '700 11px system-ui, sans-serif'

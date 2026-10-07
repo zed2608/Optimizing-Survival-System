@@ -3,6 +3,8 @@ import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
+import MatchChip from './MatchChip.jsx'
+import { matchLevel, verdictSentence } from './plainWords.js'
 import { wLevel } from '../v2/scale.js'
 import { friendlyNotRankable, purposeLabel } from '../v2/labels.js'
 import BlockLayout from './BlockLayout.jsx'
@@ -30,7 +32,7 @@ function ResultRow({ item, point, onInfo, full }) {
           {item.common_name}
           <span className="sr-only"> (species information)</span>
         </button>
-        <ScoreChip w={item.W} eligible={item.eligible} />
+        {full ? <ScoreChip w={item.W} eligible={item.eligible} /> : <MatchChip w={item.W} eligible={item.eligible} />}
         <SeasonBadge season={item.season} strip={false} best={false} />
       </div>
       <details className="nw-pdetails" open={full || undefined}>
@@ -40,6 +42,20 @@ function ResultRow({ item, point, onInfo, full }) {
         <RowDetails item={item} point={point} full={full} />
       </details>
     </li>
+  )
+}
+
+// The verdict of the spot in one sentence: "Good place for Kamagong: overall match 77%. In its planting months. Check the ground first."
+function VerdictCard({ ranking, leftOut, preferId = null }) {
+  const top = (preferId !== null ? ranking.find((r) => r.species_id === preferId && r.eligible) : null) ?? ranking.find((r) => r.eligible) ?? null
+  const text = leftOut ? 'This spot was marked not plantable in the field, so it is left out of plans.' : verdictSentence(top, top?.flags ?? [])
+  const good = !leftOut && top && matchLevel(top.W) === 'Good'
+  return (
+    <section className={`nw-pcard nw-verdictcard ${good ? 'is-good' : top && !leftOut ? 'is-fair' : 'is-poor'}`} aria-label="Verdict for this spot">
+      <p className="nw-verdict-text" role="status">
+        <Icon name={good ? 'check' : top && !leftOut ? 'info' : 'warn'} /> {text}
+      </p>
+    </section>
   )
 }
 
@@ -88,7 +104,8 @@ export default function PointPanel({
   return (
     <div className="nw-ppanel">
       <ViewSwitch value={view} onChange={onView} />
-      <LocationCard soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
+      <VerdictCard ranking={ranking} leftOut={leftOut} preferId={planBlock ? planBlock.item.species_id : null} />
+      <LocationCard full={full} soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
       {planBlock && (
         <section className="nw-pcard nw-blockcard" aria-label="Planting block">
           <div className="nw-pcard-head">

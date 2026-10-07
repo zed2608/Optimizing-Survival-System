@@ -2,13 +2,15 @@ import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import Icon from './Icon.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
+import MatchChip from './MatchChip.jsx'
 import HelpTip from './HelpTip.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import { fmt, pct } from '../v2/scale.js'
+import { matchText } from './plainWords.js'
 
 const MARKER = -1 // the API's documented "no value" marker
 
-function AreaTable({ title, kind, api, activeKey, onSelect, onPlan }) {
+function AreaTable({ title, kind, api, activeKey, onSelect, onPlan, full }) {
   if (api.status === 'loading') return <Loading what={`Ranking the ${title.toLowerCase()}`} />
   if (api.status === 'error') return <ErrorBox error={api.error} onRetry={api.retry} title={`Could not rank the ${title.toLowerCase()}`} brief />
   if (api.status !== 'ok') return null
@@ -42,9 +44,9 @@ function AreaTable({ title, kind, api, activeKey, onSelect, onPlan }) {
                 </button>
               </th>
               <td>
-                <ScoreChip w={r.mean_W} eligible={r.suitable_points > 0} label="Mean score W over the area" />
+                {full ? <ScoreChip w={r.mean_W} eligible={r.suitable_points > 0} label="Mean score W over the area" /> : <MatchChip w={r.mean_W} eligible={r.suitable_points > 0} label="Average match over the area" />}
                 <span className="nw-sub">
-                  where suitable: {r.mean_W_where_suitable === MARKER ? <span className="unavailable">Data Unavailable</span> : fmt(r.mean_W_where_suitable)}
+                  where suitable: {r.mean_W_where_suitable === MARKER ? <span className="unavailable">Data Unavailable</span> : full ? fmt(r.mean_W_where_suitable) : matchText(r.mean_W_where_suitable)}
                 </span>
               </td>
               <td>
@@ -88,7 +90,7 @@ export default function AreasPanel({ speciesNames, combine, onCombine, byBaranga
         )}
         <p className="muted">
           {speciesNames.length === 1 ? speciesNames[0] : `${speciesNames.length} species`} · {combine === 'all' ? 'must suit all selected' : 'suits at least one'}.
-          Mean W is the average score over all planting-zone points of the area (0 where a point is not suitable). Click a name to zoom to it.
+          {view === 'full' ? 'Mean W is the average score over all planting-zone points of the area (0 where a point is not suitable).' : 'The match is the average over all planting squares of the area (0 where a square is not suitable).'} Click a name to zoom to it.
         </p>
         {seasonNote}
         {none && (
@@ -104,8 +106,8 @@ export default function AreasPanel({ speciesNames, combine, onCombine, byBaranga
             )}
           </div>
         )}
-        <AreaTable title="Barangays" kind="barangay" api={byBarangay} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} />
-        <AreaTable title="Zones" kind="zone" api={byZone} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} />
+        <AreaTable title="Barangays" kind="barangay" api={byBarangay} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} />
+        <AreaTable title="Zones" kind="zone" api={byZone} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} />
       </div>
     </div>
   )

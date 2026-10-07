@@ -154,6 +154,71 @@ def selection_warnings(n_species):
     return []
 
 
+ELIGIBILITY_WORDS = {
+    "spacing_missing_cannot_plan_in_blocks": "it has no planting distance in our data",
+    "no_eligible_points_in_area": "no square of this area suits it (site fit is below 50% everywhere)",
+    "planting_months_missing": "its planting months are not in our data",
+    "spacing_not_below_grid_spacing": "its planting distance is too wide for the 100 m grid",
+}
+COUNT_CFG = {"min_total": 1, "max_total": 2000, "mostly_one_share": 0.8}      # tree counts chosen by hand (provisional)
+
+
+def count_warnings(counts):
+    """Plain warnings for tree counts chosen by hand (the caps do not apply): one species, or 80% or more of the trees from one species."""
+    vals = [int(v) for v in counts.values()]
+    if len(vals) == 1:
+        return ["Single species planting: higher pest and disease risk"]
+    if vals and max(vals) / sum(vals) >= COUNT_CFG["mostly_one_share"]:
+        return ["Mostly one species: higher pest risk"]
+    return []
+
+
+def parse_species_counts(text):
+    """'8:30,7:20' -> {8: 30, 7: 20} (a whole number of trees of at least 1 per species; a species only once)."""
+    out = {}
+    for part in str(text).split(","):
+        if not part.strip():
+            continue
+        try:
+            k, v = part.split(":")
+            k, v = int(k), int(v)
+        except ValueError:
+            raise ValueError(f"'{part.strip()}' is not species_id:trees, for example 8:30,7:20")
+        if k in out:
+            raise ValueError(f"species {k} is listed twice")
+        if v < 1:
+            raise ValueError(f"species {k}: at least 1 tree is needed")
+        out[k] = v
+    if not out:
+        raise ValueError("no species counts given, for example 8:30,7:20")
+    if not COUNT_CFG["min_total"] <= sum(out.values()) <= COUNT_CFG["max_total"]:
+        raise ValueError(f"the total must be {COUNT_CFG['min_total']} to {COUNT_CFG['max_total']} trees (got {sum(out.values())})")
+    return out
+
+
+def counts_report(summary, counts, sp_names):
+    """requested versus placed per species for counts chosen by hand, with the plain reason when a species could not be fully placed."""
+    rows = []
+    by = {int(p["species_id"]): p for p in summary["palette"]}
+    for sid, want in counts.items():
+        p = by.get(int(sid))
+        if p is None:
+            rows.append({"species_id": int(sid), "species": sp_names.get(int(sid), str(sid)), "requested": int(want), "placed": 0, "unplaced": int(want),
+                         "reason": "It could not enter the plan."})
+            continue
+        placed = int(p["placed"])
+        reason = ""
+        if placed < want:
+            n_sq, need = int(p["eligible_points_in_area"]), int(p.get("blocks", want))
+            if need > n_sq:
+                reason = f"Only {n_sq} square{'s' if n_sq != 1 else ''} in this area suit {p['species']}, enough for {n_sq * int(p.get('capacity', 1))} trees."
+            else:
+                reason = f"The squares that suit {p['species']} were taken by the other species you chose."
+        rows.append({"species_id": int(sid), "species": p["species"], "requested": int(want), "placed": placed, "unplaced": int(want) - placed,
+                     "blocks_requested": int(p.get("blocks", want)), "blocks_placed": int(p.get("blocks_placed", placed)), "reason": reason})
+    return {"mode": "counts", "total_requested": int(sum(counts.values())), "total_placed": int(sum(r["placed"] for r in rows)), "per_species": rows}
+
+
 def _cap(species_df, blocks):
     """Trees per block of every species of species_df (NaN = no planting distance), or None in points mode."""
     return pal.block_table(species_df).capacity.to_numpy(dtype=float) if blocks else None
@@ -244,7 +309,8 @@ def _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, pale
     return plan, summary
 
 
-def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=None, method="hungarian", palette_cfg=None, species_ids=None, layout_mode=None, species_trees=None):
+def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=None, method="hungarian", palette_cfg=None, species_ids=None, layout_mode=None, species_trees=None,
+              species_counts=None):
     """Palette + matching for one purpose and area. Returns (plan DataFrame, summary dict).
     species_ids (optional): plan with ONLY these species; the per-species and per-genus caps are relaxed to the minimum needed to place every sapling and the summary says so.
     layout_mode: "blocks" (default, CFG layout_mode): n_saplings is the number of TREES, shared out per species, planted in blocks (one block per 100 m square, species spacing);
@@ -255,6 +321,18 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
         raise ValueError("layout_mode must be 'blocks' or 'points'")
     if purpose not in ctx.P:
         raise ValueError(f"purpose must be one of {sorted(ctx.P)}")
+    explicit = bool(species_counts)
+    if explicit:                                                       # tree counts chosen by hand: exactly these counts, no 20% / 30% caps
+        species_counts = {int(k): int(v) for k, v in species_counts.items()}
+        if any(v < 1 for v in species_counts.values()):
+            raise ValueError("Every species needs at least 1 tree.")
+        if not COUNT_CFG["min_total"] <= sum(species_counts.values()) <= COUNT_CFG["max_total"]:
+            raise ValueError(f"The total must be {COUNT_CFG['min_total']} to {COUNT_CFG['max_total']} trees.")
+        have_ids = set(ctx.species.species_id.astype(int))
+        gone = [k for k in species_counts if k not in have_ids]
+        if gone:
+            raise ValueError(f"Species {gone} is not available for this plan (unknown, or left out for the planting dates).")
+        species_ids, species_trees, n_saplings = list(species_counts), dict(species_counts), sum(species_counts.values())
     in_area = mt.area_mask(ctx.sites, zone, bbox)
     keep = mt.exclusion_keep_mask(ctx.sites, trees)
     area_idx = np.where(in_area & keep)[0]
@@ -272,14 +350,22 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
         base = dict(pal.CFG if palette_cfg is None else palette_cfg)
         n_el, n_gen = pal.count_eligible(species_df, S_sel, P_sel, base, _cap(species_df, blocks))
         cfg_used = dict(base)
-        if n_el:
+        if explicit:
+            st_ = pal.species_stats(np.asarray(S_sel, dtype=float), np.asarray(P_sel, dtype=float), base["s_min"])
+            pool_, why_ = pal.eligible_pool(species_df, st_, [pal.parse_months(v) for v in species_df.planting_months], base, _cap(species_df, blocks))
+            nm = dict(zip(species_df.species_id.astype(int), species_df.common_name))
+            bad = [f"{nm[k]} ({ELIGIBILITY_WORDS.get(why_.get(k), why_.get(k))})" for k in species_counts if k in why_]
+            if bad:
+                raise ValueError("These species cannot be planted here: " + "; ".join(bad) + ".")
+        elif n_el:
             cfg_used["max_species_share"], cfg_used["max_genus_share"] = relaxed_caps(base, n_saplings, n_el, n_gen)
         relaxed = {k: {"default": base[k], "used": round(cfg_used[k], 4)} for k in ("max_species_share", "max_genus_share") if cfg_used[k] > base[k] + 1e-12}
         selection = {"species_ids_requested": ids, "species_eligible_in_area": n_el, "genera_eligible_in_area": n_gen,
                      "caps": {k: {"default": base[k], "used": round(cfg_used[k], 4)} for k in ("max_species_share", "max_genus_share")}, "caps_relaxed": relaxed,
-                     "caps_note": ("The per-species and per-genus caps were raised to the minimum needed to place every sapling with only these species." if relaxed
+                     "caps_note": ("You chose the tree count of every species, so the per-species and per-genus caps do not apply." if explicit else
+                                   "The per-species and per-genus caps were raised to the minimum needed to place every sapling with only these species." if relaxed
                                    else "The default per-species and per-genus caps were enough.")}
-    if blocks and species_trees:
+    if species_trees and (blocks or explicit):
         palette = pal.fixed_palette(species_df, S_sel, P_sel, species_trees, cfg_used)
         n_saplings = int(palette["n_saplings"])
     else:
@@ -306,7 +392,8 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                                                                        else "shares_no_planting_month_with_the_others_or_not_needed"))
         selection["species_ids_left_out"] = left_out
         selection["n_species_planted"] = len(in_palette)
-        summary["palette_warnings"] = [w for w in summary["palette_warnings"] if not w.startswith("palette_smaller_than_min")] + selection_warnings(len(in_palette))
+        summary["palette_warnings"] = ([w for w in summary["palette_warnings"] if not w.startswith("palette_smaller_than_min")]
+                                       + (count_warnings(species_counts) if explicit else selection_warnings(len(in_palette))))
         if selection["caps_relaxed"] and len(in_palette):
             summary["palette_warnings"].append("Caps relaxed: " + selection["caps_note"])
         summary["species_selection"] = selection
@@ -319,7 +406,10 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
     Sm, Pm = S_sel[:, members], P_sel[members]
     W, feas = mt.weights(Sm, Pm)
     if blocks:
-        return _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, palette, summary, seed, method, int(n_saplings))
+        plan_b, summary = _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, palette, summary, seed, method, int(n_saplings))
+        if explicit:
+            summary["species_counts"] = counts_report(summary, species_counts, dict(zip(species_df.species_id.astype(int), species_df.common_name)))
+        return plan_b, summary
     fn = {"hungarian": mt.assign_hungarian, "greedy": mt.assign_greedy}[method]
     res = fn(W, feas, palette["quota"], seed)
     pi, si = res["point_idx"], res["species_idx"]
@@ -363,6 +453,8 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                     "unused_candidate_points": int(len(area_idx) - len(plan)),
                     "mean_W": round(float(plan.W.mean()), 4) if len(plan) else None, "total_W": round(float(plan.W.sum()), 4),
                     "spacing_check": "every palette species has spacing_min_m < 100 m, the grid spacing, so any two grid points are far enough apart"})
+    if explicit:
+        summary["species_counts"] = counts_report(summary, species_counts, dict(zip(species_df.species_id.astype(int), species_df.common_name)))
     return plan, summary
 
 
@@ -483,6 +575,7 @@ def main(argv=None):
     ap.add_argument("--campaign-name", help="campaign name (1-80 characters), saved in the plan summary")
     ap.add_argument("--campaign-unit", help="assigned unit (up to 80 characters), saved in the plan summary")
     ap.add_argument("--species-ids", help="plan with only these species, e.g. 1,7,8 (caps are relaxed to the minimum needed)")
+    ap.add_argument("--species-counts", help="trees per species, e.g. 8:30,7:20 (species_id:trees; exactly these counts, the caps do not apply; needs blocks mode)")
     ap.add_argument("--field-db", default=str(ROOT / CFG["field_db"]), help="saved field checks; not_plantable points are left out of the plan")
     ap.add_argument("--layout-mode", choices=("blocks", "points"), default=CFG["layout_mode"], help="blocks: --n-saplings is the number of TREES planted in blocks at the species spacing; points: one tree per square")
     ap.add_argument("--include-unzoned", dest="include_unzoned", action=argparse.BooleanOptionalAction, default=CFG["include_unzoned"],
@@ -493,8 +586,17 @@ def main(argv=None):
         bench, f = run_benchmark(ctx, a.out)
         print(bench.to_string(index=False)); print(f"written to {f}")
         return
+    species_counts = None
+    if a.species_counts:
+        if a.n_saplings or a.species_ids:
+            ap.error("--species-counts replaces --n-saplings and --species-ids: use only one way")
+        try:
+            species_counts = parse_species_counts(a.species_counts)
+        except ValueError as ex:
+            ap.error(f"--species-counts: {ex}")
+        a.n_saplings = sum(species_counts.values())
     if not a.purpose or not a.n_saplings:
-        ap.error("--purpose and --n-saplings are required (or use --benchmark)")
+        ap.error("--purpose and --n-saplings (or --species-counts) are required (or use --benchmark)")
     trees = pd.read_csv(a.trees_csv) if a.trees_csv else None
     campaign = None
     if a.campaign_name is not None or a.campaign_unit is not None:
@@ -515,7 +617,10 @@ def main(argv=None):
             ap.error(f"--species-ids: unknown species id(s) {[i for i in species_ids if i not in known] or species_ids} (valid ids: {min(known)}-{max(known)})")
     ctx, field_checks = apply_field_checks(ctx, a.field_db, a.zone, a.bbox)
     print(f"field checks: {field_checks['excluded_points']} not-plantable point(s) left out of this area")
-    plan, s = make_plan(ctx, a.purpose, a.n_saplings, a.zone, a.bbox, trees, a.seed, species_ids=species_ids, layout_mode=a.layout_mode)
+    try:
+        plan, s = make_plan(ctx, a.purpose, a.n_saplings, a.zone, a.bbox, trees, a.seed, species_ids=species_ids, layout_mode=a.layout_mode, species_counts=species_counts)
+    except ValueError as ex:
+        ap.error(str(ex))
     if campaign:
         s["campaign"] = campaign
     s["field_checks"] = field_checks

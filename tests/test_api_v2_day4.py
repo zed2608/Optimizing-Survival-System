@@ -198,7 +198,7 @@ def test_the_user_never_supplies_a_file_path(client):
         names = {p.name for p in paths[route].dependant.path_params}
         assert names <= {"plan_id", "filename"}
     body_fields = set(api_v2.PlanRequest.model_fields)
-    assert body_fields == {"purpose", "n_saplings", "polygon", "zone", "barangay", "seed", "campaign", "species_ids", "layout_mode"}                     # nothing that names a file
+    assert body_fields == {"purpose", "n_saplings", "polygon", "zone", "barangay", "seed", "campaign", "species_ids", "species_counts", "layout_mode"}                     # nothing that names a file
 
 
 # ---- weather advisory ------------------------------------------------------------------------------------------------

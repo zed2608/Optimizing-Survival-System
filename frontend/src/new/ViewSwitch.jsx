@@ -1,9 +1,9 @@
 const OPTIONS = [
-  ['compact', 'Compact'],
-  ['full', 'Full details'],
+  ['compact', 'Simple'],
+  ['full', 'Detailed'],
 ]
 
-// "Compact | Full details": a two-option switch (radio buttons; Tab to it, Left/Right arrows or Enter/Space change it).
+// "Simple | Detailed" (the values stay compact and full): a two-option switch (radio buttons; Tab to it, Left/Right arrows or Enter/Space change it).
 export default function ViewSwitch({ value, onChange }) {
   const onKey = (e) => {
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {

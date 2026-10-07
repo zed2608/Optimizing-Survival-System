@@ -1,17 +1,22 @@
+import CountsForm from './CountsForm.jsx'
 import HelpTip from './HelpTip.jsx'
+import { plainWarning } from './plainWords.js'
 import SeasonNotice from './SeasonNotice.jsx'
 
 const PRESETS = [50, 100, 300, 500]
 
-// Step 5 "Plan": campaign name, assigned unit, number of saplings, a compact summary of what the plan will use, the capacity message, and the one primary button.
+// Step 5 "Plan": campaign name, assigned unit, the trees (one number for the automatic mix, or one row per chosen species), a compact summary of what the plan will use,
+// the capacity message, and the one primary button.
 export default function PlanStep({
   name, onName, unit, onUnit, n, onN, nValid, areaLabel, modeLabel, windowText, preview, reason, onCreate, creating, createError, result, onAnother, seasonNoticeProps,
+  countsMode = false, countRows = [], counts = {}, onCount, areaMode = false, ownSpecies = false, onOwnSpecies, onAutoMix, picker = null,
 }) {
   const p = preview.status === 'ok' ? preview.data : null
   const est = p?.blocks_estimate ?? null
   const placed = result?.summary?.saplings_placed
   const requested = result?.summary?.n_saplings_requested
   const sm = result?.summary
+  const short = sm?.species_counts?.per_species?.filter((r) => r.unplaced > 0) ?? []
   return (
     <div>
       <div className="nw-opt-head">
@@ -25,30 +30,55 @@ export default function PlanStep({
         Assigned unit
       </label>
       <input id="nw-campaign-unit" className="nw-input" value={unit} maxLength={80} onChange={(e) => onUnit(e.target.value)} placeholder="e.g. MENRO field team" />
-      <div className="nw-opt-head">
-        <label className="nw-label nw-grow" htmlFor="nw-saplings">
-          Number of trees
-        </label>
-        <HelpTip label="Number of trees">How many trees to plan in total, from 1 to 2000. They are planted in blocks: each block is one 100 m grid square planted at the species spacing.</HelpTip>
-      </div>
-      <input id="nw-saplings" type="number" min="1" max="2000" className="nw-input" value={n} onChange={(e) => onN(e.target.value)} aria-invalid={!nValid} />
-      <div className="nw-presets" role="group" aria-label="Tree number presets">
-        {PRESETS.map((v) => (
-          <button key={v} type="button" className={`nw-btn nw-btn-small ${String(n) === String(v) ? 'nw-btn-go' : ''}`} onClick={() => onN(String(v))}>
-            {v}
-          </button>
-        ))}
-      </div>
-      {!nValid && (
-        <p className="nw-error" role="alert">
-          Trees: 1 to 2000.
-        </p>
-      )}
 
-      {est && (
-        <p className="nw-estimate" role="status">
-          About {est.blocks_about} block{est.blocks_about === 1 ? '' : 's'} of {est.typical_trees_per_block} trees (about {est.hectares_about} ha)
-        </p>
+      {countsMode ? (
+        <>
+          <div className="nw-opt-head">
+            <span className="nw-label nw-grow">Trees for each species</span>
+            <HelpTip label="Trees for each species">
+              How many trees of each chosen species, 1 to 2000 in total. Exactly these numbers are planted, in blocks: each block is one 100 m grid square planted at the species spacing. The usual share limits do not apply, so a mix of mostly one species gets a warning.
+            </HelpTip>
+          </div>
+          {ownSpecies && picker}
+          {countRows.length === 0 ? <p className="nw-hint">Choose species to give each its trees.</p> : <CountsForm rows={countRows} counts={counts} onChange={onCount} est={est} />}
+          {ownSpecies && (
+            <button type="button" className="nw-linkbtn" onClick={onAutoMix}>
+              Use the automatic mix
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="nw-opt-head">
+            <label className="nw-label nw-grow" htmlFor="nw-saplings">
+              Number of trees
+            </label>
+            <HelpTip label="Number of trees">How many trees to plan in total, from 1 to 2000. They are planted in blocks: each block is one 100 m grid square planted at the species spacing.</HelpTip>
+          </div>
+          <input id="nw-saplings" type="number" min="1" max="2000" className="nw-input" value={n} onChange={(e) => onN(e.target.value)} aria-invalid={!nValid} />
+          <div className="nw-presets" role="group" aria-label="Tree number presets">
+            {PRESETS.map((v) => (
+              <button key={v} type="button" className={`nw-btn nw-btn-small ${String(n) === String(v) ? 'nw-btn-go' : ''}`} onClick={() => onN(String(v))}>
+                {v}
+              </button>
+            ))}
+          </div>
+          {!nValid && (
+            <p className="nw-error" role="alert">
+              Trees: 1 to 2000.
+            </p>
+          )}
+          {areaMode && (
+            <button type="button" className="nw-linkbtn" onClick={onOwnSpecies}>
+              Choose my own species and counts
+            </button>
+          )}
+          {est && (
+            <p className="nw-estimate" role="status">
+              About {est.blocks_about} block{est.blocks_about === 1 ? '' : 's'} of {est.typical_trees_per_block} trees (about {est.hectares_about} ha)
+            </p>
+          )}
+        </>
       )}
       <dl className="nw-plansum" aria-label="What the plan will use">
         <div>
@@ -76,7 +106,7 @@ export default function PlanStep({
       {p && !p.can_create && p.reason !== 'no_suitable_squares' && seasonNoticeProps && (
         <SeasonNotice {...seasonNoticeProps} text={p.reason === 'chosen_species_outside_best_months' ? 'None of your chosen species can be planted in these dates.' : ''} />
       )}
-      {p && !p.can_create && p.reason === 'no_suitable_squares' && <p className="nw-error">{p.message}</p>}
+      {p && !p.can_create && p.reason === 'no_suitable_squares' && <p className="nw-error">{plainWarning(p.message)}</p>}
 
       <button type="button" className="nw-btn nw-btn-go nw-btn-wide" disabled={!!reason || creating} onClick={onCreate}>
         {creating ? 'Creating…' : 'Create plan'}
@@ -88,15 +118,24 @@ export default function PlanStep({
       )}
       {createError && (
         <p className="nw-error" role="alert">
-          {createError}
+          {plainWarning(createError)}
         </p>
       )}
       {result && (
         <div className="nw-created" role="status">
           <strong>
-            Placed {placed} of {requested} trees{sm.layout ? ` in ${sm.layout.blocks} blocks` : ''}
+            Placed {placed} of {requested} trees{sm.layout ? ` in ${sm.layout.blocks} block${sm.layout.blocks === 1 ? '' : 's'}` : ''}
           </strong>
-          {placed < requested && (
+          {short.length > 0 && (
+            <ul>
+              {short.map((r) => (
+                <li key={r.species_id}>
+                  {r.species}: {r.placed} of {r.requested} trees placed. {r.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+          {placed < requested && short.length === 0 && (
             <ul>
               {sm.saplings_unallocated > 0 && <li>{sm.saplings_unallocated} could not be shared out: each species fits only so many squares and the caps are used up.</li>}
               {sm.saplings_unmatched > 0 && <li>{sm.saplings_unmatched} found no suitable square left for their species.</li>}

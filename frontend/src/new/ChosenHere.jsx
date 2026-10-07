@@ -4,17 +4,19 @@ import { Loading } from '../v2/components/Status.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
 import { TERM_LABEL, humanize } from '../v2/labels.js'
 import { fmt, pct, wLevel } from '../v2/scale.js'
+import MatchChip from './MatchChip.jsx'
+import { matchText } from './plainWords.js'
 import RowDetails from './RowDetails.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 
 const MAX_ROWS = 8
 
 // Why a chosen species does or does not suit this spot, in plain words.
-function verdict(item) {
-  if (item.eligible) return { ok: true, text: `Suitable here: site suitability S ${fmt(item.S)} is at least 0.50.` }
+function verdict(item, full) {
+  if (item.eligible) return { ok: true, text: full ? `Suitable here: site suitability S ${fmt(item.S)} is at least 0.50.` : 'Suitable here.' }
   const gates = item.site_breakdown?.gate_failed ?? []
   const why = gates.length ? ` It exceeds the species' limit for ${gates.map((g) => (TERM_LABEL[g] ?? humanize(g)).toLowerCase()).join(', ')}.` : ''
-  return { ok: false, text: `Not suitable here: site suitability S ${fmt(item.S)} is below 0.50.${why}` }
+  return { ok: false, text: full ? `Not suitable here: site suitability S ${fmt(item.S)} is below 0.50.${why}` : `Not suitable here: the site fit is below 50%.${why}` }
 }
 
 // The card "Your chosen species here" (goal "I have species"): S, P, W, confidence, season and the verdict of every chosen species at the clicked spot,
@@ -36,14 +38,14 @@ export default function ChosenHere({ api, selIds, combine, onlySeason, full, poi
     body = (
       <>
         <div className="nw-combined" role="status">
-          <span className={`nw-chip ${combined > 0 ? 'fc-verified_plantable' : 'fc-not_plantable'}`}>Combined score W {fmt(combined)}</span>
-          <span className="nw-count-line">{combine === 'all' ? 'Suits all: lowest W of your species' : 'Suits at least one: highest W of your species'}</span>
+          <span className={`nw-chip ${combined > 0 ? 'fc-verified_plantable' : 'fc-not_plantable'}`}>{full ? `Combined score W ${fmt(combined)}` : `Combined match ${matchText(combined)}`}</span>
+          <span className="nw-count-line">{combine === 'all' ? `Suits all: lowest ${full ? 'W' : 'match'} of your species` : `Suits at least one: highest ${full ? 'W' : 'match'} of your species`}</span>
           {combine === 'all' && limiting.length > 0 && <div className="muted">Not suitable here for: {limiting.map((r) => r.common_name).join(', ')}.</div>}
           {combine === 'any' && highest && highest.W > 0 && <div className="muted">Best of them here: {highest.common_name}.</div>}
         </div>
         <ul className="nw-plist">
           {shown.map((item) => {
-            const v = verdict(item)
+            const v = verdict(item, full)
             return (
               <li key={`${item.species_id}|${full}`} className={`nw-prow level-${wLevel(item.W, item.eligible)}`}>
                 <div className="nw-prow-main">
@@ -51,12 +53,14 @@ export default function ChosenHere({ api, selIds, combine, onlySeason, full, poi
                     {item.common_name}
                     <span className="sr-only"> (species information)</span>
                   </button>
-                  <ScoreChip w={item.W} eligible={item.eligible} />
+                  {full ? <ScoreChip w={item.W} eligible={item.eligible} /> : <MatchChip w={item.W} eligible={item.eligible} />}
                   <SeasonBadge season={item.season} strip={false} best={false} />
                 </div>
-                <div className="nw-nums">
-                  Site S {fmt(item.S)} · Purpose P {fmt(item.P)} · Overall W {fmt(item.W)} · Confidence {pct(item.confidence) ?? 'Data Unavailable'}
-                </div>
+                {full && (
+                  <div className="nw-nums">
+                    Site S {fmt(item.S)} · Purpose P {fmt(item.P)} · Overall W {fmt(item.W)} · Confidence {pct(item.confidence) ?? 'Data Unavailable'}
+                  </div>
+                )}
                 <div className={v.ok ? 'nw-verdict is-ok' : 'nw-verdict is-no'}>
                   <Icon name={v.ok ? 'check' : 'close'} /> 
                   {v.text}

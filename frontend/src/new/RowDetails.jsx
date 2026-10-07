@@ -3,6 +3,8 @@ import Explanation from '../v2/components/Explanation.jsx'
 import FlagList from './FlagList.jsx'
 import { fmt, pct } from '../v2/scale.js'
 import SeasonBadge, { SeasonDetail } from './SeasonBadge.jsx'
+import HelpTip from './HelpTip.jsx'
+import { matchText, SCORE_WORDS } from './plainWords.js'
 import { BEST_MONTHS_NOTE } from './season.js'
 
 // What a species row's "Details" holds: S, P, overall W, confidence, the season (12-month strip), flags and "Why this score?" (every term with its weight and source link).
@@ -11,6 +13,27 @@ export default function RowDetails({ item, point, full }) {
   const [why, setWhy] = useState(full)
   return (
     <>
+      {!full && (
+        <dl className="scores">
+          <div>
+            <dt>{SCORE_WORDS.W}</dt>
+            <dd>{matchText(item.W)}</dd>
+          </div>
+          <div>
+            <dt>{SCORE_WORDS.S}</dt>
+            <dd>{matchText(item.S)}</dd>
+          </div>
+          <div>
+            <dt>{SCORE_WORDS.P}</dt>
+            <dd>{matchText(item.P)}</dd>
+          </div>
+          <div>
+            <dt>Confidence</dt>
+            <dd>{pct(item.confidence) ?? 'Data Unavailable'}</dd>
+          </div>
+        </dl>
+      )}
+      {full && (
       <dl className="scores">
         <div>
           <dt>Site suitability (S)</dt>
@@ -29,6 +52,13 @@ export default function RowDetails({ item, point, full }) {
           <dd>{pct(item.confidence) ?? 'Data Unavailable'}</dd>
         </div>
       </dl>
+      )}
+      {full && (
+        <div className="nw-opt-head">
+          <span className="muted nw-grow">S, P and W are the numbers behind Site fit, Purpose fit and Overall match.</span>
+          <HelpTip label="About S, P and W">S = site suitability: how well the place suits the species (0 to 1). P = purpose fitness: how well the species suits the goal. W = S × P, and 0 when S is below 0.50. Good is 0.55 or more, Fair 0.35 or more, Poor below that.</HelpTip>
+        </div>
+      )}
       <SeasonBadge season={item.season} />
       {full && item.season && (
         <div className="muted">

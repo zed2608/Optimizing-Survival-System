@@ -3,10 +3,11 @@ import { API_BASE } from '../v2/config.js'
 import { useApi } from '../v2/useApi.js'
 import { apiPost } from './apiPost.js'
 import HelpTip from './HelpTip.jsx'
+import Icon from './Icon.jsx'
 import { formatBytes } from './season.js'
 
 // "Build field kit" for a saved plan: builds it (POST /plans/{id}/field-kit), shows what was built and a download link (GET /kits/{id}.zip). Rebuilding is allowed and replaces the old kit.
-export default function KitControls({ planId, onChanged }) {
+export default function KitControls({ planId, onChanged, simple = false }) {
   const [version, setVersion] = useState(0)
   const [building, setBuilding] = useState(false)
   const [error, setError] = useState('')
@@ -25,6 +26,32 @@ export default function KitControls({ planId, onChanged }) {
     } finally {
       setBuilding(false)
     }
+  }
+
+  if (simple) {
+    return (
+      <div className="nw-kit">
+        <div className="nw-kitbtns">
+          <button type="button" className="nw-btn nw-btn-go nw-btn-big" onClick={build} disabled={building || info.status === 'loading'}>
+            <Icon name="printer" /> {building ? 'Building… a few seconds' : k ? 'Build the field kit again' : 'Build the field kit'}
+          </button>
+          {k && (
+            <a className="nw-btn nw-btn-big nw-kit-dl" href={`${API_BASE}${k.download_url}`} download>
+              <Icon name="download" /> Download
+            </a>
+          )}
+        </div>
+        {k && !building && <p className="muted">Built {k.built_at ? k.built_at.replace('T', ' ').slice(0, 16) : 'Data Unavailable'} · {formatBytes(k.zip_size_bytes)} · check code {k.check_code ?? 'Data Unavailable'}</p>}
+        <h4 className="nw-kit-inside-h">What is inside</h4>
+        <ul className="nw-kit-list">
+          <li><Icon name="mappin" /> Map points for your phone: one for each block and its corners.</li>
+          <li><Icon name="clipboard" /> Sheets to fill in on the field, to bring the results back.</li>
+          <li><Icon name="file" /> A printed map, one page for each block, and instructions.</li>
+        </ul>
+        {info.status === 'error' && <p className="fc-bad">The kit information could not be loaded: {info.error.message}</p>}
+        {error && <p className="fc-bad" role="alert">{error}</p>}
+      </div>
+    )
   }
 
   return (

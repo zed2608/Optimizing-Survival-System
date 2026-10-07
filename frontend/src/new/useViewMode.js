@@ -20,7 +20,7 @@ function write(key, value) {
   }
 }
 
-// "Compact" (default) or "Full details" for the species lists of the point and area panels, remembered in this browser.
+// "Simple" (default, stored as compact) or "Detailed" (stored as full) for all panels, remembered in this browser. Detailed keeps every number and technical line.
 export function useViewMode() {
   const [view, setView] = useState(() => (read(KEY_VIEW) === 'full' ? 'full' : 'compact'))
   const update = (v) => {

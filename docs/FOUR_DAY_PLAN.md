@@ -198,6 +198,12 @@ Acceptance (`tests/test_dashboard_default.py`, `tests/test_pair_table_scored_squ
 3. Dashboard diagram uses the same geometry and wording.
 Acceptance (`tests/test_kit_geometry.py`, `blockGeometry.test.mjs`, `cdp_blocks`): symmetric margins, first tree at margin + spacing/2, corners round-trip within 0.5 m, new columns last, PDF for 1, 2, 6 and 30 blocks, footer without the long sha.
 
+## Tree counts per species, plain-language panels, partner species (feedback round 14)
+1. `species_counts` in `POST /plan-event` and `--species-counts` on the command line: exact tree counts per species, no share caps, plain warnings, requested versus placed per species.
+2. Simple | Detailed panels in plain words (plan form with one row per species, plan result with a header, three numbers, "Check first", tabs; verdict card in the point panel; Help, tour); Detailed keeps every label of the old Full view.
+3. Partner species: `pipeline/partners.py` (provisional rules), `GET /species/{id}/partners`, "Works well with" in the species card, "Pairs well with" in step 4, one sentence in the plan result.
+Acceptance (`tests/test_species_counts.py`, `tests/test_partners.py`, `tests/test_detailed_labels.py`, `plainWords.test.mjs`, the browser checks): exact counts and remainder blocks, the old path unchanged, every rule of the partner table on its own, no visible warning with an underscore or `=`, every old Full-view label still in Detailed.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
 sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;

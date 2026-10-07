@@ -20,6 +20,11 @@ import MapViewMenu from './MapViewMenu.jsx'
 import PlanLegend from './PlanLegend.jsx'
 import PlanResult from './PlanResult.jsx'
 import PlanStep from './PlanStep.jsx'
+import { countText, countsSummary } from './counts.js'
+import PairsWith from './PairsWith.jsx'
+import { HelpBanner, HelpButton, HowToUse, Tour } from './HelpCenter.jsx'
+import { useHelpState } from './help.js'
+import { matchText } from './plainWords.js'
 import { apiPost } from './apiPost.js'
 import { apiGet } from '../v2/api.js'
 import { MAP_CENTER } from '../v2/config.js'
@@ -84,6 +89,10 @@ export default function AppNew() {
   const [campaignName, setCampaignName] = useState('')
   const [campaignUnit, setCampaignUnit] = useState('')
   const [nSaplings, setNSaplings] = useState('100')
+  const [counts, setCounts] = useState({}) // trees per chosen species (a species not edited yet has the default)
+  const [ownSpecies, setOwnSpecies] = useState(false) // goal "I have an area": the user chose their own species and counts
+  const [focusIds, setFocusIds] = useState(() => new Set()) // planned squares to circle on the map ("Show these on the map")
+  const help = useHelpState()
   const [planResult, setPlanResult] = useState(null) // the last plan created (it is also saved on the server)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
@@ -230,7 +239,7 @@ export default function AppNew() {
       const label = { all: 'Limiting species', any: 'Best of the selected', single: 'Species', best: 'Best species' }[g.mode]
       const lines = [
         `Barangay: ${b >= 0 ? g.barangays_display[b] : 'Data Unavailable'}`,
-        w > 0 ? `Score W ${w.toFixed(2)} (${LEVEL_WORD[wLevel(w, true)]})` : 'Not suitable here (score 0)',
+        w > 0 ? (view === 'full' ? `Score W ${w.toFixed(2)} (${LEVEL_WORD[wLevel(w, true)]})` : `Overall match ${matchText(w)}`) : view === 'full' ? 'Not suitable here (score 0)' : 'Not suitable here',
         sname ? `${label}: ${sname}` : null,
       ]
       if (g.mode === 'all' || g.mode === 'any') lines.push(`${c.n_eligible_species[i]} of ${g.species_ids.length} selected species suit this point`)
@@ -242,7 +251,7 @@ export default function AppNew() {
       }
       return lines.filter(Boolean)
     }
-  }, [grid.data, speciesNames, showGround, groundInfo])
+  }, [grid.data, speciesNames, showGround, groundInfo, view])
 
   const reveal = () => setHidden(false)
   const featureOf = (kind, name) => (kind === 'barangay' ? barangayFeatures : zoneFeatures).find((f) => f.properties.name === name)
@@ -342,6 +351,7 @@ export default function AppNew() {
   }
   const changeMode = (m) => {
     setMode(m)
+    setOwnSpecies(false)
     setPanelTab('main')
     setHidden(false)
     setTool('point')
@@ -366,12 +376,20 @@ export default function AppNew() {
 
   // ---- step 5 "Plan"
   const nNum = Number(nSaplings)
-  const nValid = /^\d+$/.test(String(nSaplings).trim()) && nNum >= 1 && nNum <= 2000
+  const countsMode = mode === 'species' || ownSpecies // one number per chosen species, or one total for the automatic mix
+  const countRows = useMemo(() => [...selIds].sort((a, b) => a - b).map((id) => ({ id, name: speciesNames.get(id) ?? `species ${id}` })), [selIds, speciesNames])
+  const cs = countsSummary(countRows.map((r) => r.id), counts)
+  const nValid = countsMode ? cs.valid : /^\d+$/.test(String(nSaplings).trim()) && nNum >= 1 && nNum <= 2000
+  const planTotal = countsMode ? cs.total : nNum
   const planArea = mode === 'area' ? area : planPrefill ? { kind: planPrefill.area.kind, name: planPrefill.area.key } : null
   const planAreaBody = !planArea ? null : planArea.kind === 'barangay' ? { barangay: planArea.name } : planArea.kind === 'zone' ? { zone: planArea.name } : { polygon: planArea.geometry }
   const planAreaLabel = !planArea ? '' : planArea.kind === 'polygon' ? 'The drawn area' : (featureOf(planArea.kind, planArea.name)?.properties.display_name ?? planArea.name)
-  const planSpeciesOk = mode === 'area' || selIds.length > 0
-  const planBody = !planAreaBody ? null : { purpose, n_saplings: nNum, ...planAreaBody, ...(mode === 'species' ? { species_ids: [...selIds].sort((a, b) => a - b) } : {}) }
+  const planSpeciesOk = !countsMode || selIds.length > 0
+  const planBody = !planAreaBody
+    ? null
+    : countsMode
+    ? { purpose, species_counts: Object.fromEntries(countRows.map((r) => [r.id, Number(countText(counts, r.id))])), ...planAreaBody }
+    : { purpose, n_saplings: nNum, ...planAreaBody }
   const preview = usePost(`/plan-event/preview?${sq}`, planBody && nValid && planSpeciesOk && !win.error ? planBody : null)
   const planReason = !planArea
     ? 'Choose an area first'
@@ -395,6 +413,7 @@ export default function AppNew() {
   // show a plan (just created, or opened from Campaign Logs): the result card, the planned trees on the map, and fit the map to them
   const showPlanResult = (r) => {
     setPlanResult(r)
+    setFocusIds(new Set())
     setShowPlan(true)
     setPanelTab('plan')
     setHidden(false)
@@ -427,6 +446,7 @@ export default function AppNew() {
   }
   const anotherPlan = () => {
     setPlanResult(null)
+    setFocusIds(new Set())
     setCreateError('')
     setPanelTab('main')
     setOpenStep('plan')
@@ -441,7 +461,7 @@ export default function AppNew() {
     }
     return m
   }, [planResult])
-  const planItems = useMemo(() => (planResult ? planResult.plan.map((it) => ({ lon: it.lon, lat: it.lat, kind: planSpecies.get(it.species_id)?.kind ?? 0, code: it.species_code, barangay: it.barangay_display, unconfirmed: it.flags.includes('zoning_unconfirmed'), ...(it.trees_planned != null ? { trees: it.trees_planned } : {}) })) : null), [planResult, planSpecies])
+  const planItems = useMemo(() => (planResult ? planResult.plan.map((it) => ({ lon: it.lon, lat: it.lat, kind: planSpecies.get(it.species_id)?.kind ?? 0, code: it.species_code, barangay: it.barangay_display, unconfirmed: it.flags.includes('zoning_unconfirmed'), focus: focusIds.has(it.point_id), ...(it.trees_planned != null ? { trees: it.trees_planned } : {}) })) : null), [planResult, planSpecies, focusIds])
   const planBlock = useMemo(() => {
     if (!planResult || planResult.layout_mode !== 'blocks' || !pointId) return null
     const item = planResult.plan.find((x) => x.point_id === pointId)
@@ -453,10 +473,10 @@ export default function AppNew() {
       planResult
         ? (i) => {
             const it = planResult.plan[i]
-            return [`${it.point_ref} · ${it.species}`, ...(it.trees_planned != null ? [`${it.trees_planned} trees · ${it.rows} rows of ${it.trees_per_row} · ${it.spacing_m} m apart`] : []), `S ${fmt(it.S)} · P ${fmt(it.P)} · W ${fmt(it.W)}`, `Barangay: ${it.barangay_display || 'outside the barangay outlines'}`, it.flags.includes('zoning_unconfirmed') ? 'Zoning: not on the zoning map (not confirmed)' : `Zone: ${it.zone}`]
+            return [`${it.point_ref} · ${it.species}`, ...(it.trees_planned != null ? [`${it.trees_planned} trees · ${it.rows} rows of ${it.trees_per_row} · ${it.spacing_m} m apart`] : []), view === 'full' ? `S ${fmt(it.S)} · P ${fmt(it.P)} · W ${fmt(it.W)}` : `Overall match ${matchText(it.W)}`, `Barangay: ${it.barangay_display || 'outside the barangay outlines'}`, it.flags.includes('zoning_unconfirmed') ? 'Zoning: not on the zoning map (not confirmed)' : `Zone: ${it.zone}`]
           }
         : null,
-    [planResult],
+    [planResult, view],
   )
   const planWeatherLoc = useMemo(
     () => (planResult && planResult.plan.length ? { lat: planResult.plan.reduce((a, x) => a + x.lat, 0) / planResult.plan.length, lon: planResult.plan.reduce((a, x) => a + x.lon, 0) / planResult.plan.length, label: `The middle of the plan (${planResult.campaign?.name ?? planResult.plan_id})` } : null),
@@ -465,6 +485,15 @@ export default function AppNew() {
   const openWeatherForPlan = () => {
     setWeatherLoc('plan')
     setTab('weather')
+  }
+  const showOnMap = (list) => {
+    if (!list.length) return
+    setFocusIds(new Set(list.map((x) => x.point_id)))
+    setShowPlan(true)
+    const lons = list.map((x) => x.lon)
+    const lats = list.map((x) => x.lat)
+    const pad = 0.0015
+    setFitTarget({ bbox: [Math.min(...lons) - pad, Math.min(...lats) - pad, Math.max(...lons) + pad, Math.max(...lats) + pad] })
   }
   const openPlanPoint = (it) => {
     setSpot({ lat: it.lat, lon: it.lon, pointId: it.point_id, planned: true, searched: `${it.point_ref} (planned ${it.species})` })
@@ -544,7 +573,7 @@ export default function AppNew() {
       {legendOpen ? (
         <div className="nw-legend v2 v2-embedded" role="group" aria-label="Map legend">
           <div className="nw-legend-head">
-            <strong>Overall score W · {purposeLabel(purpose)}</strong>
+            <strong>{view === 'full' ? 'Overall score W' : 'Overall match'} · {purposeLabel(purpose)}</strong>
             <button type="button" className="btn btn-small" aria-expanded="true" onClick={() => setLegendOpen(false)}>
               Hide legend
             </button>
@@ -612,6 +641,7 @@ export default function AppNew() {
           ))}
         </div>
         <div className="nw-topright">
+          <HelpButton onClick={() => help.setHowOpen(true)} />
           <div className="nw-pill" role="status">
             <span className={`nw-dot nw-dot-${apiState}`} aria-hidden="true" />
             <span>{apiState === 'ok' ? 'API connected' : apiState === 'wait' ? 'Connecting…' : 'API offline'}</span>
@@ -653,6 +683,7 @@ export default function AppNew() {
         <Icon name={sidebarOpen ? 'left' : 'right'} /> {sidebarOpen ? 'Hide Control Panel' : 'Open Control Panel'}
       </button>
       <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls">
+        {!help.bannerOff && <HelpBanner onStart={() => help.setTourStep(0)} onDismiss={help.dismissBanner} />}
         <SidebarStep
           n={1}
           id="goal"
@@ -719,6 +750,9 @@ export default function AppNew() {
             <>
               {fewSpecies && seasonNotice(false)}
               <SpeciesMultiPicker species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} />
+              {selIds.length > 0 && selIds.length <= 5 && (
+                <PairsWith speciesId={selIds[selIds.length - 1]} chosen={selIds} query={seasonQuery(win.applied, false)} onAdd={(ids) => setSelIds((cur) => [...cur, ...ids.filter((i) => !cur.includes(i))])} />
+              )}
               <Segmented
                 name="combine"
                 label="Place counts when"
@@ -772,7 +806,7 @@ export default function AppNew() {
           id="plan"
           icon="clipboard"
           title="Plan"
-          summary={`${campaignName.trim() || 'No name yet'} · ${nSaplings} trees${planResult ? ' · created' : ''}`}
+          summary={`${campaignName.trim() || 'No name yet'} · ${planTotal} trees${planResult ? ' · created' : ''}`}
           open={openStep === 'plan'}
           onToggle={() => toggleStep('plan')}
           help="Creates a saved planting plan from the area, dates and species you chose in the steps above."
@@ -786,7 +820,16 @@ export default function AppNew() {
             onN={setNSaplings}
             nValid={nValid}
             areaLabel={planAreaLabel}
-            modeLabel={mode === 'area' ? 'Mix chosen automatically' : `Your species (${selIds.length})`}
+            modeLabel={countsMode ? `Your species (${selIds.length})` : 'Mix chosen automatically'}
+            countsMode={countsMode}
+            countRows={countRows}
+            counts={counts}
+            onCount={(id, v) => setCounts((c) => ({ ...c, [id]: v }))}
+            areaMode={mode === 'area'}
+            ownSpecies={ownSpecies && mode === 'area'}
+            onOwnSpecies={() => setOwnSpecies(true)}
+            onAutoMix={() => setOwnSpecies(false)}
+            picker={<SpeciesMultiPicker species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} />}
             windowText={`${formatRange(win.applied.start, win.applied.end)} · ${onlySeason ? 'only species for your dates' : 'all species'}`}
             preview={preview}
             reason={planReason}
@@ -817,7 +860,7 @@ export default function AppNew() {
         >
           {activeTab === 'plan' && planResult ? (
             <div className="v2 v2-embedded">
-              <PlanResult result={planResult} speciesInfo={planSpecies} view={view} onView={setView} onOpenPoint={openPlanPoint} onAnother={anotherPlan} onOpenWeather={openWeatherForPlan} includeUnzoned={includeUnzoned} fieldVersion={fieldVersion} onTopUp={openTopUp} onOpenPlan={(id) => openSavedPlan(id).catch((e) => setCreateError(e.message))} />
+              <PlanResult result={planResult} speciesInfo={planSpecies} view={view} onView={setView} onOpenPoint={openPlanPoint} onAnother={anotherPlan} onOpenWeather={openWeatherForPlan} includeUnzoned={includeUnzoned} fieldVersion={fieldVersion} onTopUp={openTopUp} onOpenPlan={(id) => openSavedPlan(id).catch((e) => setCreateError(e.message))} onShowOnMap={showOnMap} />
             </div>
           ) : activeTab === 'point' ? (
             <div className="v2 v2-embedded">
@@ -886,6 +929,17 @@ export default function AppNew() {
           )}
         </RightPanel>
       )}
+      {help.howOpen && (
+        <HowToUse
+          onClose={() => help.setHowOpen(false)}
+          onTour={() => {
+            help.setHowOpen(false)
+            setSidebarOpen(true)
+            help.setTourStep(0)
+          }}
+        />
+      )}
+      {help.tourStep !== null && <Tour step={help.tourStep} onStep={help.setTourStep} onFinish={help.finishTour} onOpenStep={(id) => { setSidebarOpen(true); setOpenStep(id) }} />}
       {cardId !== null && (
         <SpeciesCard
           speciesId={cardId}

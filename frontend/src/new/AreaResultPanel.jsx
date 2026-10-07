@@ -3,6 +3,8 @@ import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import FlagBadges from '../v2/components/FlagBadges.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
+import MatchChip from './MatchChip.jsx'
+import { plainWarning } from './plainWords.js'
 import { fmt, pct } from '../v2/scale.js'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
 import HelpTip from './HelpTip.jsx'
@@ -87,7 +89,7 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
         <section className="nw-mix" aria-label="Suggested mix">
           <h3>Suggested mix</h3>
           {mix.species.length === 0 ? (
-            <p className="muted">No mix can be suggested for this area. {mix.warnings.join(' ')}</p>
+            <p className="muted">No mix can be suggested for this area. {mix.warnings.map((w) => (full ? w : plainWarning(w))).join(' ')}</p>
           ) : (
             <>
               <ul className="nw-bars">
@@ -113,7 +115,7 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
                 {pct(mix.caps.max_species_share)} of the trees per species and {pct(mix.caps.max_genus_share)} per genus (limits are provisional).
               </p>
               {mix.warnings.map((w) => (
-                <p key={w} className="notice">{w}</p>
+                <p key={w} className="notice">{full ? w : plainWarning(w)}</p>
               ))}
             </>
           )}
@@ -135,7 +137,7 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
                   {s.common_name}
                   <span className="sr-only"> (species information)</span>
                 </button>
-                <ScoreChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average score W where suitable" />
+                {full ? <ScoreChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average score W where suitable" /> : <MatchChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average match where suitable" />}
                 <SeasonBadge season={s.season} strip={false} best={false} />
               </div>
               <details className="nw-pdetails" open={full || undefined}>
