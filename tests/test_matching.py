@@ -203,12 +203,12 @@ def test_real_dioecious_species_have_two_or_more_and_the_flag(ctx, purpose):
 
 @needs_data
 def test_real_shortage_is_reported_never_hidden(ctx):
-    plan, s = rp.make_plan(ctx, "urban", 500, zone="Cemetery Zone")          # 23 legal points only
-    assert len(plan) <= 23 and len(plan) == s["saplings_placed"]
+    plan, s = rp.make_plan(ctx, "urban", 500, zone="Sanitary Landfill")          # 19 legal points only (round 15a: the landfill zone, with its DENR condition)
+    assert len(plan) <= 19 and len(plan) == s["saplings_placed"]
     assert s["n_saplings_requested"] == s["saplings_allocated"] + s["saplings_unallocated"]
     assert s["saplings_allocated"] == s["saplings_placed"] + s["saplings_unmatched"]
     assert s["saplings_unallocated"] + s["saplings_unmatched"] == 500 - len(plan) > 0
-    assert s["unused_candidate_points"] == 23 - len(plan)
+    assert s["unused_candidate_points"] == 19 - len(plan)
 
 
 @needs_data

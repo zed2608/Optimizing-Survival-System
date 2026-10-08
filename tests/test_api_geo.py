@@ -15,7 +15,7 @@ import api_v2  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 PURPOSES = ("urban", "planting", "watershed")
-BOUNDARY_LIMIT, GRID_LIMIT = 300_000, 250_000
+BOUNDARY_LIMIT, GRID_LIMIT = 300_000, 280_000
 
 
 @pytest.fixture(scope="module")
@@ -80,12 +80,13 @@ def test_boundaries_size_is_under_the_limit_and_served_from_memory(client, data,
 
 def test_barangay_names_and_display_names_follow_the_place_search_aliases(boundaries):
     import geopandas as gpd
-    names = sorted(gpd.read_file(ROOT / "data" / "BRGY_BOUNDARY.shp").BRGY_NAME)
+    from names import fix_barangay
+    names = sorted(fix_barangay(n) for n in gpd.read_file(ROOT / "data" / "BRGY_BOUNDARY.shp").BRGY_NAME)
     brg = [f["properties"] for f in boundaries.json()["features"][1:]]
     assert [b["name"] for b in brg] == names and len(set(names)) == 15
     disp = {b["name"]: b["display_name"] for b in brg}
     assert disp["STA ANA"] == "Santa Ana" and disp["STO NINO"] == "Santo Nino"
-    assert disp["AMPID II"] == "Ampid II" and disp["GUITNANG BAYAN II"] == "Guitnang Bayan II" and disp["PINTUNG BUKAWE"] == "Pintung Bukawe"
+    assert disp["AMPID II"] == "Ampid II" and disp["GUITNANG BAYAN II"] == "Guitnang Bayan II" and disp["PINTONG BUKAWE"] == "Pintong Bukawe" and "PINTUNG BUKAWE" not in disp
     assert api_v2.display_name("Sto. Niño", api_v2.API_CFG["place_aliases"]) == "Santo Nino"
     assert all("sta " not in b["display_name"].lower() and "sto " not in b["display_name"].lower() for b in brg)
 
@@ -121,7 +122,8 @@ def test_municipal_outline_is_the_union_of_the_barangays(boundaries):
 def test_simplified_barangays_still_look_like_the_originals(boundaries):
     import geopandas as gpd
     from shapely.geometry import shape
-    orig = gpd.read_file(ROOT / "data" / "BRGY_BOUNDARY.shp").to_crs(32651).set_index("BRGY_NAME")
+    from names import fix_barangay_column
+    orig = fix_barangay_column(gpd.read_file(ROOT / "data" / "BRGY_BOUNDARY.shp")).to_crs(32651).set_index("BRGY_NAME")
     for f in boundaries.json()["features"][1:]:
         g = gpd.GeoSeries([shape(f["geometry"])], crs=4326).to_crs(32651).iloc[0]
         o = orig.geometry[f["properties"]["name"]]
@@ -157,9 +159,9 @@ def test_grid_shape_size_and_columns(client, data, purpose):
     assert r.headers["content-type"].startswith("application/json") and "max-age" in r.headers["cache-control"]
     cols = j["columns"]
     assert set(cols) == {"point_id", "lon", "lat", "W", "best_species_id", "n_eligible_species", "barangay"}
-    assert j["n"] == 6251 and all(len(v) == 6251 for v in cols.values())
+    assert j["n"] == 6731 and all(len(v) == 6731 for v in cols.values())
     assert j["purpose"] == purpose and j["species_id"] == -1 and len(j["barangays"]) == 15 == len(j["barangays_display"])
-    assert sorted(cols["point_id"]) == sorted(data.ctx.sites.point_id.astype(int).tolist()) and len(set(cols["point_id"])) == 6251
+    assert sorted(cols["point_id"]) == sorted(data.ctx.sites.point_id.astype(int).tolist()) and len(set(cols["point_id"])) == 6731
     assert np.allclose(cols["lon"], np.round(data.ctx.sites.lon, 5)) and np.allclose(cols["lat"], np.round(data.ctx.sites.lat, 5))
 
 

@@ -19,7 +19,7 @@ GUITNANG BAYAN II                          2        35        10         13     
 GULOD MALAYA                               0        25         0          2                0          87
 MALANDAY                                   2        18        19         14                0         246
 MALY                                       5        21        32         21                0         384
-PINTUNG BUKAWE                            10         0        14         69                3        4495
+PINTONG BUKAWE                            10         0        14         69                3        4495
 SILANGAN                                   0        67         0         15                0         600
 STA ANA                                    0        15         4         13                0          30
 STO NINO                                   0        26         0          0                0          11

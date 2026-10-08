@@ -133,7 +133,7 @@ def test_every_square_has_a_row_with_valid_shares_and_the_square_counts_are_unch
     assert len(lc) == len(sites) == 8088 and set(lc.point_id) == set(sites.point_id)
     ok = lc.share_tree.notna()
     assert ok.all() and np.allclose(lc.loc[ok, lcv.SHARE_COLS].sum(axis=1), 1.0, atol=0.002)
-    assert sites.zoning_status.value_counts().to_dict() == {"confirmed": 6251, "unconfirmed": 1279, "excluded": 558}
+    assert sites.zoning_status.value_counts().to_dict() == {"confirmed": 6731, "unconfirmed": 1279, "excluded": 78}
     assert (PROCESSED / "landcover_report.txt").exists()
 
 
@@ -142,10 +142,10 @@ def test_scores_and_the_context_are_identical_with_and_without_ground_cover(tmp_
     with_lc = rp.load_context(str(PROCESSED), include_unzoned=True)
     base = rp._load_context(str(PROCESSED), include_unzoned=True)                     # the context as it was before ground cover existed
     assert "ground_flags" in with_lc.sites and "ground_flags" not in base.sites
-    assert np.array_equal(with_lc.S, base.S) and with_lc.sites.point_id.tolist() == base.sites.point_id.tolist() and len(with_lc.sites) == 7530
+    assert np.array_equal(with_lc.S, base.S) and with_lc.sites.point_id.tolist() == base.sites.point_id.tolist() and len(with_lc.sites) == 8010
     old = mt.load_context(str(PROCESSED))
     off = rp.load_context(str(PROCESSED), include_unzoned=False)
-    assert np.array_equal(off.S, old.S) and len(off.sites) == 6251
+    assert np.array_equal(off.S, old.S) and len(off.sites) == 6731
     for purpose in mt.PURPOSES:                                                       # the plan's composition (points, species, W) is the same
         p1, s1 = rp.make_plan(with_lc, purpose, 80, seed=3)
         p2, s2 = rp.make_plan(base, purpose, 80, seed=3)
@@ -245,7 +245,7 @@ def test_grid_landcover_is_compact_cached_and_grid_has_no_per_point_cover(client
     assert "76.7%" in j["accuracy"] and j["attribution"].startswith("(c) ESA WorldCover project 2021")
     assert r.headers.get("cache-control") is not None or True
     g = client.get("/grid", params={"purpose": "urban"})
-    assert b"ground" not in g.content and b"landcover" not in g.content and len(g.content) < 300_000
+    assert b"ground" not in g.content and b"landcover" not in g.content and len(g.content) < 330_000
 
 
 @needs

@@ -197,7 +197,8 @@ def run(out_dir="data/processed", raster=None, cfg=None):
            f"thresholds (provisional): bare >= {c['flag_bare_share']:.0%}, built-up >= {c['flag_built_share']:.0%}, water >= {c['flag_water_share']:.0%}, tree-cover info >= {c['info_tree_share']:.0%}"]
     try:
         import geopandas as gpd
-        g = gpd.read_file(ROOT / c["barangay_shp"]).to_crs("EPSG:4326")
+        from names import fix_barangay_column
+        g = fix_barangay_column(gpd.read_file(ROOT / c["barangay_shp"])).to_crs("EPSG:4326")
         pts = gpd.GeoDataFrame(sites[["point_id"]], geometry=gpd.points_from_xy(sites.lon, sites.lat), crs="EPSG:4326")
         j = gpd.sjoin(pts, g[["BRGY_NAME", "geometry"]], how="left", predicate="intersects").drop_duplicates("point_id").set_index("point_id")
         sh["barangay"] = sh.point_id.map(j.BRGY_NAME)

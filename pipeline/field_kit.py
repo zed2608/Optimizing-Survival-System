@@ -24,6 +24,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import palettes as pal  # noqa: E402
+from names import fix_barangay_column  # noqa: E402
 
 # =====================================================================================================================
 # CONFIG - every tunable number lives here. PROVISIONAL until the LGU / agriculturist sign off.
@@ -62,6 +63,8 @@ FLAG_NOTES = {
     "zoning_unconfirmed": "Land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting.",
     "soil_provisional": "Soil from the LGU soil map, digitized by us: provisional.",
     "ground_bare": "Satellite land cover (2021) looks bare: check on the ground before planting.",
+    "rehab_site_food_warning": "Fruit or produce from a landfill or mining site may hold heavy metals; do not plan to eat or sell it without testing.",
+    "habagat_washout": "Heavy rain and flooding (Habagat) can wash out seedlings here in Jul-Sep.",
     "ground_built_up": "Satellite land cover (2021) looks built-up: check on the ground before planting.",
     "ground_water": "Satellite land cover (2021) looks like water or wetland: check on the ground before planting.",
 }
@@ -76,6 +79,8 @@ PLAIN_WARNINGS = {
     "species_data_unverified": "Species data cites a file we do not have",
     "low_confidence": "Some inputs were missing: less certain score",
     "barangay_nearest": "Outside every barangay outline: nearest one listed",
+    "rehab_site_food_warning": "Fruit or produce from a landfill or mining site may hold heavy metals; do not plan to eat or sell it without testing",
+    "habagat_washout": "Heavy rain and flooding (Habagat) can wash out seedlings here in Jul-Sep",
 }
 GROUND_WARN = ("ground_built_up", "ground_bare", "ground_water")
 # =====================================================================================================================
@@ -208,7 +213,7 @@ def dataset_info(data_dir):
 def assign_barangay(df, shp):
     """Barangay per point by spatial join; a point outside every polygon gets the nearest one and the flag barangay_nearest."""
     import geopandas as gpd
-    b = gpd.read_file(_abs(shp))[["BRGY_NAME", "geometry"]].sort_values("BRGY_NAME").reset_index(drop=True)
+    b = fix_barangay_column(gpd.read_file(_abs(shp))[["BRGY_NAME", "geometry"]]).sort_values("BRGY_NAME").reset_index(drop=True)
     pts = gpd.GeoDataFrame({"i": np.arange(len(df))}, geometry=gpd.points_from_xy(df.lon, df.lat), crs=b.crs)
     j = gpd.sjoin(pts, b, how="left", predicate="intersects").drop_duplicates("i", keep="first").set_index("i").BRGY_NAME.reindex(range(len(df)))
     names, nearest = j.to_numpy(dtype=object), np.zeros(len(df), dtype=bool)
@@ -260,7 +265,7 @@ def attach_geometry(df):
     return df
 
 
-def build_point_table(plan, species, code_by_id, plan_id, check, brgy_shp):
+def build_point_table(plan, species, code_by_id, plan_id, check, brgy_shp, conditions=None):
     """One row per planned point with every CSV column; ordered by species code then grid point id."""
     sp = species.set_index("species_id")
     missing = set(plan.species_id) - set(sp.index)
@@ -283,6 +288,8 @@ def build_point_table(plan, species, code_by_id, plan_id, check, brgy_shp):
         attach_geometry(df)
     df["zone"] = df.zone_desc.fillna("")
     df["notes"] = [flag_notes(fl, z) for fl, z in zip(df["flags"], df["zone"])]
+    if conditions:                                                                  # round 15a: the MPDC condition of the zone (permission needed ...), in plain words, in the notes column
+        df["notes"] = [(n + f" Zone condition: {conditions[int(p)]}.").strip() if conditions.get(int(p)) else n for n, p in zip(df["notes"], df["point_id"])]
     if blocks:
         df["block_ref"] = df.point_ref
         df["layout_note"] = df["layout_note"].fillna("")
@@ -982,7 +989,13 @@ def make_kit(plan_csv, out_dir, pdf=False, data_dir="data/processed", built_on=N
     meta = {"plan_id": plan_id, "check_code": check_code(plan_csv), "dataset_tag": ds["tag"], "dataset_hash": ds["hash"],
             "built_on": built_on or date.today().isoformat()}
     code_by_id = make_codes([(int(s), species.set_index("species_id").common_name[s]) for s in sorted(plan.species_id.unique())])
-    df = build_point_table(plan, species, code_by_id, plan_id, meta["check_code"], brgy_shp or CFG["barangay_shp"])
+    conditions = None
+    sp_file = Path(data_dir) / "site_points_clean.csv"
+    if sp_file.is_file():
+        sc = pd.read_csv(sp_file, usecols=lambda c: c in ("point_id", "zone_condition"))
+        if "zone_condition" in sc:
+            conditions = {int(p): c for p, c in zip(sc.point_id, sc.zone_condition) if isinstance(c, str) and c}
+    df = build_point_table(plan, species, code_by_id, plan_id, meta["check_code"], brgy_shp or CFG["barangay_shp"], conditions)
     kit = Path(out_dir) / f"field_kit_{plan_id}"
     kit.mkdir(parents=True, exist_ok=True)
     for old in kit.iterdir():

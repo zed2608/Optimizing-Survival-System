@@ -45,7 +45,7 @@ test('the known warnings are rewritten as plain sentences', () => {
 })
 
 test('flags are plain words, the same as the field kit', () => {
-  const codes = ['soil_provisional', 'ground_built_up', 'ground_bare', 'ground_water', 'zoning_unconfirmed', 'needs_both_sexes', 'soil_unverified_mismatch', 'species_data_unverified', 'low_confidence', 'barangay_nearest', 'some_new_flag']
+  const codes = ['soil_provisional', 'ground_built_up', 'ground_bare', 'ground_water', 'zoning_unconfirmed', 'needs_both_sexes', 'soil_unverified_mismatch', 'species_data_unverified', 'low_confidence', 'barangay_nearest', 'rehab_site_food_warning', 'habagat_washout', 'some_new_flag']
   for (const c of codes) assert.ok(!BAD.test(plainFlag(c)), c + ' -> ' + plainFlag(c))
   assert.equal(plainFlag('ground_built_up'), 'Looks built-up in the satellite land cover: check on the ground first')
   assert.equal(plainFlag('zoning_unconfirmed'), 'Outside our zoning map: Forest Reserve, coordinate with MENRO and DENR')

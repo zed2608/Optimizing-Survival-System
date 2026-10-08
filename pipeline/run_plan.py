@@ -24,6 +24,7 @@ import field_verify as fv  # noqa: E402
 import landcover as lcv  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
+import site_rules as sr  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -228,6 +229,7 @@ def _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, pale
     """Blocks mode: the palette gave TREES per species; blocks per species = ceil(trees / capacity); the matching assigns BLOCKS one-to-one to squares (same solver, S >= 0.50 only,
     W = S x P). Squares whose W is practically equal are tied by their distance to the centre of the chosen area (weight 1e-6 in the cost), so that the blocks sit together.
     Per species the best squares get full blocks and the worst matched square holds the remainder."""
+    food_ids = sr.food_bearing_ids(ctx.species)
     bt = pal.block_table(species_df).set_index("species_id")
     sids = sp.species_id.astype(int).to_numpy()
     lay = [pal.block_layout(float(bt.loc[s, "spacing_m"])) for s in sids]
@@ -266,6 +268,7 @@ def _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, pale
             flags.append(UNCONFIRMED_FLAG)
         if "ground_flags" in sites and isinstance(sites.ground_flags[k], str) and sites.ground_flags[k]:
             flags += sites.ground_flags[k].split(";")
+        flags += sr.rehab_flags(sites.zone_desc[k], spid, food_ids)      # round 15a: food-bearing species on a landfill / special reserved square (a warning only)
         l = lay[si[k]]
         slope = sites.slope_pct[k] if "slope_pct" in sites else np.nan
         rows.append({"point_id": pid, "lon": sites.lon[k], "lat": sites.lat[k], "utm_e": sites.utm_e[k], "utm_n": sites.utm_n[k],
@@ -279,6 +282,9 @@ def _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, pale
     plan = plan.sort_values(["species_id", "W", "point_id"], ascending=[True, False, True]).reset_index(drop=True)
     if "ground_flags" in ctx.sites:
         summary["ground_cover"] = ground_block(plan)
+    _rb = rehab_block(plan)
+    if _rb:
+        summary["rehab"] = _rb
     if "zoning_status" in ctx.sites and (ctx.sites.zoning_status == "unconfirmed").any():
         summary["zoning"] = zoning_block(True, plan)
     per = []
@@ -316,6 +322,7 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
     layout_mode: "blocks" (default, CFG layout_mode): n_saplings is the number of TREES, shared out per species, planted in blocks (one block per 100 m square, species spacing);
     "points": one tree per square, exactly the plan of before. species_trees (blocks mode, optional): {species_id: trees} fixed tree counts (a top-up plan restores what a plan lost)."""
     seed = CFG["seed"] if seed is None else seed
+    food_ids = sr.food_bearing_ids(ctx.species)
     blocks = (CFG["layout_mode"] if layout_mode is None else layout_mode) == "blocks"
     if (CFG["layout_mode"] if layout_mode is None else layout_mode) not in ("blocks", "points"):
         raise ValueError("layout_mode must be 'blocks' or 'points'")
@@ -430,6 +437,7 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
             flags.append(UNCONFIRMED_FLAG)
         if "ground_flags" in sites and isinstance(sites.ground_flags[k], str) and sites.ground_flags[k]:      # satellite land cover: information only
             flags += sites.ground_flags[k].split(";")
+        flags += sr.rehab_flags(sites.zone_desc[k], spid, food_ids)      # round 15a: food-bearing species on a landfill / special reserved square (a warning only)
         rows.append({"point_id": pid, "lon": sites.lon[k], "lat": sites.lat[k], "utm_e": sites.utm_e[k], "utm_n": sites.utm_n[k],
                      "zone_desc": sites.zone_desc[k], "species_id": spid, "species": sp.common_name.iloc[si[k]],
                      "S": round(float(Sm[pi[k], si[k]]), 4), "P": round(float(Pm[si[k]]), 4), "W": round(float(W[pi[k], si[k]]), 4),
@@ -439,6 +447,9 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
     plan = plan.sort_values(["species_id", "W", "point_id"], ascending=[True, False, True]).reset_index(drop=True)
     if "ground_flags" in ctx.sites:
         summary["ground_cover"] = ground_block(plan)
+    _rb = rehab_block(plan)
+    if _rb:
+        summary["rehab"] = _rb
     if "zoning_status" in ctx.sites and (ctx.sites.zoning_status == "unconfirmed").any():       # only when squares outside the zoning map were available
         summary["zoning"] = zoning_block(True, plan)
     for j in range(len(members)):
@@ -456,6 +467,17 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
     if explicit:
         summary["species_counts"] = counts_report(summary, species_counts, dict(zip(species_df.species_id.astype(int), species_df.common_name)))
     return plan, summary
+
+
+def rehab_block(plan):
+    """How many planted trees carry the rehabilitation-site food warning (None when none do)."""
+    if plan.empty or "flags" not in plan:
+        return None
+    hit = plan["flags"].fillna("").astype(str).str.contains(sr.REHAB_FLAG)
+    n = int(plan.loc[hit, "trees_planned"].sum()) if "trees_planned" in plan else int(hit.sum())
+    if n == 0:
+        return None
+    return {"flagged_trees": n, "flagged_places": int(hit.sum()), "zones": list(sr.REHAB_ZONES), "warning": sr.REHAB_WARNING, "source": sr.REHAB_SOURCE}
 
 
 def ground_block(plan):

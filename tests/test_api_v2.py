@@ -62,8 +62,8 @@ def test_health_reports_version_hash_counts_and_limits(client):
     assert r.status_code == 200
     j = r.json()
     assert j["status"] == "ok" and j["dataset_version"] == "v1.0-review" and len(j["dataset_file_hash"]) == 64 and len(j["dataset_hash"]) == 12 and len(j["dataset_sources_file_sha256"]) == 64
-    assert j["counts"]["species"] == 45 and j["counts"]["legal_points"] == 6251 and j["counts"]["grid_points"] == 8088
-    assert j["counts"]["species_point_scores"] == 6251 * 45
+    assert j["counts"]["species"] == 45 and j["counts"]["legal_points"] == 6731 and j["counts"]["grid_points"] == 8088
+    assert j["counts"]["species_point_scores"] == 6731 * 45
     text = " ".join(j["limits"]).lower()
     for k in ("ph", "100 m", "unverified", "provisional"):
         assert k in text
@@ -168,7 +168,7 @@ def test_municipal_rank_is_small_sorted_and_sourced(client):
     assert r.status_code == 200 and len(r.content) < 120_000
     j = r.json()
     scores = [x["species_score"] for x in j["ranking"]]
-    assert j["returned"] == 15 and scores == sorted(scores, reverse=True) and j["legal_points"] == 6251
+    assert j["returned"] == 15 and scores == sorted(scores, reverse=True) and j["legal_points"] == 6731
     x = j["ranking"][0]
     assert {"mean_W_where_eligible", "share_of_points_eligible", "P", "p_confidence", "mean_site_confidence", "source_ids"} <= set(x)
     assert 0 < x["share_of_points_eligible"] <= 1 and x["species_score"] == pytest.approx(x["mean_W_where_eligible"] * x["share_of_points_eligible"], abs=2e-3)
@@ -297,9 +297,9 @@ def test_plan_event_polygon_and_zone_filters(client, data):
 
 
 def test_plan_event_shortage_is_reported(client):
-    j = client.post("/plan-event", json={"purpose": "urban", "n_saplings": 500, "zone": "Cemetery Zone"}).json()
+    j = client.post("/plan-event", json={"purpose": "urban", "n_saplings": 500, "zone": "Sanitary Landfill"}).json()
     placed = len(j["plan"])
-    assert placed <= 23
+    assert placed <= 19
     assert j["unmatched"]["saplings_unmatched"] + j["unmatched"]["saplings_unallocated_by_caps"] == 500 - placed > 0
 
 
@@ -318,7 +318,7 @@ def test_plan_event_error_messages(client, data, monkeypatch):
         assert r.status_code == 422 and "polygon" in r.json()["detail"], bad
     r = client.post("/plan-event", json={**ok, "polygon": box(120.0, 10.0, 120.1, 10.1)})                  # valid, but empty area
     assert r.status_code == 400 and "no legal-zone grid points" in r.json()["detail"]
-    r = client.post("/plan-event", json={**ok, "zone": "Cemetery Zone", "polygon": zone_box(data, "Agricultural Zone", pad=0.0)})
+    r = client.post("/plan-event", json={**ok, "zone": "Sanitary Landfill", "polygon": zone_box(data, "Agricultural Zone", pad=0.0)})
     assert r.status_code == 400 or r.status_code == 200                                                    # zone may or may not overlap the box
     monkeypatch.setattr(data.ctx, "S", np.zeros_like(data.ctx.S))                                          # an area with no eligible points
     r = client.post("/plan-event", json=ok)
@@ -327,9 +327,9 @@ def test_plan_event_error_messages(client, data, monkeypatch):
 
 def test_plan_event_zone_outside_the_polygon_is_a_400(client, data):
     tiny = zone_box(data, "Agricultural Zone", pad=0.0)
-    r = client.post("/plan-event", json={"purpose": "urban", "n_saplings": 10, "zone": "Cemetery Zone", "polygon": tiny})
+    r = client.post("/plan-event", json={"purpose": "urban", "n_saplings": 10, "zone": "Sanitary Landfill", "polygon": tiny})
     s = data.ctx.sites
-    inside = ((s.zone_desc == "Cemetery Zone") & s.lon.between(tiny["coordinates"][0][0][0], tiny["coordinates"][0][1][0]) &
+    inside = ((s.zone_desc == "Sanitary Landfill") & s.lon.between(tiny["coordinates"][0][0][0], tiny["coordinates"][0][1][0]) &
               s.lat.between(tiny["coordinates"][0][0][1], tiny["coordinates"][0][2][1])).any()
     assert (r.status_code == 200) if inside else (r.status_code == 400 and "polygon" in r.json()["detail"])
 

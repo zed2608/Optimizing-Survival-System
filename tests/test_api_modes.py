@@ -15,7 +15,7 @@ import api_v2  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 PURPOSES = ("urban", "planting", "watershed")
-GRID_LIMIT = 250_000
+GRID_LIMIT = 280_000
 
 
 @pytest.fixture(scope="module")
@@ -66,7 +66,7 @@ def test_all_is_never_above_any_at_any_point(client, purpose, ids):
     q = {"purpose": purpose, "species_ids": ",".join(map(str, ids))}
     a = client.get("/grid", params={**q, "mode": "all"}).json()["columns"]["W"]
     b = client.get("/grid", params={**q, "mode": "any"}).json()["columns"]["W"]
-    assert len(a) == len(b) == 6251 and all(x <= y + 1e-9 for x, y in zip(a, b))
+    assert len(a) == len(b) == 6731 and all(x <= y + 1e-9 for x, y in zip(a, b))
     assert sum(1 for x in a if x > 0) <= sum(1 for y in b if y > 0)
 
 
@@ -125,7 +125,7 @@ def test_old_grid_calls_still_work(client, data):
     base = client.get("/grid", params={"purpose": "urban"})
     assert base.status_code == 200 and len(base.content) < GRID_LIMIT
     j = base.json()
-    assert j["n"] == 6251 and j["species_id"] == -1 and j["mode"] == "best" and j["species_ids"] == [] and "all species" in j["n_eligible_scope"]
+    assert j["n"] == 6731 and j["species_id"] == -1 and j["mode"] == "best" and j["species_ids"] == [] and "all species" in j["n_eligible_scope"]
     W = np.where(data.ctx.S >= 0.5, data.ctx.S * data.ctx.P["urban"][None, :], 0.0)
     assert np.allclose(j["columns"]["W"], W.max(axis=1), atol=6e-4)
     one = client.get("/grid", params={"purpose": "urban", "species_id": 8}).json()
@@ -146,16 +146,16 @@ def test_multi_grids_are_cached_by_key_and_the_cache_is_bounded(client, data):
 
 
 # ---- GET /areas/rank -------------------------------------------------------------------------------------------------
-@pytest.mark.parametrize("by,n", [("barangay", 15), ("zone", 11)])
+@pytest.mark.parametrize("by,n", [("barangay", 15), ("zone", 15)])
 def test_areas_rank_is_a_ranked_table_that_matches_an_independent_calculation(client, data, by, n):
     ids = [8, 22]
     r = client.get("/areas/rank", params={"purpose": "urban", "species_ids": "22,8", "mode": "all", "by": by})
     assert r.status_code == 200 and len(r.content) < 20_000
     j = r.json()
     rows = j["areas"]
-    assert j["n_areas"] == len(rows) == n and j["by"] == by and j["species_ids"] == ids and j["legal_points"] == 6251
+    assert j["n_areas"] == len(rows) == n and j["by"] == by and j["species_ids"] == ids and j["legal_points"] == 6731
     assert [x["rank"] for x in rows] == list(range(1, n + 1)) and [x["mean_W"] for x in rows] == sorted((x["mean_W"] for x in rows), reverse=True)
-    assert sum(x["legal_points"] for x in rows) == 6251
+    assert sum(x["legal_points"] for x in rows) == 6731
     W, feas = wmat(data, "urban", ids)
     score = np.where(feas.all(axis=1), W.min(axis=1), 0.0)
     labels = data.ctx.sites.zone_desc.to_numpy() if by == "zone" else np.array(data.barangay_names, dtype=object)[data.point_barangay]
@@ -198,7 +198,7 @@ def test_geo_zones_are_dissolved_legal_zones_with_bboxes(client, data):
     assert r.status_code == 200 and len(r.content) < 300_000
     j = r.json()
     names = [f["properties"]["name"] for f in j["features"]]
-    assert names == sorted(data.ctx.sites.zone_desc.dropna().unique()) and len(names) == 11 and "General Institutional Zonec" in names
+    assert names == sorted(data.ctx.sites.zone_desc.dropna().unique()) and len(names) == 15 and "General Institutional Zonec" in names
     from shapely.geometry import shape
     for f in j["features"]:
         g = shape(f["geometry"])
@@ -253,7 +253,7 @@ def test_rank_area_for_a_polygon_and_the_whole_municipality_agrees_with_rank_mun
     big = post(client, polygon=box(121.0, 14.5, 121.4, 14.9), limit=45).json()
     muni = client.get("/rank/municipal", params={"purpose": "urban", "limit": 45}).json()["ranking"]
     by_id = {r["species_id"]: r for r in big["ranking"]}
-    assert big["area"]["legal_points"] == 6251
+    assert big["area"]["legal_points"] == 6731
     for m in muni:
         a = by_id[m["species_id"]]
         assert a["suitable_points"] == m["eligible_points"] and abs(a["share_of_area_suitable"] - m["share_of_points_eligible"]) < 1e-3

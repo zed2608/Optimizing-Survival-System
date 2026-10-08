@@ -2,8 +2,8 @@
 Full view of the point panel, the area panels, the plan form, the plan result, the species card and the areas panel showed before round 14 (captured in a headless browser).
 tests/browser/labels_check.mjs opens the new dashboard in the Detailed view, collects the same panels and checks that every label is still there, except the documented changes:
 Compact | Full details became Simple | Detailed, "Please note" became "Good to know", and lines whose value is zero are hidden on purpose.
-The browser check runs here when Edge, node, the dashboard (port 5173) and the API (port 8001) are available; otherwise it is skipped (run it by hand with
-`node tests/browser/labels_check.mjs after`). Run from the repo root: python -m pytest tests/test_detailed_labels.py"""
+The browser check runs here only when OS_BROWSER_CHECK=1 and Edge, node, the dashboard (port 5173) and a TEMPORARY API (port 8001: it creates a plan) are available; otherwise it is skipped
+(run it by hand with `node tests/browser/labels_check.mjs after`). Run from the repo root: python -m pytest tests/test_detailed_labels.py"""
 import json, os, shutil, socket, subprocess
 from pathlib import Path
 import pytest
@@ -34,7 +34,8 @@ def test_the_renamed_labels_exist_in_the_code():
         assert new in blob
 
 
-@pytest.mark.skipif(not (shutil.which("node") and EDGE.exists() and listening(5173) and listening(8001)), reason="needs node, Edge, the dashboard on 5173 and the API on 8001")
+@pytest.mark.skipif(not (os.environ.get("OS_BROWSER_CHECK") == "1" and shutil.which("node") and EDGE.exists() and listening(5173) and listening(8001)),
+                    reason="set OS_BROWSER_CHECK=1 with the dashboard on 5173 and a TEMPORARY API on 8001 (the check creates a plan); needs node and Edge")
 def test_every_label_of_the_old_full_view_is_in_the_detailed_view_in_a_browser():
     r = subprocess.run(["node", str(ROOT / "tests" / "browser" / "labels_check.mjs"), "after"], capture_output=True, text=True, timeout=600, cwd=ROOT)
     assert "ALL PASS" in r.stdout, r.stdout[-2000:] + r.stderr[-500:]

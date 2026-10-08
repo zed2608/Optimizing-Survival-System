@@ -1,0 +1,44 @@
+# Signed sample marks of the agriculturist (validation record, NOT edited).
+# Reviewer: Alexis P. Santos, OIC-MAO. Signed 7 Oct 2026. Sheet: dataset v0.1-draft, hash 3483e2b668e8. 7 of the 8 pages were signed. Comments: none.
+# Marks: S = Suitable, M = Marginal, N = Not suitable, X = Cannot judge. "grid" = grid point id (point_id of site_points_clean.csv); "species" = common name as printed on the sheet.
+sample_id,grid,species,mark
+S01,5845,Indian/Carabao Mango,S
+S02,2852,Sampalok,S
+S03,5251,Cacao,M
+S04,3258,Robusta (Coffee),S
+S05,6977,Lemon,M
+S06,1045,Palosapis,M
+S07,5941,Calamansi,X
+S08,4847,Narra,M
+S09,1262,Katmon,M
+S10,2295,Papaya,S
+S11,3185,Rambutan,S
+S12,5146,Banana - Latundan,X
+S13,4369,Kasoy,S
+S14,1852,Atsuete,X
+S15,5202,Sampalok,M
+S16,5281,Yakal,M
+S17,6638,Robusta (Coffee),S
+S18,2715,Avocado,S
+S19,6359,White Lauan,X
+S20,10365,Robusta (Coffee),S
+S21,13017,Dao,S
+S22,5514,Guava,S
+S23,5156,Salinggogon,S
+S24,13896,Salinggogon,S
+S25,6156,White Lauan,S
+S26,1626,Coconut,S
+S27,1038,Talisay,S
+S28,2071,Santol,S
+S29,4603,Lemon,M
+S30,6424,Talisay,S
+S31,4954,Kamias,M
+S32,5148,Yakal,S
+S33,5048,Kasoy,S
+S34,5277,Duhat,S
+S35,3158,Peacock Flower Tree,M
+S36,3397,Bagtikan,M
+S37,7182,Papaya,S
+S38,2405,Rambutan,S
+S39,1405,Avocado,S
+S40,5045,Narra,S

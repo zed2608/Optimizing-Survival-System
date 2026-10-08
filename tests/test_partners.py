@@ -24,8 +24,8 @@ A = sp()
 B = sp(species_id=2, common_name="Under", mature_height_m=10.0, shade_tol="High")
 
 
-def run(a=A, b=B, both=900, na=1000, nb=1000):
-    return P.pair_rules(a, b, both, na, nb)
+def run(a=A, b=B, both=900, na=1000, nb=1000, far=None):
+    return P.pair_rules(a, b, both, na, nb, None, far)
 
 
 # ---- every rule on its own ----------------------------------------------------------------------------------------------------------------
@@ -58,10 +58,24 @@ def test_water_clash_is_only_high_against_low():
     mk = lambda **k: sp(species_id=2, common_name="Under", mature_height_m=10.0, shade_tol="High", **k)
     assert not run(a=sp(drought_tol="High"), b=mk(drought_tol="Low"))["rules"]["water"]
     assert not run(a=sp(drought_tol="Low"), b=mk(drought_tol="High"))["rules"]["water"]
-    assert not run(a=sp(waterlog_tol="High"), b=mk(waterlog_tol="Low"))["rules"]["water"]
+    assert run(a=sp(waterlog_tol="High"), b=mk(waterlog_tol="Low"))["rules"]["water"]                  # round 15a: a waterlogging mismatch is no longer a rejection ...
     assert run(a=sp(drought_tol="High"), b=mk(drought_tol="Medium"))["rules"]["water"]
     assert run(a=sp(drought_tol="Low"), b=mk(drought_tol="Low"))["rules"]["water"]
     assert not run(a=sp(drought_tol="High"), b=mk(drought_tol="Low"))["listed"]
+
+
+def test_waterlogging_mismatch_is_a_caution_unless_the_shared_land_is_near_water():
+    mk = lambda **k: sp(species_id=2, common_name="Under", mature_height_m=10.0, shade_tol="High", **k)
+    a, b = sp(waterlog_tol="High"), mk(waterlog_tol="Low")
+    far_ok = run(a=a, b=b, far=(900, 1000, 1000))                                                      # 90% of the smaller set lies at least 50 m from water
+    assert far_ok["status"] == "fits" and far_ok["cautions"] == ["check drainage"] and any("check drainage" in r for r in far_ok["reasons"])
+    near = run(a=a, b=b, far=(100, 1000, 1000))                                                        # most shared land is within 50 m of water: not a partner
+    assert near["status"] is None and not near["listed"]
+    unknown = run(a=a, b=b, far=None)                                                                  # distance to water unknown: nothing is guessed
+    assert unknown["status"] is None
+    same = run(a=sp(waterlog_tol="Low"), b=mk(waterlog_tol="Low"))
+    assert same["cautions"] == [] and same["status"] == "fits"
+    assert P.PARTNER_CFG["near_water_m"] == 50.0
 
 
 def test_roots_not_both_low():
@@ -91,12 +105,27 @@ def test_named_bonus_adds_to_the_score_and_lets_a_taller_partner_in():
     assert tall["listed"] and not tall["rules"]["layering"]                                     # named pairs need no layering, only overlap, water and roots
 
 
+def test_named_but_rejected_is_shown_with_the_label_and_the_reason():
+    mk = lambda **k: sp(plant_partners="Makaasim, Narra, Phoebe", **k)
+    nar = lambda **k: sp(species_id=2, common_name="Narra", mature_height_m=10.0, shade_tol="High", **k)
+    x = run(a=mk(drought_tol="High"), b=nar(drought_tol="Low"))
+    assert x["status"] == "named_conditions_differ" and not x["listed"] and x["source_named"]
+    assert x["reasons"][0].startswith("Named in the sources, conditions differ") and any("Drought tolerance differs" in r for r in x["reasons"])
+    y = run(a=mk(), b=nar(), both=100)                                                                  # too little shared land
+    assert y["status"] == "named_conditions_differ" and any("suit the same land" in r for r in y["reasons"])
+    z = run(a=sp(drought_tol="High"), b=sp(species_id=2, common_name="Under", mature_height_m=10.0, shade_tol="High", drought_tol="Low"))
+    assert z["status"] is None                                                                          # not named: dropped as before
+    w = run(a=mk(waterlog_tol="High"), b=nar(waterlog_tol="Low"), far=(100, 1000, 1000))
+    assert w["status"] == "named_conditions_differ" and any("check drainage" in r for r in w["reasons"])
+
+
 def test_batikuling_names_narra_but_the_water_rule_still_applies():
     s = pd.read_csv(PROCESSED / "species_clean.csv")
     bat, narra = s[s.common_name == "Batikuling"].iloc[0], s[s.common_name == "Narra"].iloc[0]
     assert "Narra" in bat.plant_partners and P.named_in_text("Narra", bat.plant_partners)
     x = P.pair_rules(bat, narra, 5000, 6793, 5174)
-    assert x["rules"]["named"] and not x["rules"]["water"] and not x["listed"]               # Low against High drought tolerance: an honest "no"
+    assert x["rules"]["named"] and not x["rules"]["water"] and not x["listed"]               # Low against High drought tolerance: not a fit ...
+    assert x["status"] == "named_conditions_differ" and "Drought tolerance differs (Batikuling Low, Narra High)." in x["reasons"]        # ... but shown, with the reason
 
 
 # ---- the table and the API ----------------------------------------------------------------------------------------------------------------
@@ -110,16 +139,36 @@ def table():
 
 def test_table_shape_and_no_unlisted_pairs(table):
     assert list(table.columns) == P.OUT_COLUMNS
-    assert (table.species_id != table.partner_id).all() and table.score.between(0, 1).all() and table.overlap_share.between(0.5, 1).all()
+    assert set(table.status) <= {"fits", "named_conditions_differ"}
+    assert (table.species_id != table.partner_id).all() and table.score.between(0, 1).all()
+    assert table[table.status == "fits"].overlap_share.between(0.5, 1).all()
     assert not table.duplicated(["species_id", "partner_id"]).any()
     s = pd.read_csv(PROCESSED / "species_clean.csv").set_index("species_id")
+    clash = (("High", "Low"), ("Low", "High"))
     for r in table.itertuples(index=False):
         a, b = s.loc[r.species_id], s.loc[r.partner_id]
-        assert (a.drought_tol, b.drought_tol) not in (("High", "Low"), ("Low", "High")) and (a.waterlog_tol, b.waterlog_tol) not in (("High", "Low"), ("Low", "High"))
-        assert not (a.root_urban_safety_prov < 0.4 and b.root_urban_safety_prov < 0.4)
-        assert len(P.pal.parse_months(a.planting_months) & P.pal.parse_months(b.planting_months)) >= 2
         assert bool(r.source_named) == P.named_in_text(b.common_name, a.plant_partners)
+        cautions = str(r.cautions) if isinstance(r.cautions, str) else ""
+        assert (cautions == "check drainage") == ((a.waterlog_tol, b.waterlog_tol) in clash)       # a waterlogging mismatch is a caution, never silent
+        if r.status == "fits":
+            assert (a.drought_tol, b.drought_tol) not in clash
+            assert not (a.root_urban_safety_prov < 0.4 and b.root_urban_safety_prov < 0.4)
+            assert len(P.pal.parse_months(a.planting_months) & P.pal.parse_months(b.planting_months)) >= 2
+        else:
+            assert r.source_named and r.reasons.startswith("Named in the sources, conditions differ")
     assert table.source_named.any()
+    named = {(s.common_name[r.species_id], s.common_name[r.partner_id]) for r in table[table.status != "fits"].itertuples()}
+    assert ("Batikuling", "Narra") in named and ("Cacao", "Coconut") in named
+
+
+def test_the_old_results_are_kept_and_nothing_old_was_lost(table):
+    f = PROCESSED / "species_partners_before_round15a.csv"
+    if not f.exists():
+        pytest.skip("the comparison copy is not here")
+    old = pd.read_csv(f)
+    fits = table[table.status == "fits"]
+    assert set(zip(old.species_id, old.partner_id)) <= set(zip(fits.species_id, fits.partner_id))
+    assert fits.species_id.nunique() > old.species_id.nunique()                                       # species gain a partner (the waterlogging rule is a caution now)
 
 
 @pytest.fixture(scope="module")
@@ -136,7 +185,7 @@ def test_api_shape_with_partners(client, table):
     r = client.get(f"/species/{sid}/partners", params={"purpose": "urban", "barangay": "Santa Ana", "start": "2027-05-01", "end": "2027-06-29"})
     assert r.status_code == 200, r.text
     j = r.json()
-    assert j["provisional"] is True and j["message"] == "" and 1 <= len(j["partners"]) <= 5 and "agriculturist will check" in j["note"]
+    assert j["provisional"] is True and j["message"] == "" and 1 <= len(j["partners"]) <= 8 and sum(p["status"] == "fits" for p in j["partners"]) <= 5 and "agriculturist will check" in j["note"]
     assert j["sources_say"] and j["area"]["display_name"] == "Santa Ana"
     for p in j["partners"]:
         assert set(p) >= {"species_id", "common_name", "score", "reasons", "source_named", "overlap_share", "overlap_in_area", "season", "purpose_fit"}
@@ -144,7 +193,17 @@ def test_api_shape_with_partners(client, table):
         oa = p["overlap_in_area"]
         assert 0 <= oa["squares_both"] <= min(oa["squares_main"], oa["squares_partner"])
         assert p["season"]["status"] in ("in_season", "partly", "out_of_season", "unknown")
-    assert [p["score"] for p in j["partners"]] == sorted((p["score"] for p in j["partners"]), reverse=True)
+    fits = [p["score"] for p in j["partners"] if p["status"] == "fits"]
+    assert fits == sorted(fits, reverse=True) and all(p["status"] == "fits" for p in j["partners"][:len(fits)])        # pairs that fit come first
+    assert all(isinstance(p["cautions"], list) for p in j["partners"])
+
+
+def test_api_shows_named_pairs_whose_conditions_differ(client, table):
+    sid = int(pd.read_csv(PROCESSED / "species_clean.csv").set_index("common_name").species_id["Batikuling"])
+    j = client.get(f"/species/{sid}/partners").json()
+    named = [p for p in j["partners"] if p["status"] != "fits"]
+    assert named and named[0]["common_name"] == "Narra" and named[0]["label"] == "named in the sources, conditions differ"
+    assert any("Drought tolerance differs" in x for x in named[0]["reasons"])
 
 
 def test_api_empty_list_and_dataset_text_fallback(client, table):
@@ -158,7 +217,8 @@ def test_api_empty_list_and_dataset_text_fallback(client, table):
     assert client.get("/species/1/partners", params={"barangay": "Nowhere"}).status_code == 400
 
 
-def test_plan_gets_a_one_line_partner_note(client, table):
+def test_plan_gets_a_one_line_partner_note(client, table, tmp_path, monkeypatch):
+    monkeypatch.setattr(client.app.state.data, "work", tmp_path)                           # plans of this test go to a temporary folder, never to data/processed/plans
     pairs = table[table.species_id.isin([8, 7]) & table.partner_id.isin([8, 7])]
     body = {"purpose": "urban", "seed": 4, "campaign": {"name": "P", "unit": ""}, "barangay": "Santa Ana", "species_counts": {"8": 30, "22": 20}}
     j = client.post("/plan-event", json=body).json()

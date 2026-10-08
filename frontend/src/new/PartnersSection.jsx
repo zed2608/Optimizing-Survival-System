@@ -24,15 +24,20 @@ export default function PartnersSection({ speciesId, query = '' }) {
       )}
       {d && (
         <ul className="nw-partners">
-          {d.partners.slice(0, 3).map((p) => (
+          {[...d.partners.filter((p) => p.status === 'fits').slice(0, 3), ...d.partners.filter((p) => p.status !== 'fits')].map((p) => (
             <li key={p.species_id}>
               <div className="nw-partner-name">
                 <strong>{p.common_name}</strong>
                 {p.source_named && (
                   <span className="nw-chip nw-chip-named">
-                    <Icon name="check" size={12} /> named in the sources
+                    <Icon name={p.status === 'fits' ? 'check' : 'warn'} size={12} /> {p.status === 'fits' ? 'named in the sources' : p.label ?? 'named in the sources, conditions differ'}
                   </span>
                 )}
+                {p.cautions?.map((c) => (
+                  <span key={c} className="nw-chip">
+                    <Icon name="drop" size={12} /> {c}
+                  </span>
+                ))}
                 <SeasonBadge season={p.season} strip={false} best={false} />
               </div>
               <div className="nw-partner-why">{p.reasons[0]}</div>

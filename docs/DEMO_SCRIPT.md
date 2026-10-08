@@ -38,7 +38,7 @@ For the thesis panel or the MENRO staff. Everything below was checked against th
 
 ### 6. The Forest Reserve label and the toggle (1 minute)
 - In step 4, find the switch **Include land outside the zoning map** and open its "?" help. Say: "**1,279 squares** are outside our zoning map. The CLUP 2021-2031 shows that land as **Forest Reserve (Watershed)**, part of the Upper Marikina River Basin that the Sangguniang Bayan resolved to co-manage with DENR. We score them but flag them: coordinate with MENRO and DENR before planting."
-- Click a square in the east (for example grid point **12888**, Pintung Bukawe) and read "Zoning: outside our zoning map (CLUP: Forest Reserve, Watershed)". Switch the toggle off: those squares turn into grey squares and are left out.
+- Click a square in the east (for example grid point **12888**, Pintong Bukawe) and read "Zoning: outside our zoning map (CLUP: Forest Reserve, Watershed)". Switch the toggle off: those squares turn into grey squares and are left out.
 
 ### 7. Grid point 5474 and the "why few species" card (1 minute)
 - Search **5474** (Maly, 72 m high). The panel says **0 of 45 species suit this square**. The card "Why few or no species suit this square" says: *Slope 93% is steeper than the limit of every species (highest allowed: 70%).*

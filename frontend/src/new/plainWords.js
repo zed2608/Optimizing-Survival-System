@@ -46,6 +46,8 @@ const FLAGS = {
   ground_water: 'Looks like water in the satellite land cover: check on the ground first',
   zoning_unconfirmed: 'Outside our zoning map: Forest Reserve, coordinate with MENRO and DENR',
   needs_both_sexes: 'Separate sexes: plant both',
+  rehab_site_food_warning: 'Fruit or produce from a landfill or mining site may hold heavy metals; do not plan to eat or sell it without testing',
+  habagat_washout: 'Heavy rain and flooding (Habagat) can wash out seedlings here in Jul-Sep',
   soil_unverified_mismatch: 'Soil may not suit the species: check on site',
   species_data_unverified: 'Species data cites a file we do not have',
   low_confidence: 'Some inputs were missing: less certain score',

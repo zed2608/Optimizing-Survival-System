@@ -5,9 +5,10 @@ rows after one-per-cell: 8088 (removed 167 repeated-cell rows)
 grid 110 x 158; cell size ~100.0 m (E-W) x 99.9 m (N-S)
 slope method: {'full': 6285, 'partial': 1787, 'none': 16}  (partial = only one axis available, may under-estimate)
 slope % median 20.1, p90 44.2, max 132.9; share > 30%: 29.8%; > 50%: 5.8%
-points with a land-use zone: 6809 of 8088; legal zones: 6251
-zoning_status: {'confirmed': 6251, 'unconfirmed': 1279, 'excluded': 558}  (confirmed = inside a legal zone; unconfirmed = outside every zoning polygon, scored but flagged; excluded = a named non-planting zone, not scored)
+points with a land-use zone: 6809 of 8088; legal zones: 6731
+zoning_status: {'confirmed': 6731, 'unconfirmed': 1279, 'excluded': 78}  (confirmed = inside a legal zone; unconfirmed = outside every zoning polygon, scored but flagged; excluded = a named non-planting zone, not scored)
 zones: {'Forest Zone': 4368, '(outside zoning)': 1279, 'High Density Residential - Mixed Use Zone': 868, 'Medium Density Residential Zone': 502, 'Special Reserved Zone': 355, 'Agricultural Zone': 224, 'Institutional Research Zone': 124, 'Socialized Housing Zone': 68, 'Medium Industrial Zone': 65, 'Minor Commercial - Mixed Use Zone': 61, 'Quarry Sub-Zone': 55, 'Buffer Zone': 36, 'Parks and Recreation Zone': 25, 'Cemetery Zone': 23, 'Sanitary Landfill': 19, 'General Institutional Zone': 11, 'Light Industrial Zone': 3, 'General Institutional Zonec': 2}
+zone_condition: {'(none)': 4812, 'needs permission (private land)': 1494, 'inside Forest Reserve: MENRO/DENR permit': 1279, 'may be converted to other use': 484, 'needs DENR permission': 19}  (MPDC (Elaine R. De Jesus, MENRO PO III/OIC), signed form of 7 Oct 2026; provisional)
 soil source: LGU soil map (site_soil_lgu.csv): series for 4695 of 8088 squares (3393 without: outside the soil map); {'Antipolo Clay': 2903, 'Binangonan Clay': 789, 'Marikina Silt Loam': 502, 'Marikina Loam': 254, 'Antipolo Clay Loam': 146, 'Quingua Sandy Loam': 75, 'Novaliches Clay Loam': 26}
 soil texture (LGU): {'Clay': 3692, 'Silt Loam': 502, 'Loam': 254, 'Clay Loam': 172, 'Sandy Loam': 75}  (PROVISIONAL: scanned map digitized by us, not verified by the agriculturist)
 soil codes: {4478: 4478, 4413: 2176, 4546: 1162, 7001: 272}  (texture mapping is UNVERIFIED)

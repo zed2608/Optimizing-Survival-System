@@ -204,6 +204,12 @@ Acceptance (`tests/test_kit_geometry.py`, `blockGeometry.test.mjs`, `cdp_blocks`
 3. Partner species: `pipeline/partners.py` (provisional rules), `GET /species/{id}/partners`, "Works well with" in the species card, "Pairs well with" in step 4, one sentence in the plan result.
 Acceptance (`tests/test_species_counts.py`, `tests/test_partners.py`, `tests/test_detailed_labels.py`, `plainWords.test.mjs`, the browser checks): exact counts and remainder blocks, the old path unchanged, every rule of the partner table on its own, no visible warning with an underscore or `=`, every old Full-view label still in Detailed.
 
+## LGU, MPDC, MAO and MENRO answers applied (feedback round 15a)
+1. Zone rules follow the MPDC answers (6,731 confirmed / 1,279 unconfirmed / 78 excluded; scored 8,010 squares) with a `zone_condition` text per square.
+2. Rehabilitation-site food warning, Habagat multiplier 0.8 (Jul-Sep, four barangays), purpose tags, nursery list, interview notes, partner fix, the name "Pintong Bukawe".
+3. The signed sample marks are saved and compared with the model (`scripts/score_agri_sample.py`); a slope sensitivity is reported, production scoring is not changed.
+Acceptance (`tests/test_site_rules.py`, `tests/test_species_extras.py`, `tests/test_partners.py`): the counts above, the flags, S x 0.8 only in Habagat barangays and only for windows touching Jul-Sep, release hash 34964a09fe44 unchanged.
+
 ## Thesis limits to state
 RF labels derive from rules; weights are provisional; pH is not scored; slope comes from ~100 m cells; soil texture mapping is unverified;
 sign-off status as of the defense date; GPS accuracy untested; field checks carry a name only (no login) and are not yet used to change any score;

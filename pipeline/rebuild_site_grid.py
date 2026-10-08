@@ -26,29 +26,52 @@ import pandas as pd
 
 # ZONE_RULES: what each land-use zone of data/LandUses.shp means for planting. ONE table; change a value, then re-run the scripts listed in CLAUDE.md
 # ("How to change a zone rule"). Values:
-#   confirmed   = a legal planting zone: scored, no flag                       (is_legal_zone = True)
+#   confirmed   = a planting zone the MPDC has answered for: scored, no zoning flag          (is_legal_zone = True)
 #   unconfirmed = scored like the others but flagged zoning_unconfirmed; the flag note names the zone (an LGU decision is still needed)
 #   excluded    = never scored, never planned (grey square)
-# Defaults reproduce the results before this table existed (6,251 confirmed / 1,279 unconfirmed / 558 excluded).
+# Round 15a: the answers of the MPDC (Elaine R. De Jesus, MENRO PO III / OIC), signed form of 7 Oct 2026 ("open to tree planting?"):
+#   Yes: Forest, Agricultural, Socialized Housing, Buffer, Parks and Recreation, General Institutional (and the LGU spelling Zonec), Special Reserved, Medium Industrial,
+#        Minor Commercial, Light Industrial, Major Commercial and Major Commercial Mixed Use (no squares in the grid).
+#   Yes with conditions: High Density Residential, Medium Density Residential, Institutional Research, Sanitary Landfill (written note "w/ DENR").
+#   No: Cemetery, Quarry Sub-Zone.  The area outside the zoning map (Forest Reserve, Watershed) is open and stays flagged. data/LandUses.shp is the current layer.
+# Before round 15a: 6,251 confirmed / 1,279 unconfirmed / 558 excluded.
 ZONE_RULES = {
-    "Parks and Recreation Zone": "confirmed",                  # legal planting zone
-    "Buffer Zone": "confirmed",                                # legal planting zone
-    "General Institutional Zone": "confirmed",                 # legal planting zone
-    "Institutional Research Zone": "confirmed",                # legal planting zone
-    "Forest Zone": "confirmed",                                # legal planting zone
-    "General Institutional Zonec": "confirmed",                # legal planting zone (the LGU spelling 'Zonec' is kept as written in the layer)
-    "Medium Density Residential Zone": "confirmed",            # legal planting zone
-    "High Density Residential - Mixed Use Zone": "confirmed",  # legal planting zone
-    "Socialized Housing Zone": "confirmed",                    # legal planting zone
-    "Agricultural Zone": "confirmed",                          # legal planting zone
-    "Cemetery Zone": "confirmed",                              # legal planting zone
-    "Special Reserved Zone": "excluded",                       # 355 squares; not a planting zone until the LGU says so (set "unconfirmed" to score and flag them)
-    "Medium Industrial Zone": "excluded",                      # industrial land
-    "Light Industrial Zone": "excluded",                       # industrial land
-    "Minor Commercial - Mixed Use Zone": "excluded",           # commercial land
-    "Quarry Sub-Zone": "excluded",                             # quarry
-    "Sanitary Landfill": "excluded",                           # landfill
+    "Forest Zone": "confirmed",                                # MPDC 7 Oct 2026: yes
+    "Agricultural Zone": "confirmed",                          # MPDC: yes
+    "Socialized Housing Zone": "confirmed",                    # MPDC: yes
+    "Buffer Zone": "confirmed",                                # MPDC: yes
+    "Parks and Recreation Zone": "confirmed",                  # MPDC: yes
+    "General Institutional Zone": "confirmed",                 # MPDC: yes
+    "General Institutional Zonec": "confirmed",                # MPDC: yes (the LGU spelling 'Zonec' is kept as written in the layer)
+    "Special Reserved Zone": "confirmed",                      # MPDC: yes (355 squares; may be converted to other use)
+    "Medium Industrial Zone": "confirmed",                     # MPDC: yes (65 squares; may be converted to other use)
+    "Minor Commercial - Mixed Use Zone": "confirmed",          # MPDC: yes (61 squares; may be converted to other use)
+    "Light Industrial Zone": "confirmed",                      # MPDC: yes (3 squares; may be converted to other use)
+    "High Density Residential - Mixed Use Zone": "confirmed",  # MPDC: yes with conditions (private land: needs permission)
+    "Medium Density Residential Zone": "confirmed",            # MPDC: yes with conditions (private land: needs permission)
+    "Institutional Research Zone": "confirmed",                # MPDC: yes with conditions (needs permission)
+    "Sanitary Landfill": "confirmed",                          # MPDC: yes with conditions, written note "w/ DENR" (19 squares)
+    "Cemetery Zone": "excluded",                               # MPDC: no (23 squares)
+    "Quarry Sub-Zone": "excluded",                             # MPDC: no (55 squares)
 }
+# ZONE_CONDITION: a short plain text per zone for the squares that are open only with a condition (PROVISIONAL: from the MPDC interview of 7 Oct 2026, to be confirmed in writing).
+# Added to every square as zone_condition (empty = no condition). The field kit, the API and the dashboard can show it.
+ZONE_CONDITION_PRIVATE = "needs permission (private land)"
+ZONE_CONDITION_DENR = "needs DENR permission"
+ZONE_CONDITION_CONVERT = "may be converted to other use"
+ZONE_CONDITION_FOREST_RESERVE = "inside Forest Reserve: MENRO/DENR permit"
+ZONE_CONDITIONS = {
+    "High Density Residential - Mixed Use Zone": ZONE_CONDITION_PRIVATE,
+    "Medium Density Residential Zone": ZONE_CONDITION_PRIVATE,
+    "Institutional Research Zone": ZONE_CONDITION_PRIVATE,
+    "Sanitary Landfill": ZONE_CONDITION_DENR,
+    "Special Reserved Zone": ZONE_CONDITION_CONVERT,
+    "Medium Industrial Zone": ZONE_CONDITION_CONVERT,
+    "Minor Commercial - Mixed Use Zone": ZONE_CONDITION_CONVERT,
+    "Light Industrial Zone": ZONE_CONDITION_CONVERT,
+}
+OUTSIDE_ZONING_CONDITION = ZONE_CONDITION_FOREST_RESERVE      # a square outside every zoning polygon
+ZONE_CONDITION_SOURCE = "MPDC (Elaine R. De Jesus, MENRO PO III/OIC), signed form of 7 Oct 2026; provisional"
 UNKNOWN_ZONE_RULE = "excluded"          # a zone name that is not in ZONE_RULES (the rebuild report lists it)
 OUTSIDE_ZONING_RULE = "unconfirmed"     # a square outside every zoning polygon: the satellite shows forest, the zoning file has a gap (set "excluded" to leave them out)
 RULE_VALUES = ("confirmed", "unconfirmed", "excluded")
@@ -63,6 +86,13 @@ SOIL_LEGACY = {
     4546: ("Rhodic Nitisol", "Clay"), 7001: ("Technosol", None),
 }
 REQUIRED = ["row_index", "col_index", "x", "y", "elevation_", "soil_type", "feature_x", "feature_y", "TYPE", "n", "distance"]
+
+def zone_condition(zone_desc, conditions=None):
+    """The plain condition text of every square (empty text = open without a condition); a square outside every polygon gets OUTSIDE_ZONING_CONDITION."""
+    c = ZONE_CONDITIONS if conditions is None else conditions
+    z = pd.Series(zone_desc)
+    return np.where(z.isna(), OUTSIDE_ZONING_CONDITION, z.map(lambda n: c.get(n, "")))
+
 
 def zoning_status(zone_desc, rules=None):
     """confirmed | unconfirmed | excluded for every square, from ZONE_RULES (a square outside every polygon follows OUTSIDE_ZONING_RULE)."""
@@ -155,6 +185,7 @@ def main():
         o["zone_code"] = o.point_id.map(z["CODE"]); o["zone_desc"] = o.point_id.map(z["DESCRIPTIO"])
         o["zoning_status"] = zoning_status(o.zone_desc)
         o["is_legal_zone"] = o.zoning_status == "confirmed"                  # confirmed legal zone ONLY (unchanged meaning)
+        o["zone_condition"] = np.where(o.zoning_status == "excluded", "", zone_condition(o.zone_desc))      # round 15a: a short plain condition for squares that are open only with permission
         unknown = sorted(set(o.zone_desc.dropna()) - set(ZONE_RULES))
         if unknown:
             rep.append(f"WARNING: zones not in ZONE_RULES (treated as {UNKNOWN_ZONE_RULE}): {unknown}")
@@ -162,9 +193,10 @@ def main():
         rep.append("zoning_status: " + str(o.zoning_status.value_counts().to_dict())
                    + "  (confirmed = inside a legal zone; unconfirmed = outside every zoning polygon, scored but flagged; excluded = a named non-planting zone, not scored)")
         rep.append("zones: " + str(o.zone_desc.fillna("(outside zoning)").value_counts().to_dict()))
+        rep.append("zone_condition: " + str(o.zone_condition.replace("", "(none)").value_counts().to_dict()) + "  (" + ZONE_CONDITION_SOURCE + ")")
     except Exception as e:                                               # geopandas missing or file missing
         rep.append(f"land-use join SKIPPED: {e}")
-        o["zone_code"] = None; o["zone_desc"] = None; o["is_legal_zone"] = None; o["zoning_status"] = None
+        o["zone_code"] = None; o["zone_desc"] = None; o["is_legal_zone"] = None; o["zoning_status"] = None; o["zone_condition"] = None
 
     soil_source = a.soil_source or SOIL_SOURCE
     if soil_source not in ("lgu", "legacy"):

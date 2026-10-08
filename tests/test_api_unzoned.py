@@ -64,8 +64,8 @@ def box(minlon, minlat, maxlon, maxlat):
 
 # ---- the data -------------------------------------------------------------------------------------------------------------------
 def test_zoning_status_counts_and_is_legal_zone_keeps_its_meaning(sites):
-    assert sites.zoning_status.value_counts().to_dict() == {"confirmed": 6251, "unconfirmed": 1279, "excluded": 558}
-    assert int(sites.is_legal_zone.astype(bool).sum()) == 6251
+    assert sites.zoning_status.value_counts().to_dict() == {"confirmed": 6731, "unconfirmed": 1279, "excluded": 78}
+    assert int(sites.is_legal_zone.astype(bool).sum()) == 6731
     assert (sites.is_legal_zone.astype(bool) == (sites.zoning_status == "confirmed")).all()
     assert sites[sites.zoning_status == "unconfirmed"].zone_desc.isna().all()           # outside every zoning polygon
     ex = sites[sites.zoning_status == "excluded"].zone_desc
@@ -76,7 +76,7 @@ def test_unconfirmed_squares_are_scored_and_excluded_ones_are_not(sites):
     sc = pd.read_csv(PROCESSED / "scores" / "site_scores.csv", usecols=["point_id"])
     ids = set(sc.point_id)
     st = sites.set_index("point_id").zoning_status
-    assert len(ids) == 7530 and {st[i] for i in ids} == {"confirmed", "unconfirmed"} and len(sc) == 7530 * 45
+    assert len(ids) == 8010 and {st[i] for i in ids} == {"confirmed", "unconfirmed"} and len(sc) == 8010 * 45
 
 
 def test_unconfirmed_squares_are_scored_with_the_same_rules(sites, data):
@@ -109,7 +109,7 @@ def test_the_default_is_on_and_the_toggle_switches_the_grid_counts(client, data,
     on = client.get("/grid", params={"purpose": "urban"}).json()
     on2 = client.get("/grid", params={"purpose": "urban", "include_unzoned": "true"}).json()
     off = client.get(f"/grid?purpose=urban&{F}").json()
-    assert on == on2 and on["n"] == 7530 and off["n"] == 6251
+    assert on == on2 and on["n"] == 8010 and off["n"] == 6731
     z = on["zoning"]
     assert z["n_unconfirmed"] == len(z["unconfirmed_index"]) == 1279
     st = sites.set_index("point_id").zoning_status
@@ -129,29 +129,29 @@ def test_false_gives_the_results_of_before_grid_municipal_and_context(client, ol
     st.insert(0, "species_id", old_ctx.species.species_id.to_numpy())
     want = st.sort_values(["score", "species_id"], ascending=[False, True]).head(15)
     m = client.get(f"/rank/municipal?purpose=urban&{F}").json()
-    assert [r["species_id"] for r in m["ranking"]] == want.species_id.tolist() and m["legal_points"] == 6251
+    assert [r["species_id"] for r in m["ranking"]] == want.species_id.tolist() and m["legal_points"] == 6731
     assert np.allclose([r["species_score"] for r in m["ranking"]], want.score.round(4))
     ctx_off = client.get(f"/grid/context?{F}").json()
-    assert ctx_off["n"] == 1837 and ctx_off["legal_points"] == 6251 and "zoning" not in ctx_off
+    assert ctx_off["n"] == 1357 and ctx_off["legal_points"] == 6731 and "zoning" not in ctx_off
     assert ctx_off["reason_counts"]["outside_zoning"] == 1279
 
 
 def test_on_changes_the_municipal_ranking_inputs_and_the_context_layer(client):
     m = client.get("/rank/municipal", params={"purpose": "urban"}).json()
-    assert m["legal_points"] == 7530
+    assert m["legal_points"] == 8010
     c = client.get("/grid/context").json()
-    assert c["n"] == 558 and c["legal_points"] == 7530 and c["total_points"] == 8088 and c["reason_counts"]["outside_zoning"] == 0
-    assert sum(c["reason_counts"].values()) == 558
+    assert c["n"] == 78 and c["legal_points"] == 8010 and c["total_points"] == 8088 and c["reason_counts"]["outside_zoning"] == 0
+    assert sum(c["reason_counts"].values()) == 78
     labels = {t["index"]: t["label"] for t in c["zoning"]["zone_table"]}
-    assert "Outside our zoning map" in labels[-1] and all(i < 0 or "not a planting zone" in t for i, t in labels.items())
+    assert "Outside our zoning map" in labels[-1] and all(i < 0 or "not a planting zone" in t or "not open to tree planting" in t for i, t in labels.items())
 
 
 def test_health_and_known_limits_use_the_numbers_of_the_data(client):
     on = client.get("/health").json()
     off = client.get(f"/health?{F}").json()
-    assert on["counts"]["legal_points"] == 7530 and off["counts"]["legal_points"] == 6251 and on["counts"]["grid_points"] == off["counts"]["grid_points"] == 8088
-    assert "7,530 planting squares + 558 other squares = 8,088 map squares." in on["limits"]
-    assert "6,251 planting squares + 1,837 other squares = 8,088 map squares." in off["limits"]
+    assert on["counts"]["legal_points"] == 8010 and off["counts"]["legal_points"] == 6731 and on["counts"]["grid_points"] == off["counts"]["grid_points"] == 8088
+    assert "8,010 planting squares + 78 other squares = 8,088 map squares." in on["limits"]
+    assert "6,731 planting squares + 1,357 other squares = 8,088 map squares." in off["limits"]
     assert any("1,279 of the planting squares lie outside our zoning map" in x and "Forest Reserve (Watershed)" in x and "MENRO and DENR" in x for x in on["limits"])
     assert "Land that is not covered by our zoning map (the CLUP 2021-2031 shows it as Forest Reserve, Watershed) is left out until MENRO and DENR confirm it is plantable." in off["limits"]
 
@@ -159,8 +159,8 @@ def test_health_and_known_limits_use_the_numbers_of_the_data(client):
 def test_areas_and_zone_counts_follow_the_switch(client):
     a_on = client.get("/areas/rank", params={"purpose": "urban", "species_ids": "1,2"}).json()
     a_off = client.get(f"/areas/rank?purpose=urban&species_ids=1,2&{F}").json()
-    assert a_on["legal_points"] == 7530 and a_off["legal_points"] == 6251
-    assert sum(r["legal_points"] for r in a_on["areas"]) <= 7530 and sum(r["legal_points"] for r in a_off["areas"]) == 6251
+    assert a_on["legal_points"] == 8010 and a_off["legal_points"] == 6731
+    assert sum(r["legal_points"] for r in a_on["areas"]) <= 8010 and sum(r["legal_points"] for r in a_off["areas"]) == 6731
     z_on = client.get("/areas/rank", params={"purpose": "urban", "species_ids": "1", "by": "zone"}).json()
     z_off = client.get(f"/areas/rank?purpose=urban&species_ids=1&by=zone&{F}").json()
     assert {r["name"]: r["legal_points"] for r in z_on["areas"]} == {r["name"]: r["legal_points"] for r in z_off["areas"]}   # unconfirmed squares have no zone
@@ -271,7 +271,7 @@ def test_excluded_squares_are_never_planned_and_off_equals_the_old_plan(client, 
 
 def test_command_line_context_has_the_same_switch(old_ctx):
     on, off = rp.load_context(str(PROCESSED), include_unzoned=True), rp.load_context(str(PROCESSED), include_unzoned=False)
-    assert len(on.sites) == 7530 and len(off.sites) == 6251 and (off.sites.point_id.to_numpy() == old_ctx.sites.point_id.to_numpy()).all()
+    assert len(on.sites) == 8010 and len(off.sites) == 6731 and (off.sites.point_id.to_numpy() == old_ctx.sites.point_id.to_numpy()).all()
     assert np.array_equal(off.S, old_ctx.S) and np.array_equal(rp.confirmed_only(on).S, off.S)
     plan, summary = rp.make_plan(on, "watershed", 200, seed=3)
     assert summary["zoning"]["unconfirmed_trees"] == int(plan["flags"].fillna("").str.contains("zoning_unconfirmed").sum())

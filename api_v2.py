@@ -34,6 +34,8 @@ import field_kit as fk  # noqa: E402
 import landcover as lcv  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
+from names import fix_barangay_column  # noqa: E402
+import site_rules as sr  # noqa: E402
 import run_plan as rp  # noqa: E402
 import score_sites as ss  # noqa: E402
 
@@ -71,7 +73,7 @@ API_CFG = {
     "boundary_max_bytes": 300_000,                  # /geo/boundaries: the tolerance grows until the response is under this size
     "coord_decimals": 5,                            # coordinates in /geo/boundaries and /grid (5 decimals ~ 1 m)
     "grid_w_decimals": 3,                           # W in /grid
-    "grid_max_bytes": 300_000,                      # /grid should stay under this size (checked by the tests; 7,530 squares with include_unzoned=true ~ 286 KB, false stays under 250 KB)
+    "grid_max_bytes": 330_000,                      # /grid should stay under this size (checked by the tests; 8,010 squares with include_unzoned=true ~ 305 KB, false (6,731 squares) stays under 280 KB)
     "missing_marker": -1,                           # /grid: the explicit "no value" marker (never null)
     "grid_cache_seconds": 300,                      # Cache-Control max-age of /geo/boundaries and /grid
     "landuse_shp": "data/LandUses.shp",             # /geo/zones
@@ -87,6 +89,7 @@ API_CFG = {
     "context_zone_reasons": {                       # zone name (as in the land-use layer) -> reason code; a square with no zone is "outside_zoning"
         "Special Reserved Zone": "special_reserved", "Medium Industrial Zone": "industrial", "Light Industrial Zone": "industrial",
         "Minor Commercial - Mixed Use Zone": "commercial", "Quarry Sub-Zone": "quarry", "Sanitary Landfill": "landfill",
+        "Cemetery Zone": "cemetery",
     },
     "context_max_bytes": 120_000,                   # the context body must stay below this size
     # ---- planting window (season) ----
@@ -362,6 +365,7 @@ CONTEXT_REASONS = {                                   # reason code -> plain wor
     "commercial": "Commercial zone: not a planting zone",
     "quarry": "Quarry zone: not a planting zone",
     "landfill": "Sanitary landfill: not a planting zone",
+    "cemetery": "Cemetery zone: not open to tree planting (MPDC, 7 Oct 2026)",
     "other": "A zone that is not a planting zone",
 }
 
@@ -792,6 +796,54 @@ def municipal_tables(ctx):
     return out
 
 
+class HabView:
+    """The data seen for a planting window that touches Jul-Sep (round 15a, MAO 7 Oct 2026, provisional): the site match S of the squares of the Habagat barangays is multiplied by 0.8, so every
+    ranking, map colour and plan made through this object uses the lowered values (and S >= 0.50 is tested on them). Everything else is read from the base data object."""
+    def __init__(self, base):
+        object.__setattr__(self, "_base", base)
+
+    def __getattr__(self, name):
+        return getattr(self._base, name)
+
+
+def habagat_data(d, season):
+    """d itself unless the planting window touches a Habagat month; then a HabView of d with the lowered S (built once per data object, cached with its own response caches)."""
+    if season is None:
+        return d
+    months = season_object(None, season)["window_months"]
+    if not sr.habagat_months_hit(months):
+        return d
+    store = vars(d).get("_hab_store")
+    if store is None:
+        names = [d.barangay_names[b] if b >= 0 else "" for b in d.point_barangay]
+        mask = sr.habagat_square_mask(names)
+        S = d.ctx.S.copy()
+        S[mask] = S[mask] * float(sr.HABAGAT_CFG["multiplier"])
+        store = {"mask": mask, "ctx": dataclasses.replace(d.ctx, S=S), "grid": {}, "multi": OrderedDict(), "areas": OrderedDict()}
+        d._hab_store = store
+    v = HabView(d)
+    v.base_ctx, v.ctx, v.hab_mask, v.hab = d.ctx, store["ctx"], store["mask"], sr.habagat_info(months)
+    v.grid_cache, v.multi_cache, v.areas_cache = store["grid"], store["multi"], store["areas"]
+    return v
+
+
+def habagat_flags_for_plan(d, plan):
+    """Add habagat_washout to the flags of the planned points that lie in a Habagat barangay (when the window touches Jul-Sep)."""
+    hab = getattr(d, "hab", None)
+    if not hab or plan.empty:
+        return plan, 0
+    names = []
+    for pid in plan.point_id.astype(int):
+        j = d.allpt_index.get(pid)
+        b = int(d.allpt_barangay[j]) if j is not None else -1
+        names.append(d.barangay_names[b] if b >= 0 else "")
+    m = sr.habagat_square_mask(names)
+    plan = plan.copy()
+    plan["flags"] = [";".join(x for x in (str(fl).split(";") if isinstance(fl, str) and fl else []) + ([sr.HABAGAT_FLAG] if hit else []) if x) for fl, hit in zip(plan["flags"], m)]
+    n = int(plan.loc[m, "trees_planned"].sum()) if "trees_planned" in plan else int(m.sum())
+    return plan, n
+
+
 class View:
     """The data seen with include_unzoned=false: squares outside the zoning map are not planting squares, exactly as before zoning_status existed.
     Whatever depends on the set of scored squares is held here; everything else (species, sources, outlines, field database ...) is read from the base data object."""
@@ -859,7 +911,7 @@ def load_data(cfg=None):
     d.municipal = municipal_tables(ctx)
     # barangays
     import geopandas as gpd
-    g = gpd.read_file(ROOT / cfg["barangay_shp"])
+    g = fix_barangay_column(gpd.read_file(ROOT / cfg["barangay_shp"]))          # round 15a: "Pintong Bukawe" (the shapefile spells it Pintung)
     proj = g.to_crs(cfg["site_crs"])
     cen = proj.centroid.to_crs("EPSG:4326")
     d.places = [{"name": str(r.BRGY_NAME), "display_name": display_name(r.BRGY_NAME, cfg["place_aliases"]), "key": norm_place(r.BRGY_NAME, cfg["place_aliases"]),
@@ -878,6 +930,16 @@ def load_data(cfg=None):
     d.allpt_barangay = j_all.drop_duplicates("i", keep="first").set_index("i").b.reindex(range(len(all_points))).fillna(cfg["missing_marker"]).astype(int).to_numpy()
     d.allpt_index = {int(p): i for i, p in enumerate(all_points.point_id)}
     lcf = root / "site_landcover.csv"                                  # ground cover from satellite land cover (information only)
+    d.food_ids = sr.food_bearing_ids(ctx.species)                       # food-bearing species (type text): the rehabilitation-site warning applies to them
+    # round 15a: tables beside the species table (interviews of 7 Oct 2026; provisional): purpose tags (filters only), the LGU nursery list, interview notes
+    def _table(name):
+        f = root / name
+        return pd.read_csv(f, keep_default_na=False) if f.is_file() else None
+    tt, nt, it = _table("species_purpose_tags.csv"), _table("nursery_stock.csv"), _table("interview_notes.csv")
+    d.purpose_tags = {int(k): g[["tag", "basis"]].to_dict("records") for k, g in tt.groupby("species_id")} if tt is not None else {}
+    d.nursery_rows = {int(k): g.to_dict("records") for k, g in nt[nt.matched_species_id.astype(str) != ""].assign(matched_species_id=lambda x: x.matched_species_id.astype(int)).groupby("matched_species_id")} if nt is not None else {}
+    d.nursery_table_present = nt is not None
+    d.interview_notes = {int(k): g[["note", "source", "provisional"]].to_dict("records") for k, g in it.groupby("species_id")} if it is not None else {}
     pf = root / "species_partners.csv"                                  # "Works well with": starting rules from pipeline/partners.py (provisional)
     d.partners = pd.read_csv(pf) if pf.is_file() else None
     d.landcover = pd.read_csv(lcf).set_index("point_id") if lcf.is_file() else None
@@ -1030,6 +1092,11 @@ def season_q(start: Optional[str] = Query(None, description="planting window sta
     return parse_season(d.cfg, start, end, season_filter)
 
 
+def HD(season=Depends(season_q), d=Depends(D)):
+    """Like D, but with the Habagat adjustment when the planting window touches Jul-Sep (see habagat_data)."""
+    return habagat_data(d, season)
+
+
 def season_object(species_months, season):
     """status: in_season (every month of the window is a planting month) | partly (some) | out_of_season (none) | unknown (no planting months recorded)."""
     win = season.months
@@ -1159,7 +1226,7 @@ def species_list(season=Depends(season_q), d=Depends(D)):
                                      "cells_rank1_or_2": py(r.n_cells_rank12)},
                       "purpose_scores": {p: {"p_score": py(d.ps_by_key[(sid, p)].p_score), "confidence": py(d.ps_by_key[(sid, p)].confidence)}
                                          for p in mt.PURPOSES},
-                      "flags": d.ctx.species_flags.get(sid, []), "source_ids": fid,
+                      "flags": d.ctx.species_flags.get(sid, []), "source_ids": fid, **species_extras(d, sid),
                       **({"season": season_object(d.species_months[k], season)} if season is not None else {})})
     return {"count": len(items), "species": items, "sources": sources_map(d, ids),
             "note": "GET /species/{species_id} lists every field with its source URL and rank", **season_extra(d, season)}
@@ -1184,7 +1251,21 @@ def species_detail(species_id: int, season=Depends(season_q), d=Depends(D)):
             "provisional_note": "root_urban_safety_prov and root_soil_binding_prov are provisional scores from tag_maps_root.csv, not sourced facts; "
                                 "is_high_value_crop is a team decision",
             "reference_urls": d.refs[d.refs.species_id == species_id].reference_url.tolist(),
+            **species_extras(d, species_id),
+            "purpose_tag_details": d.purpose_tags.get(species_id, []),
+            "tags_note": "Purpose tags are filters only (they do not change the urban, planting or watershed scores); provisional, to be confirmed by the agriculturist.",
+            "nursery": ([{"listed_name": r["listed_name"], "in_system": r["in_system"], "match_note": r["match_note"], "source": "LGU nursery list (handwritten); quantities unknown"}
+                         for r in d.nursery_rows.get(species_id, [])] if d.nursery_table_present else None),
+            "interview_notes": d.interview_notes.get(species_id, []),
             "purpose_scores": {p: purpose_breakdown(d, species_id, p) for p in mt.PURPOSES}}
+
+
+def species_extras(d, sid):
+    """purpose_tags, in_nursery and the nursery match for one species (round 15a; provisional, from the tables beside the species table)."""
+    tags = d.purpose_tags.get(sid, [])
+    rows = d.nursery_rows.get(sid, [])
+    return {"purpose_tags": [t["tag"] for t in tags], "in_nursery": bool(rows) if d.nursery_table_present else None,
+            "nursery_match": ("partial" if rows and all(r["in_system"] == "partial" for r in rows) else "yes") if rows else None}
 
 
 PARTNER_NONE = "No good partner found in our data"
@@ -1195,7 +1276,11 @@ def partners_of(d, species_id):
     """Rows of species_partners.csv for one main species, best first (empty when the table is not built or the species has no listed partner)."""
     if d.partners is None:
         return d.partners
-    return d.partners[d.partners.species_id == species_id].sort_values(["score", "partner_id"], ascending=[False, True])
+    t = d.partners[d.partners.species_id == species_id]
+    if "status" in t:                                                   # pairs that fit first, then the ones named in the sources whose conditions differ (round 15a)
+        t = t.assign(_o=(t.status != "fits").astype(int))
+        return t.sort_values(["_o", "score", "partner_id"], ascending=[True, False, True]).drop(columns="_o")
+    return t.sort_values(["score", "partner_id"], ascending=[False, True])
 
 
 def partner_pairs_in(d, species_ids):
@@ -1204,6 +1289,8 @@ def partner_pairs_in(d, species_ids):
     if d.partners is None or len(ids) < 2:
         return []
     t = d.partners[d.partners.species_id.isin(ids) & d.partners.partner_id.isin(ids)]
+    if "status" in t:
+        t = t[t.status == "fits"]                                      # only pairs that fit count as "these species suit each other"
     seen, out = set(), []
     for r in t.sort_values("score", ascending=False).itertuples(index=False):
         k = tuple(sorted((int(r.species_id), int(r.partner_id))))
@@ -1249,7 +1336,8 @@ def species_partners(species_id: int, purpose: Optional[Purpose] = None, baranga
             "sources_say": text, "source_ids": species_field_ids(d, species_id, ["plant_partners"]), "max_partners": 5}
     if season is not None:
         base["season_window"] = season_block(d, season)
-    t = partners_of(d, species_id).head(5)
+    t_all = partners_of(d, species_id)
+    t = pd.concat([t_all[t_all.status == "fits"].head(5), t_all[t_all.status != "fits"].head(3)]) if "status" in t_all else t_all.head(5)       # up to 5 that fit, plus the ones named in the sources whose conditions differ
     if len(t) == 0:
         return {**base, "partners": [], "message": PARTNER_NONE}
     out = []
@@ -1258,7 +1346,10 @@ def species_partners(species_id: int, purpose: Optional[Purpose] = None, baranga
         j = d.species_idx[int(r.partner_id)]
         pr = sp.iloc[j]
         item = {"species_id": int(r.partner_id), "common_name": pr.common_name, "scientific_name": py(pr.scientific_name), "score": py(r.score),
-                "reasons": [x for x in str(r.reasons).split(" | ") if x], "source_named": bool(r.source_named), "overlap_share": py(r.overlap_share)}
+                "reasons": [x for x in str(r.reasons).split(" | ") if x], "source_named": bool(r.source_named), "overlap_share": py(r.overlap_share),
+                "status": getattr(r, "status", "fits"), "cautions": [x for x in str(getattr(r, "cautions", "") or "").split(";") if x]}
+        if item["status"] != "fits":
+            item["label"] = "named in the sources, conditions differ"
         if mask is not None:
             a_, b_ = d.ctx.S[mask][:, i] >= smin, d.ctx.S[mask][:, j] >= smin
             small = min(int(a_.sum()), int(b_.sum()))
@@ -1277,7 +1368,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
          limit: int = Query(API_CFG["rank_default_limit"], ge=1, le=100), season=Depends(season_q),
          include_left_out: bool = Query(False, description="true: a point marked not plantable in the field is still ranked (for display only, greyed out) instead of answering 404"),
          explain: bool = Query(False, description="true: always add limiting_factors (otherwise only when fewer than 3 species suit the square)"),
-         d=Depends(D)):
+         d=Depends(HD)):
     e, n = d.to_utm.transform(lon, lat)
     dist, i = d.tree_all.query([e, n])
     if dist > d.cfg["nearest_point_max_m"]:
@@ -1306,6 +1397,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
     lf = limiting_factors(d, pt, items, n_suit, explain) if (n_suit < 3 or explain) else None
     gc = ground_cover_block(d, pt.point_id)
     gflags = gc["flags"] if gc else []
+    hab_on = bool(getattr(d, "hab", None) and d.hab_mask[j])           # Habagat: this square lies in a Habagat barangay and the window touches Jul-Sep
     drop = set(season_drop_ids(d, season))
     if drop:                                                          # season_filter=only: out-of-season species are not ranked
         items = [t for t in items if t[4] not in drop]
@@ -1313,9 +1405,11 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
     for rnk, (el, w, s, k, sid, conf, bd) in enumerate(items[:limit], 1):
         terms = {t: {"value": v["value"], "weight": v["weight"], "sources": [source(d, x) for x in v["src"]]} for t, v in bd.get("terms", {}).items()}
         out.append({"rank": rnk, "species_id": sid, "common_name": d.ctx.species.common_name.iloc[k], "S": round(s, 4), "P": round(float(P[k]), 4),
-                    "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []) + gflags,
+                    "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []) + gflags + sr.rehab_flags(pt.zone_desc, sid, d.food_ids) + ([sr.HABAGAT_FLAG] if hab_on else []),
                     "site_breakdown": {"gate_failed": bd.get("gate_failed", []), "terms": terms},
                     "purpose_breakdown": purpose_breakdown(d, sid, purpose),
+                    **({"habagat": {"multiplier": d.hab["multiplier"], "S_before": round(float(d.base_ctx.S[j, k]), 4), "W_before": round(float(mt.weights(d.base_ctx.S[j][None, :], P)[0][0, k]), 4), "months_hit": d.hab["months_hit"],
+                                 "warning": sr.HABAGAT_WARNING, "source": d.hab["source"], "provisional": True}} if hab_on else {}),
                     **({"season": season_object(d.species_months[k], season)} if season is not None else {})})
     return {"purpose": purpose, "query": {"lat": lat, "lon": lon},
             "point": {"point_id": int(pt.point_id), "lon": py(pt.lon), "lat": py(pt.lat), "utm_e": py(pt.utm_e), "utm_n": py(pt.utm_n),
@@ -1326,6 +1420,9 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                           "zoning_note": ((f"{pt.zone_desc}: confirm with the LGU before planting" if isinstance(pt.zone_desc, str) else UNZONED_NOTE)
                                           if unconf else "Inside a legal planting zone")} if d.zoning_on else {}),
                       **soil_facts(pt),
+                      **({"zone_condition": py(pt.zone_condition)} if "zone_condition" in d.all_points and isinstance(pt.zone_condition, str) and pt.zone_condition else {}),
+                      **({"rehab_site": {"zone": py(pt.zone_desc), "warning": sr.REHAB_WARNING, "applies_to": "food-bearing species", "source": sr.REHAB_SOURCE}} if sr.rehab_zone(py(pt.zone_desc)) else {}),
+                      **({"habagat": d.hab} if hab_on else {}),
                       "site_inputs_source": "backend/Working_Points.csv (elevation); slope by finite differences on elevation; soil texture = " + (
                           "the LGU soil map (BSWM), digitized by us, provisional" if "soil_texture_lgu" in d.all_points else "legacy mapping (unverified)"),
                       **({"ground_cover": gc} if gc is not None else {})},
@@ -1384,7 +1481,7 @@ def search_place(q: str = Query(min_length=1), d=Depends(D)):
 
 
 @app.get("/nearest-viable")
-def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180), season=Depends(season_q), d=Depends(D)):
+def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180), season=Depends(season_q), d=Depends(HD)):
     ctx, cfg = d.ctx, d.cfg
     e, n = d.to_utm.transform(lon, lat)
     W, feas = mt.weights(ctx.S, ctx.P[purpose])
@@ -1555,6 +1652,10 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
         b = int(d.allpt_barangay[j]) if j is not None else -1
         it.update({"point_ref": ref, "species_code": ref.split("-")[0], "barangay": d.barangay_names[b] if b >= 0 else "",
                    "barangay_display": d.barangay_display[b] if b >= 0 else ""})
+        if j is not None and "zone_condition" in d.all_points:                         # round 15a: the MPDC condition of the zone, when there is one
+            zc = d.all_points.zone_condition.iloc[j]
+            if isinstance(zc, str) and zc:
+                it["zone_condition"] = zc
     palette = []
     for p in summary["palette"]:
         p_ids = purpose_source_ids(d, p["species_id"], purpose)
@@ -1697,7 +1798,7 @@ def plan_scope(d, req, season, strict=True, extra_exclude_ids=None):
 
 
 @app.post("/plan-event/preview")
-def plan_preview(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
+def plan_preview(req: PlanRequest, q_season=Depends(season_q), d=Depends(HD)):
     """What a plan request could use, WITHOUT creating or saving anything: suitable squares in the area, species available, field-check exclusions and whether a plan can be made."""
     sc = plan_scope(d, req, q_season, strict=False)
     sub, n = sc.sub, int(req.n_saplings)
@@ -1810,6 +1911,11 @@ def create_plan(d, req, season, sc, seed, layout, species_trees=None, topup=None
         summary["palette_warnings"] = []                               # the species mix of a top-up is fixed by what was lost, so the usual diversity notes do not apply
         summary.pop("species_selection", None)
     plan = field_flags_for_plan(d, plan)
+    if getattr(d, "hab", None):                                        # planting window touches Jul-Sep: the Habagat multiplier was applied to the squares of the Habagat barangays
+        plan, n_hab = habagat_flags_for_plan(d, plan)
+        summary["habagat"] = {**d.hab, "affected_trees": n_hab}
+        if n_hab:
+            summary["palette_warnings"] = list(summary.get("palette_warnings", [])) + [sr.HABAGAT_WARNING]
     plan_id, f, sj = save_plan(d, req.purpose, plan, summary)
     return render_plan(d, plan, summary, plan_id,
                        {"saved": {"plan_csv": f.name, "summary_json": sj.name, "folder": f"{d.cfg['data_dir']}/{rp.CFG['plans_dir']}"},
@@ -1818,7 +1924,7 @@ def create_plan(d, req, season, sc, seed, layout, species_trees=None, topup=None
 
 
 @app.post("/plan-event")
-def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(D)):
+def plan_event(req: PlanRequest, q_season=Depends(season_q), d=Depends(HD)):
     seed = d.cfg["default_seed"] if req.seed is None else req.seed
     layout = req.layout_mode or d.cfg["layout_mode"]
     sc = plan_scope(d, req, q_season, strict=True)
@@ -2013,6 +2119,7 @@ def plan_top_up(plan_id: str, request: Request, body: Optional[TopUpIn] = None, 
     season = None
     if snap.get("start") and snap.get("end"):
         season = parse_season(d.cfg, snap["start"], snap["end"], snap.get("season_filter") or "mark")
+    d = habagat_data(d, season)                                        # the same Habagat adjustment the parent plan was made with
     camp = snap.get("campaign")
     root_id, _ = plan_family(d, plan_id)
     root_summary = load_plan(d, root_id)[1] if root_id != plan_id else summary
@@ -2410,7 +2517,7 @@ def grid(purpose: Purpose,
          species_id: Optional[int] = Query(None, description="colour by this ONE species only (the original parameter)"),
          species_ids: Optional[str] = Query(None, description="comma-separated species ids, for example 1,2,3 (several species)"),
          mode: Literal["all", "any"] = Query("all", description="with species_ids: 'all' = lowest W, suitable only if every selected species is; 'any' = highest W"),
-         season=Depends(season_q), d=Depends(D)):
+         season=Depends(season_q), d=Depends(HD)):
     """Compact column arrays for every legal grid point: point_id, lon, lat, W, best_species_id, n_eligible_species, barangay."""
     drop = season_drop_ids(d, season)
     if species_ids is not None:
@@ -2451,7 +2558,7 @@ def geo_zones(d=Depends(D)):
 
 @app.get("/areas/rank")
 def areas_rank(purpose: Purpose, species_ids: str = Query(..., description="comma-separated species ids, for example 1,2,3"),
-               mode: Literal["all", "any"] = Query("all"), by: Literal["barangay", "zone"] = Query("barangay"), season=Depends(season_q), d=Depends(D)):
+               mode: Literal["all", "any"] = Query("all"), by: Literal["barangay", "zone"] = Query("barangay"), season=Depends(season_q), d=Depends(HD)):
     """Barangays (or zones) ranked for the selected species: mean W over the legal points, share of points suitable, number of suitable points."""
     ids = parse_species_ids(d, species_ids)
     drop = season_drop_ids(d, season)
@@ -2471,7 +2578,7 @@ class AreaRankRequest(BaseModel):
 
 
 @app.post("/rank/area")
-def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(D)):
+def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
     """Species ranked for a whole area (a barangay, a zone or a drawn polygon) plus the suggested mix with shares from the palette code."""
     ctx, cfg = d.ctx, d.cfg
     season = q_season

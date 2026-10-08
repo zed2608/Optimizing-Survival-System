@@ -18,7 +18,7 @@ import field_kit as fk  # noqa: E402
 import field_verify as fv  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-GRID_LIMIT = 250_000
+GRID_LIMIT = 280_000
 
 
 @pytest.fixture(scope="module")
@@ -242,8 +242,8 @@ def test_excluded_points_never_appear_in_plans_and_the_summary_reports_how_many(
     zone_plan = client.post("/plan-event", json={"purpose": "urban", "n_saplings": 30, "zone": "Forest Zone", "seed": 4}).json()
     forest_ex = sum(1 for p in ids if data.ctx.sites.zone_desc.iloc[data.legal_index[p]] == "Forest Zone")
     assert zone_plan["summary"]["field_checks"]["excluded_points"] == forest_ex and not set(p["point_id"] for p in zone_plan["plan"]) & set(ids)
-    assert client.post("/plan-event", json={"purpose": "urban", "n_saplings": 10, "zone": "Cemetery Zone"}).json()["summary"]["field_checks"]["excluded_points"] == \
-        sum(1 for p in ids if data.ctx.sites.zone_desc.iloc[data.legal_index[p]] == "Cemetery Zone")
+    assert client.post("/plan-event", json={"purpose": "urban", "n_saplings": 10, "zone": "Sanitary Landfill"}).json()["summary"]["field_checks"]["excluded_points"] == \
+        sum(1 for p in ids if data.ctx.sites.zone_desc.iloc[data.legal_index[p]] == "Sanitary Landfill")
 
 
 def test_verified_plantable_adds_a_badge_but_changes_no_score(client, data):
@@ -319,13 +319,13 @@ def test_the_switch_turns_the_exclusion_off(client, data, monkeypatch):
 def test_without_any_check_the_old_endpoints_are_unchanged(client, data):
     pid, lat, lon = pt(data)
     g = grid(client)
-    assert "field" not in g and g["n"] == 6251
+    assert "field" not in g and g["n"] == 6731
     W = np.where(data.ctx.S >= 0.5, data.ctx.S * data.ctx.P["urban"][None, :], 0.0)
     assert np.allclose(g["columns"]["W"], W.max(axis=1), atol=6e-4)
     r = client.get("/rank", params={"purpose": "urban", "lat": lat, "lon": lon}).json()
     assert "field_check" not in r and r["returned"] == 10
     a = client.get("/areas/rank", params={"purpose": "urban", "species_ids": "8", "mode": "any"}).json()["areas"]
-    assert all("not_plantable_points" not in x for x in a) and sum(x["legal_points"] for x in a) == 6251
+    assert all("not_plantable_points" not in x for x in a) and sum(x["legal_points"] for x in a) == 6731
     area = client.post("/rank/area", json={"purpose": "urban", "zone": "Forest Zone"}).json()["area"]
     assert "not_plantable_points" not in area and area["legal_points"] == 4368
     assert client.get("/nearest-viable", params={"purpose": "urban", "lat": lat, "lon": lon}).json()["already_viable"] is True
