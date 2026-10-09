@@ -111,7 +111,7 @@ export const TOUR_STEPS = [
     screen: 'studio',
     title: 'Zone, soil and warnings',
     text: 'The top of the panel shows the zone and its condition. A small Needs permission badge means the land needs a permit or the owner’s consent. Under it you see the soil and what the satellite shows on the ground, such as grass, trees or bare soil.',
-    watch: 'Soil and satellite ground cover are guides. Plain warnings, such as Check first or a heavy metals note, always come from a rule that is explained when you tap the question mark next to it.',
+    watch: 'Soil and satellite ground cover are guides. Plain warnings, such as Check first, a steep slope caution or a heavy metals note, always come from a rule that is explained when you tap the question mark next to it.',
     target: '.nw-right .nw-pcard',
   },
   {
@@ -297,6 +297,7 @@ export const FAQ = [
   { id: 'scores', topic: 'Map', q: 'What are site match, purpose fit and overall match?', a: 'Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers.', words: 'score S P W site fit purpose overall match 50' },
   { id: 'zoning-layer', topic: 'Map', q: 'How do I show the zoning colours?', a: 'Open Map view at the top right of the map and tick Zoning. A list shows the zones, the colours and how many squares each has. The colours follow the LGU style file. Untick it to hide the layer.', words: 'zoning layer colours map view toggle legend' },
   { id: 'map-view', topic: 'Map', q: 'What is in the Map view menu?', a: 'Simple or Detailed map, the map type (satellite or street map), the field-checked points, the planned trees, the Zoning layer, the satellite ground cover layer, and the faint squares that are not planting zones. Detailed adds every field-check symbol and the tree codes.', words: 'map view menu simple detailed satellite street layers' },
+  { id: 'slope-caution', topic: 'Warnings', q: 'What does the steep slope caution mean?', a: 'Each tree has a usual limit for how steep the land can be. A square a little steeper than that limit is not thrown out. It gets a lower score, and it only shows when it still passes. Plant on terraces or use contour planting, or choose another tree. A square much steeper is still left out. This rule is provisional until the adviser confirms it.', words: 'slope steep limit terraces contour graded caution' },
   { id: 'square', topic: 'Map', q: 'Is a dot an exact planting spot?', a: 'No. Each square is 100 metres wide, so a point means “this square”. The field team checks the real spot on the ground.', words: '100 m grid cell exact spot' },
   { id: 'search', topic: 'Search', q: 'What can I type in the search box?', a: 'A barangay (for example Santa Ana), a species name, a point number (for example 832), a plan point code from a saved plan, or map coordinates. Choosing a barangay shows its best species. Choosing a species shows where it grows. Choosing a point or coordinates opens that spot.', words: 'search find barangay species point coordinates' },
   { id: 'coordinates', topic: 'Search', q: 'Which coordinates can I type?', a: 'Latitude and longitude such as 14.69 121.12, with or without N and E, or UTM zone 51N numbers such as 296799 1625091. If the numbers cannot be read, you get a reason and nothing is guessed.', words: 'coordinates latitude longitude utm gps' },
@@ -348,7 +349,7 @@ export const FAQ = [
 ]
 
 export const GLOSSARY = [
-  { term: 'Site match', meaning: 'How well the land of a square suits a species: slope, height, soil, zone and rain. It is a number from 0 to 1.' },
+  { term: 'Site match', meaning: 'How well the land of a square suits a species: slope, height, soil, zone and rain. It is a number from 0 to 1. A square a little steeper than the tree\'s usual limit can still pass, with a lower score and a slope caution.' },
   { term: 'Purpose fit', meaning: 'How well a species suits what you want the trees for: shade in town, tree planting or watershed.' },
   { term: 'Overall match', meaning: 'Site match combined with purpose fit. It is zero if the site match is under 50%. The map colours show it.' },
   { term: 'Block', meaning: 'One 100 metre square planted close together at the spacing of its species. The planted area sits in the middle of the square.' },

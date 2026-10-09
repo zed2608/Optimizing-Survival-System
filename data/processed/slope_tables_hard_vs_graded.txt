@@ -1,0 +1,65 @@
+Slope rule: hard gate against graded (round 18b). Tables re-run with SLOPE_MODE graded; the hard results are kept in the files with the suffix _hard.
+
+MODEL COMPARISON: accuracy (mean over 5 folds; std in brackets), the label is S >= 0.50
+  setting      noise  model                                   hard           graded   change
+  random         0.0  DecisionTree                 0.9993 (0.0002)  0.9979 (0.0011)  -0.0014
+  random         0.0  KNN                          0.9672 (0.0038)  0.9674 (0.0026)  +0.0002
+  random         0.0  LogisticRegression           0.9869 (0.0014)  0.9848 (0.0017)  -0.0021
+  random         0.0  RandomForest                 0.9982 (0.0009)  0.9976 (0.0007)  -0.0006
+  random         0.0  RandomForest (calibrated)    0.9983 (0.0003)  0.9977 (0.0007)  -0.0006
+  random        0.05  DecisionTree                 0.9408 (0.0042)  0.9362 (0.0027)  -0.0046
+  random        0.05  KNN                          0.9196 (0.0043)  0.9186 (0.0031)  -0.0010
+  random        0.05  LogisticRegression           0.9284 (0.0035)  0.9247 (0.0010)  -0.0037
+  random        0.05  RandomForest                 0.9472 (0.0030)  0.9459 (0.0012)  -0.0013
+  random        0.05  RandomForest (calibrated)    0.9475 (0.0032)  0.9461 (0.0013)  -0.0014
+  spatial        0.0  DecisionTree                 0.9973 (0.0044)  0.9971 (0.0010)  -0.0002
+  spatial        0.0  KNN                          0.9644 (0.0034)  0.9651 (0.0039)  +0.0007
+  spatial        0.0  LogisticRegression           0.9865 (0.0024)  0.9838 (0.0022)  -0.0027
+  spatial        0.0  RandomForest                 0.9983 (0.0005)  0.9972 (0.0015)  -0.0011
+  spatial        0.0  RandomForest (calibrated)    0.9985 (0.0007)  0.9975 (0.0014)  -0.0010
+  spatial       0.05  DecisionTree                 0.9413 (0.0038)  0.9355 (0.0026)  -0.0058
+  spatial       0.05  KNN                          0.9175 (0.0063)  0.9167 (0.0053)  -0.0008
+  spatial       0.05  LogisticRegression           0.9278 (0.0033)  0.9239 (0.0059)  -0.0039
+  spatial       0.05  RandomForest                 0.9468 (0.0041)  0.9453 (0.0037)  -0.0015
+  spatial       0.05  RandomForest (calibrated)    0.9473 (0.0041)  0.9457 (0.0038)  -0.0016
+  species        0.0  DecisionTree                 0.9825 (0.0254)  0.9729 (0.0233)  -0.0096
+  species        0.0  KNN                          0.8712 (0.0539)  0.8743 (0.0475)  +0.0031
+  species        0.0  LogisticRegression           0.9817 (0.0201)  0.9791 (0.0214)  -0.0026
+  species        0.0  RandomForest                 0.9700 (0.0248)  0.9706 (0.0245)  +0.0006
+  species        0.0  RandomForest (calibrated)    0.9677 (0.0205)  0.9721 (0.0225)  +0.0044
+  species       0.05  DecisionTree                 0.9305 (0.0185)  0.9257 (0.0184)  -0.0048
+  species       0.05  KNN                          0.8350 (0.0505)  0.8361 (0.0418)  +0.0011
+  species       0.05  LogisticRegression           0.9234 (0.0169)  0.9191 (0.0167)  -0.0043
+  species       0.05  RandomForest                 0.9228 (0.0215)  0.9210 (0.0208)  -0.0018
+  species       0.05  RandomForest (calibrated)    0.9216 (0.0190)  0.9204 (0.0193)  -0.0012
+
+  random folds, noise 0.0: RF - DT accuracy: hard -0.0011, graded -0.0003
+  random folds, noise 0.05: RF - DT accuracy: hard +0.0064, graded +0.0097
+  spatial, noise 0.0: RF - DT accuracy: hard +0.0010, graded +0.0001
+  spatial, noise 0.05: RF - DT accuracy: hard +0.0055, graded +0.0098
+  species, noise 0.0: RF - DT accuracy: hard -0.0125, graded -0.0023
+  species, noise 0.05: RF - DT accuracy: hard -0.0077, graded -0.0047
+
+MATCHING BENCHMARK: total W of 300 trees (whole municipality), Hungarian against greedy
+  purpose    layout  method            total W hard  total W graded  placed hard  placed graded
+  planting   blocks  greedy                  6.8934          7.2048           12             12
+  planting   blocks  hungarian               6.8934          7.2048           12             12
+  planting   blocks  random_feasible         6.4424          6.6410           12             12
+  urban      blocks  greedy                 10.0394         10.7675           15             16
+  urban      blocks  hungarian              10.0394         10.7675           15             16
+  urban      blocks  random_feasible         9.6158         10.1516           15             16
+  watershed  blocks  greedy                  6.6580          6.6580           11             11
+  watershed  blocks  hungarian               6.6580          6.6580           11             11
+  watershed  blocks  random_feasible         6.0779          6.0596           11             11
+  planting   points  greedy                172.3692        180.1528          300            300
+  planting   points  hungarian             172.3692        180.1528          300            300
+  planting   points  random_feasible       162.2831        167.9109          300            300
+  urban      points  greedy                201.6537        201.9310          300            300
+  urban      points  hungarian             201.6537        201.9310          300            300
+  urban      points  random_feasible       192.6438        190.6900          300            300
+  watershed  points  greedy                184.5450        184.5450          300            300
+  watershed  points  hungarian             184.5450        184.5450          300            300
+  watershed  points  random_feasible       169.1053        168.0026          300            300
+
+  hard: Hungarian total = greedy total in every purpose and layout: True (largest gap 0.000000)
+  graded: Hungarian total = greedy total in every purpose and layout: True (largest gap 0.000000)

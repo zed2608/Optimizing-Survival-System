@@ -77,3 +77,12 @@ test('the cut-offs are the ones of the map colours in v2/config.js', () => {
   assert.equal(Number(cfg.match(/W_GOOD\s*=\s*([\d.]+)/)[1]), W_GOOD)
   assert.equal(Number(cfg.match(/W_MODERATE\s*=\s*([\d.]+)/)[1]), W_MODERATE)
 })
+
+test('the steep slope caution (graded slope rule, round 18) is in plain words and in the verdict', () => {
+  const caution = "Slope is steeper than this tree's usual limit. Plant on terraces or use contour planting, or choose another tree."
+  assert.equal(plainFlag('slope_graded'), caution)
+  const s = verdictSentence({ common_name: 'Molave', W: 0.6, eligible: true }, ['slope_graded'])
+  assert.ok(s.includes(caution), s)
+  assert.ok(!/[_=]/.test(caution))
+  assert.ok(!verdictSentence({ common_name: 'Molave', W: 0.6, eligible: true }, []).includes('terraces'))
+})

@@ -260,7 +260,7 @@ def test_why_none_suit_the_square_numbers_match_the_species_table(client, data):
     slope = next(f for f in lf["factors"] if f["gate"] == "slope")
     assert slope["species_excluded"] == int((sp.max_slope_pct < steep.slope_pct).sum()) == 45
     assert slope["species_limit_min"] == 15 and slope["species_limit_max"] == 70 and slope["square_value"] == pytest.approx(steep.slope_pct)
-    assert f"Slope {steep.slope_pct:.0f}% is steeper than the limit of every species (highest allowed: 70%)." in lf["messages"]
+    assert f"Slope {steep.slope_pct:.0f}% is too steep for every species, even with the small extra allowance above their usual limit (highest limit: 70%)." in lf["messages"]
     assert [f["gate"] for f in lf["factors"]] == ["zone", "elevation", "slope", "soil"]
     el = next(f for f in lf["factors"] if f["gate"] == "elevation")
     assert el["species_excluded"] == int(((sp.elev_min_m > steep.elev_m) | (sp.elev_max_m < steep.elev_m)).sum())

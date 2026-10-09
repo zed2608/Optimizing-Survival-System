@@ -3,6 +3,7 @@ import Icon from './Icon.jsx'
 
 // Words for the flags that were added after the first dashboard (the earlier word list in v2/labels.js is left as it was).
 const EXTRA = {
+  slope_graded: { label: "Slope is steeper than this tree's usual limit. Plant on terraces or use contour planting, or choose another tree.", help: 'This pair passes only because the slope rule lets a square a little steeper than the usual limit through, with a lower score. It is provisional until the adviser confirms it.', icon: 'mountain' },
   zoning_unconfirmed: { label: 'Land outside our zoning map', help: 'Outside our zoning map. The CLUP 2021-2031 shows this land as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting.', icon: 'dotring' },
   soil_provisional: { label: 'Soil: LGU map, provisional', help: 'Soil from the LGU soil map, digitized by us: provisional, not yet verified by the agriculturist.', icon: 'layers' },
   ground_bare: { label: 'Looks bare in satellite land cover', help: 'Satellite land cover (2021) looks bare: check on the ground before planting.', icon: 'mountain' },

@@ -1,0 +1,31 @@
+table,setting,noise,model,hard,graded,change
+model_comparison_accuracy,random,0.0,RandomForest,0.9982,0.9976,-0.0006
+model_comparison_accuracy,random,0.0,LogisticRegression,0.9869,0.9848,-0.0021
+model_comparison_accuracy,random,0.0,KNN,0.9672,0.9674,0.0002
+model_comparison_accuracy,random,0.0,DecisionTree,0.9993,0.9979,-0.0014
+model_comparison_accuracy,random,0.0,RandomForest (calibrated),0.9983,0.9977,-0.0006
+model_comparison_accuracy,random,0.05,RandomForest,0.9472,0.9459,-0.0013
+model_comparison_accuracy,random,0.05,LogisticRegression,0.9284,0.9247,-0.0037
+model_comparison_accuracy,random,0.05,KNN,0.9196,0.9186,-0.001
+model_comparison_accuracy,random,0.05,DecisionTree,0.9408,0.9362,-0.0046
+model_comparison_accuracy,random,0.05,RandomForest (calibrated),0.9475,0.9461,-0.0014
+model_comparison_accuracy,spatial,0.0,RandomForest,0.9983,0.9972,-0.0011
+model_comparison_accuracy,spatial,0.0,LogisticRegression,0.9865,0.9838,-0.0027
+model_comparison_accuracy,spatial,0.0,KNN,0.9644,0.9651,0.0007
+model_comparison_accuracy,spatial,0.0,DecisionTree,0.9973,0.9971,-0.0002
+model_comparison_accuracy,spatial,0.0,RandomForest (calibrated),0.9985,0.9975,-0.001
+model_comparison_accuracy,spatial,0.05,RandomForest,0.9468,0.9453,-0.0015
+model_comparison_accuracy,spatial,0.05,LogisticRegression,0.9278,0.9239,-0.0039
+model_comparison_accuracy,spatial,0.05,KNN,0.9175,0.9167,-0.0008
+model_comparison_accuracy,spatial,0.05,DecisionTree,0.9413,0.9355,-0.0058
+model_comparison_accuracy,spatial,0.05,RandomForest (calibrated),0.9473,0.9457,-0.0016
+model_comparison_accuracy,species,0.0,RandomForest,0.97,0.9706,0.0006
+model_comparison_accuracy,species,0.0,LogisticRegression,0.9817,0.9791,-0.0026
+model_comparison_accuracy,species,0.0,KNN,0.8712,0.8743,0.0031
+model_comparison_accuracy,species,0.0,DecisionTree,0.9825,0.9729,-0.0096
+model_comparison_accuracy,species,0.0,RandomForest (calibrated),0.9677,0.9721,0.0044
+model_comparison_accuracy,species,0.05,RandomForest,0.9228,0.921,-0.0018
+model_comparison_accuracy,species,0.05,LogisticRegression,0.9234,0.9191,-0.0043
+model_comparison_accuracy,species,0.05,KNN,0.835,0.8361,0.0011
+model_comparison_accuracy,species,0.05,DecisionTree,0.9305,0.9257,-0.0048
+model_comparison_accuracy,species,0.05,RandomForest (calibrated),0.9216,0.9204,-0.0012

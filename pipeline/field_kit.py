@@ -66,10 +66,12 @@ FLAG_NOTES = {
     "ground_bare": "Satellite land cover (2021) looks bare: check on the ground before planting.",
     "rehab_site_food_warning": "Fruit or produce from a landfill or mining site may hold heavy metals; do not plan to eat or sell it without testing.",
     "habagat_washout": "Heavy rain and flooding (Habagat) can wash out seedlings here in Jul-Sep.",
+    "slope_graded": "Slope is steeper than this tree's usual limit. Plant on terraces or use contour planting, or choose another tree.",
     "ground_built_up": "Satellite land cover (2021) looks built-up: check on the ground before planting.",
     "ground_water": "Satellite land cover (2021) looks like water or wetland: check on the ground before planting.",
 }
 PLAIN_WARNINGS = {
+    "slope_graded": "Slope is steeper than this tree's usual limit. Plant on terraces or use contour planting, or choose another tree.",
     "soil_provisional": "Soil from the LGU soil map (provisional)",
     "ground_built_up": "Looks built-up in the satellite land cover: check on the ground first",
     "ground_bare": "Looks bare in the satellite land cover: check on the ground first",

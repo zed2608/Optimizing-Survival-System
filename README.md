@@ -97,6 +97,17 @@ python pipeline/run_plan.py --benchmark --out data/processed
 
 A plan can also be made without the dashboard: `python pipeline/run_plan.py --purpose urban --n-saplings 300` (here 300 means trees, planted in blocks).
 
+## Help, tour and user guide
+
+The dashboard has a guided tour (Help, Take the tour again), a Help page with questions and answers, and a printable guide. All the wording lives in ONE file: `frontend/src/new/tutorial/tutorialContent.js`. To change a sentence, edit that file and rebuild the guide:
+
+```powershell
+node scripts/build_user_guide.mjs           # rewrites docs/USER_GUIDE.md from the tour and Help text
+node scripts/build_user_guide.mjs --check   # fails if docs/USER_GUIDE.md is out of date
+```
+
+Do not edit `docs/USER_GUIDE.md` by hand. The Help page also has a Print this guide button.
+
 ## Tests and quality checks
 
 ```powershell
@@ -132,7 +143,11 @@ The tests use temporary copies for plans and field checks, so they do not change
 - **Planting months are unverified**: all 45 species have planting months from May to September only. In October and November no species is "in season" (the dashboard says so and offers a jump to the next season).
 - Satellite ground cover is about **76.7 percent accurate worldwide** (not measured for San Mateo): information only.
 - Some source data is unverified: 34 cells cite a file we do not have (Batikuling), 30 cite sources outside the supplied list, 20 citations are non-standard.
+- **Slope rule is graded and provisional** (round 18, a team decision, the adviser confirms): a square a little steeper than a tree's limit can still pass with a lower score and a caution; much steeper is still rejected. `SLOPE_MODE = "hard"` restores the old gate. The pair table, model comparison and matching benchmark were re-run with it (the results of the hard gate are kept in the files with the suffix `_hard`). Slope is in percent everywhere. See `docs/SLOPE_RULE.md`.
 - Field checks carry only a typed name (no login yet).
+- **Interview answers are provisional** (MPDC forms of 7 Oct 2026, MAO interview of Oct 2026): zone rules and permissions, the landfill / mining food warning, the nursery list, purpose tags and species notes. They show a "Provisional" label. See `docs/INTERVIEW_FINDINGS.md` for what was applied and what is deferred.
+- **Habagat (heavy rain, flooding):** for Maly, Dulong Bayan I and II and Santa Ana the ranking score W is lowered by 20% when the planting dates touch July to September. So scores in those barangays now depend on the planting month. Site suitability S does not change.
+- Optional map layers: **Zoning** (Map view menu, off by default) and the field-check colours (planted, plantable, needs recheck, not plantable, water, paved / building / rock) are the same on the map, the progress tab and the field map PDF.
 - The weather forecast covers 16 days and needs the internet.
 
 ## The dataset release

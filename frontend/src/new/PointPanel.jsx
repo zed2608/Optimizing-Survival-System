@@ -5,7 +5,7 @@ import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
 import ScoreChip from '../v2/components/ScoreChip.jsx'
 import MatchChip from './MatchChip.jsx'
-import { matchLevel, verdictSentence } from './plainWords.js'
+import { SLOPE_CAUTION, matchLevel, verdictSentence } from './plainWords.js'
 import { wLevel } from '../v2/scale.js'
 import { friendlyNotRankable, purposeLabel } from '../v2/labels.js'
 import BlockLayout from './BlockLayout.jsx'
@@ -36,6 +36,11 @@ function ResultRow({ item, point, onInfo, full }) {
         {full ? <ScoreChip w={item.W} eligible={item.eligible} /> : <MatchChip w={item.W} eligible={item.eligible} />}
         <SeasonBadge season={item.season} strip={false} best={false} />
       </div>
+      {item.eligible && item.flags?.includes('slope_graded') && (
+        <p className="nw-prow-caution" data-caution="slope">
+          <Icon name="mountain" size={14} /> {SLOPE_CAUTION}
+        </p>
+      )}
       <details className="nw-pdetails" open={full || undefined}>
         <summary>
           Details<span className="sr-only"> for {item.common_name}</span>

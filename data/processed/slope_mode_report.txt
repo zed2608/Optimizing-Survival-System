@@ -1,0 +1,97 @@
+Slope rule: hard gate against the graded rule (round 18). PROVISIONAL: a team decision, the adviser confirms.
+Slope unit: percent (site slope_pct against species max_slope_pct). The graded margin is 25% of the species limit.
+Pairs scored: 360,450 (8,010 squares x 45 species)
+Eligible pairs (S >= 0.50): hard 249,389   graded 257,869   newly eligible 8,480   lost 0
+Pairs whose S changed: 34,524; every pair that was eligible under the hard gate keeps exactly the same S: True
+Newly eligible pairs on squares: 1,508 different squares, 45 different species
+
+How far over the limit the newly eligible pairs are (percentage points of slope, and as a share of the limit):
+  median 0.7 points (2.4%); largest 4.4 points (8.3%)
+
+Species that gain the most (newly eligible pairs; share of their eligible pairs under the hard gate):
+  Sampalok                     + 370  (hard  5639, +6.6%)
+  Weeping Fig (Balete)         + 324  (hard  5639, +5.7%)
+  Duhat                        + 324  (hard  5639, +5.7%)
+  Guava                        + 292  (hard  4874, +6.0%)
+  Talisay                      + 238  (hard  5639, +4.2%)
+  Peacock Flower Tree          + 238  (hard  5638, +4.2%)
+  Santol                       + 238  (hard  5637, +4.2%)
+  Salinggogon                  + 238  (hard  5638, +4.2%)
+  Balai Lamok                  + 238  (hard  5639, +4.2%)
+  Atsuete                      + 238  (hard  5638, +4.2%)
+  species with no gain: 0
+
+Newly eligible pairs on a steep square (slope above 57.7 percent, the setting STEEP_SQUARE_SLOPE_PCT; about 30 degrees): 72
+  by species: Molave 59, Clumping Bamboo 13; steepest square 74.4 percent
+  point 15230  Clumping Bamboo  slope 74.4 percent, species limit 70 percent, over by 4.4 points, S 0.501, zone outside the zoning map, zoning unconfirmed
+  point 8031  Clumping Bamboo  slope 73.7 percent, species limit 70 percent, over by 3.7 points, S 0.525, zone Institutional Research Zone, zoning confirmed
+  point 10231  Clumping Bamboo  slope 73.5 percent, species limit 70 percent, over by 3.5 points, S 0.531, zone Forest Zone, zoning confirmed
+  point 14565  Clumping Bamboo  slope 72.7 percent, species limit 70 percent, over by 2.7 points, S 0.564, zone outside the zoning map, zoning unconfirmed
+  point 10228  Clumping Bamboo  slope 72.5 percent, species limit 70 percent, over by 2.5 points, S 0.571, zone Forest Zone, zoning confirmed
+  point 9362  Clumping Bamboo  slope 71.4 percent, species limit 70 percent, over by 1.4 points, S 0.614, zone Forest Zone, zoning confirmed
+  point 9608  Clumping Bamboo  slope 71.4 percent, species limit 70 percent, over by 1.4 points, S 0.518, zone Forest Zone, zoning confirmed
+  point 6801  Clumping Bamboo  slope 71.1 percent, species limit 70 percent, over by 1.1 points, S 0.626, zone Forest Zone, zoning confirmed
+  point 7246  Clumping Bamboo  slope 71.0 percent, species limit 70 percent, over by 0.9 points, S 0.630, zone Forest Zone, zoning confirmed
+  point 13913  Clumping Bamboo  slope 71.0 percent, species limit 70 percent, over by 0.9 points, S 0.630, zone outside the zoning map, zoning unconfirmed
+  point 7808  Clumping Bamboo  slope 70.6 percent, species limit 70 percent, over by 0.6 points, S 0.544, zone Institutional Research Zone, zoning confirmed
+  point 7254  Clumping Bamboo  slope 70.2 percent, species limit 70 percent, over by 0.2 points, S 0.557, zone Forest Zone, zoning confirmed
+  point 11819  Clumping Bamboo  slope 70.1 percent, species limit 70 percent, over by 0.1 points, S 0.664, zone Forest Zone, zoning confirmed
+  point 14786  Molave  slope 63.7 percent, species limit 60 percent, over by 3.7 points, S 0.500, zone outside the zoning map, zoning unconfirmed
+  point 13461  Molave  slope 63.7 percent, species limit 60 percent, over by 3.7 points, S 0.504, zone outside the zoning map, zoning unconfirmed
+  point 9363  Molave  slope 63.4 percent, species limit 60 percent, over by 3.4 points, S 0.515, zone Forest Zone, zoning confirmed
+  point 12726  Molave  slope 63.3 percent, species limit 60 percent, over by 3.3 points, S 0.518, zone Forest Zone, zoning confirmed
+  point 8463  Molave  slope 63.3 percent, species limit 60 percent, over by 3.3 points, S 0.521, zone Forest Zone, zoning confirmed
+  point 11701  Molave  slope 63.1 percent, species limit 60 percent, over by 3.1 points, S 0.529, zone Forest Zone, zoning confirmed
+  point 7245  Molave  slope 63.0 percent, species limit 60 percent, over by 3.0 points, S 0.533, zone Forest Zone, zoning confirmed
+  point 8471  Molave  slope 62.9 percent, species limit 60 percent, over by 2.9 points, S 0.538, zone Forest Zone, zoning confirmed
+  point 12830  Molave  slope 62.8 percent, species limit 60 percent, over by 2.8 points, S 0.541, zone Forest Zone, zoning confirmed
+  point 14678  Molave  slope 62.8 percent, species limit 60 percent, over by 2.8 points, S 0.544, zone outside the zoning map, zoning unconfirmed
+  point 7136  Molave  slope 62.7 percent, species limit 60 percent, over by 2.7 points, S 0.545, zone Forest Zone, zoning confirmed
+  point 12839  Molave  slope 62.7 percent, species limit 60 percent, over by 2.7 points, S 0.548, zone Forest Zone, zoning confirmed
+  point 13404  Molave  slope 62.6 percent, species limit 60 percent, over by 2.6 points, S 0.549, zone Forest Zone, zoning confirmed
+  point 7800  Molave  slope 62.6 percent, species limit 60 percent, over by 2.6 points, S 0.549, zone Institutional Research Zone, zoning confirmed
+  point 14024  Molave  slope 62.6 percent, species limit 60 percent, over by 2.6 points, S 0.552, zone outside the zoning map, zoning unconfirmed
+  point 12499  Molave  slope 62.5 percent, species limit 60 percent, over by 2.5 points, S 0.555, zone Forest Zone, zoning confirmed
+  point 13348  Molave  slope 62.4 percent, species limit 60 percent, over by 2.4 points, S 0.558, zone outside the zoning map, zoning unconfirmed
+  point 12613  Molave  slope 62.4 percent, species limit 60 percent, over by 2.4 points, S 0.562, zone Forest Zone, zoning confirmed
+  point 12604  Molave  slope 62.3 percent, species limit 60 percent, over by 2.3 points, S 0.565, zone Forest Zone, zoning confirmed
+  point 14889  Molave  slope 62.2 percent, species limit 60 percent, over by 2.2 points, S 0.568, zone outside the zoning map, zoning unconfirmed
+  point 17100  Molave  slope 62.2 percent, species limit 60 percent, over by 2.2 points, S 0.569, zone outside the zoning map, zoning unconfirmed
+  point 9898  Molave  slope 62.2 percent, species limit 60 percent, over by 2.2 points, S 0.570, zone Forest Zone, zoning confirmed
+  point 14674  Molave  slope 62.1 percent, species limit 60 percent, over by 2.1 points, S 0.574, zone outside the zoning map, zoning unconfirmed
+  point 15121  Molave  slope 62.1 percent, species limit 60 percent, over by 2.1 points, S 0.574, zone outside the zoning map, zoning unconfirmed
+  point 13912  Molave  slope 62.1 percent, species limit 60 percent, over by 2.1 points, S 0.575, zone outside the zoning map, zoning unconfirmed
+  point 12951  Molave  slope 61.9 percent, species limit 60 percent, over by 1.9 points, S 0.583, zone Forest Zone, zoning confirmed
+  point 13035  Molave  slope 61.5 percent, species limit 60 percent, over by 1.5 points, S 0.598, zone outside the zoning map, zoning unconfirmed
+  point 9901  Molave  slope 61.4 percent, species limit 60 percent, over by 1.4 points, S 0.604, zone Forest Zone, zoning confirmed
+  point 6145  Molave  slope 61.4 percent, species limit 60 percent, over by 1.4 points, S 0.510, zone Forest Zone, zoning confirmed
+  point 9899  Molave  slope 61.4 percent, species limit 60 percent, over by 1.4 points, S 0.606, zone Forest Zone, zoning confirmed
+  point 14781  Molave  slope 61.4 percent, species limit 60 percent, over by 1.4 points, S 0.607, zone outside the zoning map, zoning unconfirmed
+  point 13801  Molave  slope 61.3 percent, species limit 60 percent, over by 1.3 points, S 0.608, zone outside the zoning map, zoning unconfirmed
+  point 8239  Molave  slope 61.3 percent, species limit 60 percent, over by 1.3 points, S 0.609, zone Forest Zone, zoning confirmed
+  point 14371  Molave  slope 61.3 percent, species limit 60 percent, over by 1.3 points, S 0.610, zone outside the zoning map, zoning unconfirmed
+  point 12501  Molave  slope 61.3 percent, species limit 60 percent, over by 1.3 points, S 0.611, zone Forest Zone, zoning confirmed
+  point 9254  Molave  slope 61.2 percent, species limit 60 percent, over by 1.2 points, S 0.612, zone Forest Zone, zoning confirmed
+  point 12615  Molave  slope 61.2 percent, species limit 60 percent, over by 1.2 points, S 0.612, zone Forest Zone, zoning confirmed
+  point 5263  Molave  slope 61.2 percent, species limit 60 percent, over by 1.2 points, S 0.517, zone Forest Zone, zoning confirmed
+  point 7142  Molave  slope 61.1 percent, species limit 60 percent, over by 1.1 points, S 0.519, zone Forest Zone, zoning confirmed
+  point 8461  Molave  slope 61.1 percent, species limit 60 percent, over by 1.1 points, S 0.617, zone Forest Zone, zoning confirmed
+  point 8476  Molave  slope 61.0 percent, species limit 60 percent, over by 1.0 points, S 0.621, zone Forest Zone, zoning confirmed
+  point 5718  Molave  slope 61.0 percent, species limit 60 percent, over by 1.0 points, S 0.525, zone Forest Zone, zoning confirmed
+  point 5366  Molave  slope 60.9 percent, species limit 60 percent, over by 0.9 points, S 0.527, zone Forest Zone, zoning confirmed
+  point 10005  Molave  slope 60.8 percent, species limit 60 percent, over by 0.8 points, S 0.632, zone Forest Zone, zoning confirmed
+  point 12704  Molave  slope 60.7 percent, species limit 60 percent, over by 0.7 points, S 0.634, zone Forest Zone, zoning confirmed
+  point 5698  Molave  slope 60.7 percent, species limit 60 percent, over by 0.7 points, S 0.536, zone Forest Zone, zoning confirmed
+  point 13125  Molave  slope 60.6 percent, species limit 60 percent, over by 0.6 points, S 0.641, zone outside the zoning map, zoning unconfirmed
+  point 7593  Molave  slope 60.5 percent, species limit 60 percent, over by 0.5 points, S 0.542, zone Forest Zone, zoning confirmed
+  point 11034  Molave  slope 60.5 percent, species limit 60 percent, over by 0.5 points, S 0.643, zone Forest Zone, zoning confirmed
+  point 12492  Molave  slope 60.5 percent, species limit 60 percent, over by 0.5 points, S 0.643, zone Forest Zone, zoning confirmed
+  point 10121  Molave  slope 60.5 percent, species limit 60 percent, over by 0.5 points, S 0.643, zone Forest Zone, zoning confirmed
+  point 14901  Molave  slope 60.4 percent, species limit 60 percent, over by 0.4 points, S 0.649, zone outside the zoning map, zoning unconfirmed
+  point 9143  Molave  slope 60.4 percent, species limit 60 percent, over by 0.4 points, S 0.649, zone Forest Zone, zoning confirmed
+  point 14550  Molave  slope 60.4 percent, species limit 60 percent, over by 0.4 points, S 0.650, zone outside the zoning map, zoning unconfirmed
+  point 7578  Molave  slope 60.2 percent, species limit 60 percent, over by 0.2 points, S 0.656, zone Forest Zone, zoning confirmed
+  point 6257  Molave  slope 60.1 percent, species limit 60 percent, over by 0.1 points, S 0.557, zone Forest Zone, zoning confirmed
+  point 14784  Molave  slope 60.1 percent, species limit 60 percent, over by 0.1 points, S 0.661, zone outside the zoning map, zoning unconfirmed
+  point 9144  Molave  slope 60.0 percent, species limit 60 percent, over by 0.0 points, S 0.665, zone Forest Zone, zoning confirmed
+  point 7928  Molave  slope 60.0 percent, species limit 60 percent, over by 0.0 points, S 0.561, zone Forest Zone, zoning confirmed

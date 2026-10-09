@@ -877,3 +877,5 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
 .nw-advice-list li svg { margin-top: 3px; color: #047857; }
 .nw-advice-src { font-size: 12px; }
 .nw-advice-more { margin: 6px 0 0; font-size: 12px; }
+.nw-prow-caution { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0 2px; padding: 6px 8px; background: #fff7e0; border-radius: var(--nw-radius, 8px); font-size: 13px; color: #5b4a12; }
+.nw-prow-caution svg { flex: none; margin-top: 2px; }

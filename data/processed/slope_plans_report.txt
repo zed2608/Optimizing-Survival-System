@@ -1,0 +1,22 @@
+Saved plans: would they come out different with the graded slope rule? (round 18b)
+Method: each saved request is made again on two copies of the current data, scored hard and graded. Nothing in the plans folder is changed or deleted.
+'rule effect' = the graded result differs from the hard result of today (squares or species). 'since saved' = the hard result of today differs from the saved plan (other changes since it was made, for example the zone rules).
+
+plan                             trees rebuilt from   rule effect  squares changed species changed since saved 
+plan_planting_20261005_021813      300 summary (approx) DIFFERS                  564               0 differs     
+plan_urban_20261005_021810         300 summary (approx) DIFFERS                  560               0 differs     
+plan_urban_20261006_233620          50 saved request  same                       0               0 differs     
+plan_urban_20261007_081540          50 saved request  same                       0               0 differs     
+plan_urban_20261007_085921-2        30 saved request  same                       0               0 same        
+plan_urban_20261007_085921          50 saved request  same                       0               0 same        
+plan_urban_20261007_100429-2        30 saved request  same                       0               0 same        
+plan_urban_20261007_100429          50 saved request  same                       0               0 same        
+plan_urban_20261007_100453-2        30 saved request  same                       0               0 same        
+plan_urban_20261007_100453          50 saved request  same                       0               0 same        
+plan_urban_20261007_103959-2        30 saved request  same                       0               0 same        
+plan_urban_20261007_103959          50 saved request  same                       0               0 same        
+plan_urban_20261007_115606-2        30 saved request  same                       0               0 same        
+plan_urban_20261007_115606          50 saved request  same                       0               0 same        
+plan_watershed_20261005_021824     300 summary (approx) DIFFERS                  560               2 differs     
+
+3 of 15 saved plans would come out different with the graded rule on today's data.

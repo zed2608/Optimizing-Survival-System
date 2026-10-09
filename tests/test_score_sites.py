@@ -69,7 +69,7 @@ def test_lower_edge_falloff_when_min_above_zero():
 
 # ---- other gates
 def test_slope_above_max_gets_zero_and_inside_margin_is_penalised():
-    assert score(st=site(slope_pct=31.0)).s_rule == 0.0
+    assert score(st=site(slope_pct=31.0), slope_mode="hard").s_rule == 0.0              # the hard gate (SLOPE_MODE "hard", the rule before round 18)
     assert score(st=site(slope_pct=28.5)).f_slope == pytest.approx(0.5)      # margin 3 %, 1.5 below max
     assert score(st=site(slope_pct=10.0)).f_slope == 1.0
 

@@ -39,7 +39,9 @@ export function plainWarning(text) {
 }
 
 // Flag codes (the "flags" of a ranked species or planted block) in plain words, the same wording as the printed field kit.
+export const SLOPE_CAUTION = "Slope is steeper than this tree's usual limit. Plant on terraces or use contour planting, or choose another tree."
 const FLAGS = {
+  slope_graded: SLOPE_CAUTION,
   soil_provisional: 'Soil from the LGU soil map (provisional)',
   ground_built_up: 'Looks built-up in the satellite land cover: check on the ground first',
   ground_bare: 'Looks bare in the satellite land cover: check on the ground first',
@@ -83,6 +85,7 @@ export function verdictSentence(item, flags = [], opts = {}) {
   else if (st === 'partly') s += ' Partly in its planting months.'
   else if (st === 'out_of_season') s += ' Outside its best months.'
   if (flags.some((f) => GROUND_FLAGS.includes(f)) || opts.check) s += ' Check the ground first.'
+  if (flags.includes('slope_graded')) s += ` ${SLOPE_CAUTION}`
   return s
 }
 

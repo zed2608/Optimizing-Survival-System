@@ -798,8 +798,12 @@ def limiting_factors(d, pt, items, n_suit, requested):
     ex = gates["slope"]
     m = None
     if ex and slope is not None:
-        m = (f"Slope {slope:.0f}% is steeper than the limit of every species (highest allowed: {smax:.0f}%)." if ex == n else
-             f"Slope {slope:.0f}% is steeper than the limit of {ex} of {n} species (the limits run from {smin:.0f}% to {smax:.0f}%).")
+        if d.score_run.get("slope_mode") == "graded":                   # the graded rule lets a square a little steeper than the limit through: the excluded ones are too steep even with that allowance
+            m = (f"Slope {slope:.0f}% is too steep for every species, even with the small extra allowance above their usual limit (highest limit: {smax:.0f}%)." if ex == n else
+                 f"Slope {slope:.0f}% is too steep for {ex} of {n} species, even with the small extra allowance above their usual limit (the limits run from {smin:.0f}% to {smax:.0f}%).")
+        else:
+            m = (f"Slope {slope:.0f}% is steeper than the limit of every species (highest allowed: {smax:.0f}%)." if ex == n else
+                 f"Slope {slope:.0f}% is steeper than the limit of {ex} of {n} species (the limits run from {smin:.0f}% to {smax:.0f}%).")
     f_.append({"gate": "slope", "label": "Slope", "species_excluded": ex, "n_species": n, "square_value": slope, "unit": "%", "species_limit_min": smin, "species_limit_max": smax, "message": m})
     ex = gates["soil"]
     m = None
@@ -982,6 +986,8 @@ def load_data(cfg=None):
     d.interview_notes = {int(k): g[["note", "source", "provisional"]].to_dict("records") for k, g in it.groupby("species_id")} if it is not None else {}
     pf = root / "species_partners.csv"                                  # "Works well with": starting rules from pipeline/partners.py (provisional)
     d.partners = pd.read_csv(pf) if pf.is_file() else None
+    run_info = root / "scores" / "score_run.json"                        # how the saved scores were made (round 18: slope_mode graded | hard)
+    d.score_run = json.loads(run_info.read_text(encoding="utf-8")) if run_info.is_file() else {"slope_mode": "hard"}   # scores made before round 18 used the hard gate
     d.advice_rules = sva.load_rules(root)                                 # round 17: data/processed/survival_advice.csv (wording and source of every advice rule; provisional)
     d.landcover = pd.read_csv(lcf).set_index("point_id") if lcf.is_file() else None
     d.landcover_body = build_landcover_body(d) if d.landcover is not None else None
@@ -1234,6 +1240,7 @@ def flags_for(d, species_id, breakdown, conf):
 def health(d=Depends(D)):
     ctx = d.ctx
     return {"status": "ok", "dataset_version": d.dataset.get("tag"), "dataset_file_hash": d.dataset.get("file_hash"),
+            "slope_mode": d.score_run.get("slope_mode"), "slope_graded_margin_fraction": d.score_run.get("slope_graded_margin_fraction"),
             "dataset_hash": d.dataset.get("combined_hash12"), "dataset_species_file_sha256": d.dataset.get("file_hash"), "dataset_sources_file_sha256": d.dataset.get("sources_file_hash"),
             "dataset_note": d.dataset.get("note"),
             "dataset": d.dataset, "scores_file": str(ctx.scores_path.relative_to(ROOT)) if ctx.scores_path.is_relative_to(ROOT) else str(ctx.scores_path),

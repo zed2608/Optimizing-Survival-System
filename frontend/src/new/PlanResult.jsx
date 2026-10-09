@@ -64,8 +64,11 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
   const nGround = gc?.flagged_trees ?? 0
   const nZoning = zn?.unconfirmed_trees ?? 0
   const shortfall = counts ? counts.per_species.filter((r) => r.unplaced > 0) : []
-  const flaggedItems = items.filter((it) => nGround > 0 && it.flags.some((f) => GROUND_FLAGS.includes(f)) || nZoning > 0 && it.flags.includes('zoning_unconfirmed'))
-  const checkFirst = nGround > 0 || nZoning > 0 || shortfall.length > 0
+  const slopeItems = items.filter((it) => it.flags.includes('slope_graded')) // eligible only because of the graded slope rule (round 18)
+  const nSlope = slopeItems.reduce((a, it) => a + (it.trees_planned ?? 1), 0)
+  const nAll = items.reduce((a, it) => a + (it.trees_planned ?? 1), 0)
+  const flaggedItems = items.filter((it) => nGround > 0 && it.flags.some((f) => GROUND_FLAGS.includes(f)) || nZoning > 0 && it.flags.includes('zoning_unconfirmed') || it.flags.includes('slope_graded'))
+  const checkFirst = nGround > 0 || nZoning > 0 || nSlope > 0 || shortfall.length > 0
 
   // "Good to know": plain notes, each with an icon and a "Why?" tip
   const notes = []
@@ -161,6 +164,11 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
             {nZoning > 0 && (
               <li>
                 <Icon name="dotring" size={14} /> {nZoning} of {zn.placed_trees} trees are on land outside our zoning map (CLUP: Forest Reserve, Watershed). Coordinate with MENRO and DENR before planting.
+              </li>
+            )}
+            {nSlope > 0 && (
+              <li>
+                <Icon name="mountain" size={14} /> {nSlope} of {nAll} trees are on squares steeper than the tree&apos;s usual limit. Plant on terraces or use contour planting, or choose another tree.
               </li>
             )}
             {shortfall.map((r) => (

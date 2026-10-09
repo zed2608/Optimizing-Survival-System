@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT / "pipeline"))
 import score_sites as ss  # noqa: E402
 
 S_MIN = 0.50                                   # S >= this = the model says "suitable" (the cut-off of all plans)
+SLOPE_MODE_SAMPLE = "hard"                        # the printed sheet was made with the hard slope gate: score it that way (round 18)
 MARKS = ROOT / "data" / "validation" / "agri_sample_marks_20261007.csv"
 
 
@@ -58,7 +59,7 @@ def load_scores(sites_needed=None):
         sites = sites[sites.point_id.isin(sites_needed)].copy()
     water = ss.distance_to_water(sites, str(ROOT / "data" / "SMR_WATERBODIES_POLY.shp"))
     sites["water_dist_m"] = water.to_numpy()
-    return species, sites, ss.score_pairs(species, sites)
+    return species, sites, ss.score_pairs(species, sites, slope_mode=SLOPE_MODE_SAMPLE)
 
 
 def alt_slope_scores(species, sites, pairs):
@@ -115,6 +116,8 @@ def main(argv=None):
     stored = {(int(a), int(b)): c for a, b, c in con.execute("select point_id, species_id, s_rule from site_scores where point_id in (%s)" % ",".join(str(int(g)) for g in res.grid.unique()))}
     diff = [(r.sample_id) for r, sid in zip(res.itertuples(index=False), marks.species_id) if abs(stored.get((int(r.grid), int(sid)), -1) - r.S_today) > 1e-6]
     P(f"S recomputed for {len(res)} pairs; identical to the stored site_scores.db value for all but {len(diff)} ({diff}).")
+    if diff:
+        P("These differ only because the stored site_scores.db is now made with the graded slope rule (round 18) and the sample is scored with the hard gate, as printed.")
     judged = res[res.mark != "X"].copy()
     P(f"Marks: {res.mark.value_counts().to_dict()}; judged pairs {len(judged)}, cannot judge {int((res.mark == 'X').sum())} ({', '.join(res[res.mark == 'X'].sample_id)}).")
     P(f"Model verdict today (S >= {S_MIN}): suitable {int(judged.model_suitable.sum())}, not suitable {int((~judged.model_suitable).sum())} of {len(judged)} judged pairs.")
@@ -175,7 +178,7 @@ def main(argv=None):
     reopened = ["Special Reserved Zone", "Medium Industrial Zone", "Minor Commercial - Mixed Use Zone", "Light Industrial Zone", "Sanitary Landfill"]
     old_sites = sites[(sites.zoning_status.isin(["confirmed", "unconfirmed"]) & ~sites.zone_desc.isin(reopened)) | (sites.zone_desc == "Cemetery Zone")].copy()
     old_sites["zoning_status"] = np.where(old_sites.zone_desc == "Cemetery Zone", "confirmed", old_sites.zoning_status)
-    old_pairs = ss.score_pairs(species, old_sites)
+    old_pairs = ss.score_pairs(species, old_sites, slope_mode=SLOPE_MODE_SAMPLE)
     s_old_alt, _ = alt_slope_scores(species, old_sites, old_pairs)
     b2, g2 = int((old_pairs.s_rule >= S_MIN).sum()), int(((old_pairs.s_rule < S_MIN) & (s_old_alt >= S_MIN)).sum())
     P(f"On the grid before round 15a ({old_sites.point_id.nunique()} squares, the Cemetery zone still scored): {b2} pairs with S >= 0.50 (the 228,919 of before); the alternative rule would add {g2}.")
@@ -203,6 +206,7 @@ def render_doc(text, summary, res, judged, slope_rows, base_all, gain_all, b2, g
 ## What was compared
 - Marks: `data/validation/agri_sample_marks_20261007.csv`: Alexis P. Santos, OIC-MAO, signed 7 Oct 2026, sheet of dataset v0.1-draft (hash 3483e2b668e8), 7 of the 8 pages signed, no comments. S = Suitable, M = Marginal, N = Not suitable, X = Cannot judge.
 - Model: S recomputed for each (grid point, species) pair with `pipeline/score_sites.py` (the current pipeline, release v1.0-review, LGU soil layer, the zone rules of round 15a). The model says "suitable" when S >= 0.50.
+- **Slope rule: this comparison is scored with SLOPE_MODE = "hard"** (the slope gate as it was when the sheet was printed). The graded slope rule of round 18 (the production default since then, provisional, awaiting adviser confirmation) is NOT used here, so the numbers below are the ones of the printed sheet.
 - Marks given: {res.mark.value_counts().to_dict()}. Four pairs (X) were left out of every figure below.
 
 ## Agreement

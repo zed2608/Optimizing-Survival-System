@@ -5,6 +5,7 @@
 ## What was compared
 - Marks: `data/validation/agri_sample_marks_20261007.csv`: Alexis P. Santos, OIC-MAO, signed 7 Oct 2026, sheet of dataset v0.1-draft (hash 3483e2b668e8), 7 of the 8 pages signed, no comments. S = Suitable, M = Marginal, N = Not suitable, X = Cannot judge.
 - Model: S recomputed for each (grid point, species) pair with `pipeline/score_sites.py` (the current pipeline, release v1.0-review, LGU soil layer, the zone rules of round 15a). The model says "suitable" when S >= 0.50.
+- **Slope rule: this comparison is scored with SLOPE_MODE = "hard"** (the slope gate as it was when the sheet was printed). The graded slope rule of round 18 (the production default since then, provisional, awaiting adviser confirmation) is NOT used here, so the numbers below are the ones of the printed sheet.
 - Marks given: {'S': 25, 'M': 11, 'X': 4}. Four pairs (X) were left out of every figure below.
 
 ## Agreement
@@ -70,7 +71,8 @@ The data gives Robusta an elevation range of 300 to 800 m. The reviewer marked a
 
 ## Full printout
 ```
-S recomputed for 40 pairs; identical to the stored site_scores.db value for all but 0 ([]).
+S recomputed for 40 pairs; identical to the stored site_scores.db value for all but 6 (['S07', 'S08', 'S22', 'S29', 'S31', 'S40']).
+These differ only because the stored site_scores.db is now made with the graded slope rule (round 18) and the sample is scored with the hard gate, as printed.
 Marks: {'S': 25, 'M': 11, 'X': 4}; judged pairs 36, cannot judge 4 (S07, S12, S14, S19).
 Model verdict today (S >= 0.5): suitable 25, not suitable 11 of 36 judged pairs.
 Marginal counted as Suitable: agreement 69.4% (25 of 36), Cohen's kappa 0.00.
@@ -81,7 +83,7 @@ Marginal counted as Not suitable: agreement 66.7% (24 of 36), Cohen's kappa 0.21
    by mark: mark M: 5/11 agree; mark S: 19/25 agree
 Pairs the agriculturist marked Suitable but the model says not suitable (S below 0.5): 6: S04 Robusta (Coffee) grid 3258 S=0.00 gate elevation; S17 Robusta (Coffee) grid 6638 S=0.00 gate elevation; S20 Robusta (Coffee) grid 10365 S=0.00 gate elevation; S22 Guava grid 5514 S=0.00 gate slope; S30 Talisay grid 6424 S=0.00 gate slope; S40 Narra grid 5045 S=0.00 gate slope
 Pairs marked Marginal where the model says suitable: 6 (S03, S06, S09, S15, S35, S36).
-Pairs where today's verdict differs from the verdict printed on the sheet: NOT DONE. The printed sheet (dataset v0.1-draft) is not in the repository; give it as --sheet <csv sample_id, printed_verdict> and run again.
+Printed-sheet verdicts read from sample_printed_verdicts.csv (40 of 40 pairs). Pairs whose verdict changed between the printed sheet and today (S now = suitable at S >= 0.50, N = not): 0 changed, 0 printed Marginal (listed too):
 SLOPE SENSITIVITY (analysis only): 9 sample pairs fail on slope (the request expected 7).
    S05 Lemon grid 6977 (mark M): slope 41.9% against the limit 20% -> over by 21.9 points; S today 0.00, alternative S 0.562 (crosses 0.50)
    S07 Calamansi grid 5941 (mark X): slope 28.3% against the limit 25% -> over by 3.3 points; S today 0.00, alternative S 0.747 (crosses 0.50)

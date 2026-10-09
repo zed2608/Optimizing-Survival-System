@@ -68,7 +68,7 @@ Click any square to open its panel. The first card gives a short verdict, such a
 
 The top of the panel shows the zone and its condition. A small Needs permission badge means the land needs a permit or the owner’s consent. Under it you see the soil and what the satellite shows on the ground, such as grass, trees or bare soil.
 
-*Watch for:* Soil and satellite ground cover are guides. Plain warnings, such as Check first or a heavy metals note, always come from a rule that is explained when you tap the question mark next to it.
+*Watch for:* Soil and satellite ground cover are guides. Plain warnings, such as Check first, a steep slope caution or a heavy metals note, always come from a rule that is explained when you tap the question mark next to it.
 
 ### The species card
 
@@ -230,6 +230,36 @@ Simple or Detailed map, the map type (satellite or street map), the field-checke
 
 No. Each square is 100 metres wide, so a point means “this square”. The field team checks the real spot on the ground.
 
+### Warnings
+
+**What does the steep slope caution mean?**
+
+Each tree has a usual limit for how steep the land can be. A square a little steeper than that limit is not thrown out. It gets a lower score, and it only shows when it still passes. Plant on terraces or use contour planting, or choose another tree. A square much steeper is still left out. This rule is provisional until the adviser confirms it.
+
+**What does Needs permission mean?**
+
+The zone has a condition from the MPDC form. For example, private land needs the owner’s consent, a landfill needs DENR permission, and the Forest Reserve needs a MENRO and DENR permit. Get the permit before planting.
+
+**What does “outside the zoning map” mean?**
+
+About 1,279 squares lie outside our zoning map. The CLUP 2021-2031 shows that land as Forest Reserve (Watershed). They are scored but flagged. Coordinate with MENRO and DENR before planting there.
+
+**Why does July to September look worse in Maly, Dulong Bayan or Santa Ana?**
+
+The MAO advised that heavy rain and flooding in the Habagat months can wash out seedlings in Maly, Dulong Bayan I and II, and Santa Ana. When your dates touch July to September, the overall match there is lowered by 20%. The site match does not change. This is provisional.
+
+**Why is there a heavy metals note?**
+
+Food-bearing trees on a landfill or a special reserved square may take up heavy metals. The note asks you to test the produce before anyone eats or sells it. No tree is left out because of it.
+
+**What does Check first mean?**
+
+It lists planned trees on squares that look bare, built-up or wet in the satellite picture, or that are outside the zoning map. Press “Show these on the map” to circle them, and look at them before the team goes out.
+
+**How reliable are the soil and ground cover lines?**
+
+The soil comes from the LGU soil map that we digitized from a scan, so it is provisional, and there is no soil data for part of the north-east. The ground cover is a 2021 satellite picture that is about 77% accurate worldwide. Both are guides only.
+
 ### Search
 
 **What can I type in the search box?**
@@ -281,32 +311,6 @@ Campaign Logs lists every saved plan with its status, progress and top-up. Syste
 **Where do I find this help again?**
 
 Press Help at the top right of any screen. A small question mark next to a main control opens the matching answer.
-
-### Warnings
-
-**What does Needs permission mean?**
-
-The zone has a condition from the MPDC form. For example, private land needs the owner’s consent, a landfill needs DENR permission, and the Forest Reserve needs a MENRO and DENR permit. Get the permit before planting.
-
-**What does “outside the zoning map” mean?**
-
-About 1,279 squares lie outside our zoning map. The CLUP 2021-2031 shows that land as Forest Reserve (Watershed). They are scored but flagged. Coordinate with MENRO and DENR before planting there.
-
-**Why does July to September look worse in Maly, Dulong Bayan or Santa Ana?**
-
-The MAO advised that heavy rain and flooding in the Habagat months can wash out seedlings in Maly, Dulong Bayan I and II, and Santa Ana. When your dates touch July to September, the overall match there is lowered by 20%. The site match does not change. This is provisional.
-
-**Why is there a heavy metals note?**
-
-Food-bearing trees on a landfill or a special reserved square may take up heavy metals. The note asks you to test the produce before anyone eats or sells it. No tree is left out because of it.
-
-**What does Check first mean?**
-
-It lists planned trees on squares that look bare, built-up or wet in the satellite picture, or that are outside the zoning map. Press “Show these on the map” to circle them, and look at them before the team goes out.
-
-**How reliable are the soil and ground cover lines?**
-
-The soil comes from the LGU soil map that we digitized from a scan, so it is provisional, and there is no soil data for part of the north-east. The ground cover is a 2021 satellite picture that is about 77% accurate worldwide. Both are guides only.
 
 ### Species
 
@@ -436,7 +440,7 @@ The information does not exist in our sources, so the system shows nothing. It n
 
 ## Glossary
 
-- **Site match**: How well the land of a square suits a species: slope, height, soil, zone and rain. It is a number from 0 to 1.
+- **Site match**: How well the land of a square suits a species: slope, height, soil, zone and rain. It is a number from 0 to 1. A square a little steeper than the tree's usual limit can still pass, with a lower score and a slope caution.
 - **Purpose fit**: How well a species suits what you want the trees for: shade in town, tree planting or watershed.
 - **Overall match**: Site match combined with purpose fit. It is zero if the site match is under 50%. The map colours show it.
 - **Block**: One 100 metre square planted close together at the spacing of its species. The planted area sits in the middle of the square.

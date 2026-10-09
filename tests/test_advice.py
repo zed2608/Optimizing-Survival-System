@@ -155,7 +155,7 @@ def test_scores_are_identical_before_and_after_for_200_fixed_pairs(client):
     assert digest == SAMPLE_PIN, digest
 
 
-SAMPLE_PIN = "a6f954aa23fd0993"
+SAMPLE_PIN = "59ebdb3e2a18c601"   # pinned again in round 18 (the graded slope rule changed the S of some sample pairs); the advice itself still changes nothing
 
 
 # ---- the API ---------------------------------------------------------------------------------------------------------------------------------------

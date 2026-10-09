@@ -10,6 +10,8 @@ Writes <out>/scores/site_scores.csv and the table site_scores in <out>/scores/si
 (replaced on every run; <out>/scores/ is git-ignored). optimizing_survival.db is never touched.
 
 Hard gates (S = 0 if violated): legal zone, elevation range, max slope; soil texture only when SOIL_GATE_MODE == "hard".
+Slope (round 18): SLOPE_MODE "graded" (default) lets a square a little steeper than the species limit through with a lowered S (see SLOPE_MODE below);
+SLOPE_MODE "hard" is the old gate and reproduces the earlier numbers exactly.
 In "soft" mode (default, until the agriculturist verifies the soil mapping) a texture mismatch does not zero S: the soil
 factor takes SOIL_MISMATCH_FACTOR, the pair is flagged soil_unverified_mismatch and its confidence is lowered.
 A gate whose input is unknown (site texture unknown, species texture list empty, slope missing) does NOT exclude;
@@ -28,6 +30,14 @@ import pandas as pd
 MARGIN_FRACTION = 0.10          # soft fall-off margin = this fraction of the species range (10%); the ONLY margin setting.
 SOIL_GATE_MODE = "soft"         # "soft": texture mismatch -> low soil factor + flag, S not zeroed (legacy soil mapping is UNVERIFIED)
                                 # "hard": texture mismatch -> S = 0. Switch to "hard" after the agriculturist verifies the mapping.
+SLOPE_MODE = "graded"           # "graded" (default, round 18, PROVISIONAL: a team decision, the adviser confirms next week): above the species limit S is multiplied by a factor that falls
+                                # linearly from 1 at the limit to 0 at limit + SLOPE_GRADED_MARGIN_FRACTION x limit; beyond that the pair is still rejected (hard stop).
+                                # "hard": a square steeper than the limit has S = 0 (the rule before round 18; the printed sample sheet was scored with it).
+SLOPE_GRADED_MARGIN_FRACTION = 0.25   # margin = 25% of the species limit, in percent slope (the unit of the data). A fixed 5 degrees would be a very different relative margin for each species.
+STEEP_SQUARE_SLOPE_PCT = 57.7   # a "steep square" in the reports: slope above this PERCENT (57.7 percent is about 30 degrees). Used only to list the newly eligible pairs that the field team should look at first; it changes no score.
+ELIGIBLE_S = 0.50               # a pair is eligible when S >= this (the same 0.50 as matching.CFG["s_min"])
+SLOPE_GRADED_FLAG = "slope_graded"    # on a pair that is eligible only because of the graded slope rule
+SLOPE_GRADED_NOTE = "Slope is steeper than this tree's usual limit. Plant on terraces or use contour planting, or choose another tree."
 SOIL_MISMATCH_FACTOR = 0.25     # soil factor on a texture mismatch in "soft" mode (provisional, no source)
 SOIL_SOURCE = "lgu"             # "lgu": the soil match uses soil_texture_lgu (the LGU soil map digitized by us, pipeline/lgu_soil.py); "legacy": soil_texture_legacy (the old four-code layer).
                                 # Both are UNVERIFIED. A square with no texture never lowers a score (the soil term is simply not evaluated for it).
@@ -102,7 +112,7 @@ def site_texture_column(sites, soil_source=None):
 
 
 def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance_m=None, soil_gate_mode=None,
-                soil_mismatch_factor=None, soil_source=None):
+                soil_mismatch_factor=None, soil_source=None, slope_mode=None, slope_margin_fraction=None):
     """
     Vectorised S for every (site, species) pair. Returns one row per pair with numeric terms (no JSON yet).
 
@@ -113,6 +123,10 @@ def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance
     w = dict(TERM_WEIGHTS if weights is None else weights)
     wet_r = WETNESS_RISK_DISTANCE_M if wet_distance_m is None else wet_distance_m
     mode = SOIL_GATE_MODE if soil_gate_mode is None else soil_gate_mode
+    smode = SLOPE_MODE if slope_mode is None else slope_mode
+    if smode not in ("graded", "hard"):
+        raise ValueError(f"slope_mode must be 'graded' or 'hard', got {smode!r}")
+    gm = SLOPE_GRADED_MARGIN_FRACTION if slope_margin_fraction is None else slope_margin_fraction
     if mode not in ("soft", "hard"):
         raise ValueError(f"soil_gate_mode must be 'soft' or 'hard', got {mode!r}")
     sp, si = species.reset_index(drop=True), sites.reset_index(drop=True)
@@ -143,8 +157,15 @@ def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance
     # ---- slope: gate = slope <= max_slope_pct; factor falls over the top `margin` of the 0..max range
     smax = sv("max_slope_pct")
     slope_known = ~np.isnan(slope) & ~np.isnan(smax)
-    slope_gate_ok = ~slope_known | (slope <= smax)
-    f_slope = np.where(slope_known, _edge_factor(smax - slope, mf * smax), np.nan)
+    f_slope = np.where(slope_known, _edge_factor(smax - slope, mf * smax), np.nan)     # inside the limit: unchanged (0 at the limit itself)
+    over = slope_known & (slope > smax)
+    if smode == "hard":
+        slope_gate_ok = ~slope_known | (slope <= smax)
+        g_slope = np.ones_like(f_slope)
+    else:                                                    # graded: factor 1 inside the limit, falling linearly to 0 at limit + gm x limit, then the hard stop
+        slope_gate_ok = ~slope_known | (slope <= smax * (1.0 + gm))
+        with np.errstate(divide="ignore", invalid="ignore"):
+            g_slope = np.where(over, np.clip(1.0 - (slope - smax) / (gm * smax), 0.0, 1.0), 1.0)
 
     # ---- soil: gate = species texture list contains the site texture, or any texture is fine
     tex_lists = [set(t.strip().lower() for t in str(v).split(";") if t.strip()) if pd.notna(v) else set() for v in sp["soil_textures"]]
@@ -182,7 +203,8 @@ def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance
     with np.errstate(divide="ignore", invalid="ignore"):
         s_soft = np.where(den > 0, num / den, 0.0)
     gate_ok = legal & elev_gate_ok & slope_gate_ok & soil_gate_ok
-    s_rule = np.where(gate_ok, s_soft, 0.0)
+    s_rule = np.where(gate_ok, s_soft * g_slope, 0.0)
+    slope_graded = over & slope_gate_ok & gate_ok & (s_rule >= ELIGIBLE_S) if smode == "graded" else np.zeros_like(over)   # eligible ONLY because of the graded rule (it would be S = 0 under "hard")
     # share of the weight that could actually be evaluated; a soil mismatch (unverified mapping) does not count as evaluated
     confidence = (den - np.where(soil_mismatch, w["soil"], 0.0)) / tot
 
@@ -196,6 +218,8 @@ def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance
         rows["f_" + k] = f.ravel()
     for k, g in gate_fail.items():
         rows["gate_fail_" + k] = np.ascontiguousarray(g).ravel()
+    rows["slope_graded"] = np.ascontiguousarray(slope_graded).ravel()
+    rows["slope_over_pct"] = np.where(over, slope - smax, 0.0).ravel()
     rows["soil_unverified_mismatch"] = (soil_mismatch & (mode == "soft")).ravel()
     rows["soil_lgu_used"] = ((soil_known & site_known & has_list & ~any_tex) if tex_src == "lgu" else np.zeros((np_, ns), dtype=bool)).ravel()   # the soil term was evaluated from the LGU map
     for k, ok in (("elevation", elev_known), ("slope", slope_known), ("soil", soil_known), ("wetness", wet_known)):
@@ -235,13 +259,15 @@ def build_breakdown(scores, species, sites, src, weights=None):
                            "weight": w[term], "src": term_src[(sid, term)]}
         gates = [g for g in ("legal_zone", "elevation", "slope", "soil") if getattr(r, "gate_fail_" + g)]
         flags = ["soil_unverified_mismatch"] if r.soil_unverified_mismatch else []
+        if r.slope_graded:
+            flags.append(SLOPE_GRADED_FLAG)
         if r.soil_lgu_used:
             flags.append(SOIL_PROVISIONAL_FLAG)
         out.append(json.dumps({"gate_failed": gates, "flags": flags, "terms": terms}, separators=(",", ":")))
     return out
 
 
-def run(out_dir, water_shp, soil_gate_mode=None, soil_source=None):
+def run(out_dir, water_shp, soil_gate_mode=None, soil_source=None, slope_mode=None):
     out = Path(out_dir)
     dest = out / "scores"
     dest.mkdir(parents=True, exist_ok=True)
@@ -254,7 +280,7 @@ def run(out_dir, water_shp, soil_gate_mode=None, soil_source=None):
     else:
         sites = sites[sites.is_legal_zone.astype(bool)].copy()
     sites["water_dist_m"] = distance_to_water(sites, water_shp) if water_shp else np.nan
-    scores = score_pairs(species, sites, soil_gate_mode=soil_gate_mode, soil_source=soil_source)
+    scores = score_pairs(species, sites, soil_gate_mode=soil_gate_mode, soil_source=soil_source, slope_mode=slope_mode)
     scores["breakdown_json"] = build_breakdown(scores, species, sites, source_lookup(sources))
     final = scores[["point_id", "species_id", "s_rule", "s_prob", "breakdown_json", "confidence"]].copy()
     final["s_rule"] = final.s_rule.round(4); final["confidence"] = final.confidence.round(4)
@@ -270,6 +296,11 @@ def run(out_dir, water_shp, soil_gate_mode=None, soil_source=None):
     con.commit(); con.close()
     viable = scores.groupby("species_id").s_rule.apply(lambda s: int((s >= 0.5).sum()))
     print(f"soil gate mode: {SOIL_GATE_MODE if soil_gate_mode is None else soil_gate_mode}")
+    smode = SLOPE_MODE if slope_mode is None else slope_mode
+    print(f"slope mode: {smode}" + (f" (margin {SLOPE_GRADED_MARGIN_FRACTION:.0%} of the species limit; {int(scores.slope_graded.sum())} pairs eligible only because of it)" if smode == "graded" else " (the old gate)"))
+    (dest / "score_run.json").write_text(json.dumps({"slope_mode": smode, "slope_graded_margin_fraction": SLOPE_GRADED_MARGIN_FRACTION if smode == "graded" else None,
+                                                     "soil_gate_mode": SOIL_GATE_MODE if soil_gate_mode is None else soil_gate_mode, "pairs": int(len(final)),
+                                                     "eligible_pairs": int((scores.s_rule >= ELIGIBLE_S).sum()), "slope_graded_pairs": int(scores.slope_graded.sum())}, indent=1), encoding="utf-8")
     col, src = site_texture_column(sites, soil_source)
     print(f"soil source: {src} ({col}); squares with a texture: {int(sites[col].notna().sum())} of {len(sites)}")
     zs = sites.zoning_status.value_counts().to_dict() if "zoning_status" in sites else {}
@@ -285,9 +316,10 @@ def main():
     ap.add_argument("--out", default="data/processed")
     ap.add_argument("--water", default="data/SMR_WATERBODIES_POLY.shp", help="waterbodies layer for the wetness term")
     ap.add_argument("--soil-gate-mode", choices=("soft", "hard"), default=None, help=f"override SOIL_GATE_MODE ({SOIL_GATE_MODE})")
+    ap.add_argument("--slope-mode", choices=("graded", "hard"), default=None, help=f"override SLOPE_MODE ({SLOPE_MODE}); hard = the old slope gate")
     ap.add_argument("--soil-source", choices=("lgu", "legacy"), default=None, help=f"override SOIL_SOURCE ({SOIL_SOURCE})")
     a = ap.parse_args()
-    run(a.out, a.water, a.soil_gate_mode, a.soil_source)
+    run(a.out, a.water, a.soil_gate_mode, a.soil_source, a.slope_mode)
 
 
 if __name__ == "__main__":
