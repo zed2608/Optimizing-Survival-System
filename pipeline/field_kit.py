@@ -722,7 +722,17 @@ def write_pdf_blocks(df, meta, summary, path, landuse_shp, data_dir):
         lu = None
     rows = list(df.itertuples(index=False))
     per = c["pdf_block_rows_per_page"]
-    table_pages = max(1, -(-len(rows) // per))
+    # table pages: a row is as tall as its wrapped warning text (round 15c: long warnings used to run into the next row); at most `per` rows or the free height of the page
+    wrap_w, line_h, pad_h, free_h = 44, 0.0135, 0.014, 0.74
+    row_warn = [[textwrap.fill(x, wrap_w) for x in block_warning_lines(r)] for r in rows]
+    row_h = [max(3, sum(w.count("\n") + 1 for w in ws)) * line_h + pad_h for ws in row_warn]
+    chunks, cur, used = [], [], 0.0
+    for k in range(len(rows)):
+        if cur and (len(cur) >= per or used + row_h[k] > free_h):
+            chunks.append(cur); cur, used = [], 0.0
+        cur.append(k); used += row_h[k]
+    chunks.append(cur)
+    table_pages = max(1, len(chunks))
     total = 1 + len(rows) + table_pages
     nb, nt = len(rows), int(df.trees_planned.sum())
     with PdfPages(path, metadata={"Title": f"Field map {meta['plan_id']}", "Subject": stamp_text(meta)}) as pdf:
@@ -834,7 +844,7 @@ def write_pdf_blocks(df, meta, summary, path, landuse_shp, data_dir):
                     f"START (south-west corner): {r.start_lat}, {r.start_lon}    Zone: {str(r.zone)[:40]}"]
             fig.text(0.04, 0.955, head, fontsize=9, weight="bold", va="top")
             fig.text(0.04, 0.925, "\n".join(textwrap.fill(x, 150) for x in info), fontsize=7, va="top")
-            fig.text(0.53, 0.865, "\n".join(["Warnings:"] + [f"- {x}" for x in warn]) if warn else "Warnings: none", fontsize=6.8, va="top", color="#8e2a1c" if warn else "0.3")
+            fig.text(0.53, 0.865, "\n".join(["Warnings:"] + [textwrap.fill(f"- {x}", 92, subsequent_indent="  ") for x in warn]) if warn else "Warnings: none", fontsize=6.4, va="top", color="#8e2a1c" if warn else "0.3")
             fig.text(0.04, 0.045, "GPS is good to a few metres and worse under trees; the square is a map cell, not an exact planting spot. If a house, road, creek or tree is in the way, move and record it; never plant on paved or built land.",
                      fontsize=6.2, color="0.3")
             pdf_footer(fig, meta, 1 + bi, total)
@@ -843,16 +853,17 @@ def write_pdf_blocks(df, meta, summary, path, landuse_shp, data_dir):
         cols = [("Ref", 0.02), ("Species", 0.095), ("Trees", 0.225), ("Spacing; rows x per row", 0.27), ("Barangay, zone", 0.385), ("Start corner (lat, lon)", 0.515),
                 ("Warnings", 0.63), ("Done", 0.835), ("Planted / moved", 0.875)]
         for pi in range(table_pages):
-            chunk = rows[pi * per:(pi + 1) * per]
+            chunk = [rows[k] for k in chunks[pi]]
+            chunk_idx = chunks[pi]
             fig = plt.figure(figsize=(W, H)); ax = fig.add_axes([0, 0, 1, 1]); ax.axis("off"); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
             ax.text(0.02, 0.95, f"Block table - {nb} blocks, {nt} trees - page {pi + 1}/{table_pages}", fontsize=10, weight="bold")
             for name, x in cols:
                 ax.text(x, 0.915, name, fontsize=6.5, weight="bold")
             ax.plot([0.02, 0.98], [0.905, 0.905], color="black", lw=0.8)
-            step = 0.80 / per
-            for k, r in enumerate(chunk):
-                y = 0.89 - k * step
-                warn = "\n".join(textwrap.fill(x, 38) for x in block_warning_lines(r)) or "none"
+            y = 0.89
+            for r, ki in zip(chunk, chunk_idx):
+                step = row_h[ki]
+                warn = "\n".join(row_warn[ki]) or "none"
                 vals = [r.point_ref, textwrap.fill(r.common_name, 16), f"{int(r.trees_planned)}/{int(r.capacity)}", f"{fmt_m(r.spacing_m)} m; {int(r.rows)} x {int(r.trees_per_row)}",
                         textwrap.fill(f"{r.barangay}, {r.zone}", 22), f"{r.start_lat}\n{r.start_lon}", warn]
                 for (name, x), v in zip(cols, vals):
@@ -862,6 +873,7 @@ def write_pdf_blocks(df, meta, summary, path, landuse_shp, data_dir):
                 ax.text(0.875, y - step * 0.32, "moved lat ____", fontsize=5.5, va="top")
                 ax.text(0.875, y - step * 0.58, "moved lon ____", fontsize=5.5, va="top")
                 ax.plot([0.02, 0.98], [y - step + 0.004, y - step + 0.004], color="0.85", lw=0.4)
+                y -= step
             draw_status_key(ax, 0.03, 0.074, fontsize=6.2, horizontal=True, dx=0.30, dy=0.026, title=False, per_row=3)
             ax.text(0.02, 0.100, "Mark each block in the field (same colours and icons as the dashboard):", fontsize=6.5, weight="bold")
             pdf_footer(fig, meta, 1 + nb + pi + 1, total)

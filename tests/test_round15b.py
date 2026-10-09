@@ -151,3 +151,16 @@ def test_partner_cautions_never_contain_nan(client):
         j = client.get(f"/species/{sid}/partners").json()
         for p in j.get("partners", j if isinstance(j, list) else []):
             assert "nan" not in [c.lower() for c in p["cautions"]], (sid, p)
+
+
+# ---- round 15c: the heavy-metals note reaches the plan result on landfill and special reserved squares ------------------------------------------
+@needs
+@pytest.mark.parametrize("zone", ["Sanitary Landfill", "Special Reserved Zone"])
+def test_rehab_note_is_in_the_plan_summary_for_papaya_and_avocado(client, zone):
+    body = {"purpose": "urban", "zone": zone, "species_counts": {30: 20, 39: 20}, "campaign": {"name": "Rehab " + zone[:8], "unit": ""}}
+    r = client.post("/plan-event", json=body)
+    assert r.status_code == 200, r.text
+    j = r.json()
+    rb = j["summary"].get("rehab")
+    assert rb and rb["flagged_trees"] > 0 and "heavy metals" in rb["warning"], j["summary"].keys()
+    assert any("rehab_site_food_warning" in str(it.get("flags", "")) for it in j["plan"])

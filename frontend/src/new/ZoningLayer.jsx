@@ -1,7 +1,19 @@
 import { useEffect } from 'react'
 import L from 'leaflet'
 import { useMap } from 'react-leaflet'
-import { ZONE_FILL_OPACITY, ZONE_LINE_WEIGHT, zoneColor } from './zoneColors.js'
+import { ZONE_FILL_OPACITY, ZONE_LINE_WEIGHT, zoneColor, zoneHatch } from './zoneColors.js'
+
+const HATCH_ID = 'nw-zone-hatch'
+// One hidden SVG pattern (zone colour at low opacity + blue lines at 45 degrees), made once and used by the Agricultural Zone polygons.
+function ensureHatch() {
+  if (document.getElementById(HATCH_ID)) return
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('width', '0')
+  svg.setAttribute('height', '0')
+  svg.style.position = 'absolute'
+  svg.innerHTML = `<defs><pattern id="${HATCH_ID}" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="${zoneColor('Agricultural Zone')}" fill-opacity="0.25"/><line x1="0" y1="0" x2="0" y2="8" stroke="#0000ff" stroke-width="1.5" stroke-opacity="0.55"/></pattern></defs>`
+  document.body.appendChild(svg)
+}
 
 const PANE = 'nw-zoning'
 
@@ -19,7 +31,14 @@ export default function ZoningLayer({ zoning, visible }) {
     const layer = L.geoJSON(zoning, {
       pane: PANE,
       interactive: false,
-      style: (f) => ({ color: zoneColor(f.properties.name), weight: ZONE_LINE_WEIGHT, opacity: 0.85, fillColor: zoneColor(f.properties.name), fillOpacity: ZONE_FILL_OPACITY }),
+      style: (f) => {
+        const n = f.properties.name
+        if (zoneHatch(n)) {
+          ensureHatch()
+          return { color: zoneColor(n), weight: ZONE_LINE_WEIGHT, opacity: 0.85, fillColor: `url(#${HATCH_ID})`, fillOpacity: 1 }
+        }
+        return { color: zoneColor(n), weight: ZONE_LINE_WEIGHT, opacity: 0.85, fillColor: zoneColor(n), fillOpacity: ZONE_FILL_OPACITY }
+      },
     }).addTo(map)
     return () => {
       layer.remove()

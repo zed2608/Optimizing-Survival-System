@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
-import { legendOrder, zoneColor, zoneColorName } from './zoneColors.js'
+import { ZONE_CREDIT, ZONE_UNSTYLED_NOTE, legendOrder, zoneColor, zoneColorName, zoneHatch } from './zoneColors.js'
 
 // The legend of the Zoning overlay: the colour, the zone name and the number of grid squares of each zone; a hint where a zone needs permission.
 export default function ZoningLegend({ api, onHide, onExpand = () => {} }) {
@@ -29,7 +29,7 @@ export default function ZoningLegend({ api, onHide, onExpand = () => {} }) {
               const p = f.properties
               return (
                 <li key={p.name} title={`${zoneColorName(p.name)}${p.condition ? ': ' + p.condition : ''}`}>
-                  <span className="nw-zswatch" style={{ background: zoneColor(p.name), opacity: 0.85 }} aria-hidden="true" />
+                  <span className={`nw-zswatch${zoneHatch(p.name) ? ' nw-zswatch-hatch' : ''}`} style={{ '--zc': zoneColor(p.name), background: zoneHatch(p.name) ? undefined : zoneColor(p.name) }} aria-hidden="true" />
                   <span className="nw-zname">{p.name}</span>
                   <span className="nw-zcount">{p.grid_squares.toLocaleString('en-US')}</span>
                 </li>
@@ -41,6 +41,9 @@ export default function ZoningLegend({ api, onHide, onExpand = () => {} }) {
               <span className="nw-zcount">{d.outside_map.grid_squares.toLocaleString('en-US')}</span>
             </li>
           </ul>
+          <div className="nw-legend-note">
+            {ZONE_CREDIT}. {ZONE_UNSTYLED_NOTE}
+          </div>
           <div className="nw-legend-note">
             Numbers are grid squares of 100 m. Hover a name for the condition. Rules from the MPDC form of 7 Oct 2026 <ProvisionalTag />
           </div>

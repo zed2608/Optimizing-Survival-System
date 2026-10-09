@@ -68,7 +68,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
   // "Good to know": plain notes, each with an icon and a "Why?" tip
   const notes = []
   if (s.rehab?.flagged_trees > 0) {                                       // food-bearing species on a landfill or mining site (MAO, provisional): a warning, nobody is left out
-    const t = `${s.rehab.flagged_trees} trees of food-bearing species are on landfill or mining land. ${s.rehab.warning}.`
+    const t = `${s.rehab.flagged_trees} trees of food-bearing species are on landfill or mining land. ${s.rehab.warning}`
     notes.push({ key: 'rehab', icon: 'warn', text: t, why: whyWarning(t), raw: t, prov: true })
   }
   if (s.habagat?.affected_trees > 0) {                                    // the Habagat multiplier (MAO, provisional)

@@ -1,84 +1,104 @@
 // The data of zoneColors.json as a module (the browser build and node read this file; the JSON is read by Python; fieldStatus.test.mjs checks that the two are the same).
 export const ZONE_TABLE = {
-  "note": "ONE colours module for the optional Zoning overlay (MPDC standard colours, round 15b). Fill is drawn at low opacity with a thin outline so it never hides the suitability dots.",
+  "note": "ONE colours module for the optional Zoning overlay. Colours follow the LGU style file (Landuse-1.qml) as given by the project team in round 15c; Sanitary Landfill, Major Commercial - Mixed Use and the outside-the-map swatch are not styled in that file. Fill is drawn at low opacity with a thin outline so it never hides the suitability dots.",
   "fill_opacity": 0.2,
   "line_weight": 0.8,
   "colors": {
     "Forest Zone": {
-      "color": "#2e7d32",
-      "name": "green"
-    },
-    "Agricultural Zone": {
-      "color": "#9ccc65",
-      "name": "lighter green"
+      "color": "#006400",
+      "name": "dark green",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Buffer Zone": {
-      "color": "#808000",
-      "name": "olive green"
+      "color": "#32e132",
+      "name": "bright green",
+      "source": "LGU style file (Landuse-1.qml)"
+    },
+    "Cemetery Zone": {
+      "color": "#64e164",
+      "name": "light green",
+      "source": "LGU style file (Landuse-1.qml)"
+    },
+    "Agricultural Zone": {
+      "color": "#64e164",
+      "name": "light green",
+      "source": "LGU style file (Landuse-1.qml)",
+      "hatch": "blue 45-degree lines"
     },
     "Parks and Recreation Zone": {
-      "color": "#1de53b",
-      "name": "bright green"
+      "color": "#d2856b",
+      "name": "salmon",
+      "source": "LGU style file (Landuse-1.qml)"
+    },
+    "Quarry Sub-Zone": {
+      "color": "#993300",
+      "name": "brown",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Special Reserved Zone": {
-      "color": "#14532d",
-      "name": "dark green"
+      "color": "#bebebe",
+      "name": "light gray",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "High Density Residential - Mixed Use Zone": {
-      "color": "#b8860b",
-      "name": "dark yellow"
+      "color": "#ffff00",
+      "name": "yellow",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Medium Density Residential Zone": {
-      "color": "#e6b800",
-      "name": "medium yellow"
+      "color": "#ffff00",
+      "name": "yellow",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Socialized Housing Zone": {
-      "color": "#ffe34d",
-      "name": "yellow"
+      "color": "#ffff00",
+      "name": "yellow",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Institutional Research Zone": {
-      "color": "#1e6fd9",
-      "name": "blue"
+      "color": "#0000ff",
+      "name": "blue",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "General Institutional Zone": {
-      "color": "#1e6fd9",
-      "name": "blue"
+      "color": "#0000ff",
+      "name": "blue",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "General Institutional Zonec": {
-      "color": "#1e6fd9",
-      "name": "blue"
-    },
-    "Medium Industrial Zone": {
-      "color": "#7b1fa2",
-      "name": "violet"
-    },
-    "Light Industrial Zone": {
-      "color": "#c9a2e0",
-      "name": "light violet"
+      "color": "#0000ff",
+      "name": "blue",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Minor Commercial - Mixed Use Zone": {
-      "color": "#e53935",
-      "name": "red"
+      "color": "#ff0000",
+      "name": "red",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Major Commercial Zone": {
-      "color": "#e53935",
-      "name": "red"
+      "color": "#ff0000",
+      "name": "red",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Major Commercial - Mixed Use Zone": {
       "color": "#8b0000",
-      "name": "dark red"
+      "name": "dark red",
+      "source": "not styled in the LGU file: our choice"
     },
-    "Cemetery Zone": {
-      "color": "#757575",
-      "name": "gray"
+    "Light Industrial Zone": {
+      "color": "#9600c8",
+      "name": "purple",
+      "source": "LGU style file (Landuse-1.qml)"
     },
-    "Quarry Sub-Zone": {
-      "color": "#757575",
-      "name": "gray"
+    "Medium Industrial Zone": {
+      "color": "#9600c8",
+      "name": "purple",
+      "source": "LGU style file (Landuse-1.qml)"
     },
     "Sanitary Landfill": {
-      "color": "#757575",
-      "name": "gray"
+      "color": "#4d4d4d",
+      "name": "dark gray",
+      "source": "not styled in the LGU file: our choice"
     }
   },
   "fallback": {
@@ -88,5 +108,7 @@ export const ZONE_TABLE = {
   "outside_map": {
     "color": "#ffffff",
     "name": "white dashed outline"
-  }
+  },
+  "credit": "Colours follow the LGU style file (Landuse-1.qml)",
+  "unstyled_note": "Not in the LGU style file (our choice): Sanitary Landfill (dark gray), Major Commercial - Mixed Use (dark red) and the outside-the-map outline."
 }

@@ -5,6 +5,13 @@ export const ZONE_FILL_OPACITY = table.fill_opacity
 export const ZONE_LINE_WEIGHT = table.line_weight
 export const ZONE_COLORS = table.colors
 export const OUTSIDE_MAP = table.outside_map
+export const ZONE_CREDIT = table.credit
+export const ZONE_UNSTYLED_NOTE = table.unstyled_note
+
+// Agricultural Zone has the same green as the Cemetery Zone in the LGU file, so it carries a blue 45-degree hatch.
+export function zoneHatch(name) {
+  return Boolean((ZONE_COLORS[name] ?? {}).hatch)
+}
 
 export function zoneColor(name) {
   return (ZONE_COLORS[name] ?? table.fallback).color

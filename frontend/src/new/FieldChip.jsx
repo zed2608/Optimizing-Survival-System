@@ -5,7 +5,7 @@ import { fieldColor, fieldIcon, fieldLabel } from './fieldStatus.js'
 export default function FieldChip({ cls, text }) {
   const c = fieldColor(cls)
   return (
-    <span className="nw-chip nw-fchip" style={{ color: c, borderColor: c, borderWidth: 1, borderStyle: 'solid', background: '#fff' }}>
+    <span className={`nw-chip nw-fchip fc-chip fc-${cls}`} style={{ color: c, borderColor: c, borderWidth: 1, borderStyle: 'solid', background: '#fff' }}>
       <Icon name={fieldIcon(cls)} size={14} /> {text ?? fieldLabel(cls)}
     </span>
   )
