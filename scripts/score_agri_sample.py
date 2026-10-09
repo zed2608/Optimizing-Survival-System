@@ -141,9 +141,12 @@ def main(argv=None):
     P(f"Pairs the agriculturist marked Suitable but the model says not suitable (S below {S_MIN}): {len(dis)}: " + "; ".join(f"{r.sample_id} {r.species} grid {r.grid} S={r.S_today:.2f} gate {r.gate_failed or 'none'}" for r in dis.itertuples()))
     mm = judged[(judged.mark == "M") & judged.model_suitable]
     P(f"Pairs marked Marginal where the model says suitable: {len(mm)} ({', '.join(mm.sample_id)}).")
+    printed_info = None
     sheet = a.sheet or str(ROOT / "data" / "validation" / "sample_printed_verdicts.csv")      # round 15b: the default place of the printed-sheet verdicts
     if Path(sheet).is_file():
         sh = pd.read_csv(sheet, comment="#")
+        sh["printed_verdict"] = sh.printed_verdict.astype(str).str.strip().str[:1].str.upper().where(sh.printed_verdict.notna())          # Suitable / S -> S, Marginal / M -> M, Not suitable / N -> N
+        assert set(sh.printed_verdict.dropna()) <= {"S", "M", "N"}, "printed_verdict must be Suitable, Marginal or Not suitable (or S, M, N)"
         j = res.merge(sh[["sample_id", "printed_verdict"]], on="sample_id", how="left")
         j["today_class"] = np.where(j.model_suitable, "S", "N")
         changed = j[(j.printed_verdict == "S") & ~j.model_suitable | (j.printed_verdict == "N") & j.model_suitable | (j.printed_verdict == "M")]
@@ -154,6 +157,28 @@ def main(argv=None):
         missing = j[j.printed_verdict.isna()].sample_id.tolist()
         if missing:
             P(f"   no printed verdict given for: {', '.join(missing)}")
+        # ---- the verdicts PRINTED on the sheet (the system's verdict at the time) against the agriculturist's marks
+        jj = j[(j.mark != "X") & j.printed_verdict.notna()].copy()
+        pr_s = (jj.printed_verdict == "S").to_numpy()
+        printed_rows = []
+        P(f"PRINTED SHEET against the AGRICULTURIST ({len(jj)} judged pairs; the sheet printed Suitable for {int(pr_s.sum())} and Not suitable for {int((~pr_s).sum())} of them; the sheet was made with the hard slope gate):")
+        for name, ex in {"Marginal counted as Suitable": jj.mark.isin(["S", "M"]).to_numpy(), "Marginal counted as Not suitable": (jj.mark == "S").to_numpy()}.items():
+            ag, kp = float((ex == pr_s).mean()), cohen_kappa(ex, pr_s)
+            printed_rows.append((name, ag, int((ex == pr_s).sum()), len(jj), kp))
+            P(f"   {name}: agreement {ag:.1%} ({int((ex == pr_s).sum())} of {len(jj)}), Cohen's kappa {fmt_k(kp)}")
+        by_group = []
+        for g, d in jj.groupby("group"):
+            by_group.append((g, int(((d.mark == "S").to_numpy() == (d.printed_verdict == "S").to_numpy()).sum()), len(d)))
+        P("   by group (Marginal counted as Not suitable): " + "; ".join(f"{g}: {n}/{m} agree" for g, n, m in by_group))
+        printed_dis = jj[(jj.mark.isin(["S", "M"])) & (jj.printed_verdict == "N")]
+        printed_yes_not = jj[(jj.mark == "M") & (jj.printed_verdict == "S")]
+        P(f"   marked Suitable or Marginal by the agriculturist but printed Not suitable: {len(printed_dis)}: " + ", ".join(f"{r.sample_id} {r.species} (mark {r.mark}, today S {r.S_today:.2f}, gate {r.gate_failed or 'none'})" for r in printed_dis.itertuples()))
+        P(f"   marked Marginal but printed Suitable: {len(printed_yes_not)} ({', '.join(printed_yes_not.sample_id)})")
+        same_today = int(((jj.printed_verdict == "S") == jj.model_suitable).sum())
+        P(f"   today's hard-gate verdict equals the printed verdict for {same_today} of {len(jj)} judged pairs (the others are listed above as changed since the sheet).")
+        printed_info = {"rows": printed_rows, "by_group": by_group, "dis": printed_dis, "marg_yes": printed_yes_not, "n": len(jj), "n_yes": int(pr_s.sum()), "same_today": same_today,
+                        "changed": changed, "n_changed_ns": int(((j.printed_verdict == 'S') & ~j.model_suitable).sum()) + int(((j.printed_verdict == 'N') & j.model_suitable).sum()),
+                        "n_sheet": int(j.printed_verdict.notna().sum())}
     else:
         P("Pairs where today's verdict differs from the verdict printed on the sheet: NOT DONE. data/validation/sample_printed_verdicts.csv (sample_id, printed_verdict) is not there yet; put it there or pass --sheet and run again.")
     # ---- slope sensitivity
@@ -190,11 +215,48 @@ def main(argv=None):
     text = "\n".join(out)
     print(text)
     if a.write_doc:
-        Path(a.write_doc).write_text(render_doc(text, summary, res, judged, slope_rows, base_all, gain_all, b2, g2, rob, dis, mm), encoding="utf-8")
+        Path(a.write_doc).write_text(render_doc(text, summary, res, judged, slope_rows, base_all, gain_all, b2, g2, rob, dis, mm, printed_info), encoding="utf-8")
         print("written", a.write_doc)
 
 
-def render_doc(text, summary, res, judged, slope_rows, base_all, gain_all, b2, g2, rob, dis, mm):
+def printed_section(pi):
+    """The markdown of the section 'The printed sheet against the agriculturist' (or the note that the sheet is missing)."""
+    if pi is None:
+        return "## The printed sheet against the agriculturist\nNOT DONE: `data/validation/sample_printed_verdicts.csv` (sample_id, printed_verdict) was not found.\n"
+    ks = "\n".join(f"| {n} | {ag:.1%} ({a} of {m}) | {fmt_k(k)} |" for n, ag, a, m, k in pi["rows"])
+    grp = "\n".join(f"| {g} | {n} of {m} |" for g, n, m in pi["by_group"])
+    dis = "\n".join(f"| {r.sample_id} | {r.species} | {r.grid} | {r.mark} | {r.S_today:.2f} | {r.gate_failed or 'none'} |" for r in pi["dis"].itertuples()) or "| none | | | | | |"
+    ch = "\n".join(f"| {r.sample_id} | {r.species} | {r.grid} | {r.printed_verdict} | {'S' if r.model_suitable else 'N'} | {r.S_today:.2f} | {r.gate_failed or 'none'} | {r.mark} |" for r in pi["changed"].itertuples())
+    changed_md = ("No pair changed between the printed sheet and today (all " + str(pi["n_sheet"]) + " printed verdicts are reproduced by the hard gate)." if pi["n_changed_ns"] == 0 else "Pairs whose verdict changed between the printed sheet and today (" + str(pi["n_changed_ns"]) + " changed; printed / today / S today / gate / mark):\n\n| Sample | Species | Grid | Printed | Today | S today | Gate | Mark |\n|---|---|---|---|---|---|---|---|\n" + ch)
+    return f"""## The printed sheet against the agriculturist
+The verdicts that were PRINTED on the sheet (`data/validation/sample_printed_verdicts.csv`, 40 pairs: the system's verdict at the time) compared with the marks of the agriculturist. The sheet was made under the **hard slope gate**, so this part (like all the numbers in this document) is scored with SLOPE_MODE = "hard".
+
+{pi['n']} judged pairs (the 4 marked Cannot judge are left out); the sheet printed Suitable for {pi['n_yes']} of them and Not suitable for {pi['n'] - pi['n_yes']}.
+
+| Marginal counted as | Agreement of the printed verdict with the agriculturist | Cohen's kappa |
+|---|---|---|
+{ks}
+
+By group (Marginal counted as Not suitable):
+
+| Group | Agree |
+|---|---|
+{grp}
+
+Pairs the agriculturist marked Suitable or Marginal but the sheet printed as Not suitable ({len(pi['dis'])}):
+
+| Sample | Species | Grid | Mark | S today | Gate failed today |
+|---|---|---|---|---|---|
+{dis}
+
+Pairs marked Marginal but printed Suitable: {len(pi['marg_yes'])} ({', '.join(pi['marg_yes'].sample_id) or 'none'}).
+
+Printed verdict against today's hard-gate verdict (S >= 0.50): the same for {pi['same_today']} of {pi['n']} judged pairs. {changed_md}
+
+"""
+
+
+def render_doc(text, summary, res, judged, slope_rows, base_all, gain_all, b2, g2, rob, dis, mm, printed_info=None):
     ks = "\n".join(f"| {n} | {ag:.1%} | {fmt_k(k)} |" for n, (ag, k) in summary.items())
     sl = "\n".join(f"| {r['sample_id']} | {r['species']} | {r['grid']} | {r['mark']} | {r['slope_pct']:.1f} | {r['max_slope_pct']:g} | {r['overage']:+.1f} | {r['S_today']:.2f} | {r['S_alt']:.3f} | {'yes' if r['crosses_050'] else 'no'} |" for r in slope_rows)
     disagree = "\n".join(f"| {r.sample_id} | {r.species} | {r.grid} | {r.mark} | {r.S_today:.2f} | {r.gate_failed or 'none'} |" for r in judged[(judged.mark.isin(['S', 'M'])) & (~judged.model_suitable)].itertuples())
@@ -234,6 +296,7 @@ Production rule: S = 0 where the slope is steeper than the species limit (a gate
 - On today's grid the alternative rule would add {gain_all} pairs with S >= 0.50 to the {base_all} that have it now.
 - On the grid before round 15a (7,530 squares, Cemetery scored, the base of the 228,919 pairs) it would add {g2} to {b2}.
 
+{printed_section(printed_info)}
 ## Robusta and elevation
 The data gives Robusta an elevation range of 300 to 800 m. The reviewer marked all three Robusta pairs Suitable, at much lower places:
 
@@ -246,7 +309,7 @@ The data gives Robusta an elevation range of 300 to 800 m. The reviewer marked a
 - There are no "Not suitable" marks at all, so the sample cannot show whether the model correctly rejects bad pairs; agreement is mostly "model also says suitable".
 - The 40 pairs were chosen for review, not drawn to represent all 360,450 pairs.
 - "Marginal" has no fixed meaning in the model, so it is counted both ways.
-- The printed sheet (dataset v0.1-draft) is not in the repository, so today's verdicts could not be compared with the verdicts printed on the sheet.
+{"- The printed verdicts (data/validation/sample_printed_verdicts.csv) are compared above; the sheet was made with the dataset v0.1-draft, so its verdicts are not the verdicts of today's data." if printed_info else "- The printed sheet (dataset v0.1-draft) is not in the repository, so today's verdicts could not be compared with the verdicts printed on the sheet."}
 - The marks are a judgement, not a measurement of survival. Nothing here proves that trees survive where S is high.
 
 ## Full printout

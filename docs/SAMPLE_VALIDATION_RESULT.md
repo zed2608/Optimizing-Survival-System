@@ -52,6 +52,45 @@ Production rule: S = 0 where the slope is steeper than the species limit (a gate
 - On today's grid the alternative rule would add 105221 pairs with S >= 0.50 to the 249389 that have it now.
 - On the grid before round 15a (7,530 squares, Cemetery scored, the base of the 228,919 pairs) it would add 104209 to 228919.
 
+## The printed sheet against the agriculturist
+The verdicts that were PRINTED on the sheet (`data/validation/sample_printed_verdicts.csv`, 40 pairs: the system's verdict at the time) compared with the marks of the agriculturist. The sheet was made under the **hard slope gate**, so this part (like all the numbers in this document) is scored with SLOPE_MODE = "hard".
+
+36 judged pairs (the 4 marked Cannot judge are left out); the sheet printed Suitable for 25 of them and Not suitable for 11.
+
+| Marginal counted as | Agreement of the printed verdict with the agriculturist | Cohen's kappa |
+|---|---|---|
+| Marginal counted as Suitable | 69.4% (25 of 36) | 0.00 |
+| Marginal counted as Not suitable | 66.7% (24 of 36) | 0.21 |
+
+By group (Marginal counted as Not suitable):
+
+| Group | Agree |
+|---|---|
+| high-value crop | 15 of 21 |
+| native timber | 6 of 10 |
+| other (fruit, ornamental, grass) | 3 of 5 |
+
+Pairs the agriculturist marked Suitable or Marginal but the sheet printed as Not suitable (11):
+
+| Sample | Species | Grid | Mark | S today | Gate failed today |
+|---|---|---|---|---|---|
+| S04 | Robusta (Coffee) | 3258 | S | 0.00 | elevation |
+| S05 | Lemon | 6977 | M | 0.00 | slope |
+| S08 | Narra | 4847 | M | 0.00 | slope |
+| S16 | Yakal | 5281 | M | 0.00 | slope |
+| S17 | Robusta (Coffee) | 6638 | S | 0.00 | elevation |
+| S20 | Robusta (Coffee) | 10365 | S | 0.00 | elevation |
+| S22 | Guava | 5514 | S | 0.00 | slope |
+| S29 | Lemon | 4603 | M | 0.00 | slope |
+| S30 | Talisay | 6424 | S | 0.00 | slope |
+| S31 | Kamias | 4954 | M | 0.00 | slope |
+| S40 | Narra | 5045 | S | 0.00 | slope |
+
+Pairs marked Marginal but printed Suitable: 6 (S03, S06, S09, S15, S35, S36).
+
+Printed verdict against today's hard-gate verdict (S >= 0.50): the same for 36 of 36 judged pairs. No pair changed between the printed sheet and today (all 40 printed verdicts are reproduced by the hard gate).
+
+
 ## Robusta and elevation
 The data gives Robusta an elevation range of 300 to 800 m. The reviewer marked all three Robusta pairs Suitable, at much lower places:
 
@@ -66,7 +105,7 @@ The data gives Robusta an elevation range of 300 to 800 m. The reviewer marked a
 - There are no "Not suitable" marks at all, so the sample cannot show whether the model correctly rejects bad pairs; agreement is mostly "model also says suitable".
 - The 40 pairs were chosen for review, not drawn to represent all 360,450 pairs.
 - "Marginal" has no fixed meaning in the model, so it is counted both ways.
-- The printed sheet (dataset v0.1-draft) is not in the repository, so today's verdicts could not be compared with the verdicts printed on the sheet.
+- The printed verdicts (data/validation/sample_printed_verdicts.csv) are compared above; the sheet was made with the dataset v0.1-draft, so its verdicts are not the verdicts of today's data.
 - The marks are a judgement, not a measurement of survival. Nothing here proves that trees survive where S is high.
 
 ## Full printout
@@ -84,6 +123,13 @@ Marginal counted as Not suitable: agreement 66.7% (24 of 36), Cohen's kappa 0.21
 Pairs the agriculturist marked Suitable but the model says not suitable (S below 0.5): 6: S04 Robusta (Coffee) grid 3258 S=0.00 gate elevation; S17 Robusta (Coffee) grid 6638 S=0.00 gate elevation; S20 Robusta (Coffee) grid 10365 S=0.00 gate elevation; S22 Guava grid 5514 S=0.00 gate slope; S30 Talisay grid 6424 S=0.00 gate slope; S40 Narra grid 5045 S=0.00 gate slope
 Pairs marked Marginal where the model says suitable: 6 (S03, S06, S09, S15, S35, S36).
 Printed-sheet verdicts read from sample_printed_verdicts.csv (40 of 40 pairs). Pairs whose verdict changed between the printed sheet and today (S now = suitable at S >= 0.50, N = not): 0 changed, 0 printed Marginal (listed too):
+PRINTED SHEET against the AGRICULTURIST (36 judged pairs; the sheet printed Suitable for 25 and Not suitable for 11 of them; the sheet was made with the hard slope gate):
+   Marginal counted as Suitable: agreement 69.4% (25 of 36), Cohen's kappa 0.00
+   Marginal counted as Not suitable: agreement 66.7% (24 of 36), Cohen's kappa 0.21
+   by group (Marginal counted as Not suitable): high-value crop: 15/21 agree; native timber: 6/10 agree; other (fruit, ornamental, grass): 3/5 agree
+   marked Suitable or Marginal by the agriculturist but printed Not suitable: 11: S04 Robusta (Coffee) (mark S, today S 0.00, gate elevation), S05 Lemon (mark M, today S 0.00, gate slope), S08 Narra (mark M, today S 0.00, gate slope), S16 Yakal (mark M, today S 0.00, gate slope), S17 Robusta (Coffee) (mark S, today S 0.00, gate elevation), S20 Robusta (Coffee) (mark S, today S 0.00, gate elevation), S22 Guava (mark S, today S 0.00, gate slope), S29 Lemon (mark M, today S 0.00, gate slope), S30 Talisay (mark S, today S 0.00, gate slope), S31 Kamias (mark M, today S 0.00, gate slope), S40 Narra (mark S, today S 0.00, gate slope)
+   marked Marginal but printed Suitable: 6 (S03, S06, S09, S15, S35, S36)
+   today's hard-gate verdict equals the printed verdict for 36 of 36 judged pairs (the others are listed above as changed since the sheet).
 SLOPE SENSITIVITY (analysis only): 9 sample pairs fail on slope (the request expected 7).
    S05 Lemon grid 6977 (mark M): slope 41.9% against the limit 20% -> over by 21.9 points; S today 0.00, alternative S 0.562 (crosses 0.50)
    S07 Calamansi grid 5941 (mark X): slope 28.3% against the limit 25% -> over by 3.3 points; S today 0.00, alternative S 0.747 (crosses 0.50)
