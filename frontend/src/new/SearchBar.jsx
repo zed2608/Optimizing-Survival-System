@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import { apiGet } from '../v2/api.js'
 import { useApi } from '../v2/useApi.js'
@@ -208,6 +209,7 @@ export default function SearchBar({ onChoose, note, onDismissNote, locate, inclu
             <Icon name="close" />
           </button>
         )}
+        <AskHelp id="search" />
       </div>
 
       {panelOpen && (

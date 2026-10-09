@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { REASON_LABEL, STATUS_LABEL, STATUS_SYMBOL, when } from './fieldLabels.js'
@@ -68,7 +69,7 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved,
   return (
     <section className="nw-pcard fc fc-top" aria-label="Check this spot">
       <div className="nw-pcard-head">
-        <h3>Field check</h3>
+        <h3>Field check <AskHelp id="status-colours" /></h3>
         {current ? (
           <FieldChip cls={fieldClass(current.status, current.reason)} text={describe(current)} />
         ) : api.status === 'ok' ? (

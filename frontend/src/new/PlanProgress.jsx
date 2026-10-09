@@ -1,3 +1,4 @@
+import AskHelp from './tutorial/AskHelp.jsx'
 import { useState } from 'react'
 import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
@@ -41,7 +42,7 @@ export default function PlanProgress({ planId, version = 0, full = false, onTopU
         <span style={{ width: `${Math.min(100, t.percent_planted)}%` }} />
       </div>
       <div className="nw-pnum">
-        <strong>{t.planted}</strong> of {t.planned} trees planted ({t.percent_planted}%)
+        <strong>{t.planted}</strong> of {t.planned} trees planted ({t.percent_planted}%) <AskHelp id="progress" />
       </div>
       <ul className="nw-counts nw-pcounts">
         <li style={{ color: fieldColor('planted') }}>

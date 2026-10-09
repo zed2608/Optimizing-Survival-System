@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AskHelp from './tutorial/AskHelp.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
 import { ZONE_CREDIT, ZONE_UNSTYLED_NOTE, legendOrder, zoneColor, zoneColorName, zoneHatch } from './zoneColors.js'
@@ -11,6 +12,7 @@ export default function ZoningLegend({ api, onHide, onExpand = () => {} }) {
     <div className="nw-zoning-legend v2 v2-embedded" role="group" aria-label="Zoning legend">
       <div className="nw-legend-head">
         <strong>Zoning</strong>
+        <AskHelp id="zoning-layer" />
         <span className="nw-zbtns">
           <button type="button" className="btn btn-small" aria-expanded={open} onClick={() => { if (!open) onExpand(); setOpen(!open) }}>
             {open ? 'Hide list' : 'Show list'}

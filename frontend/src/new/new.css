@@ -821,3 +821,48 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
 .nw-fieldkey-text { color: inherit; }
 .nw-fchip { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
 .nw-problemclasses { margin-top: 4px; }
+
+/* ---- round 16: guided tour v2, Help page, "?" tips, printable guide ---- */
+.nw-tour-card-v2 { width: 340px; max-width: calc(100vw - 24px); pointer-events: auto; outline: none; }
+.nw-tour-card-v2 .nw-tour-watch { display: flex; gap: 6px; align-items: flex-start; padding: 8px 10px; background: #fff7e0; border-radius: var(--nw-radius, 8px); font-size: 13px; color: #5b4a12; }
+.nw-tour-card-v2 .nw-tour-watch svg { flex: none; margin-top: 2px; }
+.nw-tour-later { margin: 0 0 10px; font-size: 13px; color: #475569; font-style: italic; }
+.nw-tour-card-v2.is-sheet { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; max-height: 62vh; overflow-y: auto; }
+.nw-tour-hole.is-big { box-shadow: none; outline: 3px solid #34d399; background: transparent; }
+.nw-askhelp { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; margin-left: 6px; border-radius: 50%; border: 1px solid #94a3b8; background: #fff; color: #334155; cursor: pointer; vertical-align: middle; flex: none; }
+.nw-askhelp:hover, .nw-askhelp:focus-visible { background: #e2f6ee; border-color: #047857; color: #047857; }
+.nw-helppage { position: fixed; inset: 0; z-index: 3200; background: #f8fafc; color: #0f172a; display: flex; flex-direction: column; }
+.nw-helppage-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 16px; background: #0f172a; color: #f8fafc; }
+.nw-helppage-bar h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.nw-helppage-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.nw-helppage .nw-btn { color: #0f172a; background: #e6eaef; border-color: #c3ccd6; }
+.nw-helppage .nw-btn-go { color: #fff; background: var(--nw-accent-strong, #047857); }
+.nw-helppage-bar .nw-btn-ghost { color: #f8fafc; background: transparent; border-color: #64748b; }
+.nw-helppage-body { flex: 1; overflow-y: auto; padding: 16px; width: min(900px, 100%); margin: 0 auto; box-sizing: border-box; }
+.nw-helppage-lead { margin: 0 0 12px; color: #475569; }
+.nw-helppage .nw-input { width: 100%; box-sizing: border-box; font-size: 16px; padding: 10px 12px; border: 1px solid #94a3b8; border-radius: var(--nw-radius, 8px); background: #fff; color: #0f172a; }
+.nw-helppage-count { margin: 6px 0 12px; font-size: 13px; color: #475569; }
+.nw-faqlist h3, .nw-glossary h3 { margin: 18px 0 6px; font-size: 14px; font-weight: 600; color: #047857; text-transform: uppercase; letter-spacing: 0.03em; }
+.nw-faq { border: 1px solid #d5dce4; border-radius: var(--nw-radius, 8px); background: #fff; margin-bottom: 6px; }
+.nw-faq.is-open { border-color: #047857; }
+.nw-faq-q { width: 100%; text-align: left; padding: 10px 12px; border: 0; background: transparent; font: inherit; font-weight: 600; color: #0f172a; cursor: pointer; }
+.nw-faq-a { margin: 0; padding: 0 12px 12px; line-height: 1.5; }
+.nw-glossary dl { margin: 0; display: grid; gap: 8px; }
+.nw-glossary dt { font-weight: 600; }
+.nw-glossary dd { margin: 0; color: #334155; }
+.nw-printguide { display: none; }
+@media (max-width: 700px) {
+  .nw-helppage-bar { padding: 10px 12px; }
+  .nw-helppage-btns .nw-btn { flex: 1 1 auto; }
+}
+@media print {
+  body * { visibility: hidden !important; }
+  .nw-printguide, .nw-printguide * { visibility: visible !important; }
+  .nw-printguide { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0 12mm; color: #000; background: #fff; font: 11pt/1.4 Georgia, serif; }
+  .nw-printguide h1 { font-size: 20pt; margin: 0 0 4pt; }
+  .nw-printguide h2 { font-size: 15pt; margin: 18pt 0 6pt; border-bottom: 1px solid #000; }
+  .nw-printguide h3 { font-size: 12.5pt; margin: 12pt 0 4pt; }
+  .nw-printguide h4 { font-size: 11pt; margin: 6pt 0 2pt; }
+  .nw-printguide p, .nw-printguide dd { margin: 0 0 4pt; }
+  .nw-print-step { break-inside: avoid; margin-bottom: 6pt; }
+}

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import '../v2/v2.css'
 import './new.css'
+import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
 import GroundLegend from './GroundLegend.jsx'
@@ -24,7 +25,11 @@ import { countText, countsSummary } from './counts.js'
 import PairsWith from './PairsWith.jsx'
 import FieldLegend from './FieldLegend.jsx'
 import ZoningLegend from './ZoningLegend.jsx'
-import { HelpBanner, HelpButton, HowToUse, Tour } from './HelpCenter.jsx'
+import { HelpBanner, HelpButton } from './HelpCenter.jsx'
+import GuidedTour from './tutorial/GuidedTour.jsx'
+import HelpPage from './tutorial/HelpPage.jsx'
+import { HelpContext } from './tutorial/helpContext.js'
+import { TOUR_STEPS } from './tutorial/tutorialContent.js'
 import { useHelpState } from './help.js'
 import { matchText } from './plainWords.js'
 import { apiPost } from './apiPost.js'
@@ -533,6 +538,7 @@ export default function AppNew() {
     : 'Best species at each point'
 
   return (
+    <HelpContext.Provider value={{ openHelp: help.openHelp }}>
     <div className={`nw-root ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
@@ -583,6 +589,7 @@ export default function AppNew() {
         <div className="nw-legend v2 v2-embedded" role="group" aria-label="Map legend">
           <div className="nw-legend-head">
             <strong>{view === 'full' ? 'Overall score W' : 'Overall match'} · {purposeLabel(purpose)}</strong>
+            <AskHelp id="colours" />
             <button type="button" className="btn btn-small" aria-expanded="true" onClick={() => setLegendOpen(false)}>
               Hide legend
             </button>
@@ -642,7 +649,7 @@ export default function AppNew() {
           ))}
         </div>
         <div className="nw-topright">
-          <HelpButton onClick={() => help.setHowOpen(true)} />
+          <HelpButton onClick={() => help.openHelp()} />
           <div className="nw-pill" role="status">
             <span className={`nw-dot nw-dot-${apiState}`} aria-hidden="true" />
             <span>{apiState === 'ok' ? 'API connected' : apiState === 'wait' ? 'Connecting…' : 'API offline'}</span>
@@ -652,7 +659,7 @@ export default function AppNew() {
       {tab !== 'studio' && (
         <section className="nw-modal" aria-label={TABS.find((t) => t.id === tab).label}>
           <div className="nw-modal-head">
-            <h2>{tab === 'history' ? 'Campaign Event Logs & History' : tab === 'weather' ? 'Weather this week' : 'System Spatial Analytics'}</h2>
+            <h2>{tab === 'history' ? 'Campaign Event Logs & History' : tab === 'weather' ? 'Weather this week' : 'System Spatial Analytics'}<AskHelp id={tab === 'weather' ? 'weather' : 'logs-analytics'} /></h2>
             <button type="button" className="nw-btn" onClick={() => setTab('studio')}>
               <Icon name="close" /> Close & Return to Map
             </button>
@@ -684,7 +691,7 @@ export default function AppNew() {
         <Icon name={sidebarOpen ? 'left' : 'right'} /> {sidebarOpen ? 'Hide Control Panel' : 'Open Control Panel'}
       </button>
       <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls">
-        {!help.bannerOff && <HelpBanner onStart={() => help.setTourStep(0)} onDismiss={help.dismissBanner} />}
+        {!help.bannerOff && <HelpBanner onStart={() => { setSidebarOpen(true); help.startTour('full') }} onDismiss={help.dismissBanner} />}
         <SidebarStep
           n={1}
           id="goal"
@@ -930,17 +937,29 @@ export default function AppNew() {
           )}
         </RightPanel>
       )}
-      {help.howOpen && (
-        <HowToUse
-          onClose={() => help.setHowOpen(false)}
+      {help.helpPage && (
+        <HelpPage
+          initialFaq={help.helpPage.faq}
+          screen={tab}
+          onClose={help.closeHelp}
           onTour={() => {
-            help.setHowOpen(false)
             setSidebarOpen(true)
-            help.setTourStep(0)
+            help.startTour('full')
+          }}
+          onQuickTour={() => {
+            setSidebarOpen(true)
+            help.startTour('screen')
           }}
         />
       )}
-      {help.tourStep !== null && <Tour step={help.tourStep} onStep={help.setTourStep} onFinish={help.finishTour} onOpenStep={(id) => { setSidebarOpen(true); setOpenStep(id) }} />}
+      {help.tour && (
+        <GuidedTour
+          steps={help.tour === 'screen' ? TOUR_STEPS.filter((st) => st.screen === tab) : TOUR_STEPS}
+          onClose={() => {
+            help.endTour()
+          }}
+        />
+      )}
       {cardId !== null && (
         <SpeciesCard
           speciesId={cardId}
@@ -956,5 +975,6 @@ export default function AppNew() {
         />
       )}
     </div>
+    </HelpContext.Provider>
   )
 }

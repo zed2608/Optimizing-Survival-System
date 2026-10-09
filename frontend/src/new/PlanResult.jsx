@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import { fmt, pct } from '../v2/scale.js'
 import HelpTip from './HelpTip.jsx'
@@ -147,7 +148,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
         <section className="nw-pcard nw-checkfirst" aria-label="Check first">
           <div className="nw-pcard-head">
             <h3>
-              <Icon name="warn" /> Check first
+              <Icon name="warn" /> Check first <AskHelp id="check-first" />
             </h3>
           </div>
           <ul className="nw-notelist">

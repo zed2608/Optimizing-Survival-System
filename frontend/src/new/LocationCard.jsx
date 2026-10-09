@@ -1,6 +1,7 @@
 import { formatDay } from './season.js'
 import FlagList from './FlagList.jsx'
 import HelpTip from './HelpTip.jsx'
+import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
 import { conditionText, needsPermission } from './zoneColors.js'
@@ -21,7 +22,7 @@ export default function LocationCard({ full = true, zoneCondition = '', barangay
       </div>
       {zoneCondition && (
         <div className="nw-loc-line nw-zonecond" role="note">
-          <Icon name="info" size={14} /> Zone condition: {conditionText(zoneCondition)}. <ProvisionalTag />
+          <Icon name="info" size={14} /> Zone condition: {conditionText(zoneCondition)}. <ProvisionalTag /> <AskHelp id="needs-permission" />
           {needsPermission(zoneCondition) && <span className="nw-chip nw-chip-permit">Needs permission</span>}
         </div>
       )}

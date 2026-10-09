@@ -3,6 +3,7 @@ import { API_BASE } from '../v2/config.js'
 import { useApi } from '../v2/useApi.js'
 import { apiPost } from './apiPost.js'
 import HelpTip from './HelpTip.jsx'
+import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import { formatBytes } from './season.js'
 
@@ -42,7 +43,7 @@ export default function KitControls({ planId, onChanged, simple = false }) {
           )}
         </div>
         {k && !building && <p className="muted">Built {k.built_at ? k.built_at.replace('T', ' ').slice(0, 16) : 'Data Unavailable'} · {formatBytes(k.zip_size_bytes)} · check code {k.check_code ?? 'Data Unavailable'}</p>}
-        <h4 className="nw-kit-inside-h">What is inside</h4>
+        <h4 className="nw-kit-inside-h">What is inside <AskHelp id="field-kit" /></h4>
         <ul className="nw-kit-list">
           <li><Icon name="mappin" /> Map points for your phone: one for each block and its corners.</li>
           <li><Icon name="clipboard" /> Sheets to fill in on the field, to bring the results back.</li>
@@ -86,7 +87,7 @@ export default function KitControls({ planId, onChanged, simple = false }) {
             <dd>{formatBytes(k.zip_size_bytes)}</dd>
           </div>
           <div>
-            <dt>Check code</dt>
+            <dt>Check code <AskHelp id="check-code" /></dt>
             <dd className="nw-mono-big">{k.check_code ?? 'Data Unavailable'}</dd>
           </div>
           <div>

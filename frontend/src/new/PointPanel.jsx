@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
@@ -53,7 +54,7 @@ function VerdictCard({ ranking, leftOut, preferId = null }) {
   return (
     <section className={`nw-pcard nw-verdictcard ${good ? 'is-good' : top && !leftOut ? 'is-fair' : 'is-poor'}`} aria-label="Verdict for this spot">
       <p className="nw-verdict-text" role="status">
-        <Icon name={good ? 'check' : top && !leftOut ? 'info' : 'warn'} /> {text}
+        <Icon name={good ? 'check' : top && !leftOut ? 'info' : 'warn'} /> {text} <AskHelp id="scores" />
       </p>
     </section>
   )

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AskHelp from './tutorial/AskHelp.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
 import { PURPOSE_TAGS } from './purposeTags.js'
@@ -43,6 +44,7 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
         <label className="nw-check nw-pfilter-nursery">
           <input id="nw-nursery-filter" type="checkbox" checked={nurseryOnly} onChange={(e) => setNurseryOnly(e.target.checked)} />
           <span>Available in LGU nursery</span>
+          <AskHelp id="nursery" />
         </label>
         <div className="muted nw-pfilter-note">Stock quantities unknown</div>
       </div>
