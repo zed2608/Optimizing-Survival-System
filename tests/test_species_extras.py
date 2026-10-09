@@ -73,7 +73,7 @@ def test_nursery_matches_and_non_matches(nursery):
         assert int(n.matched_species_id[listed]) == ID[sp] and n.in_system[listed] == "yes", listed
     assert SP[SP.common_name == "Kamagong"].scientific_name.iloc[0] == "Diospyros blancoi"
     assert int(n.matched_species_id["Mabolo"]) == ID["Kamagong"] and "Diospyros blancoi" in n.match_note["Mabolo"]
-    assert int(n.matched_species_id["Kape"]) == ID["Robusta (Coffee)"] and n.in_system["Kape"] == "partial" and "partial match" in n.match_note["Kape"]
+    assert int(n.matched_species_id["Kape"]) == ID["Robusta (Coffee)"] and n.in_system["Kape"] == "partial" and n.match_note["Kape"] == "Kape is in the nursery list, variety unknown"
     assert n.matched_species_id["Banyan"] == "" and n.in_system["Banyan"] == "no" and n.match_note["Banyan"] == "possible Weeping Fig, confirm"
     gone = ["Durian", "Morong(?)", "Tui/Tuai (Bischofia javanica)", "Kamatsile", "Suha (Citrus maxima)", "Banyaw", "Luntibani", "Balitbitan", "Eugenia", "Casimjas/Castanas(?)", "Camansi", "Atis",
             "Nymp Tree", "Lagundi", "Alibangbang", "Caupiyus(?)", "Dungon"]
@@ -94,10 +94,9 @@ def test_interview_notes_cite_who_and_when():
     n = pd.read_csv(PROCESSED / "interview_notes.csv")
     assert list(n.columns) == ["species_id", "note", "source", "provisional"] and n.provisional.all()
     assert set(n.species_id) == {ID["Cacao"], ID["Clumping Bamboo"], ID["Calamansi"]}
-    assert n.source.str.contains("7 Oct 2026").all()
+    assert (n.source == "MAO interview, transcript, Oct 2026").all()                                  # round 15b: one source for every note
     cacao = n[n.species_id == ID["Cacao"]]
     assert cacao.note.str.contains("60% shade").any() and cacao.note.str.contains("banana or coconut").any() and cacao.note.str.contains("Silangan and Pintong Bukawe").any()
-    assert "MAO (Alexis P. Santos, OIC-MAO)" in cacao[cacao.note.str.contains("60% shade")].source.iloc[0]
     bam = n[n.species_id == ID["Clumping Bamboo"]].note.str.cat(sep=" ")
     assert "landfill" in bam and "filters heavy metals" in bam and "Pintong Bukawe" in bam and "crafts" in bam
     assert "Gitnang Bayan I" in n[n.species_id == ID["Calamansi"]].note.iloc[0] and "Observation only" in n[n.species_id == ID["Calamansi"]].note.iloc[0]
@@ -116,11 +115,14 @@ def test_the_species_endpoints_carry_tags_nursery_and_notes(client):
     j = client.get("/species").json()
     by = {s["species_id"]: s for s in j["species"]}
     assert all(set(s["purpose_tags"]) <= set(ex.TAGS) and isinstance(s["in_nursery"], bool) for s in j["species"])
-    assert sum(s["in_nursery"] for s in j["species"]) == 15 and by[ID["Kamagong"]]["in_nursery"] and by[ID["Robusta (Coffee)"]]["nursery_match"] == "partial" and not by[ID["Molave"]]["in_nursery"]
+    assert sum(s["in_nursery"] for s in j["species"]) == 14 and by[ID["Kamagong"]]["in_nursery"] and not by[ID["Molave"]]["in_nursery"]
+    rob = by[ID["Robusta (Coffee)"]]
+    assert rob["in_nursery"] is False and rob["nursery_match"] == "partial" and rob["nursery_note"] == "Kape is in the nursery list, variety unknown"      # round 15b
+    assert all(s["nursery_quantities"] == "Stock quantities unknown" for s in j["species"])
     d = client.get(f"/species/{ID['Cacao']}").json()
     assert d["in_nursery"] is True and d["nursery"][0]["listed_name"] == "Cacao" and "quantities unknown" in d["nursery"][0]["source"]
     assert {"fruit-bearing", "high-value crop"} <= set(d["purpose_tags"]) and d["purpose_tag_details"][0]["basis"] and "filters only" in d["tags_note"]
-    assert len(d["interview_notes"]) == 2 and all(n["provisional"] for n in d["interview_notes"]) and "7 Oct 2026" in d["interview_notes"][0]["source"]
+    assert len(d["interview_notes"]) == 2 and all(n["provisional"] for n in d["interview_notes"]) and d["interview_notes"][0]["source"] == "MAO interview, transcript, Oct 2026"
     k = client.get(f"/species/{ID['Kamagong']}").json()
     assert k["nursery"][0]["listed_name"] == "Mabolo"
     assert client.get(f"/species/{ID['Molave']}").json()["in_nursery"] is False

@@ -3,6 +3,7 @@ import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { useApi } from '../v2/useApi.js'
 import { apiPost } from './apiPost.js'
+import { FIELD_ORDER, fieldColor, fieldIcon, fieldLabel } from './fieldStatus.js'
 
 // The progress of a plan in blocks, from the saved field checks: a bar, trees planted / remaining / problem, blocks done / partly / problem / to do, trees per species, and the
 // "Plan top-up" button that makes a new plan for the trees lost to problem blocks. version changes after every saved field check, so the numbers reload.
@@ -43,16 +44,25 @@ export default function PlanProgress({ planId, version = 0, full = false, onTopU
         <strong>{t.planted}</strong> of {t.planned} trees planted ({t.percent_planted}%)
       </div>
       <ul className="nw-counts nw-pcounts">
-        <li>
-          <Icon name="tree" /> Planted: <strong>{t.planted}</strong>
+        <li style={{ color: fieldColor('planted') }}>
+          <Icon name={fieldIcon('planted')} /> Planted: <strong>{t.planted}</strong>
         </li>
         <li>
           <Icon name="clock" /> Remaining: <strong>{t.remaining}</strong>
         </li>
-        <li>
-          <Icon name="close" /> Problem: <strong>{t.problem}</strong>
+        <li style={{ color: fieldColor('not_plantable') }}>
+          <Icon name={fieldIcon('not_plantable')} /> Problem: <strong>{t.problem}</strong>
         </li>
       </ul>
+      {t.problem > 0 && p.by_class && (
+        <ul className="nw-counts nw-pcounts nw-problemclasses" aria-label="Problem blocks by reason">
+          {FIELD_ORDER.filter((k) => ['not_plantable', 'water', 'hard'].includes(k) && p.by_class[k]?.blocks > 0).map((k) => (
+            <li key={k} style={{ color: fieldColor(k) }}>
+              <Icon name={fieldIcon(k)} /> {fieldLabel(k)}: <strong>{p.by_class[k].blocks}</strong> block{p.by_class[k].blocks === 1 ? '' : 's'}
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="nw-loc-line">
         Blocks: {b.done} done · {b.partly} partly done · {b.problem} problem · {b.to_do} to do (of {b.total})
       </div>

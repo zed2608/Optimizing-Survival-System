@@ -19,7 +19,7 @@ needs = pytest.mark.skipif(not (PROCESSED / "scores" / "site_scores.db").exists(
 
 def test_the_table_lists_every_zone_with_a_valid_rule_and_the_defaults_are_as_before():
     assert set(rsg.ZONE_RULES.values()) <= set(rsg.RULE_VALUES)
-    assert [z for z, r in rsg.ZONE_RULES.items() if r == "confirmed"] == rsg.VALID_ZONES and len(rsg.VALID_ZONES) == 15 and "General Institutional Zonec" in rsg.VALID_ZONES     # round 15a: MPDC answers of 7 Oct 2026
+    assert [z for z, r in rsg.ZONE_RULES.items() if r == "confirmed"] == rsg.VALID_ZONES and len(rsg.VALID_ZONES) == 17 and "General Institutional Zonec" in rsg.VALID_ZONES     # round 15a: MPDC answers of 7 Oct 2026
     assert {z for z, r in rsg.ZONE_RULES.items() if r == "excluded"} == {"Cemetery Zone", "Quarry Sub-Zone"}
     assert rsg.OUTSIDE_ZONING_RULE == "unconfirmed" and rsg.UNKNOWN_ZONE_RULE == "excluded"
 

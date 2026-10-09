@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import Icon from './Icon.jsx'
 import { API_BASE } from '../v2/config.js'
-import { REASON_LABEL, STATUS_LABEL, STATUS_SYMBOL } from './fieldLabels.js'
+import { REASON_LABEL, STATUS_LABEL } from './fieldLabels.js'
+import { fieldClass, fieldColor, fieldIcon } from './fieldStatus.js'
 import { apiPostText } from './apiPost.js'
 import HelpTip from './HelpTip.jsx'
 
@@ -41,8 +42,8 @@ export default function FieldSummary({ summary, observer, onObserver, onChanged 
         <>
           <ul className="nw-counts">
             {['verified_plantable', 'not_plantable', 'needs_recheck', 'planted'].map((k) => (
-              <li key={k}>
-                <Icon name={STATUS_SYMBOL[k]} /> {STATUS_LABEL[k]}: <strong>{s.by_status[k] ?? 0}</strong>{k === 'planted' && s.trees_planted_total > 0 ? ` blocks · ${s.trees_planted_total} trees` : ''}
+              <li key={k} style={{ color: fieldColor(fieldClass(k)) }}>
+                <Icon name={fieldIcon(fieldClass(k))} /> {STATUS_LABEL[k]}: <strong>{s.by_status[k] ?? 0}</strong>{k === 'planted' && s.trees_planted_total > 0 ? ` blocks · ${s.trees_planted_total} trees` : ''}
               </li>
             ))}
           </ul>

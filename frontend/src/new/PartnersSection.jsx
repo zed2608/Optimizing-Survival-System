@@ -29,8 +29,8 @@ export default function PartnersSection({ speciesId, query = '' }) {
               <div className="nw-partner-name">
                 <strong>{p.common_name}</strong>
                 {p.source_named && (
-                  <span className="nw-chip nw-chip-named">
-                    <Icon name={p.status === 'fits' ? 'check' : 'warn'} size={12} /> {p.status === 'fits' ? 'named in the sources' : p.label ?? 'named in the sources, conditions differ'}
+                  <span className={`nw-chip ${p.status === 'fits' ? 'nw-chip-named' : 'nw-chip-differ'}`}>
+                    <Icon name={p.status === 'fits' ? 'check' : 'warn'} size={12} /> {p.status === 'fits' ? 'named in the sources' : 'Named in sources, check conditions'}
                   </span>
                 )}
                 {p.cautions?.map((c) => (

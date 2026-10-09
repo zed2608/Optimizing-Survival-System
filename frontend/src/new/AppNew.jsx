@@ -22,6 +22,8 @@ import PlanResult from './PlanResult.jsx'
 import PlanStep from './PlanStep.jsx'
 import { countText, countsSummary } from './counts.js'
 import PairsWith from './PairsWith.jsx'
+import FieldLegend from './FieldLegend.jsx'
+import ZoningLegend from './ZoningLegend.jsx'
 import { HelpBanner, HelpButton, HowToUse, Tour } from './HelpCenter.jsx'
 import { useHelpState } from './help.js'
 import { matchText } from './plainWords.js'
@@ -103,6 +105,7 @@ export default function AppNew() {
   const [fieldVersion, setFieldVersion] = useState(0) // bumped after every saved field check: reloads what depends on them (and skips the browser cache)
   const [showField, setShowField] = useState(true)
   const [showGround, setShowGround] = useState(false) // the optional ground-cover layer (default off)
+  const [showZoning, setShowZoning] = useState(false) // the optional Zoning overlay (MPDC colours, default off)
   const [showOther, setShowOther] = useState(true) // the faint layer of grid squares that are not planting zones
   const [observer, setObserver] = useObserver()
   const [view, setView] = useViewMode() // Compact | Full details of the species lists
@@ -118,6 +121,7 @@ export default function AppNew() {
   const boundaries = useApi('/geo/boundaries')
   const zones = useApi('/geo/zones')
   const contextData = useApi(`/grid/context?${uz}`)
+  const zoning = useApi(showZoning ? '/geo/zoning' : null) // every land-use zone with its rule, condition and number of squares
   const landcover = useApi(showGround || detailed ? '/grid/landcover' : null) // dominant satellite land-cover class per square (for the layer and the Detailed corner marks)
   const sq = `${seasonQuery(win.applied, onlySeason)}&${uz}` // the dates (and 'only' or 'mark') and the zoning switch that every species-listing call carries
   const species = useApi(`/species?${seasonQuery(win.applied, false)}`) // all species, each with its season (the toggle hides the out-of-season ones here)
@@ -320,7 +324,10 @@ export default function AppNew() {
     }
     if (it.type === 'species') {
       setCardId(it.species_id)
-      setSearchNote({ title: it.common_name, lines: ['The species card is open. “Find areas for this species” switches the map to it.'] })
+      changeMode('species') // the map and the Areas panel show the best squares for this species
+      setSelIds([it.species_id])
+      setRowActive(null)
+      setSearchNote({ title: it.common_name, lines: ['The species card is open and the map shows the best squares for it.'] })
       return
     }
     const rankable = it.type === 'grid_point' && (it.legal_zone || it.zoning_status === 'unconfirmed')
@@ -515,7 +522,7 @@ export default function AppNew() {
     if (detailed) return showField ? f : null // Detailed: every field-check symbol
     const ids = grid.data.columns.point_id
     const keep = f.index.map((idx, k) => (sessionMarks.has(ids[idx]) ? k : -1)).filter((k) => k >= 0) // Simple: only the points the user marked in this session
-    return keep.length ? { ...f, index: keep.map((k) => f.index[k]), status: keep.map((k) => f.status[k]) } : null
+    return keep.length ? { ...f, index: keep.map((k) => f.index[k]), status: keep.map((k) => f.status[k]), class: f.class ? keep.map((k) => f.class[k]) : undefined } : null
   }, [grid.data, detailed, showField, sessionMarks])
   const meta = useMemo(() => ({ purpose, species: selection ? idsParam : '' }), [purpose, selection, idsParam])
   const apiState = health.status === 'ok' ? 'ok' : health.status === 'loading' ? 'wait' : 'off'
@@ -526,7 +533,7 @@ export default function AppNew() {
     : 'Best species at each point'
 
   return (
-    <div className={`nw-root ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''}`}>
+    <div className={`nw-root ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
@@ -550,6 +557,8 @@ export default function AppNew() {
           detailed={detailed}
           ground={groundInfo}
           groundOn={showGround}
+          zoning={zoning.status === 'ok' ? zoning.data : null}
+          zoningOn={showZoning}
           contextLabeler={contextLabeler}
           safeArea={safeArea}
           planItems={planItems}
@@ -558,7 +567,7 @@ export default function AppNew() {
         />
       </div>
 
-      <MapViewMenu showGround={showGround} onShowGround={setShowGround} detailed={detailed} onDetailed={setDetailed} baseLayer={baseLayer} onBaseLayer={setBaseLayer} showField={showField} onShowField={setShowField} showOther={showOther} onShowOther={setShowOther} showPlan={showPlan} onShowPlan={setShowPlan} hasPlan={!!planResult} />
+      <MapViewMenu showGround={showGround} onShowGround={setShowGround} showZoning={showZoning} onShowZoning={setShowZoning} detailed={detailed} onDetailed={setDetailed} baseLayer={baseLayer} onBaseLayer={setBaseLayer} showField={showField} onShowField={setShowField} showOther={showOther} onShowOther={setShowOther} showPlan={showPlan} onShowPlan={setShowPlan} hasPlan={!!planResult} />
       <SearchBar locate={locate} onChoose={onSearchChoose} note={searchNote} onDismissNote={() => setSearchNote(null)} includeUnzoned={includeUnzoned} />
 
       {/* messages over the map */}
@@ -586,17 +595,7 @@ export default function AppNew() {
             </div>
           )}
           {fieldForMap && (
-            <ul className="nw-fieldkey" aria-label="Field check symbols">
-              <li>
-                <Icon name="ring" /> verified plantable
-              </li>
-              <li>
-                <Icon name="close" /> not plantable (left out)
-              </li>
-              <li>
-                <Icon name="triangle" /> needs recheck
-              </li>
-            </ul>
+            <FieldLegend />
           )}
           {contextData.status === 'ok' && (
             <div className="nw-legend-other">
@@ -617,6 +616,8 @@ export default function AppNew() {
           <Icon name="legend" /> Legend
         </button>
       )}
+
+      {showZoning && <ZoningLegend api={zoning} onHide={() => setShowZoning(false)} onExpand={() => setLegendOpen(false)} />}
 
       {showGround && <GroundLegend data={landcover.status === 'ok' ? landcover.data : null} onHide={() => setShowGround(false)} />}
 

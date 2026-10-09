@@ -2,6 +2,8 @@ import { useState } from 'react'
 import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { REASON_LABEL, STATUS_LABEL, STATUS_SYMBOL, when } from './fieldLabels.js'
+import FieldChip from './FieldChip.jsx'
+import { fieldClass } from './fieldStatus.js'
 import { apiPost } from './apiPost.js'
 import HelpTip from './HelpTip.jsx'
 
@@ -68,10 +70,7 @@ export default function VerifyBar({ pointId, api, observer, onObserver, onSaved,
       <div className="nw-pcard-head">
         <h3>Field check</h3>
         {current ? (
-          <span className={`nw-chip fc-chip fc-${current.status}`}>
-            <Icon name={STATUS_SYMBOL[current.status]} /> 
-            {describe(current)}
-          </span>
+          <FieldChip cls={fieldClass(current.status, current.reason)} text={describe(current)} />
         ) : api.status === 'ok' ? (
           <span className="nw-chip">Not checked</span>
         ) : null}

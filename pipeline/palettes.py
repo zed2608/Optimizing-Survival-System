@@ -127,13 +127,15 @@ def parse_months(value):
     return {int(x) for x in str(value).replace(",", ";").split(";") if x.strip()}
 
 
-def species_stats(S, P, s_min):
-    """Per species: eligible point count and share, mean W over eligible points, and the species score."""
+def species_stats(S, P, s_min, mult=None):
+    """Per species: eligible point count and share, mean W over eligible points, and the species score. mult = optional W multiplier per point (S and eligibility are not touched)."""
     S = np.asarray(S, dtype=float); P = np.asarray(P, dtype=float)
     n_pts = S.shape[0]
     elig = S >= s_min
     n_el = elig.sum(axis=0)
     W = np.where(elig, S * P[None, :], 0.0)
+    if mult is not None:
+        W = W * np.asarray(mult, dtype=float)[:, None]
     mean_w = np.divide(W.sum(axis=0), n_el, out=np.zeros(S.shape[1]), where=n_el > 0)
     share = n_el / n_pts if n_pts else np.zeros(S.shape[1])
     return pd.DataFrame({"n_eligible": n_el, "eligible_share": share, "mean_w": mean_w, "score": mean_w * share})
@@ -208,23 +210,23 @@ def eligible_pool(species, st, months, c, block_cap=None):
     return pool, excluded
 
 
-def count_eligible(species, S, P, cfg=None, block_cap=None):
+def count_eligible(species, S, P, cfg=None, block_cap=None, wmult=None):
     """How many species (and how many different genera) could enter a palette for these points: used to relax the caps when the species were chosen by hand."""
     c = CFG if cfg is None else cfg
     species = species.reset_index(drop=True)
-    st = species_stats(np.asarray(S, dtype=float), np.asarray(P, dtype=float), c["s_min"])
+    st = species_stats(np.asarray(S, dtype=float), np.asarray(P, dtype=float), c["s_min"], wmult)
     pool, _ = eligible_pool(species, st, [parse_months(v) for v in species.planting_months], c, block_cap)
     return len(pool), len({str(species.genus.iloc[i]) if pd.notna(species.genus.iloc[i]) else "?" for i in pool})
 
 
-def fixed_palette(species, S, P, trees_by_species, cfg=None):
+def fixed_palette(species, S, P, trees_by_species, cfg=None, wmult=None):
     """A palette whose tree counts are GIVEN (a top-up plan restores the trees a plan lost, species by species). trees_by_species = {species_id: trees}. The species keep the order of the
     given dict; nothing is chosen or dropped here (the matching reports what cannot be placed)."""
     c = CFG if cfg is None else cfg
     species = species.reset_index(drop=True)
     S = np.asarray(S, dtype=float)
     P = np.asarray(P, dtype=float)
-    st = species_stats(S, P, c["s_min"])
+    st = species_stats(S, P, c["s_min"], wmult)
     ids = species.species_id.astype(int).tolist()
     members = [ids.index(int(s)) for s in trees_by_species if int(s) in ids]
     n = int(sum(int(trees_by_species[int(species.species_id.iloc[i])]) for i in members))
@@ -238,7 +240,7 @@ def fixed_palette(species, S, P, trees_by_species, cfg=None):
             "warnings": [], "objective": 0.0, "n_saplings": n, "allocated": n, "unallocated": 0}
 
 
-def build_palette(species, S, P, n_saplings, cfg=None, block_cap=None):
+def build_palette(species, S, P, n_saplings, cfg=None, block_cap=None, wmult=None):
     """Choose the palette. Returns a dict (see keys at the end); never hides what it dropped.
     block_cap (blocks mode): trees per block of every species (NaN = cannot be planned in blocks); n_saplings is then the number of TREES and a species can take at most
     (eligible squares x its capacity) trees."""
@@ -248,7 +250,7 @@ def build_palette(species, S, P, n_saplings, cfg=None, block_cap=None):
     n = int(n_saplings)
     if n < 1:
         raise ValueError("n_saplings must be >= 1")
-    st = species_stats(S, P, c["s_min"])
+    st = species_stats(S, P, c["s_min"], wmult)
     months = [parse_months(v) for v in species.planting_months]
     genus = species.genus.fillna("?").to_numpy(dtype=object)
     dioecious = species.is_dioecious.fillna(False).astype(bool).to_numpy()

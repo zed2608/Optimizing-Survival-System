@@ -135,7 +135,7 @@ def test_rehab_warning_on_a_landfill_square_does_not_change_s_or_p(client):
 
 
 @needs
-def test_habagat_lowers_s_by_20_percent_only_in_the_four_barangays_and_only_in_jul_sep(client):
+def test_habagat_lowers_w_by_20_percent_only_in_the_four_barangays_and_only_in_jul_sep_and_leaves_s_alone(client):
     lat, lon = point_of(barangay_name="STA ANA", client=client)
     may = client.get("/rank", params={"purpose": "urban", "lat": lat, "lon": lon, "limit": 45, **MAY}).json()
     aug = client.get("/rank", params={"purpose": "urban", "lat": lat, "lon": lon, "limit": 45, **AUG}).json()
@@ -144,14 +144,14 @@ def test_habagat_lowers_s_by_20_percent_only_in_the_four_barangays_and_only_in_j
     m = {i["species_id"]: i for i in may["ranking"]}
     p = {i["species_id"]: i for i in plain["ranking"]}
     assert all(m[k]["S"] == p[k]["S"] and m[k]["W"] == p[k]["W"] for k in m)           # no dates, or May-June: exactly the old numbers
-    assert aug["point"]["habagat"]["applies_to_window"] and aug["point"]["habagat"]["multiplier"] == 0.8
+    assert aug["point"]["habagat"]["applies_to_window"] and aug["point"]["habagat"]["multiplier"] == 0.8 and "W only" in aug["point"]["habagat"]["applies_to"]
     for i in aug["ranking"]:
         b = i["habagat"]
-        assert b["multiplier"] == 0.8 and b["S_before"] == p[i["species_id"]]["S"] and abs(i["S"] - round(0.8 * b["S_before"], 4)) < 2e-4
-        assert "habagat_washout" in i["flags"] and b["warning"].startswith("Heavy rain and flooding (Habagat)")
-        if i["eligible"]:
-            assert i["S"] >= 0.5
-    assert aug["species_eligible"] <= may["species_eligible"]
+        assert i["S"] == p[i["species_id"]]["S"]                                       # S is NOT changed
+        assert i["eligible"] == p[i["species_id"]]["eligible"]                         # nor is who is suitable
+        assert b["multiplier"] == 0.8 and b["applies_to"] == "W only" and b["W_before"] == p[i["species_id"]]["W"] and abs(i["W"] - round(0.8 * b["W_before"], 4)) < 2e-4
+        assert b["W_after"] == i["W"] and "habagat_washout" in i["flags"] and b["warning"].startswith("Heavy rain and flooding (Habagat)")
+    assert aug["species_eligible"] == may["species_eligible"]
     lat2, lon2 = point_of(barangay_name="SILANGAN", client=client)                    # an upland barangay: nothing changes
     up_aug = client.get("/rank", params={"purpose": "urban", "lat": lat2, "lon": lon2, "limit": 45, **AUG}).json()
     up_may = client.get("/rank", params={"purpose": "urban", "lat": lat2, "lon": lon2, "limit": 45, **MAY}).json()
@@ -167,21 +167,26 @@ def test_habagat_in_the_map_the_area_ranking_and_a_plan(client):
     names = [d.barangay_names[b] if b >= 0 else "" for b in d.point_barangay]
     hab = sr.habagat_square_mask(names)
     w_may, w_aug = np.array(g_may["columns"]["W"]), np.array(g_aug["columns"]["W"])
-    assert (w_aug[hab] <= w_may[hab] + 1e-9).all() and (w_aug[hab] < w_may[hab]).any()
+    assert np.allclose(w_aug[hab], 0.8 * w_may[hab], atol=2e-3) and (w_aug[hab] < w_may[hab]).any()
     assert np.allclose(w_aug[~hab], w_may[~hab])
+    n_may, n_aug = np.array(g_may["columns"]["n_eligible_species"]), np.array(g_aug["columns"]["n_eligible_species"])
+    assert (n_may == n_aug).all()                                                      # the number of suitable species does not change
     ra_may = client.post("/rank/area", params=MAY, json={"purpose": "urban", "barangay": "Santa Ana"}).json()
     ra_aug = client.post("/rank/area", params=AUG, json={"purpose": "urban", "barangay": "Santa Ana"}).json()
-    top = lambda r: {x["species_id"]: x["mean_W_where_suitable"] for x in r["ranking"]}
+    top = lambda r: {x["species_id"]: x for x in r["ranking"]}
     tm, ta = top(ra_may), top(ra_aug)
-    assert all(ta[k] < tm[k] for k in ta if k in tm and tm[k] > 0 and ta[k] > 0)
+    assert all(ta[k]["suitable_points"] == tm[k]["suitable_points"] and abs(ta[k]["mean_W_where_suitable"] - 0.8 * tm[k]["mean_W_where_suitable"]) < 3e-3 for k in ta if k in tm)
     body = {"purpose": "urban", "n_saplings": 60, "seed": 3, "barangay": "Santa Ana", "campaign": {"name": "Habagat", "unit": ""}}
     p_aug = client.post("/plan-event", params=AUG, json=body).json()
     p_may = client.post("/plan-event", params=MAY, json=body).json()
     s = p_aug["summary"]
-    assert s["habagat"]["multiplier"] == 0.8 and s["habagat"]["affected_trees"] == p_aug["n_placed"] > 0
+    assert s["habagat"]["multiplier"] == 0.8 and s["habagat"]["affected_trees"] == p_aug["n_placed"] > 0 and "W only" in s["habagat"]["applies_to"]
     assert "Heavy rain and flooding (Habagat) can wash out seedlings here in Jul-Sep" in s["palette_warnings"]
     assert all("habagat_washout" in i["flags"] for i in p_aug["plan"]) and not any("habagat_washout" in i["flags"] for i in p_may["plan"])
     assert "habagat" not in p_may["summary"] and p_aug["summary"]["mean_W"] < p_may["summary"]["mean_W"]
+    assert p_aug["n_placed"] == p_may["n_placed"] == 60                                # the same trees fit: eligibility did not move
+    for i in p_aug["plan"]:
+        assert abs(i["W"] - 0.8 * i["S"] * i["P"]) < 3e-4                              # S and P as before, W lowered
 
 
 @needs

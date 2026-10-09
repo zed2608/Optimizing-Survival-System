@@ -2,10 +2,12 @@ import { formatDay } from './season.js'
 import FlagList from './FlagList.jsx'
 import HelpTip from './HelpTip.jsx'
 import Icon from './Icon.jsx'
+import ProvisionalTag from './ProvisionalTag.jsx'
+import { conditionText, needsPermission } from './zoneColors.js'
 
 // The header of the point panel (and of the grey-square panel): where exactly this is, one short line each.
 //   barangay (large) / "Forest Zone, grid 11809" / coordinates, elevation, slope / the planting window and today's date / how far from the click.
-export default function LocationCard({ full = true, barangay, zone, pointId, lat, lon, elev, slope, win, today, distance, searched, zoning = null, ground = null, soil = null, children }) {
+export default function LocationCard({ full = true, zoneCondition = '', barangay, zone, pointId, lat, lon, elev, slope, win, today, distance, searched, zoning = null, ground = null, soil = null, children }) {
   const coords = [`${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`]
   if (elev !== null && elev !== undefined) coords.push(`${elev} m elevation`)
   if (slope !== null && slope !== undefined) coords.push(`slope ${Number(slope).toFixed(0)} %`)
@@ -17,6 +19,12 @@ export default function LocationCard({ full = true, barangay, zone, pointId, lat
       <div className="nw-loc-line">
         {zone || 'Outside our zoning map'}, grid {pointId}
       </div>
+      {zoneCondition && (
+        <div className="nw-loc-line nw-zonecond" role="note">
+          <Icon name="info" size={14} /> Zone condition: {conditionText(zoneCondition)}. <ProvisionalTag />
+          {needsPermission(zoneCondition) && <span className="nw-chip nw-chip-permit">Needs permission</span>}
+        </div>
+      )}
       {full && <div className="nw-loc-line">{coords.join(' · ')}</div>}
       <div className="nw-loc-line">
         Planting window {formatDay(win.start)} - {formatDay(win.end, true)}, viewed {formatDay(today, true)}

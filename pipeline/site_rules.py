@@ -6,7 +6,9 @@ Nothing here edits the species table; the rules are applied when a ranking or a 
           the flag rehab_site_food_warning (a warning only: they are not excluded and S and P do not change).
           Source: MAO (Alexis P. Santos, OIC-MAO), 7 Oct 2026.
   HABAGAT The lowland barangays Maly, Dulong Bayan I and II and Santa Ana are off-season for planting in Jul-Sep (heavy rain and flooding wash out seedlings): when the planting
-          window touches those months, the site match S of those squares is multiplied by 0.8 (the MAO's example figure for about 20% lower survival).
+          window touches those months, the RANKING SCORE W of those squares is multiplied by 0.8 (the MAO's example figure for about 20% lower survival). Round 15b: S and the
+          S >= 0.50 test are NOT changed, so the set of suitable species stays the same; only the ranking and the colours move. Scores therefore depend on the planting month for
+          these four barangays and Jul-Sep (decision of 8 Oct 2026).
           Source: MAO (Alexis P. Santos, OIC-MAO), 7 Oct 2026.
 """
 import re
@@ -88,5 +90,6 @@ def habagat_info(window_months, cfg=None):
     """The block shown with a score (and saved in a plan summary): what applies, why, from whom."""
     c = HABAGAT_CFG if cfg is None else cfg
     hit = habagat_months_hit(window_months, c)
-    return {"applies_to_window": bool(hit), "months_hit": hit, "multiplier": float(c["multiplier"]), "barangays": list(c["barangays"]), "months": list(c["months"]),
+    return {"applies_to_window": bool(hit), "applies_to": "ranking score W only (S and the S >= 0.50 test are not changed)", "months_hit": hit,
+            "multiplier": float(c["multiplier"]), "barangays": list(c["barangays"]), "months": list(c["months"]),
             "warning": HABAGAT_WARNING, "source": c["source"], "provisional": True}

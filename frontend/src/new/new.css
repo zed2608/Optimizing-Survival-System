@@ -791,3 +791,32 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
 
 .nw-note-text { flex: 1 1 0; min-width: 0; }
 .nw-planfacts { margin-top: 8px; }
+
+/* ===== Round 15b: zoning overlay, field-status colours, provisional labels, species filters ===== */
+.nw-prov { display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px; border: 1px solid #d9a441; background: #fff3d6; color: #7a4a00; font-size: 11px; font-weight: 600; vertical-align: 1px; white-space: nowrap; }
+.nw-zoning-legend { position: absolute; left: 24px; top: 140px; z-index: 899; padding-bottom: 16px; width: 270px; max-height: calc(100vh - 230px); overflow-y: auto; background: rgba(255, 255, 255, 0.97); color: #1b1f23; border-radius: 8px; padding: 10px 12px; font-size: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.nw-root.sidebar-open .nw-zoning-legend { left: 374px; }
+.nw-zbtns { display: inline-flex; gap: 6px; }
+.nw-zlist { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 3px; }
+.nw-zlist li { display: grid; grid-template-columns: 18px 1fr auto; gap: 6px; align-items: center; }
+.nw-zswatch { width: 16px; height: 12px; border-radius: 3px; border: 1px solid rgba(15, 23, 42, 0.45); display: inline-block; }
+.nw-zswatch-out { background: transparent; border: 1px dashed #475569; opacity: 1; }
+.nw-zcount { font-variant-numeric: tabular-nums; color: #475569; }
+.nw-zonecond { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+.nw-chip-permit { background: #fff3d6; color: #7a4a00; border: 1px solid #d9a441; }
+.nw-chip-differ { background: #fff8e1; color: #7a4a00; border: 1px dashed #b45309; display: inline-flex; align-items: center; gap: 4px; }
+.nw-chip-nursery { background: #e0f2e3; color: #1b5e20; display: inline-flex; align-items: center; gap: 4px; }
+.nw-chip-tag { background: #e6eaef; color: #1f2933; }
+.nw-card-tags { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.nw-tagrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.nw-tagrow-label { font-weight: 600; font-size: 14px; }
+.nw-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.4; }
+.nw-pfilter { display: grid; gap: 4px; margin: 8px 0; padding: 8px; background: rgba(255, 255, 255, 0.05); border-radius: var(--nw-radius, 8px); }
+.nw-pfilter-label { display: flex; align-items: center; gap: 4px; }
+.nw-pfilter-note { font-size: 12px; }
+.nw-habagat { margin-top: 6px; padding: 6px 8px; background: #eaf2fb; border-left: 3px solid #2563eb; border-radius: 4px; font-size: 13px; line-height: 1.4; }
+.nw-fieldkey { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 3px; }
+.nw-fieldkey li { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
+.nw-fieldkey-text { color: inherit; }
+.nw-fchip { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.nw-problemclasses { margin-top: 4px; }

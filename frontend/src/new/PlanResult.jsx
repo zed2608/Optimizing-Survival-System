@@ -6,6 +6,7 @@ import KitControls from './KitControls.jsx'
 import MatchChip from './MatchChip.jsx'
 import PlanProgress from './PlanProgress.jsx'
 import PlanWeather from './PlanWeather.jsx'
+import ProvisionalTag from './ProvisionalTag.jsx'
 import { shapeColor, shapePath } from './planShapes.js'
 import { GROUND_FLAGS, planSentence, plainWarning, whyWarning } from './plainWords.js'
 import { formatDay, monthsText } from './season.js'
@@ -66,7 +67,15 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
 
   // "Good to know": plain notes, each with an icon and a "Why?" tip
   const notes = []
-  ;(s.palette_warnings ?? []).forEach((w) => notes.push({ key: w, icon: 'warn', text: plainWarning(w), why: whyWarning(w), raw: w }))
+  if (s.rehab?.flagged_trees > 0) {                                       // food-bearing species on a landfill or mining site (MAO, provisional): a warning, nobody is left out
+    const t = `${s.rehab.flagged_trees} trees of food-bearing species are on landfill or mining land. ${s.rehab.warning}.`
+    notes.push({ key: 'rehab', icon: 'warn', text: t, why: whyWarning(t), raw: t, prov: true })
+  }
+  if (s.habagat?.affected_trees > 0) {                                    // the Habagat multiplier (MAO, provisional)
+    const t = `Heavy rain and flooding (Habagat) can wash out seedlings here in Jul-Sep. The overall match of ${s.habagat.affected_trees} trees is lowered by 20%.`
+    notes.push({ key: 'habagat', icon: 'rain', text: t, why: whyWarning(t), raw: t, prov: true })
+  }
+  ;(s.palette_warnings ?? []).filter((w) => !/^Heavy rain and flooding \(Habagat\)/.test(w)).forEach((w) => notes.push({ key: w, icon: 'warn', text: plainWarning(w), why: whyWarning(w), raw: w }))
   if (both.length > 0) {
     const t = `Plant both male and female trees of: ${both.join(', ')}.`
     notes.push({ key: 'sexes', icon: 'tree', text: t, why: whyWarning(t), raw: t })
@@ -184,7 +193,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
                   <li key={n.key}>
                     <Icon name={n.icon} size={14} />
                     <span className="nw-note-text">
-                      {full ? n.raw : n.text}
+                      {full ? n.raw : n.text} {n.prov && <ProvisionalTag />}
                       {!full && <HelpTip label={`Why: ${n.text}`}>{n.why}</HelpTip>}
                     </span>
                   </li>

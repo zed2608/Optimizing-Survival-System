@@ -101,7 +101,7 @@ def build_nursery(species):
     else:
         rows.append({"listed_name": "Mabolo", "matched_species_id": "", "match_note": f"not matched: our Kamagong is {k['scientific_name']}, not Diospyros blancoi", "in_system": "no"})
     rows.append({"listed_name": "Kape", "matched_species_id": int(by["Robusta (Coffee)"]["species_id"]),
-                 "match_note": "partial match: only Robusta (Coffea canephora) is in the system; the kind of coffee in the nursery is not stated", "in_system": "partial"})
+                 "match_note": "Kape is in the nursery list, variety unknown", "in_system": "partial"})
     rows.append({"listed_name": "Banyan", "matched_species_id": "", "match_note": "possible Weeping Fig, confirm", "in_system": "no"})
     for listed, note in NURSERY_NOT_IN_SYSTEM:
         rows.append({"listed_name": listed, "matched_species_id": "", "match_note": note or "not in the system", "in_system": "no"})
@@ -111,8 +111,8 @@ def build_nursery(species):
 # =====================================================================================================================
 # INTERVIEW NOTES - one fact per row; who said it is written where it was recorded, never guessed
 # =====================================================================================================================
-MAO = "MAO (Alexis P. Santos, OIC-MAO), interview of 7 Oct 2026"
-UNNAMED = "interview of 7 Oct 2026 (speaker not recorded for this item)"
+NOTE_SOURCE = "MAO interview, transcript, Oct 2026"      # round 15b: the source of every note (all provisional)
+MAO = UNNAMED = NOTE_SOURCE
 INTERVIEW_NOTES = [
     ("Cacao", "Needs about 60% shade and suits intercropping with banana or coconut.", MAO),
     ("Cacao", "Farmer groups grow cacao in Silangan and Pintong Bukawe.", UNNAMED),

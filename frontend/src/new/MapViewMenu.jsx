@@ -3,7 +3,7 @@ import Icon from './Icon.jsx'
 
 // One small "Map view" button at the top right of the map. Its menu holds the map type (satellite or street map) and the field-checked points layer.
 // Escape or a click elsewhere closes it.
-export default function MapViewMenu({ baseLayer, onBaseLayer, showField, onShowField, showOther, onShowOther, showPlan = true, onShowPlan = () => {}, hasPlan = false, detailed = false, onDetailed = () => {}, showGround = false, onShowGround = () => {} }) {
+export default function MapViewMenu({ baseLayer, onBaseLayer, showField, onShowField, showOther, onShowOther, showPlan = true, onShowPlan = () => {}, hasPlan = false, detailed = false, onDetailed = () => {}, showGround = false, onShowGround = () => {}, showZoning = false, onShowZoning = () => {} }) {
   const id = useId()
   const [open, setOpen] = useState(false)
   const box = useRef(null)
@@ -65,6 +65,10 @@ export default function MapViewMenu({ baseLayer, onBaseLayer, showField, onShowF
           <label className="nw-mapview-row">
             <input id="nw-show-plan" type="checkbox" checked={showPlan} onChange={(e) => onShowPlan(e.target.checked)} />
             <span>Planned trees{hasPlan ? '' : ' (no plan yet)'}</span>
+          </label>
+          <label className="nw-mapview-row">
+            <input id="nw-show-zoning" type="checkbox" checked={showZoning} onChange={(e) => onShowZoning(e.target.checked)} />
+            <span>Zoning (MPDC colours)</span>
           </label>
           <label className="nw-mapview-row">
             <input id="nw-show-ground" type="checkbox" checked={showGround} onChange={(e) => onShowGround(e.target.checked)} />

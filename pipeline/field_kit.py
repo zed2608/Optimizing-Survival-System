@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import palettes as pal  # noqa: E402
 from names import fix_barangay_column  # noqa: E402
+import field_status as fst  # noqa: E402
 
 # =====================================================================================================================
 # CONFIG - every tunable number lives here. PROVISIONAL until the LGU / agriculturist sign off.
@@ -668,6 +669,27 @@ def _north(ax):
     ax.text(0.94, 0.965, "N", transform=ax.transAxes, ha="center", fontsize=9, weight="bold", zorder=9)
 
 
+def draw_status_key(ax, x, y, dy=0.045, fontsize=7, horizontal=False, dx=0.16, title=True, per_row=6):
+    """The key of the field-check statuses, drawn with the SAME colours and icons as the dashboard (pipeline/field_status.py reads frontend/src/new/fieldStatus.json):
+    planted = green disc with a check, plantable (verified) = green ring, needs recheck = amber disc with a question mark, not plantable = red cross (blue: water; gray: paved, building, rock).
+    ax coordinates are axes fractions; x, y = the first entry."""
+    if title:
+        ax.text(x, y + dy, "Mark each block in the field", fontsize=fontsize + 1, weight="bold", transform=ax.transAxes)
+    for k, cls in enumerate(fst.ORDER):
+        spec = fst.CLASSES[cls]
+        xx, yy = (x + (k % per_row) * dx, y - (k // per_row) * dy) if horizontal else (x, y - k * dy)
+        col = spec["color"]
+        shape = spec["shape"]
+        if shape == "ring":
+            ax.scatter([xx], [yy], s=70, marker="o", facecolors="white", edgecolors=col, linewidths=1.8, transform=ax.transAxes, clip_on=False)
+        elif shape in ("check", "question"):
+            ax.scatter([xx], [yy], s=80, marker="o", facecolors=col, edgecolors=col, transform=ax.transAxes, clip_on=False)
+            ax.text(xx, yy, "\u2713" if shape == "check" else "?", color="white", fontsize=fontsize, ha="center", va="center", weight="bold", transform=ax.transAxes)
+        else:
+            ax.scatter([xx], [yy], s=70, marker="X", facecolors=col, edgecolors="white", linewidths=0.5, transform=ax.transAxes, clip_on=False)
+        ax.text(xx + 0.02, yy, spec["label"], fontsize=fontsize, va="center", color="black", transform=ax.transAxes)
+
+
 def pdf_footer(fig, meta, page, total):
     fig.text(0.02, 0.015, f"{stamp_text(meta)} | page {page}/{total}", fontsize=6.5)
 
@@ -745,6 +767,8 @@ def write_pdf_blocks(df, meta, summary, path, landuse_shp, data_dir):
             y -= 0.045
         lg.text(0, y - 0.01, "Black square = the 100 m grid square (a map cell,\nnot an exact planting spot). Coloured rectangle = the\nplanted area. Dot = START corner.\n"
                 "Red dashed frame, ! check = the satellite shows built-up,\nbare or water land: check on the ground.\nGrey lines = land-use zone outlines.\nM+F = plant both sexes.", fontsize=6.8, va="top", transform=lg.transAxes)
+        lgs = fig.add_axes([0.72, 0.30, 0.26, 0.22]); lgs.axis("off")
+        draw_status_key(lgs, 0.02, 0.80, dy=0.14, fontsize=6.5)
         lgc = fig.add_axes([0.72, 0.09, 0.26, 0.2]); lgc.axis("off")
         _cover_legend(lgc, plt, has, loc="center left")
         pdf_footer(fig, meta, 1, total)
@@ -838,6 +862,8 @@ def write_pdf_blocks(df, meta, summary, path, landuse_shp, data_dir):
                 ax.text(0.875, y - step * 0.32, "moved lat ____", fontsize=5.5, va="top")
                 ax.text(0.875, y - step * 0.58, "moved lon ____", fontsize=5.5, va="top")
                 ax.plot([0.02, 0.98], [y - step + 0.004, y - step + 0.004], color="0.85", lw=0.4)
+            draw_status_key(ax, 0.03, 0.074, fontsize=6.2, horizontal=True, dx=0.30, dy=0.026, title=False, per_row=3)
+            ax.text(0.02, 0.100, "Mark each block in the field (same colours and icons as the dashboard):", fontsize=6.5, weight="bold")
             pdf_footer(fig, meta, 1 + nb + pi + 1, total)
             pdf.savefig(fig); plt.close(fig)
     return total

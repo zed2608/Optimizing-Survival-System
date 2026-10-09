@@ -7,6 +7,7 @@ import BoundaryLayers from './BoundaryLayers.jsx'
 import DrawLayer from './DrawLayer.jsx'
 import GridLayer from './GridLayer.jsx'
 import HighlightLayer from './HighlightLayer.jsx'
+import ZoningLayer from './ZoningLayer.jsx'
 import { RIGHT_PANEL_WIDTH, SIDEBAR_WIDTH } from './layout.js'
 
 const MARGIN = 0.06 // panning may go this much (share of the size) beyond the municipality
@@ -61,7 +62,7 @@ const BASE_LAYERS = {
   street: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' },
 }
 
-export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, meta, goTarget, fitTarget, highlight, draft, drawing, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false }) {
+export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, meta, goTarget, fitTarget, highlight, draft, drawing, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false, zoning = null, zoningOn = false }) {
   const base = BASE_LAYERS[baseLayer] ?? BASE_LAYERS.satellite
   return (
     <MapContainer
@@ -80,6 +81,7 @@ export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, sel
       <FitToMunicipality bbox={bbox} />
       <GoTo target={goTarget} />
       <FitTarget target={fitTarget} />
+      <ZoningLayer zoning={zoning} visible={zoningOn} />
       <BoundaryLayers boundaries={boundaries} />
       <HighlightLayer geometry={highlight} />
       <DrawLayer vertices={draft} />

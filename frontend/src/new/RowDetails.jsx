@@ -4,6 +4,8 @@ import FlagList from './FlagList.jsx'
 import { fmt, pct } from '../v2/scale.js'
 import SeasonBadge, { SeasonDetail } from './SeasonBadge.jsx'
 import HelpTip from './HelpTip.jsx'
+import Icon from './Icon.jsx'
+import ProvisionalTag from './ProvisionalTag.jsx'
 import { matchText, SCORE_WORDS } from './plainWords.js'
 import { BEST_MONTHS_NOTE } from './season.js'
 
@@ -66,6 +68,12 @@ export default function RowDetails({ item, point, full }) {
         </div>
       )}
       <FlagList flags={item.flags} />
+      {item.habagat && (
+        <div className="nw-habagat" role="note">
+          <Icon name="rain" size={14} /> Heavy rain and flooding (Habagat) can wash out seedlings here in Jul-Sep. The overall match is lowered by 20% (multiplier {item.habagat.multiplier}
+          {full ? `: W ${fmt(item.habagat.W_before)} becomes ${fmt(item.habagat.W_after)}` : ''}). Site fit and who is suitable do not change. <ProvisionalTag />
+        </div>
+      )}
       {!item.eligible && <div className="muted">Not suitable here: site suitability is below 0.50.</div>}
       <button type="button" className="btn btn-small" aria-expanded={why} onClick={() => setWhy((w) => !w)}>
         {why ? 'Hide why this score' : 'Why this score?'}

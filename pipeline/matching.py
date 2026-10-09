@@ -119,11 +119,20 @@ def assert_spacing_ok(spacing_min_m, grid_spacing_m=None):
     assert (s < g).all(), f"spacing_min_m must be below the {g} m grid spacing for every palette species: {s[~(s < g)]}"
 
 
-def weights(S, P, s_min=None):
-    """W = S x P where S >= s_min else 0; plus the feasibility mask."""
+def weights(S, P, s_min=None, mult=None):
+    """W = S x P where S >= s_min else 0; plus the feasibility mask. mult (optional, one number per point) multiplies W only: S and the S >= s_min test are not touched
+    (round 15b: the Habagat multiplier of the MAO, applied to the ranking score only)."""
     sm = CFG["s_min"] if s_min is None else s_min
     feasible = S >= sm
-    return np.where(feasible, S * np.asarray(P)[None, :], 0.0), feasible
+    W = np.where(feasible, S * np.asarray(P)[None, :], 0.0)
+    if mult is not None:
+        W = W * np.asarray(mult, dtype=float)[:, None]
+    return W, feasible
+
+
+def site_mult(sites):
+    """The per-point W multiplier of a sites table (column w_mult), or None when the table has none (every plan and ranking made without the Habagat adjustment)."""
+    return sites["w_mult"].to_numpy(dtype=float) if "w_mult" in sites else None
 
 
 def _slots(quotas):

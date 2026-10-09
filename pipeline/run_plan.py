@@ -346,6 +346,8 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
     if len(area_idx) == 0:
         raise ValueError("no legal-zone point left in the area")
     S_area, P = ctx.S[area_idx], ctx.P[purpose]
+    wm = mt.site_mult(ctx.sites)                                       # Habagat (round 15b): a W multiplier per square, or None
+    wm = None if wm is None else wm[area_idx]
     species_df, S_sel, P_sel, selection, cfg_used = ctx.species, S_area, P, None, palette_cfg
     if species_ids:
         ids = list(dict.fromkeys(int(i) for i in species_ids))
@@ -355,10 +357,10 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
             raise ValueError("none of the chosen species is in the species table")
         species_df, S_sel, P_sel = ctx.species.iloc[cols].reset_index(drop=True), S_area[:, cols], P[cols]
         base = dict(pal.CFG if palette_cfg is None else palette_cfg)
-        n_el, n_gen = pal.count_eligible(species_df, S_sel, P_sel, base, _cap(species_df, blocks))
+        n_el, n_gen = pal.count_eligible(species_df, S_sel, P_sel, base, _cap(species_df, blocks), wm)
         cfg_used = dict(base)
         if explicit:
-            st_ = pal.species_stats(np.asarray(S_sel, dtype=float), np.asarray(P_sel, dtype=float), base["s_min"])
+            st_ = pal.species_stats(np.asarray(S_sel, dtype=float), np.asarray(P_sel, dtype=float), base["s_min"], wm)
             pool_, why_ = pal.eligible_pool(species_df, st_, [pal.parse_months(v) for v in species_df.planting_months], base, _cap(species_df, blocks))
             nm = dict(zip(species_df.species_id.astype(int), species_df.common_name))
             bad = [f"{nm[k]} ({ELIGIBILITY_WORDS.get(why_.get(k), why_.get(k))})" for k in species_counts if k in why_]
@@ -373,10 +375,10 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                                    "The per-species and per-genus caps were raised to the minimum needed to place every sapling with only these species." if relaxed
                                    else "The default per-species and per-genus caps were enough.")}
     if species_trees and (blocks or explicit):
-        palette = pal.fixed_palette(species_df, S_sel, P_sel, species_trees, cfg_used)
+        palette = pal.fixed_palette(species_df, S_sel, P_sel, species_trees, cfg_used, wm)
         n_saplings = int(palette["n_saplings"])
     else:
-        palette = pal.build_palette(species_df, S_sel, P_sel, n_saplings, cfg_used, _cap(species_df, blocks))
+        palette = pal.build_palette(species_df, S_sel, P_sel, n_saplings, cfg_used, _cap(species_df, blocks), wm)
     members = palette["idx"]
     summary = {"purpose": purpose, "n_saplings_requested": int(n_saplings), "method": method, "seed": seed,
                "area": {"zone": zone, "bbox": list(bbox) if bbox else None, "legal_points_in_area": int(in_area.sum()),
@@ -411,7 +413,7 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
     sp = species_df.iloc[members]
     mt.assert_spacing_ok(sp.spacing_min_m.to_numpy())
     Sm, Pm = S_sel[:, members], P_sel[members]
-    W, feas = mt.weights(Sm, Pm)
+    W, feas = mt.weights(Sm, Pm, mult=wm)
     if blocks:
         plan_b, summary = _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, palette, summary, seed, method, int(n_saplings))
         if explicit:

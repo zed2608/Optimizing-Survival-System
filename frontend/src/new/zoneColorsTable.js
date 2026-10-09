@@ -1,0 +1,92 @@
+// The data of zoneColors.json as a module (the browser build and node read this file; the JSON is read by Python; fieldStatus.test.mjs checks that the two are the same).
+export const ZONE_TABLE = {
+  "note": "ONE colours module for the optional Zoning overlay (MPDC standard colours, round 15b). Fill is drawn at low opacity with a thin outline so it never hides the suitability dots.",
+  "fill_opacity": 0.2,
+  "line_weight": 0.8,
+  "colors": {
+    "Forest Zone": {
+      "color": "#2e7d32",
+      "name": "green"
+    },
+    "Agricultural Zone": {
+      "color": "#9ccc65",
+      "name": "lighter green"
+    },
+    "Buffer Zone": {
+      "color": "#808000",
+      "name": "olive green"
+    },
+    "Parks and Recreation Zone": {
+      "color": "#1de53b",
+      "name": "bright green"
+    },
+    "Special Reserved Zone": {
+      "color": "#14532d",
+      "name": "dark green"
+    },
+    "High Density Residential - Mixed Use Zone": {
+      "color": "#b8860b",
+      "name": "dark yellow"
+    },
+    "Medium Density Residential Zone": {
+      "color": "#e6b800",
+      "name": "medium yellow"
+    },
+    "Socialized Housing Zone": {
+      "color": "#ffe34d",
+      "name": "yellow"
+    },
+    "Institutional Research Zone": {
+      "color": "#1e6fd9",
+      "name": "blue"
+    },
+    "General Institutional Zone": {
+      "color": "#1e6fd9",
+      "name": "blue"
+    },
+    "General Institutional Zonec": {
+      "color": "#1e6fd9",
+      "name": "blue"
+    },
+    "Medium Industrial Zone": {
+      "color": "#7b1fa2",
+      "name": "violet"
+    },
+    "Light Industrial Zone": {
+      "color": "#c9a2e0",
+      "name": "light violet"
+    },
+    "Minor Commercial - Mixed Use Zone": {
+      "color": "#e53935",
+      "name": "red"
+    },
+    "Major Commercial Zone": {
+      "color": "#e53935",
+      "name": "red"
+    },
+    "Major Commercial - Mixed Use Zone": {
+      "color": "#8b0000",
+      "name": "dark red"
+    },
+    "Cemetery Zone": {
+      "color": "#757575",
+      "name": "gray"
+    },
+    "Quarry Sub-Zone": {
+      "color": "#757575",
+      "name": "gray"
+    },
+    "Sanitary Landfill": {
+      "color": "#757575",
+      "name": "gray"
+    }
+  },
+  "fallback": {
+    "color": "#9e9e9e",
+    "name": "gray"
+  },
+  "outside_map": {
+    "color": "#ffffff",
+    "name": "white dashed outline"
+  }
+}

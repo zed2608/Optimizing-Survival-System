@@ -93,6 +93,8 @@ const WHY = [
   [/season:.*planting month/i, 'Every species has its own planting months. Planting outside them means more watering and more losses.'],
   [/palette_smaller_than_min|^no species can be placed/i, 'Few species pass the site rules (altitude, slope, soil and wetness) in this area.'],
   [/caps_cannot_absorb/i, 'Each species can only take so many trees: its share limit and the number of squares that suit it.'],
+  [/landfill or mining land/i, 'Soil on a landfill or mining site can hold heavy metals that get into fruit, leaves and beans. The MAO advised testing before anyone eats or sells the produce. Trees are not left out.'],
+  [/^Heavy rain and flooding \(Habagat\)/i, 'In the lowland barangays (Maly, Dulong Bayan I and II, Santa Ana) heavy rain and flooding in July to September can wash out young seedlings, so the overall match is lowered by 20%. This is the MAO figure and is provisional.'],
   [/^Plant both male and female/i, 'These species have separate male and female trees. Seeds and fruit only form when both grow near each other.'],
   [/^These species suit each other|^Some of these species|^No partner rule/i, 'These are starting rules from the species data (height, shade, water, roots and planting months). The agriculturist will check them.'],
 ]

@@ -25,7 +25,7 @@ The API shows `in_nursery` (true or false), `nursery_match` ("yes" or "partial")
 ## Partial match (1)
 | Listed name | System species | Note |
 |---|---|---|
-| Kape | Robusta (Coffee) | only Robusta (*Coffea canephora*) is in the system; the kind of coffee in the nursery is not stated. `in_nursery` is true for Robusta with `nursery_match` "partial". |
+| Kape | Robusta (Coffee) | only Robusta (*Coffea canephora*) is in the system; the kind of coffee in the nursery is not stated. Since round 15b `in_nursery` is **false** for Robusta (`nursery_match` "partial") with the note "Kape is in the nursery list, variety unknown". |
 
 ## Not matched (18)
 | Listed name | Why |
@@ -36,6 +36,6 @@ The API shows `in_nursery` (true or false), `nursery_match` ("yes" or "partial")
 | Nymp Tree | probably Neem; not in the system |
 
 ## Limits
-- 15 of the 45 species are in the nursery (14 matched, plus Robusta as a partial match). The nursery list says nothing about how many seedlings are ready or when.
+- 14 of the 45 species are marked in the nursery (Robusta is only a partial match and is not marked). The nursery list says nothing about how many seedlings are ready or when.
 - The handwriting was read by the project team; the uncertain names should be confirmed with the nursery staff.
 - The nursery table does not change any score or plan; it is information for the planners.

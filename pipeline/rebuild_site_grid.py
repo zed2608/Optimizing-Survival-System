@@ -51,6 +51,8 @@ ZONE_RULES = {
     "Medium Density Residential Zone": "confirmed",            # MPDC: yes with conditions (private land: needs permission)
     "Institutional Research Zone": "confirmed",                # MPDC: yes with conditions (needs permission)
     "Sanitary Landfill": "confirmed",                          # MPDC: yes with conditions, written note "w/ DENR" (19 squares)
+    "Major Commercial Zone": "confirmed",                      # MPDC: yes (no grid squares)
+    "Major Commercial - Mixed Use Zone": "confirmed",          # MPDC: yes (no grid squares)
     "Cemetery Zone": "excluded",                               # MPDC: no (23 squares)
     "Quarry Sub-Zone": "excluded",                             # MPDC: no (55 squares)
 }

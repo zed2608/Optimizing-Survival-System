@@ -138,13 +138,21 @@ def main(argv=None):
     P(f"Pairs the agriculturist marked Suitable but the model says not suitable (S below {S_MIN}): {len(dis)}: " + "; ".join(f"{r.sample_id} {r.species} grid {r.grid} S={r.S_today:.2f} gate {r.gate_failed or 'none'}" for r in dis.itertuples()))
     mm = judged[(judged.mark == "M") & judged.model_suitable]
     P(f"Pairs marked Marginal where the model says suitable: {len(mm)} ({', '.join(mm.sample_id)}).")
-    if a.sheet and Path(a.sheet).is_file():
-        sh = pd.read_csv(a.sheet)
-        j = res.merge(sh, on="sample_id")
-        ch = j[(j.printed_verdict == "S") != j.model_suitable]
-        P(f"Pairs where today's verdict differs from the verdict printed on the sheet: {len(ch)}: " + "; ".join(f"{r.sample_id} {r.species} printed {r.printed_verdict}, today S={r.S_today:.2f}" for r in ch.itertuples()))
+    sheet = a.sheet or str(ROOT / "data" / "validation" / "sample_printed_verdicts.csv")      # round 15b: the default place of the printed-sheet verdicts
+    if Path(sheet).is_file():
+        sh = pd.read_csv(sheet, comment="#")
+        j = res.merge(sh[["sample_id", "printed_verdict"]], on="sample_id", how="left")
+        j["today_class"] = np.where(j.model_suitable, "S", "N")
+        changed = j[(j.printed_verdict == "S") & ~j.model_suitable | (j.printed_verdict == "N") & j.model_suitable | (j.printed_verdict == "M")]
+        P(f"Printed-sheet verdicts read from {Path(sheet).name} ({int(j.printed_verdict.notna().sum())} of {len(j)} pairs). Pairs whose verdict changed between the printed sheet and today (S now = suitable at S >= 0.50, N = not): "
+          f"{int(((j.printed_verdict == 'S') & ~j.model_suitable).sum()) + int(((j.printed_verdict == 'N') & j.model_suitable).sum())} changed, {int((j.printed_verdict == 'M').sum())} printed Marginal (listed too):")
+        for r in changed.itertuples():
+            P(f"   {r.sample_id} {r.species} grid {r.grid}: printed {r.printed_verdict}, today {r.today_class} (S {r.S_today:.2f}, gate {r.gate_failed or 'none'}), agriculturist mark {r.mark}")
+        missing = j[j.printed_verdict.isna()].sample_id.tolist()
+        if missing:
+            P(f"   no printed verdict given for: {', '.join(missing)}")
     else:
-        P("Pairs where today's verdict differs from the verdict printed on the sheet: NOT DONE. The printed sheet (dataset v0.1-draft) is not in the repository; give it as --sheet <csv sample_id, printed_verdict> and run again.")
+        P("Pairs where today's verdict differs from the verdict printed on the sheet: NOT DONE. data/validation/sample_printed_verdicts.csv (sample_id, printed_verdict) is not there yet; put it there or pass --sheet and run again.")
     # ---- slope sensitivity
     s_new, over = alt_slope_scores(species, sites, pairs)
     pairs = pairs.assign(S_alt=s_new, overage=over)

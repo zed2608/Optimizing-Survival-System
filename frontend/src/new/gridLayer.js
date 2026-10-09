@@ -2,6 +2,7 @@ import L from 'leaflet'
 import { wLevel } from '../v2/scale.js'
 import { shapeColor, shapePath } from './planShapes.js'
 import { GROUND_GROUPS, GROUND_MISSING, GROUND_STYLE, patternTile } from './groundStyle.js'
+import { FIELD_CLASSES } from './fieldStatus.js'
 
 // The grid of scored points, drawn in ONE canvas pass (no per-point React components, no per-point Leaflet objects).
 // A custom Leaflet layer: a single <canvas> in the overlay pane, redrawn after every move/zoom. Hover and click are found with
@@ -484,7 +485,7 @@ const GridCanvasLayer = L.Layer.extend({
   // field = { index: [...], status: [...] } of GET /grid (the field-checked points and their codes), or null to hide the symbols.
   // Symbols: 1 verified = ring, 2 not plantable = cross, 3 needs recheck = triangle; +4 (disputed) adds an exclamation mark. Shapes, never colour alone.
   setField(field) {
-    this._field = field && field.index.length ? { index: Int32Array.from(field.index), code: Uint8Array.from(field.status) } : null
+    this._field = field && field.index.length ? { index: Int32Array.from(field.index), code: Uint8Array.from(field.status), cls: field.class ? field.class.slice() : null } : null
     this._draw()
   },
 
@@ -750,11 +751,38 @@ const GridCanvasLayer = L.Layer.extend({
       if (x < -R || y < -R || x > this._w + R || y > this._h + R) continue
       this._fdrawn++
       const status = code[k] % 4
-      if (status === 1) {
+      const cname = (this._field.cls && this._field.cls[k]) || ({ 1: 'verified', 2: 'not_plantable', 3: 'recheck' })[status]
+      const spec = FIELD_CLASSES[cname] ?? FIELD_CLASSES.not_plantable
+      const col = spec.color
+      if (spec.shape === 'ring') {                                   // plantable (verified): a green ring
         const ring = () => ctx.arc(x, y, R, 0, TWO_PI)
         halo(5, '#ffffff', ring)
-        halo(2.5, '#064e3b', ring)
-      } else if (status === 2) {
+        halo(2.5, col, ring)
+      } else if (spec.shape === 'check') {                           // planted: a green disc with a white check
+        ctx.beginPath()
+        ctx.arc(x, y, R, 0, TWO_PI)
+        ctx.fillStyle = col
+        ctx.fill()
+        halo(2, '#ffffff', () => ctx.arc(x, y, R, 0, TWO_PI))
+        halo(2.6, '#ffffff', () => {
+          ctx.moveTo(x - R * 0.5, y)
+          ctx.lineTo(x - R * 0.1, y + R * 0.4)
+          ctx.lineTo(x + R * 0.55, y - R * 0.4)
+        })
+      } else if (spec.shape === 'question') {                        // needs recheck: an amber disc with a white question mark
+        ctx.beginPath()
+        ctx.arc(x, y, R, 0, TWO_PI)
+        ctx.fillStyle = col
+        ctx.fill()
+        halo(2, '#ffffff', () => ctx.arc(x, y, R, 0, TWO_PI))
+        ctx.font = `bold ${Math.round(R * 1.45)}px sans-serif`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillStyle = '#ffffff'
+        ctx.fillText('?', x, y + 1)
+        ctx.textAlign = 'start'
+        ctx.textBaseline = 'alphabetic'
+      } else {                                                       // not plantable: a cross (red; blue for water; gray for paved, building or rock)
         const cross = () => {
           ctx.moveTo(x - R, y - R)
           ctx.lineTo(x + R, y + R)
@@ -762,16 +790,7 @@ const GridCanvasLayer = L.Layer.extend({
           ctx.lineTo(x - R, y + R)
         }
         halo(6, '#ffffff', cross)
-        halo(3, '#7f1d1d', cross)
-      } else if (status === 3) {
-        const tri = () => {
-          ctx.moveTo(x, y - R - 1)
-          ctx.lineTo(x + R + 1, y + R)
-          ctx.lineTo(x - R - 1, y + R)
-          ctx.closePath()
-        }
-        halo(5, '#ffffff', tri)
-        halo(2.5, '#78350f', tri)
+        halo(3, col, cross)
       }
       if (code[k] >= 4) {
         ctx.font = 'bold 13px sans-serif'

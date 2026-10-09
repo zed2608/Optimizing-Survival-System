@@ -6,6 +6,7 @@ import SourceLink from '../v2/components/SourceLink.jsx'
 import { useApi } from '../v2/useApi.js'
 import MonthStrip from './MonthStrip.jsx'
 import PartnersSection from './PartnersSection.jsx'
+import ProvisionalTag from './ProvisionalTag.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 import WeatherCard from './WeatherCard.jsx'
 import { BEST_MONTHS_NOTE, monthsText, parseMonths, seasonQuery } from './season.js'
@@ -132,6 +133,32 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
                 note="A team decision, not a sourced fact."
               />
               <FlagBadges flags={d.flags} />
+              <div className="nw-card-tags" aria-label="Purpose tags and nursery">
+                {(d.purpose_tags ?? []).length > 0 && (
+                  <div className="nw-tagrow">
+                    <span className="nw-tagrow-label">Purpose</span>
+                    {d.purpose_tags.map((t) => (
+                      <span key={t} className="nw-chip nw-chip-tag">
+                        {t}
+                      </span>
+                    ))}
+                    <ProvisionalTag title="Purpose tags are filters from rules over the type text; to be confirmed by the agriculturist" />
+                  </div>
+                )}
+                {d.in_nursery === true && (
+                  <div className="nw-tagrow">
+                    <span className="nw-chip nw-chip-nursery">
+                      <Icon name="check" size={12} /> Available in LGU nursery
+                    </span>
+                    <span className="muted">Stock quantities unknown</span>
+                  </div>
+                )}
+                {d.in_nursery === false && d.nursery_note && (
+                  <div className="nw-tagrow">
+                    <span className="muted">{d.nursery_note}. Stock quantities unknown</span>
+                  </div>
+                )}
+              </div>
             </Section>
 
             <Section title="Planting stage and timing" big>
@@ -192,6 +219,22 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
                 <Fact label="Both sexes needed" rows={[F.sexuality_raw]} text="This species has separate male and female trees. Plant both sexes near each other." />
               )}
             </Section>
+
+            {(d.interview_notes ?? []).length > 0 && (
+              <section className="nw-card-sec" aria-label="From the agriculturist (provisional)">
+                <h3>
+                  From the agriculturist <span className="nw-prov">(provisional)</span>
+                </h3>
+                <ul className="nw-notes">
+                  {d.interview_notes.map((n) => (
+                    <li key={n.note}>
+                      {n.note}
+                      <div className="muted">{n.source}</div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             <PartnersSection speciesId={speciesId} query={seasonQuery(win, false)} />
 

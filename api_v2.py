@@ -36,6 +36,8 @@ import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
 from names import fix_barangay_column  # noqa: E402
 import site_rules as sr  # noqa: E402
+import field_status as fst  # noqa: E402
+import rebuild_site_grid as rsg  # noqa: E402
 import run_plan as rp  # noqa: E402
 import score_sites as ss  # noqa: E402
 
@@ -334,7 +336,7 @@ def grid_body(d, purpose, species_id=None, drop=()):
             return hit
     ctx, cfg = d.ctx, d.cfg
     miss = cfg["missing_marker"]
-    W, feas = mt.weights(ctx.S, ctx.P[purpose])
+    W, feas = mt.weights(ctx.S, ctx.P[purpose], mult=mt.site_mult(ctx.sites))
     if drop:
         gone = np.isin(ctx.species.species_id.to_numpy(dtype=int), list(drop))
         W, feas = np.where(gone[None, :], 0.0, W), feas & ~gone[None, :]
@@ -435,7 +437,7 @@ def combined_scores(d, purpose, ids, mode):
         n = len(ctx.sites)
         return np.zeros(n), np.full(n, d.cfg["missing_marker"]), np.zeros(n, dtype=int)
     ks = [d.species_idx[i] for i in ids]
-    Wk, feas = mt.weights(ctx.S[:, ks], ctx.P[purpose][ks])
+    Wk, feas = mt.weights(ctx.S[:, ks], ctx.P[purpose][ks], mult=mt.site_mult(ctx.sites))
     arr = np.array(ids)
     if mode == "all":
         j = Wk.argmin(axis=1)
@@ -554,6 +556,43 @@ def build_zones(d, cfg):
         tol = min(tol * 1.5, cfg["boundary_simplify_max_deg"])
 
 
+def build_zoning(d, cfg):
+    """GeoJSON of ALL the zones of data/LandUses.shp (dissolved by name) for the optional "Zoning" overlay: name, MPDC rule, zone condition, number of grid squares, label point. Provisional (MPDC, 7 Oct 2026)."""
+    import shapely
+    import geopandas as gpd
+    from shapely.geometry import mapping
+    nd = cfg["coord_decimals"]
+    lu = gpd.read_file(ROOT / cfg["landuse_shp"])
+    lu = lu[lu.DESCRIPTIO.notna() & lu.geometry.notna()].copy()
+    lu["geometry"] = lu.geometry.map(shapely.make_valid)
+    names = sorted(lu.DESCRIPTIO.unique())
+    full = [polys_only(shapely.union_all(lu[lu.DESCRIPTIO == n].geometry.values)) for n in names]
+    sq = d.all_points.zone_desc.value_counts().to_dict()
+    scored = d.all_points[d.all_points.zoning_status.isin(["confirmed", "unconfirmed"])].zone_desc.value_counts().to_dict()
+    tol = cfg["boundary_simplify_deg"]
+    while True:
+        feats = []
+        for i, g_ in enumerate(full):
+            s_ = shapely.simplify(g_, tol, preserve_topology=True)
+            s_ = s_ if not s_.is_empty else g_
+            m = mapping(s_)
+            lp = shapely.point_on_surface(s_)
+            n = names[i]
+            feats.append({"type": "Feature", "id": f"zoning-{i}",
+                          "properties": {"kind": "zone", "name": n, "rule": rsg.ZONE_RULES.get(n, "excluded"), "condition": rsg.ZONE_CONDITIONS.get(n, ""),
+                                         "grid_squares": int(sq.get(n, 0)), "scored_squares": int(scored.get(n, 0)), "label_point": {"lon": round(lp.x, nd), "lat": round(lp.y, nd)}},
+                          "geometry": {"type": m["type"], "coordinates": round_coords(m["coordinates"], nd)}})
+        n_out = int(d.all_points.zone_desc.isna().sum())
+        doc = {"type": "FeatureCollection", "features": feats, "crs": "EPSG:4326 (longitude, latitude)",
+               "outside_map": {"name": "Outside the zoning map (Forest Reserve, Watershed)", "grid_squares": n_out, "condition": rsg.OUTSIDE_ZONING_CONDITION},
+               "source": "data/LandUses.shp (DESCRIPTIO), dissolved by zone name; rules and conditions from the MPDC form of 7 Oct 2026 (provisional)",
+               "simplify_tolerance_deg": tol, "coordinate_decimals": nd}
+        body = json.dumps(doc, separators=(",", ":")).encode("utf-8")
+        if len(body) <= cfg["zone_max_bytes"] * 2 or tol >= cfg["boundary_simplify_max_deg"]:
+            return body
+        tol = min(tol * 1.5, cfg["boundary_simplify_max_deg"])
+
+
 def find_barangay(d, text):
     """Index of a barangay from its name as written, its display name or an alias spelling (Sta -> Santa, accents ignored); None if unknown."""
     key = norm_place(text, d.cfg["place_aliases"])
@@ -650,8 +689,9 @@ def field_extra(d, point_id):
 
 def field_block(d):
     """The compact list of field-checked points of /grid: positions in the column arrays and a status code per position (only checked points)."""
-    items = sorted((d.point_index[pid], fv.status_code(c)) for pid, c in d.field_current.items() if pid in d.point_index)
-    return {"index": [i for i, _ in items], "status": [s for _, s in items],
+    items = sorted((d.point_index[pid], fv.status_code(c), fst.field_class(c["status"], c.get("reason"))) for pid, c in d.field_current.items() if pid in d.point_index)
+    return {"index": [i for i, _, _ in items], "status": [s for _, s, _ in items], "class": [k for _, _, k in items],
+            "classes": {k: {"label": v["label"], "color": v["color"], "icon": v["icon"]} for k, v in fst.CLASSES.items()},
             "codes": {"1": "verified_plantable", "2": "not_plantable", "3": "needs_recheck", "+4": "disputed: the latest two checks come from different observers and disagree"},
             "left_out_of_rankings": sorted(d.field_ex_ids), "exclude_switch": bool(d.cfg["field_exclude_not_plantable"]),
             "note": "Points with status 2 have W = 0 and best_species_id = the missing marker while the switch is on. verified (1) never changes a score."}
@@ -797,8 +837,8 @@ def municipal_tables(ctx):
 
 
 class HabView:
-    """The data seen for a planting window that touches Jul-Sep (round 15a, MAO 7 Oct 2026, provisional): the site match S of the squares of the Habagat barangays is multiplied by 0.8, so every
-    ranking, map colour and plan made through this object uses the lowered values (and S >= 0.50 is tested on them). Everything else is read from the base data object."""
+    """The data seen for a planting window that touches Jul-Sep (MAO 7 Oct 2026, provisional): the ranking score W of the squares of the Habagat barangays is multiplied by 0.8 (round 15b:
+    W only; S and the S >= 0.50 test are untouched), so every ranking, map colour and plan made through this object uses the lowered W. Everything else is read from the base data object."""
     def __init__(self, base):
         object.__setattr__(self, "_base", base)
 
@@ -817,9 +857,8 @@ def habagat_data(d, season):
     if store is None:
         names = [d.barangay_names[b] if b >= 0 else "" for b in d.point_barangay]
         mask = sr.habagat_square_mask(names)
-        S = d.ctx.S.copy()
-        S[mask] = S[mask] * float(sr.HABAGAT_CFG["multiplier"])
-        store = {"mask": mask, "ctx": dataclasses.replace(d.ctx, S=S), "grid": {}, "multi": OrderedDict(), "areas": OrderedDict()}
+        mult = np.where(mask, float(sr.HABAGAT_CFG["multiplier"]), 1.0)
+        store = {"mask": mask, "ctx": dataclasses.replace(d.ctx, sites=d.ctx.sites.assign(w_mult=mult)), "grid": {}, "multi": OrderedDict(), "areas": OrderedDict()}
         d._hab_store = store
     v = HabView(d)
     v.base_ctx, v.ctx, v.hab_mask, v.hab = d.ctx, store["ctx"], store["mask"], sr.habagat_info(months)
@@ -955,6 +994,7 @@ def load_data(cfg=None):
     d.zone_names = sorted(str(z) for z in ctx.sites.zone_desc.dropna().unique())
     d.point_zone = pd.Categorical(ctx.sites.zone_desc, categories=d.zone_names).codes.astype(int)
     d.zones_body, d.zone_bbox = build_zones(d, cfg)
+    d.zoning_body = build_zoning(d, cfg)
     d.grid_cache = {}
     d.multi_cache = OrderedDict()
     d.areas_cache = OrderedDict()
@@ -1264,8 +1304,11 @@ def species_extras(d, sid):
     """purpose_tags, in_nursery and the nursery match for one species (round 15a; provisional, from the tables beside the species table)."""
     tags = d.purpose_tags.get(sid, [])
     rows = d.nursery_rows.get(sid, [])
-    return {"purpose_tags": [t["tag"] for t in tags], "in_nursery": bool(rows) if d.nursery_table_present else None,
-            "nursery_match": ("partial" if rows and all(r["in_system"] == "partial" for r in rows) else "yes") if rows else None}
+    full = [r for r in rows if r["in_system"] != "partial"]                # a partial match (Kape = Robusta, variety unknown) does NOT make in_nursery true (round 15b)
+    note = next((r["match_note"] for r in rows if r["in_system"] == "partial"), None)
+    return {"purpose_tags": [t["tag"] for t in tags], "in_nursery": bool(full) if d.nursery_table_present else None,
+            "nursery_match": "yes" if full else ("partial" if rows else None), **({"nursery_note": note} if note else {}),
+            "nursery_quantities": "Stock quantities unknown"}
 
 
 PARTNER_NONE = "No good partner found in our data"
@@ -1347,7 +1390,7 @@ def species_partners(species_id: int, purpose: Optional[Purpose] = None, baranga
         pr = sp.iloc[j]
         item = {"species_id": int(r.partner_id), "common_name": pr.common_name, "scientific_name": py(pr.scientific_name), "score": py(r.score),
                 "reasons": [x for x in str(r.reasons).split(" | ") if x], "source_named": bool(r.source_named), "overlap_share": py(r.overlap_share),
-                "status": getattr(r, "status", "fits"), "cautions": [x for x in str(getattr(r, "cautions", "") or "").split(";") if x]}
+                "status": getattr(r, "status", "fits"), "cautions": [x for x in ("" if pd.isna(getattr(r, "cautions", "")) else str(getattr(r, "cautions", ""))).split(";") if x]}
         if item["status"] != "fits":
             item["label"] = "named in the sources, conditions differ"
         if mask is not None:
@@ -1385,7 +1428,9 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                                  f"{': ' + c['note'] if c['note'] else ''}. It is left out of the ranking. Its history: GET /field-checks/{int(pt.point_id)}.")
     S_row, P = d.ctx.S[j], d.ctx.P[purpose]
     unconf = bool(d.zoning_on and pt.zoning_status == "unconfirmed")
-    W, feas = mt.weights(S_row[None, :], P)
+    wm_row = mt.site_mult(d.ctx.sites.iloc[[j]])                       # Habagat: W x 0.8 for this square when its barangay and the window apply (S is not changed)
+    W, feas = mt.weights(S_row[None, :], P, mult=wm_row)
+    W_plain = mt.weights(S_row[None, :], P)[0] if wm_row is not None and wm_row[0] != 1.0 else None
     pairs = pair_rows(d, pt.point_id)
     items = []
     for k, sid in enumerate(d.ctx.species.species_id.astype(int)):
@@ -1408,7 +1453,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                     "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []) + gflags + sr.rehab_flags(pt.zone_desc, sid, d.food_ids) + ([sr.HABAGAT_FLAG] if hab_on else []),
                     "site_breakdown": {"gate_failed": bd.get("gate_failed", []), "terms": terms},
                     "purpose_breakdown": purpose_breakdown(d, sid, purpose),
-                    **({"habagat": {"multiplier": d.hab["multiplier"], "S_before": round(float(d.base_ctx.S[j, k]), 4), "W_before": round(float(mt.weights(d.base_ctx.S[j][None, :], P)[0][0, k]), 4), "months_hit": d.hab["months_hit"],
+                    **({"habagat": {"multiplier": d.hab["multiplier"], "applies_to": "W only", "W_before": round(float(W_plain[0, k]), 4), "W_after": round(float(W[0, k]), 4), "months_hit": d.hab["months_hit"],
                                  "warning": sr.HABAGAT_WARNING, "source": d.hab["source"], "provisional": True}} if hab_on else {}),
                     **({"season": season_object(d.species_months[k], season)} if season is not None else {})})
     return {"purpose": purpose, "query": {"lat": lat, "lon": lon},
@@ -1484,7 +1529,7 @@ def search_place(q: str = Query(min_length=1), d=Depends(D)):
 def nearest_viable(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180), season=Depends(season_q), d=Depends(HD)):
     ctx, cfg = d.ctx, d.cfg
     e, n = d.to_utm.transform(lon, lat)
-    W, feas = mt.weights(ctx.S, ctx.P[purpose])
+    W, feas = mt.weights(ctx.S, ctx.P[purpose], mult=mt.site_mult(ctx.sites))
     drop = season_drop_ids(d, season)
     if drop:                                                          # season_filter=only: only species that can be planted in the window count
         gone = np.isin(ctx.species.species_id.to_numpy(dtype=int), list(drop))
@@ -2032,7 +2077,8 @@ def block_progress(d, plan_id, plan):
         else:
             state = "to_do"
         blocks.append({"point_id": pid, "block_ref": refs[pid], "species_id": int(r.species_id), "species": r.species, "trees_planned": planned, "trees_planted": planted,
-                       "state": state, "field_status": st, "reason": ev["reason"] if ev else None, "observer": ev["observer"] if ev else None,
+                       "state": state, "field_status": st, "field_class": fst.field_class(st, ev["reason"] if ev else None) if st else None,
+                       "reason": ev["reason"] if ev else None, "observer": ev["observer"] if ev else None,
                        "observed_at": ev["observed_at"] if ev else None, "note": ev["note"] if ev else None,
                        "needs_recheck": st == "needs_recheck"})
     return blocks
@@ -2063,6 +2109,8 @@ def progress_report(d, plan_id, plan, summary):
             "trees": {"planned": planned, "planted": planted, "remaining": remaining, "problem": problem_trees,
                       "percent_planted": round(100.0 * planted / planned, 1) if planned else 0.0},
             "blocks": {"total": len(blocks), "done": n_state["done"], "partly": n_state["partly"], "problem": n_state["problem"], "to_do": n_state["to_do"]},
+            "by_class": {k: {"blocks": sum(1 for b in blocks if b["field_class"] == k), "trees": sum(b["trees_planned"] for b in blocks if b["field_class"] == k)} for k in fst.ORDER},
+            "classes": {k: {"label": v["label"], "color": v["color"], "icon": v["icon"]} for k, v in fst.CLASSES.items()},
             "shortfall": {"trees": problem_trees, "blocks": n_state["problem"],
                           "note": "The shortfall is the trees of the blocks marked not plantable. Trees that are not planted yet are 'remaining', not shortfall."},
             "per_species": sorted(per.values(), key=lambda e: e["species_id"]), "blocks_list": blocks,
@@ -2556,6 +2604,12 @@ def geo_zones(d=Depends(D)):
     return _cached_json(d.zones_body, d)
 
 
+@app.get("/geo/zoning")
+def geo_zoning(d=Depends(D)):
+    """GeoJSON of every land-use zone with its MPDC rule, its condition text and its number of grid squares, for the optional Zoning overlay (provisional: MPDC form of 7 Oct 2026)."""
+    return _cached_json(d.zoning_body, d)
+
+
 @app.get("/areas/rank")
 def areas_rank(purpose: Purpose, species_ids: str = Query(..., description="comma-separated species ids, for example 1,2,3"),
                mode: Literal["all", "any"] = Query("all"), by: Literal["barangay", "zone"] = Query("barangay"), season=Depends(season_q), d=Depends(HD)):
@@ -2595,7 +2649,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
     if field_active(d):
         info = {**info, "not_plantable_points": excluded_here}
     S_area, P = ctx.S[idx], ctx.P[req.purpose]
-    st = pal.species_stats(S_area, P, mt.CFG["s_min"])
+    st = pal.species_stats(S_area, P, mt.CFG["s_min"], (lambda m: None if m is None else m[idx])(mt.site_mult(ctx.sites)))
     st.insert(0, "species_id", ctx.species.species_id.to_numpy())
     suitable = st[st.n_eligible > 0].sort_values(["score", "mean_w", "species_id"], ascending=[False, False, True])
     if suitable.empty:
@@ -2629,7 +2683,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
         sp_view = ctx.species.iloc[keep_k].reset_index(drop=True)
         if season is not None and season.filter == "only":
             sp_view = clip_months(sp_view, season)                    # the mix's shared planting months must lie inside the window
-        pal_res = pal.build_palette(sp_view, S_area[:, keep_k], P[keep_k], req.n_saplings)
+        pal_res = pal.build_palette(sp_view, S_area[:, keep_k], P[keep_k], req.n_saplings, None, None, (lambda m: None if m is None else m[idx])(mt.site_mult(ctx.sites)))
     mix = [{"species_id": sid, "common_name": nm, "share": round(sh, 4), "quota": q, "species_score": round(sc, 4), "needs_both_sexes": nb,
             "genus": str(ctx.species.genus.iloc[d.species_idx[sid]])}
            for sid, nm, sh, q, sc, nb in zip(pal_res["species_id"], pal_res["common_name"], pal_res["share"], pal_res["quota"], pal_res["score"],

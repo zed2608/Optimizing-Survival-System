@@ -1,0 +1,62 @@
+// The data of fieldStatus.json as a module (the browser build and node read this file; the JSON is read by Python; fieldStatus.test.mjs checks that the two are the same).
+export const FIELD_TABLE = {
+  "note": "ONE source for the colours and icons of the field-check statuses. Read by frontend/src/new/fieldStatus.js (map, legend, panels, progress tab) and by pipeline/field_status.py (API classes and the field map PDF). Colour is never the only signal: every class has an icon and words.",
+  "order": [
+    "planted",
+    "verified",
+    "recheck",
+    "not_plantable",
+    "water",
+    "hard"
+  ],
+  "classes": {
+    "planted": {
+      "label": "Planted",
+      "color": "#15803d",
+      "icon": "check",
+      "shape": "check"
+    },
+    "verified": {
+      "label": "Plantable (verified)",
+      "color": "#16a34a",
+      "icon": "ring",
+      "shape": "ring"
+    },
+    "recheck": {
+      "label": "Needs recheck",
+      "color": "#d97706",
+      "icon": "question",
+      "shape": "question"
+    },
+    "not_plantable": {
+      "label": "Not plantable",
+      "color": "#dc2626",
+      "icon": "close",
+      "shape": "cross"
+    },
+    "water": {
+      "label": "Not plantable: water",
+      "color": "#2563eb",
+      "icon": "close",
+      "shape": "cross"
+    },
+    "hard": {
+      "label": "Not plantable: paved, building or rock",
+      "color": "#707070",
+      "icon": "close",
+      "shape": "cross"
+    }
+  },
+  "reason_class": {
+    "creek_or_waterlogged": "water",
+    "paved": "hard",
+    "building": "hard",
+    "rock_or_ledge": "hard"
+  },
+  "status_class": {
+    "planted": "planted",
+    "verified_plantable": "verified",
+    "needs_recheck": "recheck",
+    "not_plantable": "not_plantable"
+  }
+}

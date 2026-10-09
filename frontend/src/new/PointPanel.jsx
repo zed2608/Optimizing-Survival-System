@@ -105,7 +105,7 @@ export default function PointPanel({
     <div className="nw-ppanel">
       <ViewSwitch value={view} onChange={onView} />
       <VerdictCard ranking={ranking} leftOut={leftOut} preferId={planBlock ? planBlock.item.species_id : null} />
-      <LocationCard full={full} soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
+      <LocationCard full={full} zoneCondition={point.zone_condition ?? ''} soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
       {planBlock && (
         <section className="nw-pcard nw-blockcard" aria-label="Planting block">
           <div className="nw-pcard-head">
