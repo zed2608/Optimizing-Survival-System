@@ -13,7 +13,7 @@ Writes data/processed/plans/plan_<purpose>_<timestamp>.csv and plan_<purpose>_<t
 Only legal-zone points count. Each point is a ~100 m grid cell, so a plan places at most ONE tree per cell.
 Unmatched saplings and unused candidate points are reported in the summary, never hidden.
 """
-import argparse, json, math, sqlite3, sys, time
+import argparse, dataclasses, json, math, sqlite3, sys, time
 from datetime import datetime
 from pathlib import Path
 import numpy as np
@@ -73,32 +73,30 @@ def attach_landcover(ctx, out_dir):
     return dataclasses.replace(ctx, sites=sites)
 
 
-def load_context(out_dir="data/processed", scores_path=None, include_unzoned=None):
-    return attach_landcover(_load_context(out_dir, scores_path, include_unzoned), out_dir)
+def load_context(out_dir="data/processed", scores_path=None, include_unzoned=None, s_source=None):
+    return attach_landcover(_load_context(out_dir, scores_path, include_unzoned, s_source), out_dir)
 
 
-def _load_context(out_dir="data/processed", scores_path=None, include_unzoned=None):
+def _load_context(out_dir="data/processed", scores_path=None, include_unzoned=None, s_source=None):
     """Like matching.load_context, but with the squares OUTSIDE the zoning map (zoning_status unconfirmed) when include_unzoned is true (default CFG["include_unzoned"]).
     include_unzoned=False returns exactly what matching.load_context returns (confirmed legal-zone squares only). Without a zoning_status column (older data) only the legal-zone
     squares exist. matching.py itself is unchanged."""
     inc = CFG["include_unzoned"] if include_unzoned is None else include_unzoned
     out = Path(out_dir)
-    base = mt.load_context(out_dir, scores_path)
+    base = mt.load_context(out_dir, scores_path, s_source)
     all_sites = pd.read_csv(out / "site_points_clean.csv")
     if not inc or "zoning_status" not in all_sites:
         return base
     sites = all_sites[all_sites.zoning_status.isin(["confirmed", "unconfirmed"])].reset_index(drop=True)
     path = base.scores_path
-    if path.suffix == ".db":
-        con = sqlite3.connect(path)
-        sc = pd.read_sql_query("SELECT point_id, species_id, s_rule FROM site_scores", con)
-        con.close()
-    else:
-        sc = pd.read_csv(path, usecols=["point_id", "species_id", "s_rule"])
-    S = sc.pivot(index="point_id", columns="species_id", values="s_rule").reindex(index=sites.point_id, columns=base.species.species_id)
-    if S.isna().any().any():
+    S = mt.read_s(path, mt.S_COLUMN[base.s_source], sites, base.species)
+    if np.isnan(S).any() and base.s_source == "rf":          # the Random Forest prediction is incomplete for the squares outside the zoning map: use the rules for everything, with the warning
+        base = mt.load_context(out_dir, scores_path, "rules")
+        base = dataclasses.replace(base, s_requested="rf", s_warning=mt.FALLBACK_WARNING)
+        S = mt.read_s(path, "s_rule", sites, base.species)
+    if np.isnan(S).any():
         raise ValueError("site_scores does not cover every confirmed and unconfirmed point x species pair; run score_sites.py (or use include_unzoned=False)")
-    return mt.Context(sites, base.species, S.to_numpy(dtype=float), base.P, path, base.species_flags)
+    return mt.Context(sites, base.species, S, base.P, path, base.species_flags, base.s_source, base.s_requested, base.s_warning)
 
 
 def confirmed_only(ctx):

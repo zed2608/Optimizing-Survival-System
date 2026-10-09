@@ -1,0 +1,4 @@
+model,mae,r2,mae_fold_mean,mae_fold_std,r2_fold_mean,r2_fold_std,mae_allowed_pairs,r2_allowed_pairs,agree_with_rule_label_at_0.5,n_pairs,folds
+"RandomForest regressor (raw out-of-fold, clipped)",0.0006,0.99974,0.00061,0.00019,0.99972,0.00015,0.00074,0.99921,0.99952,360450,5
+RandomForest regressor (after the hard gates) = s_prob,0.00059,0.99981,0.00059,0.00019,0.9998,0.00011,0.00074,0.99921,0.99953,360450,5
+DecisionTree regressor (clipped),0.00061,0.99965,0.00062,0.00016,0.99962,0.00023,0.00075,0.99887,0.99941,360450,5

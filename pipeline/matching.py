@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import os
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import cKDTree
 
@@ -39,6 +40,24 @@ CFG = {
 PURPOSES = ("urban", "planting", "watershed")
 
 
+# Where the site match S of the whole system comes from. "rf" (the DEFAULT since round 19c): the out-of-fold Random Forest prediction s_prob (pipeline/train_rf.py), which learns the
+# expert rule score S; it is used in place of S everywhere S is used (weights, the 0.50 eligibility test, rankings, the grid, plans). The rule hard gates are kept: s_prob is 0 where
+# the rule S is 0. "rules": the expert rules themselves, column s_rule of site_scores. Choose without editing code: environment variable OS_S_SOURCE or API_CFG["s_source"].
+# FALLBACK: if s_prob is missing or incomplete in the saved scores (a fresh clone, or score_sites.py was run again without train_rf.py) the context falls back to "rules" and carries a
+# clear warning (Context.s_warning, shown by GET /health). It never uses empty values as zeros.
+S_SOURCE = "rf"
+FALLBACK_WARNING = ("The saved scores have no complete Random Forest prediction (s_prob), so the app is using the expert rules for the site match S. "
+                    "To use the Random Forest run: python scripts/rebuild_scores.py")
+S_COLUMN = {"rules": "s_rule", "rf": "s_prob"}
+
+
+def resolve_s_source(s_source=None):
+    v = (s_source or os.environ.get("OS_S_SOURCE") or S_SOURCE).strip().lower()
+    if v not in S_COLUMN:
+        raise ValueError(f"S_SOURCE must be 'rules' or 'rf', got {v!r}")
+    return v
+
+
 @dataclass
 class Context:
     sites: pd.DataFrame             # legal-zone points, one row per point
@@ -47,10 +66,28 @@ class Context:
     P: dict                         # purpose -> (n_species,) purpose fitness
     scores_path: Path               # site_scores.db or .csv (for the per-pair breakdown)
     species_flags: dict             # species_id -> list of data-quality flags
+    s_source: str = "rules"         # which column S was read from: "rules" (s_rule) or "rf" (s_prob): the source REALLY in use
+    s_requested: str = "rules"      # the source that was asked for (default / OS_S_SOURCE / API_CFG)
+    s_warning: str = ""             # not empty when the Random Forest was asked for but the saved scores had no complete s_prob, so the rules are used
 
 
-def load_context(out_dir="data/processed", scores_path=None):
-    """Read the Day 1 / Day 2 outputs. Only legal-zone points are kept."""
+def read_s(path, col, sites, species):
+    """The matrix S (points x species) from one column of the saved scores (database or csv); NaN where a pair is missing or empty."""
+    if Path(path).suffix == ".db":
+        con = sqlite3.connect(path)
+        try:
+            sc = pd.read_sql_query(f"SELECT point_id, species_id, {col} AS s FROM site_scores", con)
+        finally:
+            con.close()
+    else:
+        sc = pd.read_csv(path, usecols=["point_id", "species_id", col]).rename(columns={col: "s"})
+    S = sc.pivot(index="point_id", columns="species_id", values="s").reindex(index=sites.point_id, columns=species.species_id)
+    return S.to_numpy(dtype=float)
+
+
+def load_context(out_dir="data/processed", scores_path=None, s_source=None):
+    """Read the Day 1 / Day 2 outputs. Only legal-zone points are kept. s_source: "rules" (s_rule) or "rf" (s_prob); default S_SOURCE / OS_S_SOURCE."""
+    requested = resolve_s_source(s_source)
     out = Path(out_dir)
     sites = pd.read_csv(out / "site_points_clean.csv")
     sites = sites[sites.is_legal_zone.astype(bool)].reset_index(drop=True)
@@ -65,18 +102,21 @@ def load_context(out_dir="data/processed", scores_path=None):
     path = Path(scores_path) if scores_path else None
     if path is None:
         path = out / CFG["scores_db"] if (out / CFG["scores_db"]).exists() else out / CFG["scores_csv"]
-    if path.suffix == ".db":
-        con = sqlite3.connect(path)
-        sc = pd.read_sql_query("SELECT point_id, species_id, s_rule FROM site_scores", con)
-        con.close()
-    else:
-        sc = pd.read_csv(path, usecols=["point_id", "species_id", "s_rule"])
-    S = sc.pivot(index="point_id", columns="species_id", values="s_rule").reindex(index=sites.point_id, columns=species.species_id)
-    if S.isna().any().any():
-        raise ValueError("site_scores does not cover every legal point x species pair; run score_sites.py")
+    S, src_name, warning = None, requested, ""
+    if requested == "rf":
+        try:
+            S = read_s(path, "s_prob", sites, species)
+        except Exception:                                    # no s_prob column, an empty one, or gaps: never use empty values as zeros
+            S = None
+        if S is None or np.isnan(S).any():
+            S, src_name, warning = None, "rules", FALLBACK_WARNING
+    if S is None:
+        S = read_s(path, "s_rule", sites, species)
+        if np.isnan(S).any():
+            raise ValueError("site_scores does not cover every legal point x species pair; run score_sites.py")
     src = pd.read_csv(out / "species_sources.csv", usecols=["species_id", "flags"])
     flags = {int(sid): ["species_data_unverified"] for sid in src[src["flags"].fillna("").str.contains("file_source_not_provided")].species_id.unique()}
-    return Context(sites, species, S.to_numpy(dtype=float), P, path, flags)
+    return Context(sites, species, S, P, path, flags, src_name, requested, warning)
 
 
 def area_mask(sites, zone=None, bbox=None):

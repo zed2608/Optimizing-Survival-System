@@ -1,0 +1,4 @@
+model,accuracy,accuracy_fold_mean,accuracy_fold_std,precision,recall,f1,roc_auc,n_pairs,folds
+RandomForest (raw out-of-fold),0.99955,0.99954,0.00026,0.99949,0.99988,0.99969,0.99991,360450,5
+RandomForest (after the hard gates),0.99958,0.99956,0.00026,0.99953,0.99988,0.99971,0.99991,360450,5
+DecisionTree,0.99945,0.99943,0.0004,0.9995,0.99974,0.99962,0.99923,360450,5

@@ -84,13 +84,14 @@ python pipeline/lgu_soil.py compute --out data/processed
 # 4. satellite ground cover (needs the internet once for the "clip" step)
 python pipeline/landcover.py clip
 python pipeline/landcover.py compute
-# 5. scores: site suitability S, then purpose scores P
-python pipeline/score_sites.py --out data/processed
+# 5. scores. ORDER MATTERS: the expert rules, the pair table, then the Random Forest (it fills s_prob; running score_sites.py again empties it).
+#    One command runs the three steps and prints the S_SOURCE it ends with:
+python scripts/rebuild_scores.py
+#    (the same as: score_sites.py -> make_pair_table.py -> train_rf.py, each with --out data/processed)
 python pipeline/score_purposes.py --out data/processed
 # 6. quality check - it must end with "0 failed"
 python pipeline/qa_day1.py --out data/processed
-# 7. optional research tables: pairs for the model comparison, the comparison, and the matching benchmark
-python pipeline/make_pair_table.py --out data/processed
+# 7. optional research tables: the model comparison and the matching benchmark (the pair table of step 5 is reused)
 python pipeline/compare_models.py --out data/processed
 python pipeline/run_plan.py --benchmark --out data/processed
 ```
@@ -144,6 +145,7 @@ The tests use temporary copies for plans and field checks, so they do not change
 - Satellite ground cover is about **76.7 percent accurate worldwide** (not measured for San Mateo): information only.
 - Some source data is unverified: 34 cells cite a file we do not have (Batikuling), 30 cite sources outside the supplied list, 20 citations are non-standard.
 - **Slope rule is graded and provisional** (round 18, a team decision, the adviser confirms): a square a little steeper than a tree's limit can still pass with a lower score and a caution; much steeper is still rejected. `SLOPE_MODE = "hard"` restores the old gate. The pair table, model comparison and matching benchmark were re-run with it (the results of the hard gate are kept in the files with the suffix `_hard`). Slope is in percent everywhere. See `docs/SLOPE_RULE.md`.
+- **Site suitability S comes from a Random Forest by default** (`S_SOURCE = "rf"`, round 19c). The forest is trained on the expert-rule scores (it learns the rule score S, out-of-fold on spatial folds), so it generalises those rules and copies them very closely (error 0.0006, R-squared 0.9998; 168 of 360,450 pairs change eligibility; its plans lose under 0.05% of total W when judged by the rules). It is **not an independent measurement of survival**. The hard limits (zone, elevation, steep slope) always apply first: where the rules say S = 0, the forest says 0. `S_SOURCE = "rules"` (environment variable `OS_S_SOURCE=rules` or `API_CFG["s_source"]`) uses the expert rules themselves. If the saved scores have no complete `s_prob` (for example a fresh clone, because the scores folder is git-ignored, or `score_sites.py` was run again alone) the app falls back to the rules automatically and `/health` shows a warning. Rebuild with `python scripts/rebuild_scores.py` (score_sites.py -> make_pair_table.py -> train_rf.py). See `docs/RF_SOURCE.md`.
 - Field checks carry only a typed name (no login yet).
 - **Interview answers are provisional** (MPDC forms of 7 Oct 2026, MAO interview of Oct 2026): zone rules and permissions, the landfill / mining food warning, the nursery list, purpose tags and species notes. They show a "Provisional" label. See `docs/INTERVIEW_FINDINGS.md` for what was applied and what is deferred.
 - **Habagat (heavy rain, flooding):** for Maly, Dulong Bayan I and II and Santa Ana the ranking score W is lowered by 20% when the planting dates touch July to September. So scores in those barangays now depend on the planting month. Site suitability S does not change.

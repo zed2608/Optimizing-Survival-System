@@ -216,7 +216,7 @@ They show the overall match. Green is Good (55% or more). Orange is Moderate (35
 
 **What are site match, purpose fit and overall match?**
 
-Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers.
+Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers. Site suitability is predicted by a Random Forest trained on the expert rules. Hard limits (zone, elevation, steep slope) always apply first.
 
 **How do I show the zoning colours?**
 

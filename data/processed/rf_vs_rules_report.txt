@@ -1,0 +1,75 @@
+Expert rules against the Random Forest as the source of S. Slope mode of the saved scores: graded. 8,010 squares x 45 species = 360,450 pairs.
+The forest was trained on the expert-rule SCORES (the regressor learns S itself): it generalises the rules, it is not an independent measurement of survival.
+
+1. ELIGIBILITY (S >= 0.50)
+   rules 257,869   rf 257,929   changed pairs 168 (0.047% of all pairs)
+   eligible by the rules but NOT by the forest: 54   eligible by the forest but NOT by the rules: 114
+   hard gates kept: pairs with rule S = 0 and s_prob > 0: 0
+   where the rules give S > 0: mean |S rules - s_prob| 0.001, 95th percentile 0.002, largest 0.332
+   species with the most changed pairs: Robusta (Coffee) 15 (rules-only 4, rf-only 11), Kamias 10 (rules-only 3, rf-only 7), Bitaog 9 (rules-only 5, rf-only 4), Papaya 8 (rules-only 1, rf-only 7), Rambutan 7 (rules-only 2, rf-only 5), Clumping Bamboo 6 (rules-only 3, rf-only 3)
+
+2. TOP-20 SQUARES PER SPECIES (ranked by S; ties broken by the lower point id)
+   overlap of the two top-20 lists: mean 15.4 of 20 (median 17; lowest 2 for Papaya; highest 20); species with the same 20 squares: 18 of 45
+   the rules often tie at the top: squares sharing the highest S, median 2346 per species (species with more than 20 tied: 45); the forest: median 2294
+   so a low overlap mostly reflects how the ties are broken; both lists hold squares with a very high S. Mean S of the rules' top list under the forest and of the forest's top list under the rules:
+   rules' top-20 under the forest 0.993; forest's top-20 under the rules 1.000
+   SPEARMAN rank correlation of S (rules) and s_prob among the 257,869 pairs the rules call eligible: all pairs 0.9940; per species mean 0.9915, lowest 0.9688 (Banaba)
+   among the 257,815 pairs eligible by both: mean |S - s_prob| 0.0006, largest 0.2542
+
+3. MATCHING BENCHMARK (300 trees, whole municipality; total W; the app's matching_benchmark.csv is not touched)
+   purpose    layout  method              W rules       W rf  placed rules  placed rf
+   planting   blocks  greedy               7.2048     7.2048            12         12
+   planting   blocks  hungarian            7.2048     7.2048            12         12
+   planting   blocks  random_feasible      6.6410     6.6630            12         12
+   urban      blocks  greedy              10.7675    10.7675            16         16
+   urban      blocks  hungarian           10.7675    10.7675            16         16
+   urban      blocks  random_feasible     10.1516    10.1055            16         16
+   watershed  blocks  greedy               6.6580     6.6580            11         11
+   watershed  blocks  hungarian            6.6580     6.6580            11         11
+   watershed  blocks  random_feasible      6.0596     6.0336            11         11
+   planting   points  greedy             180.1528   180.1528           300        300
+   planting   points  hungarian          180.1528   180.1528           300        300
+   planting   points  random_feasible    167.9109   168.1048           300        300
+   urban      points  greedy             201.9310   201.9310           300        300
+   urban      points  hungarian          201.9310   201.9310           300        300
+   urban      points  random_feasible    190.6900   190.6710           300        300
+   watershed  points  greedy             184.5450   184.5450           300        300
+   watershed  points  hungarian          184.5450   184.5450           300        300
+   watershed  points  random_feasible    168.0026   168.1482           300        300
+   rules: Hungarian minus greedy total W, largest absolute gap over every purpose and layout: 0.000000; greedy is never better
+   rf: Hungarian minus greedy total W, largest absolute gap over every purpose and layout: 0.000000; greedy is never better
+
+3b. THE SAME PLANS JUDGED BY BOTH SCORES (a plan made with one source of S, its total W recomputed with the other: the totals in section 3 use different S, so they are not comparable by themselves)
+   purpose    layout  plan made with   total W by the rules  total W by the forest   squares shared with the other plan
+   urban      points  rules                        201.9310               201.8755                  169 of 300
+   urban      points  rf                           201.9310               201.9310                  169 of 300
+   planting   points  rules                        180.1528               180.1528                  219 of 300
+   planting   points  rf                           180.0887               180.1528                  219 of 300
+   watershed  points  rules                        184.5450               184.4806                  156 of 300
+   watershed  points  rf                           184.5450               184.5450                  156 of 300
+   urban      blocks  rules                         10.7675                10.7379                   15 of 16
+   urban      blocks  rf                            10.7675                10.7675                   15 of 16
+   planting   blocks  rules                          7.2048                 7.2048                   12 of 12
+   planting   blocks  rf                             7.2048                 7.2048                   12 of 12
+   watershed  blocks  rules                          6.6580                 6.6307                   10 of 11
+   watershed  blocks  rf                             6.6580                 6.6580                   10 of 11
+
+SUCCESS TEST (round 19b): the forest's plans, judged by the rules, lose less than 2% of total W
+   urban      points  the forest's plan loses +0.00% of the rules' total W
+   planting   points  the forest's plan loses +0.04% of the rules' total W
+   watershed  points  the forest's plan loses +0.00% of the rules' total W
+   urban      blocks  the forest's plan loses +0.00% of the rules' total W
+   planting   blocks  the forest's plan loses +0.00% of the rules' total W
+   watershed  blocks  the forest's plan loses +0.00% of the rules' total W
+   all six plans together: +0.01%; worst single case: +0.04%. The rules' plans judged by the forest: +0.03% below the forest's own plans.
+   RESULT: MET (every purpose and layout loses less than 2%).
+
+4. OUT-OF-FOLD ERROR AND ACCURACY (same spatial folds, 1 km blocks, label = rules S >= 0.50, no label noise; from rf_vs_dt_oof.csv)
+   REGRESSOR (target: the rule score S; spatial out-of-fold; the forest of s_prob against a Decision Tree regressor on the same folds):
+   RandomForest regressor (raw out-of-fold, clipped)          MAE 0.00060 (folds 0.00061 +/- 0.00019), R-squared 0.99974 (folds 0.99972 +/- 0.00015); on the pairs the rules allow: MAE 0.00074, R-squared 0.99921; 'prediction >= 0.50' agrees with the rule label for 99.9520%
+   RandomForest regressor (after the hard gates) = s_prob     MAE 0.00059 (folds 0.00059 +/- 0.00019), R-squared 0.99981 (folds 0.99980 +/- 0.00011); on the pairs the rules allow: MAE 0.00074, R-squared 0.99921; 'prediction >= 0.50' agrees with the rule label for 99.9530%
+   DecisionTree regressor (clipped)                           MAE 0.00061 (folds 0.00062 +/- 0.00016), R-squared 0.99965 (folds 0.99962 +/- 0.00023); on the pairs the rules allow: MAE 0.00075, R-squared 0.99887; 'prediction >= 0.50' agrees with the rule label for 99.9410%
+   CLASSIFIER of round 19 (label S >= 0.50; kept, not used for s_prob):
+   RandomForest (raw out-of-fold)         accuracy 0.99955 (folds 0.99954 +/- 0.00026), precision 0.99949, recall 0.99988, ROC AUC 0.99991
+   RandomForest (after the hard gates)    accuracy 0.99958 (folds 0.99956 +/- 0.00026), precision 0.99953, recall 0.99988, ROC AUC 0.99991
+   DecisionTree                           accuracy 0.99945 (folds 0.99943 +/- 0.00040), precision 0.99950, recall 0.99974, ROC AUC 0.99923

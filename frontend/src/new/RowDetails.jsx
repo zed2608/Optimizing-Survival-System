@@ -82,6 +82,12 @@ export default function RowDetails({ item, point, full }) {
       {why && (
         <div className="explain-wrap" role="region" aria-label={`Explanation for ${item.common_name}`}>
           <SeasonDetail season={item.season} />
+          {item.rf && (
+            <p className="nw-rfline" data-rf="yes">
+              <Icon name="tree" size={14} /> {item.rf.text}
+              <span className="muted"> {item.rf.note}</span>
+            </p>
+          )}
           <Explanation item={item} point={point} />
         </div>
       )}

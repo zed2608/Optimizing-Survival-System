@@ -68,6 +68,7 @@ API_CFG = {
     "plans_list_default_limit": 20,                 # GET /plans
     "plans_list_max_limit": 100,
     "plan_id_max_len": 100,                         # plan ids are letters, digits, underscore, hyphen only
+    "s_source": None,                                  # S_SOURCE (round 19): None = matching.S_SOURCE ("rf", the default since round 19c; falls back to "rules" with a warning when s_prob is missing) or the environment variable OS_S_SOURCE; "rules" | "rf" (Random Forest probability s_prob in place of S everywhere)
     "layout_mode": rp.CFG["layout_mode"],           # LAYOUT_MODE: "blocks" (new default: n_saplings = total trees planted in blocks at the species spacing) or "points" (one tree per square, the plan of before)
     "campaign_name_max": 80,                        # same limit as CampaignIn.name; a top-up name "<campaign> (top-up N)" is cut to fit
     "advisory_area_margin_deg": 0.1,                # /advisory/seasonal: the coordinate must be this close (degrees) to the mapped grid
@@ -921,7 +922,7 @@ def confirmed_view(base):
 def load_data(cfg=None):
     cfg = API_CFG if cfg is None else cfg
     root = ROOT / cfg["data_dir"]
-    ctx = rp.load_context(root, include_unzoned=True)                  # confirmed + unconfirmed squares; the confirmed-only view is derived below
+    ctx = rp.load_context(root, include_unzoned=True, s_source=cfg.get("s_source"))                  # confirmed + unconfirmed squares; the confirmed-only view is derived below
     sources = pd.read_csv(root / "species_sources.csv")
     refs = pd.read_csv(root / "species_references.csv")
     ps = pd.read_csv(root / "purpose_scores.csv")
@@ -1082,12 +1083,38 @@ def pair_rows(d, point_id):
     path = d.ctx.scores_path
     if d.is_db:
         con = sqlite3.connect(path)
-        rows = con.execute("SELECT species_id, confidence, breakdown_json FROM site_scores WHERE point_id=?", (int(point_id),)).fetchall()
+        try:
+            rows = con.execute("SELECT species_id, confidence, breakdown_json, s_rule, s_prob FROM site_scores WHERE point_id=?", (int(point_id),)).fetchall()
+        except sqlite3.OperationalError:                                   # a scores file made before round 19 has no s_prob column
+            rows = [(s, c, b, sr_, None) for s, c, b, sr_ in con.execute("SELECT species_id, confidence, breakdown_json, s_rule FROM site_scores WHERE point_id=?", (int(point_id),)).fetchall()]
         con.close()
-        return {int(s): (c, json.loads(b)) for s, c, b in rows}
-    df = pd.read_csv(path, usecols=["point_id", "species_id", "confidence", "breakdown_json"])
+        return {int(s): (c, {**json.loads(b), "_s": (sr_, sp_)}) for s, c, b, sr_, sp_ in rows}
+    cols = ["point_id", "species_id", "confidence", "breakdown_json", "s_rule"]
+    head = pd.read_csv(path, nrows=0).columns
+    df = pd.read_csv(path, usecols=cols + (["s_prob"] if "s_prob" in head else []))
     df = df[df.point_id == point_id]
-    return {int(r.species_id): (r.confidence, json.loads(r.breakdown_json)) for r in df.itertuples(index=False)}
+    return {int(r.species_id): (r.confidence, {**json.loads(r.breakdown_json), "_s": (r.s_rule, getattr(r, "s_prob", None))}) for r in df.itertuples(index=False)}
+
+
+def rf_meta(d):
+    """What the Random Forest file was trained on (training date, dataset hash, out-of-fold accuracy), or None when no model was trained."""
+    f = ROOT / d.cfg["data_dir"] / "models" / "rf_site_suitability_meta.json"
+    try:
+        m = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return {k: m.get(k) for k in ("trained_at", "dataset_hash", "slope_mode", "oof_accuracy", "oof_accuracy_decision_tree", "n_pairs", "label")}
+
+
+def rf_block(d, bd):
+    """The Random Forest line of 'Why this score?' (only when S_SOURCE is 'rf'): the probability, the rules S and whether the expert-rule hard gates passed."""
+    s_rule_, s_prob_ = bd.get("_s", (None, None))
+    if d.ctx.s_source != "rf" or s_prob_ is None or s_prob_ != s_prob_:
+        return {}
+    passed = bool(s_rule_ is not None and s_rule_ > 0)
+    return {"rf": {"s_prob": round(float(s_prob_), 4), "s_rules": None if s_rule_ is None else round(float(s_rule_), 4), "rules_check": "passed" if passed else "failed",
+                   "text": f"Suitability from the Random Forest: {float(s_prob_):.2f}. Rules check: {'passed' if passed else 'failed'}.",
+                   "note": "The Random Forest learned the expert rules; it is not an independent measurement of survival. The rules still decide the hard stops."}}
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1240,6 +1267,7 @@ def flags_for(d, species_id, breakdown, conf):
 def health(d=Depends(D)):
     ctx = d.ctx
     return {"status": "ok", "dataset_version": d.dataset.get("tag"), "dataset_file_hash": d.dataset.get("file_hash"),
+            "s_source": d.ctx.s_source, "s_source_requested": d.ctx.s_requested, "s_source_warning": d.ctx.s_warning or None, "rf_model": rf_meta(d),
             "slope_mode": d.score_run.get("slope_mode"), "slope_graded_margin_fraction": d.score_run.get("slope_graded_margin_fraction"),
             "dataset_hash": d.dataset.get("combined_hash12"), "dataset_species_file_sha256": d.dataset.get("file_hash"), "dataset_sources_file_sha256": d.dataset.get("sources_file_hash"),
             "dataset_note": d.dataset.get("note"),
@@ -1517,6 +1545,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
         out.append({"rank": rnk, "species_id": sid, "common_name": d.ctx.species.common_name.iloc[k], "S": round(s, 4), "P": round(float(P[k]), 4),
                     "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []) + gflags + sr.rehab_flags(pt.zone_desc, sid, d.food_ids) + ([sr.HABAGAT_FLAG] if hab_on else []),
                     "site_breakdown": {"gate_failed": bd.get("gate_failed", []), "terms": terms},
+                    **rf_block(d, bd),
                     "purpose_breakdown": purpose_breakdown(d, sid, purpose),
                     **({"habagat": {"multiplier": d.hab["multiplier"], "applies_to": "W only", "W_before": round(float(W_plain[0, k]), 4), "W_after": round(float(W[0, k]), 4), "months_hit": d.hab["months_hit"],
                                  "warning": sr.HABAGAT_WARNING, "source": d.hab["source"], "provisional": True}} if hab_on else {}),
