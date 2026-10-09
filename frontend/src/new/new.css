@@ -866,3 +866,14 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
   .nw-printguide p, .nw-printguide dd { margin: 0 0 4pt; }
   .nw-print-step { break-inside: avoid; margin-bottom: 6pt; }
 }
+
+/* ---- round 17: Ways to improve survival ---- */
+.nw-advice { margin: 10px 0; }
+.nw-advice-bar { display: flex; align-items: center; gap: 4px; }
+.nw-advice-head { display: inline-flex; align-items: center; gap: 6px; padding: 4px 0; border: 0; background: transparent; font: inherit; font-weight: 600; color: inherit; cursor: pointer; text-align: left; }
+.nw-advice-note { margin: 2px 0 6px; font-size: 12px; }
+.nw-advice-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.nw-advice-list li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: start; line-height: 1.4; }
+.nw-advice-list li svg { margin-top: 3px; color: #047857; }
+.nw-advice-src { font-size: 12px; }
+.nw-advice-more { margin: 6px 0 0; font-size: 12px; }

@@ -29,6 +29,7 @@ from scipy.spatial import cKDTree
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "pipeline"))
 import advisory as adv  # noqa: E402
+import advice as sva  # noqa: E402  (ways to improve survival: advice only, no score is touched)
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
 import landcover as lcv  # noqa: E402
@@ -981,6 +982,7 @@ def load_data(cfg=None):
     d.interview_notes = {int(k): g[["note", "source", "provisional"]].to_dict("records") for k, g in it.groupby("species_id")} if it is not None else {}
     pf = root / "species_partners.csv"                                  # "Works well with": starting rules from pipeline/partners.py (provisional)
     d.partners = pd.read_csv(pf) if pf.is_file() else None
+    d.advice_rules = sva.load_rules(root)                                 # round 17: data/processed/survival_advice.csv (wording and source of every advice rule; provisional)
     d.landcover = pd.read_csv(lcf).set_index("point_id") if lcf.is_file() else None
     d.landcover_body = build_landcover_body(d) if d.landcover is not None else None
     d.places_sorted = sorted(d.places, key=lambda p: p["name"])           # same order as barangay_names (sorted by name)
@@ -1309,6 +1311,62 @@ def species_extras(d, sid):
     return {"purpose_tags": [t["tag"] for t in tags], "in_nursery": bool(full) if d.nursery_table_present else None,
             "nursery_match": "yes" if full else ("partial" if rows else None), **({"nursery_note": note} if note else {}),
             "nursery_quantities": "Stock quantities unknown"}
+
+
+def advice_info(d, sid):
+    """What the advice rules read for one species: its row, its purpose tags and the names of its listed partner species (up to 3, pairs that fit)."""
+    i = d.species_idx[sid]
+    row = d.ctx.species.iloc[i].to_dict()
+    t = partners_of(d, sid)
+    names = []
+    if t is not None and len(t):
+        fits = t[t.status == "fits"] if "status" in t else t
+        names = [str(d.ctx.species.common_name.iloc[d.species_idx[int(p)]]) for p in fits.partner_id.head(3)]
+    return {"row": row, "tags": [x["tag"] for x in d.purpose_tags.get(sid, [])], "partners": names, "name": str(row["common_name"])}
+
+
+def food_ids_of(d):
+    f = vars(d).get("_food_ids")
+    if f is None:
+        f = sr.food_bearing_ids(d.ctx.species)
+        d._food_ids = f
+    return f
+
+
+ADVICE_BODY = {"provisional": True, "note": sva.NOTE, "limit_simple_species": sva.LIMIT_SPECIES_SIMPLE, "limit_simple_plan": sva.LIMIT_PLAN_SIMPLE}
+
+
+@app.get("/species/{species_id}/advice")
+def species_advice_endpoint(species_id: int, point_id: Optional[int] = Query(None, description="a grid point: adds the advice of the place (Habagat dates, rehabilitation site)"),
+                            season=Depends(season_q), d=Depends(D)):
+    """Ways to improve survival for one species (and for a point when point_id is given). Advice only: it never changes S, P or W. Provisional: the agriculturist still has to confirm it."""
+    if species_id not in d.species_idx:
+        raise HTTPException(404, f"species_id {species_id} not found")
+    info = advice_info(d, species_id)
+    habagat = rehab = False
+    point = None
+    if point_id is not None:
+        j = d.allpt_index.get(int(point_id))
+        if j is None:
+            raise HTTPException(404, f"point_id {point_id} not found")
+        b = int(d.allpt_barangay[j])
+        bname = d.barangay_names[b] if b >= 0 else ""
+        zone = d.all_points.zone_desc.iloc[j]
+        months = season_object(None, season)["window_months"] if season is not None else []
+        habagat = bool(sr.habagat_months_hit(months)) and bname.upper() in {x.upper() for x in sr.HABAGAT_CFG["barangays"]}
+        rehab = bool(sr.rehab_flags(zone, species_id, food_ids_of(d)))
+        point = {"point_id": int(point_id), "barangay": bname, "zone": zone if isinstance(zone, str) else None, "habagat": habagat, "rehab_site": rehab}
+    items = sva.species_advice(d.advice_rules, info["row"], info["tags"], info["partners"], habagat=habagat, rehab=rehab)
+    return {"species_id": species_id, "common_name": info["name"], "advice": items, "point": point, **ADVICE_BODY}
+
+
+def plan_advice_body(d, summary):
+    """The advice list of a plan (fresh or saved): place rules (Habagat, rehabilitation site, two or more species) and the rules of its species. Advice only."""
+    ids = [int(p["species_id"]) for p in summary.get("palette", []) if int(p["species_id"]) in d.species_idx]
+    infos = [advice_info(d, i) for i in ids]
+    hab = int((summary.get("habagat") or {}).get("affected_trees", 0) or 0)
+    reh = int((summary.get("rehab") or {}).get("flagged_trees", 0) or 0)
+    return {"items": sva.plan_advice(d.advice_rules, infos, habagat_trees=hab, rehab_trees=reh), **ADVICE_BODY}
 
 
 PARTNER_NONE = "No good partner found in our data"
@@ -1719,6 +1777,7 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
     pn = partner_note(d, [p["species_id"] for p in summary["palette"]])
     if pn is not None:
         out["partners"] = pn
+    out["advice"] = plan_advice_body(d, summary)
     if blocks:
         out["blocks"] = {"trees": int(summary.get("saplings_placed", 0)), "blocks": int(len(items)), "hectares": (summary.get("layout") or {}).get("hectares_used")}
     if extra:

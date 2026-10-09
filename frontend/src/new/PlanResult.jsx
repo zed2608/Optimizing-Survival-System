@@ -7,6 +7,7 @@ import KitControls from './KitControls.jsx'
 import MatchChip from './MatchChip.jsx'
 import PlanProgress from './PlanProgress.jsx'
 import PlanWeather from './PlanWeather.jsx'
+import AdviceSection from './AdviceSection.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
 import { shapeColor, shapePath } from './planShapes.js'
 import { GROUND_FLAGS, planSentence, plainWarning, whyWarning } from './plainWords.js'
@@ -202,6 +203,12 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
               </ul>
               {full && shownNotes.some((n) => n.text !== n.raw) && <p className="muted">Plain words: {shownNotes.map((n) => n.text).join(' ')}</p>}
             </section>
+          )}
+
+          {result.advice && result.advice.items.length > 0 && (
+            <div className="nw-pcard">
+              <AdviceSection key={view} items={result.advice.items} note={result.advice.note} view={view} limit={result.advice.limit_simple_plan} />
+            </div>
           )}
 
           <section className="nw-pcard" aria-label="The mix">

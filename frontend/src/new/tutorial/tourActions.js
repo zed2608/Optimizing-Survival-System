@@ -1,4 +1,4 @@
-import { SCREENS } from './tutorialContent.js'
+import { EXAMPLE_POINTS, SCREENS } from './tutorialContent.js'
 
 // The small DOM helpers of the guided tour. The tour drives the real dashboard the way a person would (it presses the same buttons), so no screen needs special code for it.
 
@@ -76,12 +76,16 @@ export async function runAction(a) {
     if ($('.nw-right[aria-label="Species for this point"]')) return
     const input = $('.nw-search-input')
     if (!input) return
-    setNative(input, '832') // a point of Santa Ana: the tour opens an example point
-    const opt = await waitFor(() => $('.nw-search-opt'), 3000)
-    if (!opt) return
-    opt.click()
-    await waitFor(() => $('.nw-right[aria-label="Species for this point"]'), 5000)
-    await sleep(500)
+    let opened = false
+    for (const id of EXAMPLE_POINTS) {                                    // the first example point of Santa Ana; the next one if it is not there any more
+      setNative(input, String(id))
+      const opt = await waitFor(() => $('.nw-search-opt'), 2500)
+      if (!opt) continue
+      opt.click()
+      opened = !!(await waitFor(() => $('.nw-right[aria-label="Species for this point"]'), 5000))
+      if (opened) break
+    }
+    if (opened) await sleep(500)
   } else if (a.demo === 'species') {
     if ($('.nw-card')) return
     await runAction({ sidebar: true })
@@ -90,15 +94,8 @@ export async function runAction(a) {
       await runAction({ openStep: 'pick' })
       info = await waitFor(() => $('.nw-step[data-step=pick] .nw-infobtn'), 800)
     }
-    if (info) info.click()
-    else {
-      const input = $('.nw-search-input')
-      if (input) {
-        setNative(input, 'Cacao')
-        const opt = await waitFor(() => [...document.querySelectorAll('.nw-search-opt')].find((e) => e.textContent.includes('Cacao')), 3000)
-        opt?.click()
-      }
-    }
+    if (!info) return // no small i on screen (for example no species is listed for the dates): no card is opened and the step is shown as a centred card
+    info.click()
     await waitFor(() => $('.nw-card'), 4000)
     await sleep(600)
   } else if (a.demo === 'closeCard') {

@@ -5,6 +5,7 @@ import FlagBadges from '../v2/components/FlagBadges.jsx'
 import SourceLink from '../v2/components/SourceLink.jsx'
 import { useApi } from '../v2/useApi.js'
 import MonthStrip from './MonthStrip.jsx'
+import AdviceSection from './AdviceSection.jsx'
 import PartnersSection from './PartnersSection.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
@@ -63,8 +64,9 @@ function Section({ title, big = false, children }) {
 }
 
 // The species card: a right-hand drawer with everything the dataset says about one species (GET /species/{id}), every value with its source and rank.
-export default function SpeciesCard({ speciesId, window: win, onClose, onFindAreas, point = null }) {
+export default function SpeciesCard({ speciesId, window: win, onClose, onFindAreas, point = null, view = 'compact', pointId = null }) {
   const api = useApi(`/species/${speciesId}?${seasonQuery(win, false)}`)
+  const advice = useApi(`/species/${speciesId}/advice?${seasonQuery(win, false)}${pointId ? `&point_id=${pointId}` : ''}`) // ways to improve survival: advice only, hidden when it cannot be loaded
   const closeRef = useRef(null)
   const closeFn = useRef(onClose)
   useEffect(() => {
@@ -236,6 +238,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
               </section>
             )}
 
+            {advice.status === 'ok' && <AdviceSection key={view} items={advice.data.advice} note={advice.data.note} view={view} limit={advice.data.limit_simple_species} />}
             <PartnersSection speciesId={speciesId} query={seasonQuery(win, false)} />
 
             {point && (

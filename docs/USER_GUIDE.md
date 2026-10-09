@@ -78,7 +78,17 @@ Tap the small i next to a species to open its card. It shows the months to plant
 
 *Watch for:* Partner species and agriculturist notes are marked Provisional. They are starting guides, not final advice.
 
-**10. Filter the species list** (the map screen)
+*You open a species card by tapping the small i next to a species in the Species step.*
+
+**10. Ways to improve survival** (the map screen)
+
+The species card and the plan result have a section called Ways to improve survival. It gives short tips, such as mulching, a windbreak, or asking the nursery for grafted stock. Press its title to open it.
+
+*Watch for:* The tips never change a score. They come from the MAO interview or from general practice, and the agriculturist still has to confirm them.
+
+*You see this section in the species card and in the plan result, when a tip applies.*
+
+**11. Filter the species list** (the map screen)
 
 In “I have species”, the species list has a Purpose filter, such as fruit-bearing or timber. It also has an Available in LGU nursery tick box that keeps only the species on the nursery list.
 
@@ -88,13 +98,13 @@ In “I have species”, the species list has a Purpose filter, such as fruit-be
 
 ### Planning an event
 
-**11. Planning an event: five steps** (the map screen)
+**12. Planning an event: five steps** (the map screen)
 
 The left panel has five steps: Goal, Purpose, Planting window, Species or Area, and Plan. Work down them in order. Each closed step shows a one-line summary of your choice.
 
 *Watch for:* Each species has its own best months. Set your dates in step 3, or press “Jump to the next planting season”.
 
-**12. Step 5: the Plan** (the map screen)
+**13. Step 5: the Plan** (the map screen)
 
 Name the campaign and say how many trees. With “I have species” you set the number of trees for each species. With “I have an area” the system picks a mix, or you press “Choose my own species and counts”. Then press Create plan.
 
@@ -102,7 +112,7 @@ Name the campaign and say how many trees. With “I have species” you set the 
 
 ### The plan result
 
-**13. The plan result** (the map screen)
+**14. The plan result** (the map screen)
 
 After you create a plan you see three big numbers: Trees, Blocks and Hectares. A block is one 100 metre square planted close together at the right spacing for its species.
 
@@ -110,7 +120,7 @@ After you create a plan you see three big numbers: Trees, Blocks and Hectares. A
 
 *You see this after you press Create plan.*
 
-**14. Check first and Good to know** (the map screen)
+**15. Check first and Good to know** (the map screen)
 
 The Check first box lists trees on land that needs a closer look, such as ground that looks bare, built-up or wet from the satellite, or land outside the zoning map. “Show these on the map” circles them. Good to know lists up to three plain notes, each with a Why? tip.
 
@@ -120,7 +130,7 @@ The Check first box lists trees on land that needs a closer look, such as ground
 
 ### The field kit
 
-**15. The field kit** (the map screen)
+**16. The field kit** (the map screen)
 
 On the Field kit tab, press Build field kit, then Download kit. The kit has a printed map (PDF), a sheet to fill in (blocks), the same blocks in the older list format, and files for a map app (GPX and KML). A README explains how to lay out a block.
 
@@ -128,7 +138,7 @@ On the Field kit tab, press Build field kit, then Download kit. The kit has a pr
 
 *You see the kit after you create a plan, on the Field kit tab.*
 
-**16. Using the kit on the ground** (the map screen)
+**17. Using the kit on the ground** (the map screen)
 
 The team walks to the START point of a block. They plant the numbered trees row by row, from tree 1 up to the number written on the page, and leave the rest empty. Then they write down how many trees they really planted.
 
@@ -136,7 +146,7 @@ The team walks to the START point of a block. They plant the numbered trees row 
 
 ### Field checks and progress
 
-**17. Field checks** (the map screen)
+**18. Field checks** (the map screen)
 
 On a point panel, the field check card records what the team saw. Every status has a colour and a symbol: Planted (green check), Plantable (green ring), Needs recheck (amber question mark) and Not plantable (red cross). A blue cross means water. A gray cross means paved, building or rock.
 
@@ -144,7 +154,7 @@ On a point panel, the field check card records what the team saw. Every status h
 
 *You see the field check card when you click a point.*
 
-**18. Progress and top-up** (the map screen)
+**19. Progress and top-up** (the map screen)
 
 The Progress tab counts the trees planted, the trees remaining and the blocks with a problem. A block that is only partly planted counts only the trees really planted. If trees were lost to problem blocks, press Plan top-up to plan new blocks for them.
 
@@ -152,7 +162,7 @@ The Progress tab counts the trees planted, the trees remaining and the blocks wi
 
 *You see Progress after you create a plan, on the Progress tab.*
 
-**19. Campaign Logs** (Campaign Logs)
+**20. Campaign Logs** (Campaign Logs)
 
 Campaign Logs lists every saved plan, with its dates and its status: Active, Upcoming or Concluded. You can open a plan on the map, see its progress, and plan a top-up.
 
@@ -160,7 +170,7 @@ Campaign Logs lists every saved plan, with its dates and its status: Active, Upc
 
 ### The Weather tab
 
-**20. The Weather tab** (the Weather tab)
+**21. The Weather tab** (the Weather tab)
 
 The Weather tab shows the coming week for San Mateo, a barangay, the last point you clicked or the middle of a plan. It says Good to plant, Plant with care, or Avoid this week, and it lists the species that suit the week.
 
@@ -168,13 +178,13 @@ The Weather tab shows the coming week for San Mateo, a barangay, the last point 
 
 ### Data and limits
 
-**21. System Analytics** (System Analytics)
+**22. System Analytics** (System Analytics)
 
 System Analytics shows simple counts: how many map squares there are, how many field checks were saved, how many plans exist, and which version of the species data is in use.
 
 *Watch for:* The plan totals use the newest 100 plans. The page says so when there are more.
 
-**22. Data and limits** (the map screen)
+**23. Data and limits** (the map screen)
 
 Most of the data is Provisional. The zoning rules come from the MPDC form signed on 7 October 2026. The planting-month notes, the nursery list and the warnings come from the MAO interview. The species data is not yet signed off by the licensed agriculturist.
 
@@ -182,7 +192,7 @@ Most of the data is Provisional. The zoning rules come from the MPDC form signed
 
 ### Finish
 
-**23. You are ready** (the map screen)
+**24. You are ready** (the map screen)
 
 You can open this help again at any time. Press Help at the top right. There you can search the questions, read the short glossary, take the tour again, or print the guide.
 
@@ -303,6 +313,18 @@ The soil comes from the LGU soil map that we digitized from a scan, so it is pro
 **What is on the species card?**
 
 The planting months, how the tree grows, where it grows, its uses, partner species, notes from the agriculturist and the source of each fact. A fact with no source says Data Unavailable.
+
+**What is Ways to improve survival?**
+
+A short list of tips for a species or for a plan, such as mulching, a windbreak, or asking for grafted stock. A tip only appears when it applies, for example when a species has Low drought tolerance. Simple shows a few tips and Detailed shows them all.
+
+**Does the advice change the scores?**
+
+No. The advice is only text. The site match, the purpose fit and the overall match stay exactly the same.
+
+**Where does the advice come from?**
+
+Some tips come from the MAO interview. Others are general practice. Each tip shows its source. All of it is advice that the agriculturist still has to confirm.
 
 **What is Works well with?**
 

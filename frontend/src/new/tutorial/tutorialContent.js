@@ -10,6 +10,9 @@ export const SCREENS = {
   analytics: { tab: 'System Analytics', name: 'System Analytics' },
 }
 
+// The example point the tour opens (Santa Ana). If the first is not available after a zoning change, the next one is tried. tests/test_advice.py checks that they exist.
+export const EXAMPLE_POINTS = [832, 830, 828, 826]
+
 // The parts of the tour, in order (a to m of the request).
 export const SECTIONS = [
   { id: 'welcome', title: 'Welcome' },
@@ -120,7 +123,21 @@ export const TOUR_STEPS = [
     watch: 'Partner species and agriculturist notes are marked Provisional. They are starting guides, not final advice.',
     target: '.nw-card',
     before: [{ demo: 'species' }],
+    missing: 'center',
+    later: 'You open a species card by tapping the small i next to a species in the Species step.',
+  },
+  {
+    id: 'advice',
+    section: 'species',
+    screen: 'studio',
+    title: 'Ways to improve survival',
+    text: 'The species card and the plan result have a section called Ways to improve survival. It gives short tips, such as mulching, a windbreak, or asking the nursery for grafted stock. Press its title to open it.',
+    watch: 'The tips never change a score. They come from the MAO interview or from general practice, and the agriculturist still has to confirm them.',
+    target: '.nw-advice',
+    before: [{ demo: 'species' }],
     after: [{ demo: 'closeCard' }],
+    missing: 'center',
+    later: 'You see this section in the species card and in the plan result, when a tip applies.',
   },
   {
     id: 'species-filters',
@@ -297,6 +314,9 @@ export const FAQ = [
   { id: 'check-first', topic: 'Warnings', q: 'What does Check first mean?', a: 'It lists planned trees on squares that look bare, built-up or wet in the satellite picture, or that are outside the zoning map. Press “Show these on the map” to circle them, and look at them before the team goes out.', words: 'check first bare built up water ground cover warning' },
   { id: 'soil-ground', topic: 'Warnings', q: 'How reliable are the soil and ground cover lines?', a: 'The soil comes from the LGU soil map that we digitized from a scan, so it is provisional, and there is no soil data for part of the north-east. The ground cover is a 2021 satellite picture that is about 77% accurate worldwide. Both are guides only.', words: 'soil ground cover satellite accuracy provisional data unavailable' },
   { id: 'species-card', topic: 'Species', q: 'What is on the species card?', a: 'The planting months, how the tree grows, where it grows, its uses, partner species, notes from the agriculturist and the source of each fact. A fact with no source says Data Unavailable.', words: 'species card info months uses sources data unavailable' },
+  { id: 'advice-what', topic: 'Species', q: 'What is Ways to improve survival?', a: 'A short list of tips for a species or for a plan, such as mulching, a windbreak, or asking for grafted stock. A tip only appears when it applies, for example when a species has Low drought tolerance. Simple shows a few tips and Detailed shows them all.', words: 'advice tips improve survival mulch windbreak grafted shade' },
+  { id: 'advice-score', topic: 'Species', q: 'Does the advice change the scores?', a: 'No. The advice is only text. The site match, the purpose fit and the overall match stay exactly the same.', words: 'advice score change site match purpose fit overall' },
+  { id: 'advice-source', topic: 'Species', q: 'Where does the advice come from?', a: 'Some tips come from the MAO interview. Others are general practice. Each tip shows its source. All of it is advice that the agriculturist still has to confirm.', words: 'advice source mao interview general practice agriculturist confirm' },
   { id: 'partners', topic: 'Species', q: 'What is Works well with?', a: 'A short list of species that can grow together with the main species, from simple starting rules about height, shade, water and roots. A label “Named in sources, check conditions” means the sources name the pair but our rules found that the conditions differ. These rules are provisional.', words: 'partner works well with companion intercrop named in sources' },
   { id: 'nursery', topic: 'Species', q: 'What does Available in LGU nursery mean?', a: 'The species is on the nursery list the LGU gave us. The list does not say how many seedlings are ready, so stock quantities are unknown. Kape is on the list but the variety is unknown, so Robusta is not marked.', words: 'nursery stock seedlings lgu available kape coffee' },
   { id: 'purpose-tags', topic: 'Species', q: 'What are the purpose tags?', a: 'Short labels such as fruit-bearing, timber, ornamental or biodiversity. They only help you filter the species list. They do not change any score. They are provisional.', words: 'purpose tags fruit timber ornamental filter' },
@@ -348,6 +368,7 @@ export const ASK_TIPS = {
   verdict: 'scores',
   permission: 'needs-permission',
   nursery: 'nursery',
+  advice: 'advice-what',
   plan: 'make-plan',
   kit: 'field-kit',
   progress: 'progress',

@@ -964,6 +964,8 @@ export default function AppNew() {
         <SpeciesCard
           speciesId={cardId}
           window={win.applied}
+          view={view}
+          pointId={pointId}
           onClose={() => setCardId(null)}
           point={spot ? { lat: spot.lat, lon: spot.lon, label: 'the point you clicked' } : { lat: MAP_CENTER[0], lon: MAP_CENTER[1], label: 'the middle of San Mateo' }}
           onFindAreas={(id) => {

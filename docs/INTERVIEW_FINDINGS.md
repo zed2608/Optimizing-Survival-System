@@ -17,10 +17,12 @@ People: **MENRO / MPDC** = Elaine R. De Jesus. **MAO** = Alexis P. Santos, OIC-M
 | MAO | Oct 2026 (transcript) | Species by purpose (fruit, timber, ornamental, vegetable, and so on) | Eight purpose tags and a Purpose filter (rule based, provisional) | applied |
 | MAO | Oct 2026 (transcript) | Which trees grow well together | Partner chips: "named in the sources" and, in a different style, "Named in sources, check conditions" | applied |
 | MAO | 7 Oct 2026 (sample sheet) | Marked printed sample pairs (verdicts) | `data/validation/agri_sample_marks_20261007.csv`; results in `docs/SAMPLE_VALIDATION_RESULT.md` | applied; printed-sheet comparison waits for `data/validation/sample_printed_verdicts.csv` |
+| MAO | Oct 2026 (transcript) | Ways to improve survival: heavy rain and flooding, grafted or marcotted stock for fruit trees, 60% shade for cacao, proper distance between trees, no edible fruit from a rehabilitation site without testing | A collapsible section Ways to improve survival in the species card and the plan result, from data/processed/survival_advice.csv. Advice only: it never changes a score. Marked Provisional | applied |
 | MPDC | 7 Oct 2026 (form) | Waterways form (21 creeks, 50 m wetness rule) | **Signed blank.** Nothing is used. The creeks and the 50 m rule are NOT validated | deferred |
 
 ## Deferred list (not built; no data or rule was invented)
 
+- A scenario switch with adjustable effect sizes for the survival advice (for example how much mulch or a windbreak helps): deferred until the agriculturist answers the question sheet. Today the advice is text only and changes no score.
 - Crop calendar view.
 - El Nino, La Nina and typhoon hazard notes (source to be MDRRMO with PAG-ASA).
 - A farmer questions tab.
