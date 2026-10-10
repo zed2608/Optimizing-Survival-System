@@ -274,7 +274,7 @@ export const TOUR_STEPS = [
     screen: 'studio',
     title: 'Data and limits',
     text: 'Most of the data is Provisional. The zoning rules come from the MPDC form signed on 7 October 2026. The planting-month notes, the nursery list and the warnings come from the MAO interview. The species data is not yet signed off by the licensed agriculturist.',
-    watch: 'The waterways form was signed blank, so creeks and the 50 metre wetness rule are not used. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.',
+    watch: 'Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.',
     target: '.nw-more',
     before: [{ sidebar: true }],
   },
@@ -294,7 +294,7 @@ export const FAQ = [
   { id: 'grey-point', topic: 'Map', q: 'Why is a point grey?', a: 'A grey dot means no species suits that square for your purpose. A faint grey square that is not a dot is land that is never scored: cemetery and quarry land. Click it to see the reason.', words: 'grey gray no data not suitable cemetery quarry excluded' },
   { id: 'empty-area', topic: 'Map', q: 'Why does a part of the map have no squares?', a: 'Squares in the cemetery and quarry zones are never scored, so they are not coloured. Land outside the zoning map is scored but flagged. You can switch it off with “Include land outside the zoning map”.', words: 'empty missing gap zoning outside map forest reserve' },
   { id: 'colours', topic: 'Map', q: 'What do the colours mean?', a: 'They show the overall match. Green is Good (55% or more). Orange is Moderate (35% up to 55%). Red is Poor (under 35%). Grey means not suitable here. Open the Legend button on the map to see them.', words: 'colour color good moderate poor legend green orange red' },
-  { id: 'scores', topic: 'Map', q: 'What are site match, purpose fit and overall match?', a: 'Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers. Site suitability is predicted by a Random Forest trained on the expert rules. Hard limits (zone, elevation, steep slope) always apply first.', words: 'score S P W site fit purpose overall match 50 random forest expert rules hard limits' },
+  { id: 'scores', topic: 'Map', q: 'What are site match, purpose fit and overall match?', a: 'Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers. Site suitability is predicted by a Random Forest trained on the expert rules. Hard limits (zone, elevation, steep slope) always apply first.', aRules: 'Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers. Right now the Random Forest scores are not loaded, so site suitability comes from the expert rules themselves. Hard limits (zone, elevation, steep slope) always apply first.', words: 'score S P W site fit purpose overall match 50 random forest expert rules hard limits' },
   { id: 'zoning-layer', topic: 'Map', q: 'How do I show the zoning colours?', a: 'Open Map view at the top right of the map and tick Zoning. A list shows the zones, the colours and how many squares each has. The colours follow the LGU style file. Untick it to hide the layer.', words: 'zoning layer colours map view toggle legend' },
   { id: 'map-view', topic: 'Map', q: 'What is in the Map view menu?', a: 'Simple or Detailed map, the map type (satellite or street map), the field-checked points, the planned trees, the Zoning layer, the satellite ground cover layer, and the faint squares that are not planting zones. Detailed adds every field-check symbol and the tree codes.', words: 'map view menu simple detailed satellite street layers' },
   { id: 'slope-caution', topic: 'Warnings', q: 'What does the steep slope caution mean?', a: 'Each tree has a usual limit for how steep the land can be. A square a little steeper than that limit is not thrown out. It gets a lower score, and it only shows when it still passes. Plant on terraces or use contour planting, or choose another tree. A square much steeper is still left out. This rule is provisional until the adviser confirms it.', words: 'slope steep limit terraces contour graded caution' },
@@ -340,7 +340,7 @@ export const FAQ = [
   { id: 'weather', topic: 'Weather', q: 'What does the Weather tab show?', a: 'The coming week for the place you choose. It gives a verdict (Good to plant, Plant with care or Avoid this week) with the rain numbers, and lists the species that suit the week. The forecast covers about 16 days.', words: 'weather forecast week rain verdict' },
   { id: 'weather-months', topic: 'Weather', q: 'How does the weather affect planting months?', a: 'It does not change a score or a best month. It only tells you if this week is good, and it lists the species that are in their best months and not hit by a warning. Species outside their best months are listed apart as Only if you can water.', words: 'weather months season held back water' },
   { id: 'provisional', topic: 'Data', q: 'What does Provisional mean?', a: 'It marks information that comes from an interview, a form or our own rules and has not yet been confirmed by the licensed agriculturist or the LGU. Use it as a guide, not as a final answer.', words: 'provisional draft not confirmed' },
-  { id: 'signed-off', topic: 'Data', q: 'Which data is signed off?', a: 'The zoning rules come from the MPDC form signed on 7 October 2026, and the warnings and notes come from the MAO interview, but they are still provisional. The species data (release v1.0-review) has not been signed off by the licensed agriculturist. The waterways form was signed blank, so creeks and the 50 metre wetness rule are not used.', words: 'signed off agriculturist mpdc mao interview validated waterways' },
+  { id: 'signed-off', topic: 'Data', q: 'Which data is signed off?', a: 'The zoning rules come from the MPDC form signed on 7 October 2026, and the warnings and notes come from the MAO interview, but they are still provisional. The species data (release v1.0-review) has not been signed off by the licensed agriculturist. Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank.', words: 'signed off agriculturist mpdc mao interview validated waterways wetness creeks rivers 50 metres' },
   { id: 'decides', topic: 'Data', q: 'Does the system decide where to plant?', a: 'No. It suggests. People decide, the field team checks every spot, and permits from MENRO, DENR or the owner are still needed. It does not replace the agriculturist.', words: 'decide replace agriculturist permit suggest' },
   { id: 'unavailable', topic: 'Data', q: 'What does Data Unavailable mean?', a: 'The information does not exist in our sources, so the system shows nothing. It never fills a missing value with a guess.', words: 'data unavailable missing no value guess' },
   { id: 'service-offline', topic: 'Using the system', q: 'What if the top bar says the service is not connected?', a: 'The page cannot reach the data service, so the map and results cannot load. Ask the person who runs the system to start it, then reload the page.', words: 'not connected api error cannot load service' },
@@ -349,7 +349,7 @@ export const FAQ = [
 ]
 
 export const GLOSSARY = [
-  { term: 'Site match', meaning: 'How well the land of a square suits a species: slope, height, soil, zone and rain. It is a number from 0 to 1. A square a little steeper than the tree\'s usual limit can still pass, with a lower score and a slope caution.' },
+  { term: 'Site match', meaning: 'How well the land of a square suits a species: slope, height, soil, zone and distance to creeks and rivers (a soft wetness factor, 50 metres; the waterways map is not yet validated by MENRO). It is a number from 0 to 1. A square a little steeper than the tree\'s usual limit can still pass, with a lower score and a slope caution.' },
   { term: 'Purpose fit', meaning: 'How well a species suits what you want the trees for: shade in town, tree planting or watershed.' },
   { term: 'Overall match', meaning: 'Site match combined with purpose fit. It is zero if the site match is under 50%. The map colours show it.' },
   { term: 'Block', meaning: 'One 100 metre square planted close together at the spacing of its species. The planted area sits in the middle of the square.' },
@@ -377,11 +377,16 @@ export const ASK_TIPS = {
   weather: 'weather',
 }
 
+// The answer to show: when the app runs on the expert rules instead of the Random Forest (the scores are not loaded), an answer that talks about the forest has its own text (aRules).
+export function faqAnswer(faq, usingRules = false) {
+  return usingRules && faq.aRules ? faq.aRules : faq.a
+}
+
 // Every visible string of this file (the unit tests check them for underscores and equals signs).
 export function allVisibleText() {
   const out = []
   for (const s of TOUR_STEPS) out.push(s.title, s.text, s.watch ?? '', s.later ?? '')
-  for (const f of FAQ) out.push(f.q, f.a)
+  for (const f of FAQ) out.push(f.q, f.a, f.aRules ?? '')
   for (const g of GLOSSARY) out.push(g.term, g.meaning)
   for (const sec of SECTIONS) out.push(sec.title)
   for (const k of Object.values(SCREENS)) out.push(k.tab, k.name)

@@ -1,9 +1,9 @@
 {
-  "tests": "661 passed / 1 skipped (browser test, needs OS_BROWSER_CHECK=1) / 0 failed; three full runs in a row gave the same result (391 s, 282 s, 270 s): no flaky test",
+  "tests": "698 passed / 1 skipped (browser test, needs OS_BROWSER_CHECK=1) / 0 failed (round 21 final run, 297 s; round 20: three runs of 661 passed, no flaky test)",
   "qa": "34 passed / 3 warnings / 0 failed",
-  "node_tests": "7 test files under frontend/src, all pass; npm run build OK; eslint src/new: no problems; docs/USER_GUIDE.md up to date",
+  "node_tests": "7 test files under frontend/src, all pass (tutorial.test.mjs has 9 tests); npm run build OK; eslint src/new: no problems; docs/USER_GUIDE.md up to date",
   "rebuild_seconds": "10 / 5 / 262 / total 278 (rebuild from scratch in a scratch copy; result identical to the saved scores)",
   "plan_seconds": "0.52 / 0.45 / 0.46 (API alone: 0.55 / 0.30 / 0.42)",
-  "api_seconds": "warm: /rank 0.026, /rank/area 0.116, /grid 0.003, /species 0.013, /plan-event/preview 0.007; first /weather/week 2.2 (network)",
-  "api_memory_mb": "191 working set at start (856 private); clean start to /health 4.2 s"
+  "api_seconds": "warm: /rank 0.026, /rank/area 0.116, /grid 0.003, /species 0.013, /plan-event/preview 0.15 to 0.23 since round 21 (it runs the real plan rule; it was 0.007); first /weather/week 2.2 (network)",
+  "api_memory_mb": "187 to 191 working set at start (clean start to /health 4.2 s); round 21 test: 194 after 100 plans, 250-270 after 200 plans and about 1,500 read calls, 304-350 with kits built (100 kits), no growth trend"
 }

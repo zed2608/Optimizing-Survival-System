@@ -57,10 +57,13 @@ Provisional. We digitized the LGU soil map from a scan (13 m per pixel); the map
 The CLUP shows that land as Forest Reserve (Watershed), co-managed with DENR; planting there may be the point of a watershed project. They are scored but flagged ("coordinate with MENRO and DENR") and the user can switch them off. 78 squares (cemetery, quarry) are never scored.
 
 **16. What about the waterways form that was signed blank?**
-Nothing from that form is used. But our scoring has its own wetness term (50 m from creek or river polygons, weight 0.25) that lowers S for 2,960 pairs: it is in use, unvalidated, and the Help sentence saying it is "not used" is wrong (found in the round 20 audit and reported).
+Nothing from that form is used, and the waterways map has not been validated by MENRO. Creek and river distance is nevertheless used as a soft wetness factor in S (weight 0.25, 50 m from the creek and river polygons; only trees that do not fully tolerate wet ground (Low or Medium tolerance) are lowered; it lowers S for 2,960 of 360,450 pairs). It is a provisional rule of ours, not a validated one. (The Help text said it was "not used" until round 21; the round 20 audit found and fixed that.)
 
 **17. How accurate is the satellite ground cover?**
-ESA WorldCover 2021 states 76.7% overall accuracy worldwide; it is not measured for San Mateo. It only adds flags (bare, built-up, water) and never changes a score. In our demo run some planned blocks in Guinayang sat on land that looks built up: the field check is the safeguard.
+ESA WorldCover 2021 states 76.7% overall accuracy worldwide; it is not measured for San Mateo. It only adds flags (bare, built-up, water) and never changes a score. The project team reports that MENRO checked the ground cover on only 10 squares (the repository holds no record of which squares or what they found: UNKNOWN), so we have no local accuracy figure.
+
+**17b. Your plan put blocks on land that looks built up. How can that happen?**
+Because the site scores read elevation, slope, soil, distance to water and zoning, and the only inputs that could show buildings are the zoning map (a legal zone, not what stands there) and the ESA land cover, which is information only and changes no score. In the Guinayang demo run several blocks lay on what looks like housing and roads. The mitigation is the field check before planting: the kit tells the team to check every square, move a block when a house, road or creek is in the way, never plant on paved or built land, and mark a square "Not plantable" with a reason, which drops it from rankings and plans (and "Plan top-up" replaces its trees). The system proposes; the field team decides.
 
 **18. Planting months are May to September for every species; is that real?**
 It is what the sources give (36 species list May, 41 July). It is unverified and probably too uniform; in October to April the app finds no species in season and says so ("Jump to the next planting season").
@@ -90,11 +93,11 @@ Python 3.14, Node 22; the API starts in about 4 seconds and uses about 190 MB at
 
 ## Limitations the panel will find anyway
 
-**26. Your form says "About 5 blocks" but the plan has 13. Why?**
-The form's estimate uses the median block size (64 trees) before the species mix is chosen; the real mix has small-capacity species (Weeping Fig holds 9 trees per block at 20 m spacing, against 121 for Chesa/Tiesa). The estimate understates by 2.4 to 3 times. We know; the service states its basis (`blocks_estimate.basis`) and the real number appears in the result.
+**26. Does the form's block estimate match the plan?**
+Yes, since round 21. The round 20 audit found that the form said "About 5 blocks" (median block size, 64 trees) while real plans had 12 to 15, because species differ a lot in trees per block (Weeping Fig 9 trees per block at 20 m spacing, Chesa/Tiesa 121). `/plan-event/preview` now runs the same plan rule as Create plan and reports its blocks (`tests/test_round21.py` compares estimate and real plan for three purposes and four tree counts). If suitable squares run short the plan places fewer trees and the capacity message says so.
 
 **27. What if the Random Forest file is missing at the demo?**
-The app falls back to the rules automatically and `/health` shows a warning; ranking and plans keep working with almost the same results. Caveat found in round 20: the dashboard itself does not show that warning, and Help still says the forest predicts S.
+The app falls back to the rules automatically and `/health` shows a warning; ranking and plans keep working with almost the same results. Since round 21 the dashboard also shows a notice at the top ("Random Forest scores are not loaded. The app is using the rule scores. Run scripts/rebuild_scores.py.") and Help says the rules are being used (round 20 had found that this fallback was silent on screen).
 
 **28. Why are the weights equal (0.25) and who chose the purpose weights?**
 The team; no source. They are labelled provisional, and `purpose_sensitivity.csv` (76 scenarios) shows how species ranks move. The agriculturist has not signed them off.
@@ -103,4 +106,4 @@ The team; no source. They are labelled provisional, and `purpose_sensitivity.csv
 No independent evidence of survival. Every score is expert rules from species descriptions, copied by a model. The honest claim of the thesis: a transparent, reproducible decision-support pipeline with sources, flags and a field-feedback loop, not a validated prediction of survival.
 
 **30. What would you do next?**
-Get the agriculturist to sign (or change) the species data, weights, soil mapping and slope rule; collect field survival with the existing field-check flow and test S against it; verify the waterways with the MPDC; add a login; test the field kit on a phone and on paper; show the fallback warning in the dashboard.
+Get the agriculturist to sign (or change) the species data, weights, soil mapping and slope rule; collect field survival with the existing field-check flow and test S against it; verify the waterways with the MPDC; add a login; test the field kit on a phone and on paper.

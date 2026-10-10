@@ -48,14 +48,22 @@ CFG = {
 UNCONFIRMED_FLAG = "zoning_unconfirmed"
 UNCONFIRMED_NOTE = "Land outside our zoning map; the CLUP 2021-2031 shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting"
 
+# The "S comes from ..." limit of a plan names the source of S really used (round 21): the Random Forest in the default mode, the rules only in rules mode.
+S_LIMIT_RF = "S comes from a Random Forest trained on expert rules (the rule limits for zone, elevation and steep slope apply first), not from field survival data."
+S_LIMIT_RULES = "S comes from expert rules written from the species data, not from field survival data."
+
+
+def s_limit_text(ctx):
+    return S_LIMIT_RULES if getattr(ctx, "s_source", "rules") == "rules" else S_LIMIT_RF
+
 BLOCK_COLUMNS = ["trees_planned", "spacing_m", "rows", "trees_per_row", "capacity", "usable_side_m", "row_direction", "start_corner", "layout_note"]   # added to PLAN_COLUMNS in blocks mode
 BLOCK_LIMITS = ("Each block is one 100 m grid square, planted at the species spacing on its usable part (provisional share of the square); a plan places at most one block per square.",
                 "Block layout (usable share, spacing rounding, capacity) is provisional until the agriculturist signs it off.",
                 "Weights, caps and thresholds are provisional; site scores use the soft soil mode (texture mapping unverified).",
-                "S comes from rules, not from field survival data.")
+                "{S_LIMIT}")
 LIMITS = ("Each point is a ~100 m grid cell, so the plan places at most one tree per cell.",
           "Weights, caps and thresholds are provisional; site scores use the soft soil mode (texture mapping unverified).",
-          "S comes from rules, not from field survival data.")
+          "{S_LIMIT}")
 
 
 def attach_landcover(ctx, out_dir):
@@ -386,7 +394,7 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
                                   else "no trees table given: no exclusion zone applied"),
                "palette": [], "palette_common_planting_months": palette["common_months"], "palette_warnings": list(palette["warnings"]),
                "palette_excluded_species": {str(k): v for k, v in palette["excluded"].items()},
-               "dioecious_species_left_out": palette["dioecious_rejected"], "limits": list(BLOCK_LIMITS if blocks else LIMITS)}
+               "dioecious_species_left_out": palette["dioecious_rejected"], "limits": [t.replace("{S_LIMIT}", s_limit_text(ctx)) for t in (BLOCK_LIMITS if blocks else LIMITS)]}
     if blocks:
         summary["layout_mode"] = "blocks"
     if selection is not None:                                          # chosen by hand: the "palette smaller than min" note does not apply; say what is left out and the diversity risk

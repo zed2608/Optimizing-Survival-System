@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ASK_TIPS, FAQ, GLOSSARY, SCREENS, SECTIONS, TOUR_STEPS, allVisibleText } from './tutorialContent.js'
+import { ASK_TIPS, FAQ, GLOSSARY, SCREENS, SECTIONS, TOUR_STEPS, allVisibleText, faqAnswer } from './tutorialContent.js'
 import { matchFaq } from './faqSearch.js'
 
 test('every tour step has the fields the tour needs', () => {
@@ -65,4 +65,22 @@ test('the help search finds check code and nursery', () => {
   assert.ok(find('GREY').includes('grey-point'))
   assert.deepEqual(find('zzzzqqq'), [])
   assert.equal(find('').length, FAQ.length)
+})
+
+test('round 21: the scores answer has a rules version for the fallback, and nothing else changes in normal mode', () => {
+  const f = FAQ.find((x) => x.id === 'scores')
+  assert.ok(/predicted by a Random Forest trained on the expert rules/.test(faqAnswer(f)), 'normal mode keeps the forest sentence')
+  assert.equal(faqAnswer(f, false), f.a)
+  assert.ok(/Random Forest scores are not loaded, so site suitability comes from the expert rules/.test(faqAnswer(f, true)))
+  assert.ok(!/is predicted by a Random Forest/.test(faqAnswer(f, true)), 'the rules version no longer says the forest predicts')
+  for (const g of FAQ.filter((x) => x.id !== 'scores')) assert.equal(faqAnswer(g, true), g.a, `${g.id} is the same in both modes`)
+})
+
+test('round 21: the wetness wording says the creek and river distance is used and the waterways map is not validated', () => {
+  const all = allVisibleText().join(' ')
+  assert.ok(!/are not used/.test(all.replace(/not used for the/g, '')), 'no "are not used" sentence about creeks')
+  assert.ok((all.match(/soft wetness factor \(50 metres\)/g) ?? []).length >= 2, 'the tour and the signed-off answer')
+  assert.ok(/distance to creeks and rivers \(a soft wetness factor, 50 metres/.test(all), 'the glossary')
+  assert.ok((all.match(/not (yet )?(been )?validated by MENRO/g) ?? []).length >= 3)
+  assert.ok(!/zone and rain/.test(all), 'rain is not scored')
 })

@@ -28,6 +28,8 @@ import ZoningLegend from './ZoningLegend.jsx'
 import { HelpBanner, HelpButton } from './HelpCenter.jsx'
 import GuidedTour from './tutorial/GuidedTour.jsx'
 import HelpPage from './tutorial/HelpPage.jsx'
+import ScoreSourceNotice from './ScoreSourceNotice.jsx'
+import { isFallback } from './scoreSource.js'
 import { HelpContext } from './tutorial/helpContext.js'
 import { TOUR_STEPS } from './tutorial/tutorialContent.js'
 import { useHelpState } from './help.js'
@@ -531,6 +533,9 @@ export default function AppNew() {
   }, [grid.data, detailed, showField, sessionMarks])
   const meta = useMemo(() => ({ purpose, species: selection ? idsParam : '' }), [purpose, selection, idsParam])
   const apiState = health.status === 'ok' ? 'ok' : health.status === 'loading' ? 'wait' : 'off'
+  const healthData = health.status === 'ok' ? health.data : null
+  const scoreFallback = isFallback(healthData)                 // the service fell back from the Random Forest to the rules: a notice at the top
+  const usingRules = healthData?.s_source === 'rules'          // the rules make S (fallback or chosen): Help must not say the forest does
   const legendSub = allRemoved
     ? 'The chosen species are out of season for your dates'
     : selection
@@ -539,7 +544,8 @@ export default function AppNew() {
 
   return (
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
-    <div className={`nw-root ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
+    <ScoreSourceNotice health={healthData} />
+    <div className={`nw-root ${scoreFallback ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
@@ -940,6 +946,7 @@ export default function AppNew() {
       {help.helpPage && (
         <HelpPage
           initialFaq={help.helpPage.faq}
+          usingRules={usingRules}
           screen={tab}
           onClose={help.closeHelp}
           onTour={() => {

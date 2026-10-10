@@ -54,3 +54,46 @@ Browser and test scripts of this run stay in the session scratchpad (`cdp_20b.mj
 
 ## 6. Unverified
 The steps before scoring were not rebuilt (Part A); the field kit was not tested on a phone, GPS or paper; the browser runs used headless Edge at 1366 x 768 only (a phone width was covered by earlier rounds, not this one); memory growth over a long session; all provisional rules and weights remain unvalidated.
+
+
+---
+
+# Round 21: fixes of the audit findings (10 Oct 2026)
+
+Wording and small fixes only. No new feature; `S_SOURCE` stays "rf", `SLOPE_MODE` stays "graded"; nothing committed; nothing deleted outside new folders.
+
+| # | Item | Result | Evidence |
+|---|---|---|---|
+| 1 | Wetness wording (high) | **Fixed** | The code: `score_sites.py` wetness term, weight 0.25, 50 m, layer `data/SMR_WATERBODIES_POLY.shp` (CREEK and RIVER), `tolerance + (1 - tolerance) x distance / 50` (tolerance Low / Medium / High = 0 / 0.5 / 1), lowers S for 2,960 of 360,450 pairs. New wording everywhere: "Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank." Changed: `tutorialContent.js` (tour step "Data and limits", the "signed off" answer, and the glossary "Site match", which also wrongly said "rain" is scored), `docs/USER_GUIDE.md` (rebuilt, up to date), README, INTERVIEW_FINDINGS, `docs/defense/LIMITATIONS.md` and `PANEL_QA.md`. Tests: `tests/test_round21.py` (no text says the creek rule is "not used"; the wording is present; the term is in the scores) and `tutorial.test.mjs`. Browser: the Help "signed off" answer shows the new words in normal and fallback mode, PASS. |
+| 2 | Fallback notice (high) | **Fixed** | A strip at the top: "Random Forest scores are not loaded. The app is using the rule scores. Run scripts/rebuild_scores.py." (`ScoreSourceNotice.jsx`, `scoreSource.js`, `new.css`). Browser check on a data copy without `s_prob`: notice at y = 0, 1366 x 28 px, role status, the dashboard sits 28 px lower without scroll bar or cut-off (screenshot `round21/r21_fallback_notice_top.png`); the Help "site match" answer says "Right now the Random Forest scores are not loaded, so site suitability comes from the expert rules themselves" and no longer says the forest predicts. Normal rf mode: no notice, Help unchanged (browser PASS). |
+| 3 | Block estimate (medium) | **Fixed** | Cause: `/plan-event/preview` divided the trees asked by the median trees per full block of every available species (64). Now it runs the real `make_plan` (same seed, season, exclusions) and reports its blocks (`exact` true). Browser, form against the plan really made (Guinayang, 9 cases): urban 300 trees 15 / 15, 100 trees 7 / 7, 1000 trees 45 / 45; planting 12 / 12, 6 / 6, 30 / 30; watershed 13 / 13, 7 / 7, 32 / 32 (it said "About 5" for 300 trees before). `tests/test_round21.py`: 12 parametrized cases (3 purposes x 4 counts) plus other areas and chosen species compare estimate and real plan. Cost: the preview takes 0.15 to 0.23 s instead of 0.007 s. The capacity message ("Only N suitable squares ...") now also fires when fewer trees fit than were asked. |
+| 4 | Known limits text (medium) | **Fixed** | `api_v2.LIMITS` and `run_plan.LIMITS / BLOCK_LIMITS` use `{S_LIMIT}`, filled by `run_plan.s_limit_text(ctx)`: default "S comes from a Random Forest trained on expert rules (the rule limits for zone, elevation and steep slope apply first), not from field survival data."; in rules mode only: "S comes from expert rules written from the species data, not from field survival data." Live `/health` checked; tests in `test_round21.py`. |
+| 5 | Invalid API input (medium) | **Fixed** | One handler (`plain_validation_handler`): 422 with `{"message": "The request could not be used: n_saplings must be less than or equal to 2000.", "detail": (same text), "fields": ["n_saplings"]}`; no `type`, `loc`, `input` or `ctx`. The service's own error messages are unchanged. Live check with 5,000 trees. Ten kinds of bad input and the model-level errors are tested; all older tests pass (698). The 19 raw answers of round 20 are now plain. |
+| 6 | Memory (important) | **Measured; no clear cause; nothing changed** | See below. |
+| 7 | Built-up land (documentation) | **Done** | `LIMITATIONS.md` D3, `PANEL_QA.md` Q17 and new Q17b: blocks can lie on land that looks built up because the only inputs that could show it are the zoning map and the ESA land cover, the land cover is information only, and MENRO checked the ground cover on only 10 squares (stated by the project team; the repository holds no record of which squares or what was found: UNKNOWN). Mitigation: field check before planting (move the block, never plant on paved or built land, mark Not plantable with a reason, top-up). |
+| 8 | Re-run | **Done** | pytest 698 passed, 1 skipped (297 s); qa_day1 34 passed, 3 warnings, 0 failed; `npm run build` OK; `npx eslint src/new` no problems (it found one problem in my first version, fixed by moving `isFallback` to `scoreSource.js`); 7 node test files pass; user guide up to date; browser checks `cdp_21.mjs` in normal and fallback mode: ALL PASS, 0 console errors. |
+
+## Item 6: memory measurements
+Setting: a temporary API on the real data (plans and kits in a temporary folder), clean start, `OS_S_SOURCE` unset (rf). Figures are the working set of the API worker process (the 3 MB launcher stub excluded; my first probe read the stub and was discarded and the run repeated).
+
+| Moment | Working set | Private |
+|---|---|---|
+| Start | 187 MB | 855 MB |
+| After 100 plans (mixed purposes, 10 to 2000 trees, 14 areas, 15% points layout) with /grid, /rank and /rank/area at every plan | 194 MB (+7) | 862 MB |
+| After 5 / 10 / 15 / 20 field kits | 342 / 350 / 329 / 348 MB | 1,040 to 1,083 MB |
+| After 600 more /grid + /rank pairs | 270 MB | 1,005 MB |
+| After 100 more plans | 265 MB | 1,013 MB |
+| After 10 / 20 / ... / 80 more kits (100 kits in all) | 308 / 312 / 304 / 326 / 317 / 326 / 322 / 311 MB | 1,053 to 1,073 MB |
+
+Total: 200 plans, 100 kits, about 1,500 read calls. Memory rises by about 150 MB when the first kits are built (matplotlib and the PDF), then oscillates between 304 and 350 MB and falls again after the kit phase. **There is no growth trend, so memory does not grow without limit in this test.** Code review: the in-memory caches are bounded (`multi_cache` 48, `areas_cache` 64, `plan_index_cache` 64 entries; `grid_cache` at most 3 purposes x 46 species of about 300 KB; the Habagat and zoning views are built once), and the PDF code closes every figure (`plt.close`).
+The 5 GB working set seen in round 20 was **not reproduced** and its cause is UNKNOWN (that process had served many hours of browser runs, kit builds and plans of up to 2,000 trees; no pattern in my test comes near it). I did not guess and added no cache or limit. If it happens again in a demo: restart the API (about 4 s) and watch the working set of the `uvicorn` process in Task Manager.
+
+## Files changed in round 21
+Code: `api_v2.py` (limits placeholder, validation handler, exact estimate in the preview, capacity condition), `pipeline/run_plan.py` (`s_limit_text`, `{S_LIMIT}`), `frontend/src/new/AppNew.jsx`, `ScoreSourceNotice.jsx` (new), `scoreSource.js` (new), `new.css`, `tutorial/tutorialContent.js`, `tutorial/HelpPage.jsx`, `tutorial/tutorial.test.mjs`.
+Tests: `tests/test_round21.py` (new, 37 tests), `tests/test_api_blocks.py` (the preview test now pins the exact estimate instead of the median one).
+Docs: `docs/USER_GUIDE.md` (rebuilt), `README.md`, `CLAUDE.md` (Round 21 section, status line), `docs/DEMO_SCRIPT.md` (estimate line), `docs/INTERVIEW_FINDINGS.md`, and in `docs/defense/`: `LIMITATIONS.md`, `PANEL_QA.md`, `ALGORITHMS.md`, `NUMBERS.md` (regenerated), `_runtime_numbers.json`, this report.
+Screenshots: `C:\Users\user\Desktop\Optimizing_Survival_Screenshots\round21\` (notice, Help answers, the estimate against the plan).
+State left: your real API runs again on port 8001 from a clean start (rf, no warning); temporary APIs are stopped; the real plans folder still holds its 15 plans (nothing was written by this round).
+
+## Unverified in round 21
+The fallback notice was checked at 1366 x 768 only (no phone width); the "10 squares checked by MENRO" statement is the project team's and has no file behind it; the cause of the 5 GB reading; the preview now costs 0.15 to 0.23 s per form change (not measured in a long session).

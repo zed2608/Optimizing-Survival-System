@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Icon from '../Icon.jsx'
 import { matchFaq } from './faqSearch.js'
-import { FAQ, GLOSSARY, SCREENS, SECTIONS, TOUR_STEPS } from './tutorialContent.js'
+import { FAQ, GLOSSARY, SCREENS, SECTIONS, TOUR_STEPS, faqAnswer } from './tutorialContent.js'
 
 // The whole guide as one clean page, shown only when printing (the "Print this guide" button).
 function PrintGuide() {
@@ -53,7 +53,7 @@ function PrintGuide() {
 }
 
 // The Help page (full screen): searchable questions and answers, a short glossary, the tour buttons and "Print this guide".
-export default function HelpPage({ initialFaq, screen, onClose, onTour, onQuickTour }) {
+export default function HelpPage({ initialFaq, screen, onClose, onTour, onQuickTour, usingRules = false }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(initialFaq ?? null)
   const closeRef = useRef(null)
@@ -117,7 +117,7 @@ export default function HelpPage({ initialFaq, screen, onClose, onTour, onQuickT
                     </button>
                     {open === f.id && (
                       <p className="nw-faq-a" id={`nw-faq-${f.id}`}>
-                        {f.a}
+                        {faqAnswer(f, usingRules)}
                       </p>
                     )}
                   </div>

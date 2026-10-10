@@ -188,7 +188,7 @@ System Analytics shows simple counts: how many map squares there are, how many f
 
 Most of the data is Provisional. The zoning rules come from the MPDC form signed on 7 October 2026. The planting-month notes, the nursery list and the warnings come from the MAO interview. The species data is not yet signed off by the licensed agriculturist.
 
-*Watch for:* The waterways form was signed blank, so creeks and the 50 metre wetness rule are not used. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.
+*Watch for:* Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.
 
 ### Finish
 
@@ -428,7 +428,7 @@ It marks information that comes from an interview, a form or our own rules and h
 
 **Which data is signed off?**
 
-The zoning rules come from the MPDC form signed on 7 October 2026, and the warnings and notes come from the MAO interview, but they are still provisional. The species data (release v1.0-review) has not been signed off by the licensed agriculturist. The waterways form was signed blank, so creeks and the 50 metre wetness rule are not used.
+The zoning rules come from the MPDC form signed on 7 October 2026, and the warnings and notes come from the MAO interview, but they are still provisional. The species data (release v1.0-review) has not been signed off by the licensed agriculturist. Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank.
 
 **Does the system decide where to plant?**
 
@@ -440,7 +440,7 @@ The information does not exist in our sources, so the system shows nothing. It n
 
 ## Glossary
 
-- **Site match**: How well the land of a square suits a species: slope, height, soil, zone and rain. It is a number from 0 to 1. A square a little steeper than the tree's usual limit can still pass, with a lower score and a slope caution.
+- **Site match**: How well the land of a square suits a species: slope, height, soil, zone and distance to creeks and rivers (a soft wetness factor, 50 metres; the waterways map is not yet validated by MENRO). It is a number from 0 to 1. A square a little steeper than the tree's usual limit can still pass, with a lower score and a slope caution.
 - **Purpose fit**: How well a species suits what you want the trees for: shade in town, tree planting or watershed.
 - **Overall match**: Site match combined with purpose fit. It is zero if the site match is under 50%. The map colours show it.
 - **Block**: One 100 metre square planted close together at the spacing of its species. The planted area sits in the middle of the square.

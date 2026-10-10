@@ -22,7 +22,8 @@ import numpy as np
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator, model_validator
 from scipy.spatial import cKDTree
 
@@ -121,7 +122,7 @@ LIMITS = [
     "{SOIL_LIMIT}",
     "All weights, caps, thresholds and purpose scores are PROVISIONAL until the agriculturist signs off.",
     "{DATASET_LIMIT}",
-    "Suitability S comes from rules written from the species dataset, not from field survival data.",
+    "{S_LIMIT}",
     "Each point is a ~100 m grid cell, so a plan places at most one tree per cell.",
     "Species data marked species_data_unverified cites a source file that was not provided.",
     "Scores are not valid outside the mapped municipality of San Mateo, Rizal.",
@@ -179,7 +180,7 @@ def limits_of(d):
                 + (f"Known issues left for the agriculturist: {'; '.join(left)}." if left else ""))
     else:
         dset = "The species data release is not named."
-    fill = {"{DATASET_LIMIT}": dset, "{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil}
+    fill = {"{DATASET_LIMIT}": dset, "{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil, "{S_LIMIT}": rp.s_limit_text(d.ctx)}
     out = []
     for t in LIMITS:
         for k, v in fill.items():
@@ -1032,6 +1033,35 @@ async def lifespan(app):
 app = FastAPI(title="San Mateo Optimizing Survival API (v2)", version="2.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=API_CFG["cors_origins"], allow_credentials=False,
                    allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
+
+
+def plain_validation_message(errors, limit=4):
+    """(message, fields) for FastAPI's validation errors: short plain sentences with the field names kept, instead of the raw list (type, loc, input, ctx)."""
+    parts, fields = [], []
+    for e in errors:
+        loc = [str(x) for x in e.get("loc", ()) if x not in ("body", "query", "path", "header", "cookie")]
+        name = ".".join(loc)
+        msg = str(e.get("msg", "invalid value")).removeprefix("Value error, ").strip()
+        if e.get("type") == "missing":
+            text = f"{name} is required"
+        elif msg.startswith("Input should be "):
+            text = f"{name} must be {msg[len('Input should be '):]}" if name else msg
+        else:
+            text = f"{name}: {msg}" if name else msg
+        if name and name not in fields:
+            fields.append(name)
+        if text not in parts:
+            parts.append(text)
+    shown = parts[:limit]
+    more = f" (and {len(parts) - limit} more)" if len(parts) > limit else ""
+    return ("The request could not be used: " + "; ".join(shown) + more + "."), fields
+
+
+@app.exception_handler(RequestValidationError)
+async def plain_validation_handler(request: Request, exc: RequestValidationError):
+    """Round 21: invalid input answers 422 with a short plain message and the field names. `detail` repeats the message (the dashboard and the older callers read it)."""
+    message, fields = plain_validation_message(exc.errors())
+    return JSONResponse(status_code=422, content={"message": message, "detail": message, "fields": fields})
 
 
 def D(request: Request, include_unzoned: Optional[bool] = Query(None, description="true: squares outside the zoning map are planting squares too (scored, flagged zoning_unconfirmed); "
@@ -1961,6 +1991,18 @@ def plan_preview(req: PlanRequest, q_season=Depends(season_q), d=Depends(HD)):
                    "blocks_about": about, "blocks_low": int(math.ceil(n / caps.max())), "blocks_high": int(math.ceil(n / caps.min())),
                    "hectares_about": round(about * bc["block_side_m"] ** 2 / bc["hectare_m2"], 2),
                    "basis": "typical = the median trees per full block of the species that have a suitable square in this area; the real count depends on the species mix the plan chooses"}
+    if est is not None and not getattr(req, "species_counts", None) and not sc.empty and suitable:     # round 21: the estimate IS the real rule: the blocks the plan would make (same engine, same seed)
+        try:
+            seed_ = d.cfg["default_seed"] if req.seed is None else req.seed
+            _, sm_ = rp.make_plan(sub, req.purpose, n, zone=req.zone, seed=seed_, species_ids=sc.ids_kept, layout_mode="blocks")
+            lay_ = sm_.get("layout") or {}
+            if lay_.get("blocks"):
+                nb_, bc_ = int(lay_["blocks"]), pal.BLOCK_CFG
+                est.update({"typical_trees_per_block": max(1, round(int(lay_.get("trees_placed", n)) / nb_)), "blocks_about": nb_, "blocks_low": nb_, "blocks_high": nb_,
+                            "hectares_about": round(nb_ * bc_["block_side_m"] ** 2 / bc_["hectare_m2"], 2), "exact": True, "trees_placed": int(lay_.get("trees_placed", n)),
+                            "basis": "the blocks of the plan that Create plan would make for these settings (same species mix, caps and trees per block); fewer trees fit if squares run short"})
+        except ValueError:
+            pass                                                      # keep the typical-block estimate (median trees per full block)
     if getattr(req, "species_counts", None) and layout == "blocks":
         bt_all = pal.block_table(d.ctx.species).set_index("species_id")
         names_ = dict(zip(d.ctx.species.species_id.astype(int), d.ctx.species.common_name))
@@ -1982,9 +2024,9 @@ def plan_preview(req: PlanRequest, q_season=Depends(season_q), d=Depends(HD)):
         can, reason, message = False, "no_species_with_spacing", "None of the species available has a planting distance, so no plan in blocks can be made."
     if layout == "blocks" and est is not None:
         cap = {"n_saplings": n, "unit": "trees", "max_placeable": suitable * est["typical_trees_per_block"], "max_placeable_blocks": suitable,
-               "short": est["blocks_about"] > suitable,
+               "short": est["blocks_about"] > suitable or est.get("trees_placed", n) < n,
                "message": (f"Only {suitable} suitable squares: at most {suitable} blocks (about {suitable * est['typical_trees_per_block']} trees) can be placed"
-                           if est["blocks_about"] > suitable else "")}
+                           if est["blocks_about"] > suitable or est.get("trees_placed", n) < n else "")}
     else:
         cap = {"n_saplings": n, "unit": "squares", "max_placeable": suitable, "short": n > suitable,
                "message": (f"Only {suitable} suitable squares: at most {suitable} trees can be placed" if 0 < suitable < n else "")}

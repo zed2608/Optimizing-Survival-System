@@ -97,8 +97,8 @@ def test_preview_says_about_how_many_blocks(client):
     r = client.post("/plan-event/preview", params=WINDOW, json={**BASE}).json()
     e = r["blocks_estimate"]
     assert r["layout_mode"] == "blocks" and r["can_create"] and e["trees"] == 300
-    assert e["blocks_low"] <= e["blocks_about"] <= e["blocks_high"] and e["blocks_about"] == math.ceil(300 / e["typical_trees_per_block"])
-    assert e["hectares_about"] == pytest.approx(e["blocks_about"]) and "median" in e["basis"]
+    assert e["blocks_low"] <= e["blocks_about"] <= e["blocks_high"] and e.get("exact") is True       # round 21: the estimate is the real plan rule
+    assert e["hectares_about"] == pytest.approx(e["blocks_about"]) and "Create plan" in e["basis"]
     assert r["capacity"]["unit"] == "trees" and r["capacity"]["max_placeable_blocks"] == r["area"]["suitable_squares"]
     p = client.post("/plan-event/preview", params=WINDOW, json={**BASE, "layout_mode": "points"}).json()
     assert p["blocks_estimate"] is None and p["capacity"]["unit"] == "squares"
