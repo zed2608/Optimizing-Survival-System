@@ -15,7 +15,7 @@ documented future work (see the full master plan). Never cut: matching with sapl
 
 ## Day 2 - scores and model
 1. `pipeline/score_sites.py`: S for every (point, species) pair.
-   - Hard gates (S=0 if violated): `is_legal_zone`; elevation within `elev_min_m..elev_max_m`; slope <= `max_slope_pct`;
+   - Hard gates (S=0 if violated): `is_legal_zone`; elevation within `elev_min_m..elev_max_m`; slope <= `max_slope_pct` (since round 18 the default is the graded slope rule, see `docs/SLOPE_RULE.md`; `SLOPE_MODE = "hard"` is this original gate);
      soil texture: species `soil_textures` contains the site's `soil_texture_legacy`, or `soil_any_texture` is true. If the site texture is unknown
      (Technosol / None) treat the soil gate as unknown: do not exclude, lower confidence.
    - Soft factors (0..1, linear fall-off over a margin; margin = 10% of the species range, parameter in one config place):

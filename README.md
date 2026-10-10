@@ -6,7 +6,7 @@ Release of the data: **v1.0-review** (hash `34964a09fe44`). It is frozen for the
 
 ## What the system does
 
-1. **Scores every place for every tree.** The municipality is cut into 8,088 map squares of about 100 m. For each of the 7,530 squares where planting can be considered and each of the 45 species, rules written from the species data (elevation, slope, soil texture, distance to water) give a *suitability* score S between 0 and 1.
+1. **Scores every place for every tree.** The municipality is cut into 8,088 map squares of about 100 m. For each of the 8,010 squares where planting can be considered (6,731 inside a legal zone plus 1,279 outside the zoning map, which are flagged) and each of the 45 species, a *suitability* score S between 0 and 1 is made from rules written from the species data (elevation, slope, soil texture, distance to water). By default S is the prediction of a Random Forest that learned those rules (see Known limits below); the rules themselves stay available.
 2. **Scores every tree for the goal.** Each species gets a *purpose* score P for one of three goals: urban greening, tree planting (conservation and livelihood) or watershed. The overall score is W = S x P (and W = 0 when S is below 0.50).
 3. **Matches trees to places.** For a plan (for example "300 trees in Santa Ana") it chooses a mix of species and assigns them to squares so that the total W is as large as possible (the Hungarian algorithm). A **block** is one 100 m square planted at the species spacing, so 300 trees take about 15 hectares, not 300.
 4. **Supports the field work.** A *field kit* (GPS waypoints, a sheet to fill in, a printed map) goes to the planting team. They record what they find (plantable, not plantable, planted with a tree count), and the system shows progress and can plan a top-up for what was lost.
@@ -112,7 +112,7 @@ Do not edit `docs/USER_GUIDE.md` by hand. The Help page also has a Print this gu
 ## Tests and quality checks
 
 ```powershell
-python -m pytest tests                      # about 500 tests, a few minutes
+python -m pytest tests                      # 661 tests (1 skipped), 4 to 7 minutes
 python pipeline/qa_day1.py --out data/processed   # data checks, must end with 0 failed
 cd frontend
 npm run build                               # the dashboard must build
@@ -170,5 +170,5 @@ combined 12-character hash **`34964a09fe44`**. The full note is `data/processed/
 - **`ModuleNotFoundError` (for example pytest, matplotlib, cv2, fitz)**: run `.venv\Scripts\python.exe -m pip install -r requirements-day1.txt`.
 - **The field kit has no printed map (PDF)**: matplotlib is not installed in the environment that runs the backend; install it as above and rebuild the kit.
 - **The old dashboard (`#/legacy`) shows nothing**: it needs the small Flask server, `python backend\app.py`.
-- **Tests fail right after you changed data**: some tests pin counts (7,530 scored squares, the soil counts, the release hash). Restore the data or update the numbers on purpose.
+- **Tests fail right after you changed data**: some tests pin counts (8,010 scored squares, 257,869 eligible pairs, the soil counts, the release hash). Restore the data or update the numbers on purpose.
 - **A field check was saved by mistake**: they cannot be deleted (the database refuses it, by design). Save a new check with a note that says what you saw.

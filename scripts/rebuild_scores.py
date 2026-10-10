@@ -13,7 +13,7 @@ The order matters:
 Running step 1 again empties s_prob; the app then falls back to the expert rules and /health shows a warning until step 3 has run. Restart the API afterwards.
 The scores folder (data/processed/scores/) and the model folder are git-ignored (the files are 100 MB or more), so a fresh clone must run this script once.
 """
-import argparse, os, subprocess, sys
+import argparse, os, subprocess, sys, time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,7 +48,9 @@ def main(argv=None):
     for title, cmd in steps:
         print(f"== {title}\n   {' '.join(cmd)}")
         if not a.dry_run:
+            t0 = time.time()
             r = subprocess.run(cmd, cwd=ROOT)
+            print(f"   step took {time.time() - t0:.0f} s")
             if r.returncode != 0:
                 raise SystemExit(f"step failed ({title}); the scores may be incomplete: the app will use the expert rules until all three steps have run")
     if a.dry_run:

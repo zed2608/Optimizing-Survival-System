@@ -1,6 +1,6 @@
 # Demo script (10 minutes)
 
-For the thesis panel or the MENRO staff. Everything below was checked against the real data of release **v1.0-review** (hash `34964a09fe44`). The numbers will be the same on your screen unless the data changes.
+For the thesis panel or the MENRO staff. Everything below was checked against the real data of release **v1.0-review** (hash `34964a09fe44`). The numbers will be the same on your screen unless the data changes. (Numbers re-checked on 10 Oct 2026, with the Random Forest as the source of the site match S, the graded slope rule and the 8,010 scored squares.)
 
 ## Before you start (5 minutes before the demo)
 
@@ -23,13 +23,13 @@ For the thesis panel or the MENRO staff. Everything below was checked against th
 
 ### 3. "I have species": species to area, with two species (2 minutes)
 - Goal: **I have species**. Pick **Duhat** and **Kamagong**. Keep **Suits all**.
-- The **Areas** tab ranks barangays: **Santo Nino** first (mean score W 0.73, all 36 squares suitable for both), then **Gulod Malaya** (0.69, 108 squares), **Guitnang Bayan II** (0.64) and **Banaba** (0.64). Click a row and the map zooms to that barangay.
+- The **Areas** tab ranks barangays: **Santo Nino** first (mean score W 0.73, all 37 squares suitable for both), then **Gulod Malaya** (0.69, 114 squares), **Guitnang Bayan II** (0.67) and **Silangan** (0.64). Click a row and the map zooms to that barangay.
 - Say: "'Suits all' means both trees must suit the square, so the lowest of the two scores counts. 'Suits at least one' takes the best."
 
 ### 4. The explanation, with sources (1 minute)
-- Search the bar for **5048** and press Enter (a grid point in **Malanday**, Forest Zone, 201 m high, slope 38%). Switch the panel to **Full details**; under **Kamagong** open **Why this score?**.
-- It shows S = 1.00, P = 0.77, so W = 0.77, with the four terms (elevation, slope, soil, wetness; weight 0.25 each) and for each term the link to the source it came from (for example The Ferns Tropical Plant Database for elevation and slope, the NParks Flora page for soil).
-- Say: "S is a rule score from the species data; P is how well the species fits the purpose. Neither is a survival rate."
+- Search the bar for **5048** and press Enter (a grid point in **Malanday**, Forest Zone, 201 m high, slope 38%). Switch the panel to **Detailed**; under **Kamagong** open **Why this score?**.
+- It shows S = 1.00, P = 0.77, so W = 0.77, the line "Suitability from the Random Forest: 1.00. Rules check: passed.", and the four rule terms (elevation, slope, soil, wetness; weight 0.25 each) with, for each term, the link to the source it came from (for example The Ferns Tropical Plant Database for elevation and slope, the NParks Flora page for soil).
+- Say: "S is predicted by a Random Forest that learned our expert rule score from the species data, and the hard limits (zone, elevation, steep slope) always apply first; P is how well the species fits the purpose. Neither is a survival rate."
 
 ### 5. The field check on grid point 5048 (1 minute)
 - Still on point 5048: the **Field check** card. Type your name once, then press **Plantable**, **Not plantable** (pick a reason) or **Needs recheck**.
@@ -41,7 +41,7 @@ For the thesis panel or the MENRO staff. Everything below was checked against th
 - Click a square in the east (for example grid point **12888**, Pintong Bukawe) and read "Zoning: outside our zoning map (CLUP: Forest Reserve, Watershed)". Switch the toggle off: those squares turn into grey squares and are left out.
 
 ### 7. Grid point 5474 and the "why few species" card (1 minute)
-- Search **5474** (Maly, 72 m high). The panel says **0 of 45 species suit this square**. The card "Why few or no species suit this square" says: *Slope 93% is steeper than the limit of every species (highest allowed: 70%).*
+- Search **5474** (Maly, 72 m high). The panel says **0 of 45 species suit this square**. The card "Why few or no species suit this square" says: *Slope 93% is too steep for every species, even with the small extra allowance above their usual limit (highest limit: 70%).*
 - Say: "A system that only gives a ranking would show weak scores. This one says why: this square is simply too steep for every species in our data."
 
 ### 8. The soil line (1 minute)
@@ -49,7 +49,7 @@ For the thesis panel or the MENRO staff. Everything below was checked against th
 - Say: "The soil comes from the LGU soil map of the Bureau of Soils and Water Management, which we digitized from a scan. It is provisional. **42 percent of the squares (3,393 of 8,088) have no soil value**: the map is blank in the north-east watershed area. For those squares the soil term is simply not scored; we do not guess." (Search point 12446 to show "Soil: Data Unavailable (outside the LGU soil map)".)
 
 ### 9. A blocks plan with progress (2 minutes)
-- Step **5 Plan**: area **Santa Ana**, purpose urban, name **DEMO**, **300 trees**. The form shows a rough estimate ("About 5 blocks of 64 trees" for the dates you chose; it uses the typical block size, not the final mix); press **Create plan**.
+- Step **5 Plan**: area **Santa Ana**, purpose urban, name **DEMO**, **300 trees**. The form shows a rough estimate ("About 5 blocks of 64 trees" for the dates you chose; it uses the typical block size, not the final mix, so the real plan below has almost three times more blocks: say so before the panel asks); press **Create plan**.
 - Result: **300 of 300 trees in 14 blocks, 14 hectares** (six species: Kamagong 56 trees, Weeping Fig 51, Indian/Carabao Mango 50, Chesa/Tiesa 48, Sampalok 48, Salinggogon 47). Say: "A block is one 100 m square planted at the species spacing: Kamagong every 12.5 m, 36 trees per full block. Without blocks, 300 trees would be 300 squares, about 300 hectares."
 - Open a block (the list, then click a row): the drawn **layout** shows rows from the south-west corner. Mark it **Planted** (the count box starts at all its trees), mark another **Can't plant here** (Rock or ledge). The **Progress** card shows planted, remaining and problem trees; **Plan top-up** makes a new plan, "DEMO (top-up 1)", for the trees lost.
 
@@ -59,7 +59,7 @@ For the thesis panel or the MENRO staff. Everything below was checked against th
 
 ### 11. Campaign Logs and Analytics (30 seconds)
 - **Campaign Logs**: each saved plan with its status (Active, Upcoming, Concluded), kit, progress and top-up.
-- **System Analytics**: saved plans, trees planned, field kits built, field checks, **8,088 map squares = 7,530 planting squares + 558 grey squares**, and the dataset **v1.0-review, hash 34964a09fe44**.
+- **System Analytics**: saved plans, trees planned, field kits built, field checks, **8,088 map squares = 8,010 planting squares + 78 grey squares**, and the dataset **v1.0-review, hash 34964a09fe44**.
 
 ## Backup plan if the internet is down
 
@@ -74,17 +74,17 @@ Say: "Everything you see was computed from files on this computer; only the pict
 
 ## Questions the panel may ask, with honest answers
 
-**The labels come from rules, so is the machine learning circular?** Yes, and we say so. The suitability labels are produced by the rules from the same raw inputs the models see, so the models can only learn the rules back. On clean labels the Random Forest reaches about 0.999 accuracy; that measures how well it copies the rules, not how well trees survive. We kept the comparison to show that the rule scores are stable and that nothing special is lost by using simple rules. There is no field survival data yet to test against.
+**The labels come from rules, so is the machine learning circular?** Yes, and we say so. The suitability labels are produced by the rules from the same raw inputs the models see, so the models can only learn the rules back. On clean labels the Random Forest reaches 0.998 accuracy (0.9976 on random folds, 0.9972 on spatial folds) and, as a regressor of the rule score S, R-squared 0.9998; that measures how well it copies the rules, not how well trees survive. Since round 19c the dashboard uses the forest's prediction as the site match S (the hard limits of zone, elevation and steep slope always apply first, and `S_SOURCE = "rules"` switches back to the rules). It changes only 168 of 360,450 pairs between eligible and not eligible, so using it adds almost no information. There is no field survival data yet to test against.
 
-**Why is Random Forest not clearly better than a decision tree?** After the refresh on the final data (30,000 sampled pairs, 5 folds): in the random and spatial tests the Random Forest and the decision tree are within the fold-to-fold spread of each other (for example, 5 percent label noise: accuracy 0.948 against 0.942, spread about 0.003). For species the model has never seen, the decision tree (0.979) and logistic regression (0.983) are slightly *ahead* of the Random Forest (0.969). The rules are simple thresholds, which a decision tree represents exactly. So we use the transparent rules in the dashboard and report the comparison as it is.
+**Why is Random Forest not clearly better than a decision tree?** On the final data (`model_comparison.csv`, 30,000 sampled pairs, 5 folds) with clean labels the two tie: 0.9976 against 0.9979 on random folds and 0.9972 against 0.9971 on spatial folds, inside the fold-to-fold spread (0.001). For species the model has never seen, the decision tree (0.973) and logistic regression (0.979) are slightly *ahead* of the Random Forest (0.971), again inside the spread (about 0.02). Only when 5 percent of the labels are flipped on purpose does the forest pull ahead by about one point (0.946 against 0.936 on random folds, spread 0.001 and 0.003). The labels are threshold rules, which a decision tree represents exactly, so on clean labels there is nothing more for a forest to find. We still use the forest for the site match S (it smooths the sharp edges of the rules a little and copes with noise), and we report the comparison as it is.
 
 **Why are the weights provisional?** The weights (equal quarter weights for elevation, slope, soil and wetness; the purpose weights; the 0.50 cut-off; the species caps) are our proposals, not from a source. They are marked provisional until the agriculturist signs off. A sensitivity test is saved in `data/processed/purpose_sensitivity.csv`.
 
 **Why is soil pH not scored?** There is no real pH layer for San Mateo. The old grid had a random pH column that we found and removed. Rainfall and temperature are not scored for the same reason.
 
-**What about the gaps in the zoning map?** 1,279 squares lie outside every zoning polygon. The CLUP shows that land as Forest Reserve (Watershed). We keep them (flagged) because planting there may be exactly the point of a watershed project, but they need MENRO and DENR agreement. Squares in a named non-planting zone (special reserved, industrial, commercial, quarry, landfill: 558) are never scored.
+**What about the gaps in the zoning map?** 1,279 squares lie outside every zoning polygon. The CLUP shows that land as Forest Reserve (Watershed). We keep them (flagged) because planting there may be exactly the point of a watershed project, but they need MENRO and DENR agreement. Squares in a named non-planting zone (cemetery and quarry sub-zone: 78) are never scored; special reserved, industrial, commercial and landfill squares are scored since the MPDC answers of 7 Oct 2026 and carry a permission note.
 
-**The soil map was digitized from a scan; how reliable is it?** It is provisional. We placed the scan using its own graticule lines (accurate to about 2 m at the control points) and read the legend colours with a computer. The map outline and our barangay outline differ by about 164 m on average on the sides they share. **3,393 of 8,088 squares (42 percent) are blank** because the map does not cover the north-east watershed area. A texture mismatch only lowers a score (it never removes a species), and a missing soil never counts against a square. Strict soil mode would remove about 98,000 of the 229,000 suitable square-species pairs; we did not choose it because the soil layer is unverified.
+**The soil map was digitized from a scan; how reliable is it?** It is provisional. We placed the scan using its own graticule lines (accurate to about 2 m at the control points) and read the legend colours with a computer. The map outline and our barangay outline differ by about 164 m on average on the sides they share. **3,393 of 8,088 squares (42 percent) are blank** because the map does not cover the north-east watershed area. A texture mismatch only lowers a score (it never removes a species), and a missing soil never counts against a square. Strict soil mode would remove about 98,000 of the 229,000 suitable square-species pairs (measured in round 9 on the grid of that time, not re-run since); we did not choose it because the soil layer is unverified.
 
 **Is a 100 m square precise enough? What about GPS?** No: a square is an area, not a tree spot. The field kit tells the team to check the square on the ground and allows moving the block by up to 10 m, recording the real position. Phone GPS is accurate to a few metres in the open and worse under trees, near buildings or in a gully; we have not tested the kit files on a phone yet.
 
