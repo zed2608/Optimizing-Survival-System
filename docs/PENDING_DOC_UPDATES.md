@@ -28,3 +28,30 @@ Accepted by Ayzhiedy. Steps 4 to 7 (the switch, labels, outputs) are NOT built. 
 **The sentence we can keep:** "a nonlinear model predicts real tree cover clearly better than a linear one, but the forest is not clearly better than a single tree or KNN."
 
 **Do not quote the R-squared of 0.435.** The estimate of 0.435 (0.405 without latitude and longitude; Decision Tree 0.066 and 0.252; linear 0.282) in section 4b of `docs/HANDOFF_2026-10-12.md` came from a rougher setup in the chat session (an untuned fixed-setting run that used `nearest_feature_dist_m` and 7,392 squares). The registered benchmark gives 0.300 for the forest on 7,322 squares. The handoff is historical and was left unchanged.
+
+## Estimating soil for the squares without soil: NOT pursued (decision of 12 Oct 2026, Ayzhiedy)
+Considered: use the Random Forest to estimate the soil texture of the squares that have none in the LGU soil map, and compare it with simple baselines. **Decision: the benchmark is not run and no script was written.** The reasons are the read-only findings below (nothing was changed or computed into any file).
+
+**Where the squares without soil are**
+- 3,393 of 8,088 grid squares have no soil texture; all of them are scored squares (3,393 of 8,010). 3,392 lie where the digitized LGU map has no coloured pixel (the map leaves the upper watershed white: outside the map, not digitization gaps); 1 is a partial gap. Zoning: 2,173 confirmed and 1,220 outside our zoning map.
+- They form ONE block: 3,384 squares (99.7%), plus 9 squares in 4 small blocks (2 single squares, 2 blocks of 2 to 4). By barangay: Pintong Bukawe 3,389 of its 4,591 squares (73.8%), Banaba 3, Silangan 1, the other 12 barangays none.
+- Distance of each such square to the nearest square with soil: median 2.1 km (2,059 m), 90th percentile 5.2 km, 99th percentile 7.2 km, maximum 8.1 km; 233 squares within 300 m, 600 within 300 m to 1 km, 1,450 within 1 to 3 km, 1,110 farther than 3 km.
+- The land is steeper than the mapped area: median slope 28% against 14% (elevation overlaps: median 215 m against 200 m; 5% of the squares outside the 1st to 99th percentile elevation range of the mapped squares, 3% for slope).
+- It is forest land: 2,105 of the squares are in the confirmed Forest Zone (62%), 1,220 lie outside our zoning map and carry the Forest Reserve flag (36%), and only 68 are in other zones (64 Institutional Research, 4 High Density Residential - Mixed Use).
+
+**Classes of the known squares**
+- Of the 4,695 squares with soil texture: Clay 3,692 (78.6%), Silt Loam 502, Loam 254, Clay Loam 172, Sandy Loam 75 (imbalance 49 to 1). Only 4,397 come from the map itself; 298 were filled from a neighbour within 300 m (`soil_filled`) and the system treats them as known. Seven series (Antipolo Clay 2,903 down to Novaliches Clay Loam 26).
+- Soil follows elevation in the known area: Clay has a median elevation of 267 m, the other four classes 18 to 36 m.
+
+**How the rules treat missing soil today**
+- For 44 of the 45 species (the one species that accepts any texture is unaffected) the soil term is NOT evaluated on these squares: the other three terms are re-weighted, the confidence drops, and there is no mismatch penalty. The Random Forest copies this (an "unknown soil" input), so `s_prob` does the same.
+
+**The most an estimate could change (an upper bound, rule S in memory, 152,685 pairs in these squares, 90,120 eligible now; nothing saved)**
+- S would change in 52,702 to 86,507 pairs (mean change 0.04 to 0.085, maximum 0.188), depending on the class assumed.
+- Eligibility (S >= 0.50) could flip in up to 4,230 pairs (2.8%) in up to 651 of the 3,393 squares (19%); if every square were Clay: 2,253 pairs lost, 238 gained. The Random Forest would need retraining (the rebuild takes about 278 s).
+
+**Why it is not pursued**
+- This is not gap-filling but predicting one 34 km² block up to 8 km from the nearest known soil, on steeper land than the model could learn from; the majority class is already 78.6%, so a forest would most likely only reproduce "upland = Clay" (an expectation; it was not tested).
+- The white area of the map may be unmapped or mountain soil that is not one of the five classes (UNKNOWN), and the land is forest land (Forest Zone and flagged Forest Reserve), for which the zoning and the MENRO and DENR permits matter more than the texture.
+- The LGU soil map is itself provisional (digitized by us, not signed by the agriculturist), so an estimate would stack a guess on a provisional layer and would not improve the survival evidence.
+- What stays as it is: squares without soil are scored without the soil term and labelled "Data Unavailable (outside the LGU soil map)"; nothing is estimated or invented.
