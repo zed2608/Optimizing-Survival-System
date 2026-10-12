@@ -29,6 +29,8 @@ import { HelpBanner, HelpButton } from './HelpCenter.jsx'
 import GuidedTour from './tutorial/GuidedTour.jsx'
 import HelpPage from './tutorial/HelpPage.jsx'
 import ScoreSourceNotice from './ScoreSourceNotice.jsx'
+import PublicNotice from './PublicNotice.jsx'
+import { isSandbox, SANDBOX_NOTICE_HEIGHT, FALLBACK_NOTICE_HEIGHT } from './publicMode.js'
 import { isFallback } from './scoreSource.js'
 import { HelpContext } from './tutorial/helpContext.js'
 import { TOUR_STEPS } from './tutorial/tutorialContent.js'
@@ -534,6 +536,8 @@ export default function AppNew() {
   const meta = useMemo(() => ({ purpose, species: selection ? idsParam : '' }), [purpose, selection, idsParam])
   const apiState = health.status === 'ok' ? 'ok' : health.status === 'loading' ? 'wait' : 'off'
   const healthData = health.status === 'ok' ? health.data : null
+  const sandbox = isSandbox(healthData)                        // the public sandbox: a notice at the top (text from the service)
+  const noticeH = (isFallback(healthData) ? FALLBACK_NOTICE_HEIGHT : 0) + (sandbox ? SANDBOX_NOTICE_HEIGHT : 0)
   const scoreFallback = isFallback(healthData)                 // the service fell back from the Random Forest to the rules: a notice at the top
   const usingRules = healthData?.s_source === 'rules'          // the rules make S (fallback or chosen): Help must not say the forest does
   const legendSub = allRemoved
@@ -544,8 +548,9 @@ export default function AppNew() {
 
   return (
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
+    <PublicNotice health={healthData} />
     <ScoreSourceNotice health={healthData} />
-    <div className={`nw-root ${scoreFallback ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
+    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}

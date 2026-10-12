@@ -1,0 +1,12 @@
+// Every data source and its licence or terms, for More > Data credits. One list, written here; the same facts are in README.md and docs/DATA_SOURCES.md.
+// "terms" says what is NOT known: nothing is invented. Items marked check: true have terms that must be re-read before a wider public release.
+export const CREDITS = [
+  { id: 'species', name: 'Species data (release v1.0-review)', what: '45 species, every cell with its own source link and source rank', licence: 'Each source keeps its own terms; the sources are listed in the species card. Not signed off by the agriculturist yet.' },
+  { id: 'worldcover', name: 'Ground cover: ESA WorldCover 10 m 2021 v200', what: 'satellite land cover (about 76.7% accurate worldwide)', licence: 'CC BY 4.0. (c) ESA WorldCover project 2021 / contains modified Copernicus Sentinel data (2021) processed by the ESA WorldCover consortium. DOI 10.5281/zenodo.7254221.' },
+  { id: 'soil', name: 'Soil: LGU soil map', what: 'Bureau of Soils and Water Management, Soil Map of Rizal Province (San Mateo CLUP 2021-2031, Figure 1-3). Digitized by this project from a scan: provisional.', licence: 'Provided by the LGU of San Mateo for this research; no licence text was supplied.' },
+  { id: 'zoning', name: 'Zoning and barangay boundaries', what: 'LGU of San Mateo land-use (zoning) file and barangay boundary file', licence: 'Provided by the LGU of San Mateo for this research; no licence text was supplied. Zoning answers by the MPDC, 7 Oct 2026.' },
+  { id: 'elevation', name: 'Elevation and slope grid', what: 'the elevation grid of the project (about 100 m squares); slope is worked out from it', licence: 'Project data; the original source is listed in docs/DATA_SOURCES.md.' },
+  { id: 'esri', name: 'Satellite map pictures: Esri World Imagery', what: 'map tiles shown by Leaflet', licence: 'Tiles (c) Esri and their sources. Terms of use for a public page: to be checked.', check: true },
+  { id: 'osm', name: 'Street map pictures: OpenStreetMap', what: 'map tiles shown by Leaflet', licence: '(c) OpenStreetMap contributors, data under the ODbL. The public tile server has a usage policy that is to be checked for heavy use.', check: true },
+  { id: 'openmeteo', name: 'Weather forecast: Open-Meteo', what: '16-day forecast used for the planting advice', licence: 'Open-Meteo.com (data licence CC BY 4.0; the free service is for non-commercial use). Terms to be checked.', check: true },
+]

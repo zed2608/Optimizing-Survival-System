@@ -2,6 +2,8 @@ import { useId, useState } from 'react'
 import Icon from './Icon.jsx'
 import DatasetNote from './DatasetNote.jsx'
 import FieldSummary from './FieldSummary.jsx'
+import { CREDITS } from './credits.js'
+import { isSandbox } from './publicMode.js'
 
 function Section({ title, open, onToggle, children }) {
   const id = useId()
@@ -46,15 +48,20 @@ export default function MoreMenu({ health, fieldSummary, observer, onObserver, o
             )}
           </Section>
           <Section title="Data credits" open={sec === 'credits'} onToggle={() => pick('credits')}>
-            {health.status === 'ok' && health.data.ground_cover ? (
-              <div className="nw-credits">
-                <p className="nw-plain">Ground cover (satellite land cover): {health.data.ground_cover.source}.</p>
-                <p className="nw-plain">{health.data.ground_cover.attribution}</p>
-                <p className="nw-hint">Licence CC BY 4.0, DOI 10.5281/zenodo.7254221. {health.data.ground_cover.accuracy}. Information only: check on the ground.</p>
-              </div>
-            ) : (
-              <p className="nw-hint">{health.status === 'loading' ? 'Loading…' : 'The credits could not be loaded (the planning service is not reachable).'}</p>
-            )}
+            <div className="nw-credits">
+              <ul className="nw-credits-list">
+                {CREDITS.map((c) => (
+                  <li key={c.id} data-credit={c.id}>
+                    <strong>{c.name}</strong>
+                    <span className="nw-plain"> {c.what}.</span>
+                    <span className="nw-hint"> {c.licence}</span>
+                  </li>
+                ))}
+              </ul>
+              {health.status === 'ok' && health.data.ground_cover && (
+                <p className="nw-hint">Ground cover: {health.data.ground_cover.accuracy}. Information only: check on the ground.</p>
+              )}
+            </div>
           </Section>
           <Section title="Dataset version" open={sec === 'dataset'} onToggle={() => pick('dataset')}>
             <DatasetNote health={health} />
@@ -62,9 +69,11 @@ export default function MoreMenu({ health, fieldSummary, observer, onObserver, o
           <Section title="Field checks" open={sec === 'field'} onToggle={() => pick('field')}>
             <FieldSummary summary={fieldSummary} observer={observer} onObserver={onObserver} onChanged={onChanged} />
           </Section>
-          <p className="nw-links">
-            <a href="#/legacy">Old dashboard</a> · <a href="#/v2">First v2 page</a>
-          </p>
+          {!(health.status === 'ok' && isSandbox(health.data)) && (
+            <p className="nw-links">
+              <a href="#/legacy">Old dashboard</a> · <a href="#/v2">First v2 page</a>
+            </p>
+          )}
         </div>
       )}
     </section>

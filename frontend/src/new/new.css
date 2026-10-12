@@ -887,5 +887,8 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
   display: flex; align-items: center; justify-content: center; gap: 8px; height: 28px; padding: 0 12px; background: #fde68a; color: #422006;
   font-size: 12px; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden;
 }
-.nw-root.has-notice { height: calc(100vh - 28px); }
-.nw-root.has-notice .nw-sidebar { height: calc(100vh - 28px - 70px); }
+.nw-root.has-notice { height: calc(100vh - var(--nw-notice-h, 28px)); }
+.nw-root.has-notice .nw-sidebar { height: calc(100vh - var(--nw-notice-h, 28px) - 70px); }
+.nw-notice-sandbox { height: 52px; white-space: normal; background: #fde68a; line-height: 1.3; padding: 4px 16px; }
+.nw-credits-list { margin: 0; padding-left: 18px; font-size: 13px; }
+.nw-credits-list li { margin-bottom: 8px; }

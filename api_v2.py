@@ -36,6 +36,7 @@ import field_kit as fk  # noqa: E402
 import landcover as lcv  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
+import public_mode as pm  # noqa: E402  (public sandbox: every switch is OFF unless OS_PUBLIC_MODE / OS_STATE_DIR is set)
 from names import fix_barangay_column  # noqa: E402
 import site_rules as sr  # noqa: E402
 import field_status as fst  # noqa: E402
@@ -923,6 +924,16 @@ def confirmed_view(base):
 def load_data(cfg=None):
     cfg = API_CFG if cfg is None else cfg
     root = ROOT / cfg["data_dir"]
+    state = pm.state_dir()                                              # None unless OS_STATE_DIR or OS_PUBLIC_MODE: then plans, kits, cache and field checks live there
+    if state is not None:
+        pm.check_state_dir(state, [root, ROOT / "data" / "field"])
+        if pm.is_on():
+            pm.empty_state(state)                                       # the sandbox starts empty and never copies the real field-check file
+        else:
+            state.mkdir(parents=True, exist_ok=True)
+        cfg = {**cfg, "field_db": str(state / "field_checks.db")}
+        if pm.is_on():
+            cfg["field_exclude_not_plantable"] = False                  # an anonymous "not plantable" mark must not change what other visitors see
     ctx = rp.load_context(root, include_unzoned=True, s_source=cfg.get("s_source"))                  # confirmed + unconfirmed squares; the confirmed-only view is derived below
     sources = pd.read_csv(root / "species_sources.csv")
     refs = pd.read_csv(root / "species_references.csv")
@@ -930,8 +941,9 @@ def load_data(cfg=None):
     all_points = pd.read_csv(root / "site_points_clean.csv")
     if "zoning_status" not in all_points:                              # data made before zoning_status existed: derive it (confirmed = legal zone; no unconfirmed squares were scored)
         all_points["zoning_status"] = np.where(all_points.is_legal_zone.astype(bool), "confirmed", "excluded")
-    d = SimpleNamespace(cfg=cfg, root=root, work=root, ctx=ctx, sources=sources, refs=refs, purpose_scores=ps, all_points=all_points)
+    d = SimpleNamespace(cfg=cfg, root=root, work=(state if state is not None else root), ctx=ctx, sources=sources, refs=refs, purpose_scores=ps, all_points=all_points)
     d.include_unzoned = True
+    d.sandbox_started = time.time()
     d.zoning_on = bool((ctx.sites.zoning_status == "unconfirmed").any())          # False on older data: the switch then has nothing to do
     d.unconf_idx = np.where((ctx.sites.zoning_status == "unconfirmed").to_numpy())[0].tolist()
     d.tree_all = cKDTree(all_points[["utm_e", "utm_n"]].to_numpy(dtype=float))
@@ -1031,6 +1043,63 @@ async def lifespan(app):
 
 
 app = FastAPI(title="San Mateo Optimizing Survival API (v2)", version="2.0", lifespan=lifespan)
+LIMITER = pm.Limiter()
+KIT_GATE = pm.KitGate()
+
+
+def refuse(status, message, headers=None):
+    return JSONResponse(status_code=status, content={"message": message, "detail": message}, headers=headers)
+
+
+def reset_sandbox(d):
+    """Empty the throwaway state (plans, kits, cache, saved field checks) and rebuild everything that depends on it."""
+    pm.empty_state(d.work)
+    fv.connect(d.field_db).close()
+    for v in {id(x): x for x in (d, *getattr(d, "views", {}).values())}.values():
+        v.plan_index_cache.clear()
+    refresh_field(d)
+    d.sandbox_started = time.time()
+
+
+def sandbox_guard(request, d, st):
+    """The checks of the public mode for one request: None = allowed, else the refusal (a JSONResponse)."""
+    path = request.url.path
+    if path in ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"):
+        return refuse(404, "Not found.")
+    if d is not None and time.time() - d.sandbox_started > st["reset_hours"] * 3600 and not KIT_GATE.lock.locked():
+        reset_sandbox(d)
+    if request.method != "POST":
+        return None
+    caps = st["caps"]
+    cl = request.headers.get("content-length", "")
+    limit = caps["import_bytes"] if path == "/field-checks/import" else caps["body_bytes"]
+    if cl.isdigit() and int(cl) > limit:
+        return refuse(413, f"That request is too large for the public sandbox (limit {limit // 1000} KB).")
+    kind = pm.classify(request.method, path)
+    if kind is None:
+        return None
+    if d is not None:
+        full = {"plan": (pm.count_files(d.work / rp.CFG["plans_dir"], "plan_*_summary.json"), caps["plans"], "plans"),
+                "kit": (pm.count_files(d.work / d.cfg["kits_dir"], "*.zip"), caps["kits"], "field kits"),
+                "field": (d.field_n_events, caps["field_events"], "field checks")}.get(kind)
+        if full and full[0] >= full[1]:
+            return refuse(429, f"The public sandbox holds the most it can ({full[1]} {full[2]}). It is emptied regularly: please try again later.", {"Retry-After": "600"})
+    who = pm.visitor_of(request.headers, request.client.host if request.client else None, st["proxy_hops"])
+    ok, wait = LIMITER.allow(kind, who, st["limits"])
+    if not ok:
+        return refuse(429, f"Too many requests from this visitor. Please wait {wait} seconds and try again.", {"Retry-After": str(wait)})
+    return None
+
+
+@app.middleware("http")
+async def public_guard(request: Request, call_next):
+    if pm.is_on():
+        blocked = sandbox_guard(request, getattr(request.app.state, "data", None), pm.settings())
+        if blocked is not None:
+            return blocked
+    return await call_next(request)
+
+
 app.add_middleware(CORSMiddleware, allow_origins=API_CFG["cors_origins"], allow_credentials=False,
                    allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
 
@@ -1308,7 +1377,17 @@ def health(d=Depends(D)):
             "ground_cover": {"available": d.landcover is not None, "source": lcv.SOURCE["name"], "attribution": lcv.SOURCE["attribution"], "accuracy": lcv.SOURCE["accuracy"],
                              "squares": int(d.landcover.share_tree.notna().sum()) if d.landcover is not None else 0},
             "field_checks": {"events": d.field_n_events, "points_checked": len(d.field_current), "left_out_of_rankings": len(d.field_ex_ids),
-                             "exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"])}}
+                             "exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"])},
+            "public_mode": public_block(d)}
+
+
+def public_block(d):
+    """What the dashboard needs to show the sandbox notice: {on, notice, reset_hours} (on false = nothing is shown)."""
+    if not pm.is_on():
+        return {"on": False}
+    st = pm.settings()
+    return {"on": True, "notice": st["notice"], "reset_hours": st["reset_hours"],
+            "next_reset_in_hours": round(max(0.0, st["reset_hours"] - (time.time() - d.sandbox_started) / 3600), 1)}
 
 
 KEY_FIELDS = {"common_name": "common_name", "scientific_name": "scientific_name", "elev_min_m": "elev_min_m", "elev_max_m": "elev_max_m",
@@ -2350,12 +2429,18 @@ def block_model(d=Depends(D)):
 @app.post("/plans/{plan_id}/field-kit")
 def build_field_kit(plan_id: str, d=Depends(D)):
     csv, _ = plan_files(d, plan_id)
+    gated = pm.is_on()
+    if gated and not KIT_GATE.try_enter():
+        raise HTTPException(429, "Another field kit is being built. Please wait a minute and try again.", headers={"Retry-After": "60"})
     try:
         r = fk.make_kit(csv, d.work / d.cfg["kits_dir"], pdf=True, data_dir=d.root)
     except FileNotFoundError as ex:
         raise HTTPException(404, str(ex))
     except ValueError as ex:
         raise HTTPException(400, f"The field kit could not be built: {ex}")
+    finally:
+        if gated:
+            KIT_GATE.leave()
     pdf_ok = (r["kit_dir"] / "field-map.pdf").is_file()
     return {"plan_id": plan_id, "check_code": r["check_code"], "download_url": f"/kits/{plan_id}.zip", "zip_size_bytes": r["zip"].stat().st_size,
             "pdf_included": pdf_ok, "pdf_note": None if pdf_ok else (r["pdf_note"] or "field-map.pdf was not built"), "manifest": r["manifest"]}
@@ -2936,7 +3021,14 @@ async def field_check_import(request: Request, observer: str = Query(..., descri
                              plan_id: Optional[str] = Query(None, description="only needed if the file has no plan_id column"),
                              observed_at: Optional[str] = Query(None, description="date of the field work (default: now)"), d=Depends(D)):
     """Import a field kit's point-list.csv (the CSV text is the request body). Bad rows are rejected with a reason; a repeated import adds nothing."""
-    raw = await request.body()
+    if pm.is_on():
+        cap, raw = pm.settings()["caps"]["import_bytes"], b""
+        async for chunk in request.stream():                            # the body is read in pieces and refused as soon as it passes the cap
+            raw += chunk
+            if len(raw) > cap:
+                raise HTTPException(413, f"That file is too large for the public sandbox (limit {cap // 1000} KB).")
+    else:
+        raw = await request.body()
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
