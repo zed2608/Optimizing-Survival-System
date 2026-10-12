@@ -37,7 +37,7 @@ The pair table, the model comparison and the matching benchmark were re-run with
 | unseen species | 0.9700 | 0.9706 | 0.9825 | 0.9729 |
 | unseen species, 5% noise | 0.9228 | 0.9210 | 0.9305 | 0.9257 |
 
-Matching, total W of 300 trees (Hungarian = greedy in every purpose and both layouts, in both modes):
+Matching, total W of 300 trees (Hungarian = greedy in every purpose and both layouts, in both modes; whole-municipality benchmark only; see docs/defense/SCARCITY_BENCHMARK.md):
 
 | Purpose | points hard | points graded | blocks hard | blocks graded |
 |---|---|---|---|---|
@@ -45,7 +45,7 @@ Matching, total W of 300 trees (Hungarian = greedy in every purpose and both lay
 | planting | 172.37 | 180.15 | 6.89 | 7.20 |
 | watershed | 184.55 | 184.55 | 6.66 | 6.66 |
 
-The story is unchanged: the Random Forest does not clearly beat the Decision Tree (the gap under label noise grows from 0.6 to 1.0 point, still small), the decision tree and logistic regression stay ahead for unseen species, and Hungarian and greedy tie. The very high accuracy still only shows that the models learn the same rules (CLAUDE.md, known limits).
+The story is unchanged: the Random Forest does not clearly beat the Decision Tree (the gap under label noise grows from 0.6 to 1.0 point, still small), the decision tree and logistic regression stay ahead for unseen species, and Hungarian and greedy tie (whole-municipality benchmark only; see docs/defense/SCARCITY_BENCHMARK.md). The very high accuracy still only shows that the models learn the same rules (CLAUDE.md, known limits).
 
 ## Saved plans from the old rule
 Nothing was deleted or changed. `scripts/slope_plans_compare.py` repeats every saved request on today's data twice, scored hard and graded (`data/processed/slope_plans_report.txt`). Result: **3 of 15 saved plans would come out different**: `plan_planting_20261005_021813` (about 280 squares replaced, no species change), `plan_urban_20261005_021810` (about 280 squares, no species change) and `plan_watershed_20261005_021824` (about 280 squares, 2 species change). These are the three 300-tree "one tree per square" plans of 5 Oct 2026, which have no saved request, so their request was rebuilt from the summary (purpose, number of trees, seed, points mode): an approximation. The 12 block plans of 6 and 7 Oct are unchanged by the rule. (Compared with today's hard result, 5 of the 15 plans also differ because of other changes since they were made, for example the zone rules.)

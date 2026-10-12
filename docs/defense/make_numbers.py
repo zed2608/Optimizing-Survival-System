@@ -110,8 +110,60 @@ for lay in ("points", "blocks"):
         add("Matching (total W)", f"{pur}, {lay}: Hungarian / greedy / random feasible / random blind (placed; rule breaks of random blind)",
             f"{g.loc['hungarian', 'total_W']:.4f} / {g.loc['greedy', 'total_W']:.4f} / {g.loc['random_feasible', 'total_W']:.4f} / {g.loc['random_blind', 'total_W']:.4f} (placed {g.loc['hungarian', 'placed']:.0f}; {g.loc['random_blind', 'violations_total']:.2f} rule breaks)", MB)
 gap = max(abs(mb[(mb.purpose == p) & (mb.layout_mode == l) & (mb.method == "hungarian")].total_W.iloc[0] - mb[(mb.purpose == p) & (mb.layout_mode == l) & (mb.method == "greedy")].total_W.iloc[0]) for p in ("urban", "planting", "watershed") for l in ("points", "blocks"))
-add("Matching (total W)", "Largest gap Hungarian minus greedy over 6 cases", f"{gap:.6f}", MB)
+add("Matching (total W)", "Largest gap Hungarian minus greedy over 6 cases (whole-municipality benchmark only; see the scarcity sections below)", f"{gap:.6f}", MB)
 add("Matching (total W)", "Forest plans judged by the rules: loss of total W (6 cases)", "0.00% to 0.04% (see section 3b of the report)", RV)
+
+# ---------------------------------------------------------------- scarcity benchmarks (Hungarian vs greedy vs random feasible; round 22)
+SB1, SB2 = ROOT / "docs/defense/scarcity_benchmark.csv", ROOT / "docs/defense/scarcity_benchmark_polygons.csv"
+SBR = "docs/defense/SCARCITY_BENCHMARK.md"
+
+
+def _wide(df, keys):
+    ok = df[df.status == "ok"] if "status" in df else df
+    return [ok[ok.method == m].set_index(keys) for m in ("hungarian", "greedy", "random_feasible")]
+
+
+def _same_block_gap(h, g):
+    same = h.placed_blocks == g.placed_blocks
+    diff = (h.total_W - g.total_W)[same]                  # the CSV rounds W to 6 decimals, so only differences above 1e-5 count (the report's own counts use exact numbers)
+    gap = (diff / h.total_W.where(h.total_W > 0)[same] * 100)
+    return int(same.sum()), int((diff > 1e-5).sum()), int((diff < -1e-5).sum()), (float(gap.max()) if len(gap) else 0.0)
+
+
+if SB1.is_file():
+    d1 = pd.read_csv(SB1)
+    k1 = ["barangay", "purpose", "tightness_target", "replicate"]
+    for layout, unit in (("blocks", "stranded_trees"), ("points", "stranded_blocks")):
+        sec = f"Scarcity benchmark, part 1: whole barangays ({layout} layout)"
+        for src in ("rf", "rules"):
+            x = d1[(d1.s_source == src) & (d1.layout == layout)]
+            h, g, r = _wide(x, k1)
+            n_same, lo, hi, mx = _same_block_gap(h, g)
+            tag = f"S source {src}"
+            add(sec, f"{tag}: plans made (15 barangays x 3 purposes x 3 tightness levels x 4 species sets, minus skipped)", n(len(h)), f"docs/defense/scarcity_benchmark.csv; {SBR}")
+            add(sec, f"{tag}: plans where greedy places fewer blocks than Hungarian / Hungarian fewer than greedy", f"{int((g.placed_blocks < h.placed_blocks).sum())} / {int((h.placed_blocks < g.placed_blocks).sum())}", "same")
+            what = "trees not placed" if unit == "stranded_trees" else "trees not placed by the matching itself (one tree per square, so blocks = trees)"
+            add(sec, f"{tag}: {what}, Hungarian / greedy / random feasible", f"{n(h[unit].sum())} / {n(g[unit].sum())} / {n(round(float(r[unit].sum())))}", "same")
+            add(sec, f"{tag}: among plans where both place the same number of blocks ({n_same}), greedy total W lower / higher; largest gap", f"{lo} / {hi}; {mx:.2f}%", "same")
+if SB2.is_file():
+    d2 = pd.read_csv(SB2)
+    k2 = ["polygon", "purpose", "tightness_target"]
+    sec = "Scarcity benchmark, part 2: small drawn polygons (blocks layout, species_counts)"
+    for src in ("rf", "rules"):
+        x = d2[d2.s_source == src]
+        h, g, r = _wide(x, k2)
+        n_same, lo, hi, mx = _same_block_gap(h, g)
+        fewer = g.placed_blocks < h.placed_blocks
+        tag = f"S source {src}"
+        add(sec, f"{tag}: polygons (5, 10, 25, 50, 100 squares, 20 each) / plans made", f"{x.polygon.nunique()} / {n(len(h))}", f"docs/defense/scarcity_benchmark_polygons.csv; {SBR}")
+        add(sec, f"{tag}: plans where greedy places fewer blocks than Hungarian / Hungarian fewer than greedy", f"{int(fewer.sum())} ({fewer.mean():.1%}) / {int((h.placed_blocks < g.placed_blocks).sum())}", "same")
+        add(sec, f"{tag}: trees asked / placed by Hungarian / placed by greedy / extra trees greedy leaves without a spot", f"{n(h.trees_asked.sum())} / {n(h.placed_trees.sum())} / {n(g.placed_trees.sum())} / {n(g.stranded_trees.sum() - h.stranded_trees.sum())} ({(g.stranded_trees.sum() - h.stranded_trees.sum()) / h.trees_asked.sum():.1%} of trees asked)", "same")
+        by = fewer.groupby(level="tightness_target").sum(); cnt = h.groupby(level="tightness_target").size()
+        add(sec, f"{tag}: greedy places fewer blocks, by tightness target 0.3 / 0.6 / 0.9", " / ".join(f"{int(by[t])} of {int(cnt[t])}" for t in (0.3, 0.6, 0.9)), "same")
+        add(sec, f"{tag}: greedy places fewer blocks, by area size 5 / 10 / 25 / 50 / 100 squares", " / ".join(f"{int(fewer[h.polygon_size == s].sum())} of {int((h.polygon_size == s).sum())}" for s in (5, 10, 25, 50, 100)), "same")
+        add(sec, f"{tag}: among plans where both place the same number of blocks ({n_same}), greedy total W lower / higher; largest gap", f"{lo} / {hi}; {mx:.2f}%", "same")
+        add(sec, f"{tag}: plans where even Hungarian cannot place every block asked", n(int((h.stranded_blocks > 0).sum())), "same")
+    add(sec, "Designed, not observed", "tightness levels 0.3 / 0.6 / 0.9, 2 to 5 random species, compact polygons; no usage data exist on how often real users meet scarce areas", SBR)
 
 # ---------------------------------------------------------------- validation
 marks = pd.read_csv(ROOT / "data/validation/agri_sample_marks_20261007.csv", comment="#")

@@ -167,7 +167,7 @@ By the tightness level that was asked for:
 
 **6. Runtime is not a reason to choose greedy:** the solver alone takes a median of 0.2 to 0.3 ms for Hungarian and 0.3 to 1.2 ms for greedy; a whole `make_plan` call takes about 35 to 42 ms for either.
 
-**What this does and does not support.** It supports: *Hungarian is needed when squares are scarce for the chosen species*, which happens in the "I have species" mode in the points layout, mostly in smaller areas and at high tightness. It does not support: that Hungarian is needed in the default blocks plans, where this benchmark finds no stranded trees and only a small total-W gain in 7% of plans. Both tables use designed tightness levels (0.3, 0.6, 0.9) and random species sets; how often real planners meet such tight cases is unknown.
+**What Part 1 does and does not support.** It supports: *Hungarian is needed when squares are scarce for the chosen species*, which in whole barangays happens in the points layout (API and command line only), mostly in smaller areas and at high tightness. In the blocks layout of whole barangays it is not needed to place the trees (no stranded trees in 534 plans; a small total-W gain in 7% of plans). Part 2 (last section) shows that the blocks layout does run short of squares in small drawn areas, so the claim also holds for plans a dashboard user can make. Both parts use designed tightness levels (0.3, 0.6, 0.9) and random species sets, and there are no usage data: how often real planners meet such tight cases is unknown.
 
 ---
 
@@ -185,9 +185,9 @@ By the tightness level that was asked for:
 - The old dashboard (`#/legacy`) does not use these algorithms at all (its scores are computed in JavaScript).
 
 **What this means for the wording of the thesis.**
-- The result that matters for users is the **blocks table**: in the plans a user can actually make, no method strands a tree (0 of 534 plans) and Hungarian gives only a small total-W gain in 35 of 534 plans (largest 2.70%). Do not write that Hungarian "prevents stranded trees in the app" on the basis of this benchmark.
+- The result that matters for users in **Part 1** is the **blocks table**: in whole-barangay plans no method strands a tree (0 of 534 plans) and Hungarian gives only a small total-W gain in 35 of 534 plans (largest 2.70%). Do not write that Hungarian prevents stranded trees in whole-barangay plans on the basis of Part 1; for small drawn areas see Part 2, where it does.
 - The **points table** is a **stress test of the matching algorithm** on the earlier one-tree-per-square formulation, which the code still contains and which the API and the command line can still run. It shows what the Hungarian algorithm does when squares are scarce (greedy strands 1,085 trees against 16, in 36 of 540 plans, 31 of them at the highest tightness). It supports the claim "Hungarian is the right solver when a plan competes for scarce squares", not the claim "users meet this situation in the dashboard".
-- Honest framing: *"In the block layout used by the dashboard, squares are rarely scarce and greedy and Hungarian place the same trees; the difference appears when the layout assigns one tree per square (API and command line), where Hungarian strands almost no trees and greedy strands up to 87 blocks more in a plan."* Whether a block-based plan could become scarce was not found in these 534 whole-barangay plans; **Part 2 tests small drawn areas, which the dashboard does offer, and finds that it does (greedy places fewer blocks in 13.5% of the plans).**
+- Honest framing for Part 1: *"In whole-barangay plans in the block layout used by the dashboard, squares are rarely scarce and greedy and Hungarian place the same trees; with one tree per square (API and command line) greedy strands up to 87 blocks more in a plan."* Whether a block-based plan can become scarce was not found in these 534 whole-barangay plans; **Part 2 tests small drawn areas, which the dashboard does offer, and finds that it does (greedy places fewer blocks in 13.5% of the plans).**
 
 ---
 

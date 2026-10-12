@@ -1,5 +1,5 @@
 {
-  "tests": "698 passed / 1 skipped (browser test, needs OS_BROWSER_CHECK=1) / 0 failed (round 21 final run, 297 s; round 20: three runs of 661 passed, no flaky test)",
+  "tests": "711 passed / 1 skipped (browser test, needs OS_BROWSER_CHECK=1) / 0 failed (12 Oct 2026, after the scarcity benchmarks and the documentation cleanup, about 284 s; round 21: 698 passed; round 20: three runs of 661 passed, no flaky test)",
   "qa": "34 passed / 3 warnings / 0 failed",
   "node_tests": "7 test files under frontend/src, all pass (tutorial.test.mjs has 9 tests); npm run build OK; eslint src/new: no problems; docs/USER_GUIDE.md up to date",
   "rebuild_seconds": "10 / 5 / 262 / total 278 (rebuild from scratch in a scratch copy; result identical to the saved scores)",
