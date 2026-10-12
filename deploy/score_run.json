@@ -1,0 +1,8 @@
+{
+ "slope_mode": "graded",
+ "slope_graded_margin_fraction": 0.25,
+ "soil_gate_mode": "soft",
+ "pairs": 360450,
+ "eligible_pairs": 257869,
+ "slope_graded_pairs": 8480
+}

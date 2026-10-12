@@ -1,0 +1,6 @@
+Files the Docker image needs that are NOT in git otherwise (data/processed/scores and models are git-ignored).
+site_scores.db.gz  : gzip (level 9, no name/time) of data/processed/scores/site_scores.db, made on 2026-10-13 by `scripts/rebuild_scores.py` output (S source "rf").
+                     sha256 of the UNPACKED database starts with 86e9cee516589a49 (full value is checked by tests/test_deploy_files.py).
+score_run.json     : how the saved scores were made (slope mode); copied from data/processed/scores/.
+rf_site_suitability_meta.json : date, dataset hash and features of the Random Forest (the model file itself is not needed at run time); copied from data/processed/models/.
+Update these three files whenever the scores are rebuilt (python scripts/deploy_pack.py), or the public link would show older scores.

@@ -1,6 +1,7 @@
 // The ONE place for the API address and the page settings of the new dashboard (#/v2).
 // Change the address with the VITE_API_BASE environment variable (for example in frontend/.env.local); default below.
-export const API_BASE = (import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8001').replace(/\/+$/, '')
+// VITE_API_BASE set to an EMPTY value (the deployment build) = the same address as the page: the API and the dashboard are served together.
+export const API_BASE = (import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8001').replace(/\/+$/, '')
 
 // How to start the backend (shown in the "API is off" message). Run it from the project folder.
 export const START_COMMAND = 'python -m uvicorn api_v2:app --port 8001'

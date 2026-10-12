@@ -3330,6 +3330,14 @@ def search_geocode(q: str = Query(min_length=3, max_length=100), d=Depends(D)):
     return answer(doc, False)
 
 
+# One address for everything (deployment): OS_STATIC_DIR = the folder of the built dashboard (frontend/dist). Not set = the API alone, as before.
+# The mount is the LAST thing registered, so every API path above keeps priority; the dashboard then calls the API on its own address (no CORS needed).
+_STATIC_DIR = os.environ.get("OS_STATIC_DIR", "").strip()
+if _STATIC_DIR and Path(_STATIC_DIR).is_dir():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="dashboard")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api_v2:app", host="127.0.0.1", port=API_CFG["port"])

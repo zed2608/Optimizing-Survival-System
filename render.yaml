@@ -1,0 +1,16 @@
+# Render blueprint (optional): lets Render read these settings instead of you typing them. docs/DEPLOYMENT.md says how to use it.
+# Field names follow Render's blueprint format as I know it; re-check them on Render's official pages (render.com/docs/blueprint-spec) before relying on them.
+services:
+  - type: web
+    name: optimizing-survival
+    runtime: docker
+    plan: free
+    branch: deploy-sandbox
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: OS_PUBLIC_MODE
+        value: "1"
+      - key: OS_RESET_HOURS
+        value: "24"

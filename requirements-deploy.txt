@@ -1,0 +1,14 @@
+# What the DEPLOYED service needs at run time (Dockerfile). Far smaller than requirements-day1.txt: no scikit-learn, rasterio, opencv, pymupdf, pytest, Flask.
+# Checked on Python 3.12 (the version of the Docker image). Minimum versions = the ones the project was tested with (see requirements-day1.txt);
+# no upper limits, so a rebuild may pick up newer releases: after a rebuild, look at /health and run one plan before sharing the link.
+fastapi>=0.141
+pydantic>=2.13
+uvicorn>=0.52
+pandas>=3.0
+numpy>=2.4
+scipy>=1.18
+geopandas>=1.1
+pyogrio>=0.13
+shapely>=2.1
+pyproj>=3.7
+matplotlib>=3.10      # only for the PDF map of a field kit
