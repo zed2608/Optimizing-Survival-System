@@ -35,6 +35,7 @@ Written 10 Oct 2026 from the code, the saved data and the documents of the repos
 6. **Grid.** 100 m squares: a square is an area, not a tree spot. Slope comes from finite differences; 22% of squares have only one axis ("partial") and may under-estimate; 5474 (93%) is an example of a square no species can use.
 7. **Not scored at all:** soil pH (no real layer), rainfall, temperature, canopy, exposure, existing trees on the ground (a trees table is optional and not supplied).
 8. **Weather.** Open-Meteo forecast covers 16 days, needs the internet; El Nino status is set by hand ("none, source not set").
+9. **One grid square is about 1 ha (100 m x 100 m), so a plan works in whole squares of about 1 ha.** A real school yard, garden or roadside strip smaller than one square cannot be represented, and the smallest area the polygon benchmark tests is 5 squares (about 5 ha). A drawn polygon selects the squares whose centre it contains.
 
 ## E. Rules and numbers with no source (all provisional)
 - Term weights 0.25 each; elevation / slope margin 10%; wetness distance 50 m; soil mismatch factor 0.25; `SOIL_COMPAT`.
@@ -50,6 +51,7 @@ Written 10 Oct 2026 from the code, the saved data and the documents of the repos
 - The field kit (GPX, KML, CSV, PDF) was **not tested on a phone, with a real GPS, or printed on paper**.
 - The legacy dashboard `#/legacy` and root scripts (`api.py`, `optimization.py`, `train_model.py`, ...) are kept but not maintained; the legacy backend mixes slope units (degrees only when the value is above 90).
 - Single municipality, one release; nothing was tested elsewhere (transferability UNKNOWN).
+- **Separate plans do not exclude each other's squares; only top-ups do** (tested on 12 Oct 2026 on a temporary copy). Two plans over the same area get the same squares, a plan made after a block was marked "planted" can plan that square again, and only squares marked "not plantable" in the field are left out of a new plan. A top-up never reuses a square of its plan family, so repeated top-ups can use up a small area (Ampid II, 23 squares: the first top-up placed 156 of 300 lost trees and the next was refused).
 - Fixed in round 21: the estimate line of the plan form used the median block size ("About 5 blocks" for 300 trees, real 12 to 15) and now reports the blocks of the same plan rule as Create plan. It is exact for the automatic mix; fewer trees fit if suitable squares run short (the capacity message says so).
 - Partner rules are starting rules; species with Low waterlogging tolerance cannot partner High ones (Duhat, Clumping Bamboo have none); name matching is word-based.
 - Tests pin the data (counts, hashes); a data change fails them on purpose.
