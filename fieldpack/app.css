@@ -1,0 +1,36 @@
+/* Field pack, Stage A1. High contrast (black on white), big tap targets, one column, made for a 360 px wide phone in sunlight. */
+:root { --fg: #000; --bg: #fff; --good: #006400; --bad: #8b0000; --ban: #ffe14d; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font: 18px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--fg); background: var(--bg); }
+#banner { position: sticky; top: 0; z-index: 5; background: var(--ban); color: #000; font-weight: 700; font-size: 16px; text-align: center; padding: 8px 12px; border-bottom: 3px solid #000; }
+#app { padding: 12px 14px 48px; max-width: 640px; margin: 0 auto; }
+h1 { font-size: 26px; margin: 8px 0; } h2 { font-size: 22px; margin: 18px 0 8px; } h3 { font-size: 19px; margin: 10px 0 6px; }
+p { margin: 6px 0; overflow-wrap: anywhere; }
+.note { font-size: 16px; } .dist { font-size: 22px; font-weight: 700; } .bearing { font-size: 20px; font-weight: 700; } .acc { font-size: 17px; font-weight: 600; }
+.ok { color: var(--good); font-weight: 700; } .warn { color: var(--bad); font-weight: 700; } .big { font-size: 22px; }
+label { display: block; font-weight: 700; margin: 12px 0 4px; }
+input[type=text] { width: 100%; min-height: 52px; font: inherit; padding: 8px 10px; border: 3px solid #000; border-radius: 8px; background: #fff; color: #000; }
+.btn { display: inline-block; min-height: 52px; min-width: 52px; padding: 10px 16px; margin: 4px 6px 4px 0; font: inherit; font-weight: 700; color: #000; background: #fff; border: 3px solid #000; border-radius: 10px; }
+.btn.big { width: 100%; font-size: 21px; background: #000; color: #fff; }
+.btn.good { background: var(--good); color: #fff; border-color: #000; }
+.btn.bad { background: #fff; color: var(--bad); border-color: var(--bad); }
+.btn.link { border: 0; text-decoration: underline; min-height: 44px; }
+.btn:focus-visible, input:focus-visible, .tree:focus-visible { outline: 4px solid #0033cc; outline-offset: 2px; }
+.blocks { display: grid; gap: 8px; }
+.btn.block { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; text-align: left; width: 100%; margin: 0; }
+.btn.block small { grid-column: 1 / -1; font-weight: 400; font-size: 16px; }
+.card { border: 3px solid #000; border-radius: 10px; padding: 8px 12px 12px; margin: 10px 0; background: #fff; }
+.actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.reasons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.reasons .btn { margin: 0; font-size: 16px; }
+.arrow { font-size: 64px; line-height: 1; width: 80px; height: 80px; text-align: center; margin: 4px 0; }
+.trees { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+.tree { min-height: 56px; border: 3px solid #000; border-radius: 10px; background: #fff; color: #000; font: inherit; font-weight: 700; display: grid; place-items: center; padding: 2px; }
+.tree small { font-size: 18px; line-height: 1; }
+.tree.planted { background: var(--good); color: #fff; }
+.tree.skipped { background: #fff; color: var(--bad); border-color: var(--bad); }
+.tree.active { box-shadow: 0 0 0 4px #0033cc; }
+.sketch { width: 100%; max-width: 360px; height: auto; display: block; margin: 10px auto; border: 2px solid #000; background: #fff; }
+.more { margin: 10px 0; border: 3px solid #000; border-radius: 10px; padding: 0 12px; }
+.more summary { min-height: 52px; display: flex; align-items: center; font-weight: 700; cursor: pointer; }

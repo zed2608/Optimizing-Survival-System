@@ -1,0 +1,185 @@
+/* Field pack, Stage A1: the maths, the rules, the saving and the CSV. No page code here, so node can test it; the build script puts this same file into the page.
+ * Layout of the trees is NOT worked out here: the build script gives every tree its latitude and longitude from pipeline/palettes.py block_geometry (the ONE layout formula).
+ * Everything provisional: GPS accuracy has not been field-tested. */
+const FieldPackCore = (function () {
+  'use strict'
+
+  const R = 6371000 // the same sphere as distance_m in pipeline/field_verify.py
+  const rad = (d) => (d * Math.PI) / 180
+  const POINTS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+  const REASONS = ['paved', 'building', 'rock_or_ledge', 'creek_or_waterlogged', 'too_steep', 'existing_tree', 'owner_refused', 'other'] // the words of the kit README and of field_verify.REASONS
+  const EXTRA_COLUMNS = ['reason', 'note', 'observer', 'observed_at', 'gps_lat', 'gps_lon', 'gps_accuracy_m', 'tree_log'] // appended after the 32 columns of blocks.csv; the dashboard import reads them by name
+  const MIN_ARRIVAL_M = 2
+
+  function distanceM(lat1, lon1, lat2, lon2) {
+    const p1 = rad(lat1), p2 = rad(lat2)
+    const a = Math.sin((p2 - p1) / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(rad(lon2 - lon1) / 2) ** 2
+    return 2 * R * Math.asin(Math.sqrt(a))
+  }
+
+  // initial bearing from point 1 to point 2, degrees clockwise from north (0 to 360)
+  function bearingDeg(lat1, lon1, lat2, lon2) {
+    const p1 = rad(lat1), p2 = rad(lat2), dl = rad(lon2 - lon1)
+    const y = Math.sin(dl) * Math.cos(p2)
+    const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl)
+    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+  }
+
+  function compassPoint(deg) {
+    return POINTS[Math.round((((deg % 360) + 360) % 360) / 45) % 8]
+  }
+
+  // how far to turn from where the phone points (heading) to face the target; 0 = straight ahead. null when there is no heading: then only the bearing is shown.
+  function turnDeg(bearing, heading) {
+    if (heading === null || heading === undefined || !Number.isFinite(heading)) return null
+    return (((bearing - heading) % 360) + 360) % 360
+  }
+
+  // "arrived" only when the distance is within the larger of 2 m and the accuracy the phone reports. Unknown accuracy: only the 2 m rule, and the point is called approximate.
+  function arrival(distance, accuracy, spacing) {
+    const known = Number.isFinite(accuracy) && accuracy >= 0
+    const radius = Math.max(MIN_ARRIVAL_M, known ? accuracy : 0)
+    return {
+      arrived: Number.isFinite(distance) && distance <= radius,
+      radius,
+      accuracyKnown: known,
+      approximate: !known || (Number.isFinite(spacing) && accuracy > spacing), // accuracy worse than the tree spacing: the point is only approximate
+    }
+  }
+
+  // never show more digits than the phone's accuracy supports
+  function distanceLabel(distance, accuracy) {
+    const known = Number.isFinite(accuracy) && accuracy >= 0
+    const step = !known ? 5 : accuracy >= 20 ? 10 : accuracy >= 8 ? 5 : accuracy >= 3 ? 2 : 1
+    const v = Math.max(0, Math.round(distance / step) * step)
+    return { value: v, step, text: step > 1 ? (v === 0 ? `less than ${step}` : `about ${v}`) : `${v}` }
+  }
+
+  // ------------------------------------------------------------------ the trees of a block and what has been recorded
+  const key = (block, k) => `${block.ref}:${k}`
+  const emptyState = () => ({ v: 1, observer: '', trees: {} })
+
+  function progress(block, state) {
+    let planted = 0, skipped = 0
+    for (const t of block.trees) {
+      const r = state.trees[key(block, t[0])]
+      if (r && r.s === 'planted') planted++
+      else if (r && r.s === 'skipped') skipped++
+    }
+    return { n: block.n, planted, skipped, todo: block.n - planted - skipped }
+  }
+
+  // the next tree without a record, in the order of the README (1..N, row by row, east first); null when every tree has one
+  function nextTarget(block, state) {
+    for (const t of block.trees) if (!state.trees[key(block, t[0])]) return t[0]
+    return null
+  }
+
+  function treeOf(block, k) {
+    return block.trees.find((t) => t[0] === k) || null
+  }
+
+  const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+
+  // what a block becomes in the results file (the rules of the kit README)
+  function decide(block, state) {
+    const rec = block.trees.map((t) => ({ k: t[0], r: state.trees[key(block, t[0])] || null }))
+    const planted = rec.filter((x) => x.r && x.r.s === 'planted')
+    const skipped = rec.filter((x) => x.r && x.r.s === 'skipped')
+    const out = { status: '', trees_planted: '', reason: '', note: '' }
+    if (planted.length) {
+      out.status = 'planted'
+      out.trees_planted = String(planted.length)
+      if (skipped.length) out.note = clip(`Trees ${skipped.map((x) => x.k).join(', ')} not planted (${[...new Set(skipped.map((x) => x.r.reason))].join(', ')}).`, 480)
+    } else if (skipped.length && skipped.length === block.n) {
+      const reasons = [...new Set(skipped.map((x) => x.r.reason))]
+      const one = reasons.length === 1 ? reasons[0] : 'other'
+      out.status = one
+      out.reason = one
+      out.note = clip(reasons.length === 1 ? `All ${block.n} trees skipped: ${one}.` : `All ${block.n} trees skipped for different reasons: ${reasons.join(', ')}.`, 480)
+    }
+    return out
+  }
+
+  // ------------------------------------------------------------------ the results file
+  const esc = (v) => {
+    const s = v === null || v === undefined ? '' : String(v)
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const fix6 = (x) => (Number.isFinite(x) ? x.toFixed(6) : '')
+
+  // Same 32 columns as blocks.csv in the same order, one row per block, then EXTRA_COLUMNS. A block with no decision keeps status and trees_planted empty (the import skips it).
+  // moved_lat and moved_lon stay empty: they mean "where the BLOCK's centre really is" and one tree's position does not tell that.
+  function exportCsv(pack, state, nowIso) {
+    const header = pack.columns.concat(EXTRA_COLUMNS)
+    const lines = [header.map(esc).join(',')]
+    for (const b of pack.blocks) {
+      const row = Object.assign({}, b.row)
+      const d = decide(b, state)
+      row.status = d.status
+      row.trees_planted = d.trees_planted
+      const recs = b.trees.map((t) => ({ k: t[0], r: state.trees[key(b, t[0])] })).filter((x) => x.r)
+      const last = recs.length ? recs.reduce((a, c) => (String(c.r.t) > String(a.r.t) ? c : a)) : null
+      const withFix = recs.filter((x) => x.r.s === 'planted' && Number.isFinite(x.r.lat))
+      const lastPlanted = withFix.length ? withFix.reduce((a, c) => (String(c.r.t) > String(a.r.t) ? c : a)) : null
+      row.reason = d.reason
+      row.note = d.note
+      row.observer = d.status ? state.observer || '' : ''
+      row.observed_at = d.status && last ? last.r.t : ''
+      row.gps_lat = lastPlanted ? fix6(lastPlanted.r.lat) : ''
+      row.gps_lon = lastPlanted ? fix6(lastPlanted.r.lon) : ''
+      row.gps_accuracy_m = lastPlanted && Number.isFinite(lastPlanted.r.acc) ? String(Math.round(lastPlanted.r.acc * 10) / 10) : ''
+      row.tree_log = recs
+        .map((x) => [x.k, x.r.s, x.r.reason || '', fix6(x.r.lat), fix6(x.r.lon), Number.isFinite(x.r.acc) ? Math.round(x.r.acc * 10) / 10 : '', x.r.t || ''].join(':'))
+        .join('|')
+      lines.push(header.map((c) => esc(row[c])).join(','))
+    }
+    return lines.join('\r\n') + '\r\n'
+  }
+
+  // ------------------------------------------------------------------ saving on the phone only (never throws; a phone that refuses storage still works until the page is closed)
+  function makeStore(getStorage, storageKey) {
+    let memory = null
+    let ok = true
+    const st = () => {
+      try {
+        return getStorage()
+      } catch (e) {
+        return null
+      }
+    }
+    return {
+      load() {
+        try {
+          const s = st()
+          const raw = s ? s.getItem(storageKey) : null
+          if (!raw) return memory || emptyState()
+          const v = JSON.parse(raw)
+          return v && v.v === 1 && v.trees ? v : emptyState()
+        } catch (e) {
+          ok = false
+          return memory || emptyState()
+        }
+      },
+      save(state) {
+        memory = state
+        try {
+          const s = st()
+          if (!s) throw new Error('no storage')
+          s.setItem(storageKey, JSON.stringify(state))
+          ok = true
+        } catch (e) {
+          ok = false
+        }
+        return ok
+      },
+      get ok() {
+        return ok
+      },
+    }
+  }
+
+  return { R, REASONS, EXTRA_COLUMNS, POINTS, distanceM, bearingDeg, compassPoint, turnDeg, arrival, distanceLabel, progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc }
+})()
+
+if (typeof module !== 'undefined' && module.exports) module.exports = FieldPackCore

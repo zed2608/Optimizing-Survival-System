@@ -1,0 +1,531 @@
+{
+  "plan_id": "plan_urban_20261013_032648",
+  "check_code": "3b2afb9e",
+  "built_on": "2026-10-13",
+  "dataset": {
+    "tag": "v1.0-review",
+    "hash": "34964a09fe44"
+  },
+  "plan_file": {
+    "name": "plan_urban_20261013_032648.csv",
+    "sha256": "3b2afb9e261f60ea9f2b2bfada15a04f624e564aa18d91fe4be2a12f9f7781c8"
+  },
+  "counts": {
+    "points": 6,
+    "species": 6,
+    "per_species": {
+      "CHE": {
+        "common_name": "Chesa/Tiesa",
+        "trees": 8,
+        "blocks": 1,
+        "points": 1,
+        "needs_both_sexes": false
+      },
+      "IND": {
+        "common_name": "Indian/Carabao Mango",
+        "trees": 8,
+        "blocks": 1,
+        "points": 1,
+        "needs_both_sexes": false
+      },
+      "KAM": {
+        "common_name": "Kamagong",
+        "trees": 9,
+        "blocks": 1,
+        "points": 1,
+        "needs_both_sexes": true
+      },
+      "SAL": {
+        "common_name": "Salinggogon",
+        "trees": 8,
+        "blocks": 1,
+        "points": 1,
+        "needs_both_sexes": false
+      },
+      "SAM": {
+        "common_name": "Sampalok",
+        "trees": 8,
+        "blocks": 1,
+        "points": 1,
+        "needs_both_sexes": false
+      },
+      "WEE": {
+        "common_name": "Weeping Fig (Balete)",
+        "trees": 9,
+        "blocks": 1,
+        "points": 1,
+        "needs_both_sexes": false
+      }
+    },
+    "blocks": 6,
+    "trees": 50
+  },
+  "files": [
+    {
+      "name": "README.txt",
+      "size_bytes": 6991,
+      "sha256": "0b01033584a947c1bdba7f58c1fad5c0820bdc39d84cff26d9de00c93e60c523"
+    },
+    {
+      "name": "blocks.csv",
+      "size_bytes": 3085,
+      "sha256": "d5af8e3c7c66b2016634fe05b8effe6627a79972c6a67dcc6eeacf767d4b5a9d"
+    },
+    {
+      "name": "field-map.pdf",
+      "size_bytes": 165342,
+      "sha256": "97fc236fbe55352d713d004a0c1d2ad202784e0f4b1fe081ae332f5265b469ae"
+    },
+    {
+      "name": "point-list.csv",
+      "size_bytes": 2549,
+      "sha256": "9260bae98ccf0e3ce74f72356f9e5be6359559b567b9ec2d9b449dbd5422e353"
+    },
+    {
+      "name": "points.gpx",
+      "size_bytes": 15631,
+      "sha256": "c496f902cd3d61588f616daa25bc5528344aca167a42e4781335e36fc7d5b656"
+    },
+    {
+      "name": "points.kml",
+      "size_bytes": 15629,
+      "sha256": "37d4562927ec28967bc5630d361aecb6cbfd530811d3706bf75b4777a61f9b65"
+    }
+  ],
+  "nudge_max_m": 10.0,
+  "cell_m": 100.0,
+  "limits": [
+    "Each block is one 100 m grid square, planted at the species spacing on its usable part (provisional share of the square); a plan places at most one block per square.",
+    "Block layout (usable share, spacing rounding, capacity) is provisional until the agriculturist signs it off.",
+    "Weights, caps and thresholds are provisional; site scores use the soft soil mode (texture mapping unverified).",
+    "S comes from a Random Forest trained on expert rules (the rule limits for zone, elevation and steep slope apply first), not from field survival data."
+  ],
+  "plan_summary": {
+    "purpose": "urban",
+    "n_saplings_requested": 50,
+    "method": "hungarian",
+    "seed": 42,
+    "area": {
+      "zone": "Agricultural Zone",
+      "bbox": null,
+      "legal_points_in_area": 224,
+      "points_dropped_near_existing_trees": 0,
+      "candidate_points_after_exclusion": 224
+    },
+    "existing_trees": "no trees table given: no exclusion zone applied",
+    "palette": [
+      {
+        "species_id": 8,
+        "species": "Kamagong",
+        "genus": "Diospyros",
+        "quota": 9,
+        "share": 0.18,
+        "placed": 9,
+        "unmatched": 0,
+        "species_score": 0.7219,
+        "eligible_points_in_area": 224,
+        "needs_both_sexes": true,
+        "spacing_min_m": 10.0,
+        "blocks": 1,
+        "blocks_placed": 1,
+        "spacing_m": 12.5,
+        "rows": 6,
+        "trees_per_row": 6,
+        "capacity": 36,
+        "season": {
+          "status": "in_season",
+          "window_months": [
+            5,
+            6
+          ],
+          "species_months": [
+            5,
+            6,
+            7
+          ],
+          "months_in_window": [
+            5,
+            6
+          ]
+        }
+      },
+      {
+        "species_id": 42,
+        "species": "Weeping Fig (Balete)",
+        "genus": "Ficus",
+        "quota": 9,
+        "share": 0.18,
+        "placed": 9,
+        "unmatched": 0,
+        "species_score": 0.6864,
+        "eligible_points_in_area": 224,
+        "needs_both_sexes": false,
+        "spacing_min_m": 15.0,
+        "blocks": 1,
+        "blocks_placed": 1,
+        "spacing_m": 20.0,
+        "rows": 3,
+        "trees_per_row": 3,
+        "capacity": 9,
+        "season": {
+          "status": "in_season",
+          "window_months": [
+            5,
+            6
+          ],
+          "species_months": [
+            5,
+            6,
+            7
+          ],
+          "months_in_window": [
+            5,
+            6
+          ]
+        }
+      },
+      {
+        "species_id": 22,
+        "species": "Indian/Carabao Mango",
+        "genus": "Mangifera",
+        "quota": 8,
+        "share": 0.16,
+        "placed": 8,
+        "unmatched": 0,
+        "species_score": 0.6707,
+        "eligible_points_in_area": 224,
+        "needs_both_sexes": false,
+        "spacing_min_m": 10.0,
+        "blocks": 1,
+        "blocks_placed": 1,
+        "spacing_m": 11.0,
+        "rows": 7,
+        "trees_per_row": 7,
+        "capacity": 49,
+        "season": {
+          "status": "in_season",
+          "window_months": [
+            5,
+            6
+          ],
+          "species_months": [
+            5,
+            6,
+            7
+          ],
+          "months_in_window": [
+            5,
+            6
+          ]
+        }
+      },
+      {
+        "species_id": 20,
+        "species": "Sampalok",
+        "genus": "Tamarindus",
+        "quota": 8,
+        "share": 0.16,
+        "placed": 8,
+        "unmatched": 0,
+        "species_score": 0.658,
+        "eligible_points_in_area": 224,
+        "needs_both_sexes": false,
+        "spacing_min_m": 10.0,
+        "blocks": 1,
+        "blocks_placed": 1,
+        "spacing_m": 12.5,
+        "rows": 6,
+        "trees_per_row": 6,
+        "capacity": 36,
+        "season": {
+          "status": "in_season",
+          "window_months": [
+            5,
+            6
+          ],
+          "species_months": [
+            5,
+            6
+          ],
+          "months_in_window": [
+            5,
+            6
+          ]
+        }
+      },
+      {
+        "species_id": 38,
+        "species": "Chesa/Tiesa",
+        "genus": "Pouteria",
+        "quota": 8,
+        "share": 0.16,
+        "placed": 8,
+        "unmatched": 0,
+        "species_score": 0.6553,
+        "eligible_points_in_area": 224,
+        "needs_both_sexes": false,
+        "spacing_min_m": 6.0,
+        "blocks": 1,
+        "blocks_placed": 1,
+        "spacing_m": 7.0,
+        "rows": 11,
+        "trees_per_row": 11,
+        "capacity": 121,
+        "season": {
+          "status": "in_season",
+          "window_months": [
+            5,
+            6
+          ],
+          "species_months": [
+            5,
+            6,
+            7
+          ],
+          "months_in_window": [
+            5,
+            6
+          ]
+        }
+      },
+      {
+        "species_id": 32,
+        "species": "Salinggogon",
+        "genus": "Cratoxylum",
+        "quota": 8,
+        "share": 0.16,
+        "placed": 8,
+        "unmatched": 0,
+        "species_score": 0.6374,
+        "eligible_points_in_area": 224,
+        "needs_both_sexes": false,
+        "spacing_min_m": 5.0,
+        "blocks": 1,
+        "blocks_placed": 1,
+        "spacing_m": 6.5,
+        "rows": 11,
+        "trees_per_row": 11,
+        "capacity": 121,
+        "season": {
+          "status": "in_season",
+          "window_months": [
+            5,
+            6
+          ],
+          "species_months": [
+            5,
+            6,
+            7
+          ],
+          "months_in_window": [
+            5,
+            6
+          ]
+        }
+      }
+    ],
+    "palette_common_planting_months": [
+      5,
+      6
+    ],
+    "palette_warnings": [],
+    "palette_excluded_species": {
+      "36": "no_eligible_points_in_area"
+    },
+    "dioecious_species_left_out": [],
+    "limits": [
+      "Each block is one 100 m grid square, planted at the species spacing on its usable part (provisional share of the square); a plan places at most one block per square.",
+      "Block layout (usable share, spacing rounding, capacity) is provisional until the agriculturist signs it off.",
+      "Weights, caps and thresholds are provisional; site scores use the soft soil mode (texture mapping unverified).",
+      "S comes from a Random Forest trained on expert rules (the rule limits for zone, elevation and steep slope apply first), not from field survival data."
+    ],
+    "layout_mode": "blocks",
+    "ground_cover": {
+      "placed_trees": 50,
+      "flagged_trees": 0,
+      "flagged_blocks": 0,
+      "placed_blocks": 6,
+      "by_flag": {
+        "ground_bare": 0,
+        "ground_built_up": 0,
+        "ground_water": 0
+      },
+      "source": "ESA WorldCover 10 m 2021 v200",
+      "note": "Trees on squares that look bare, built-up or like water in satellite land cover (2021): check them first. Information only: no score or plan depends on it."
+    },
+    "zoning": {
+      "include_unzoned": true,
+      "placed_trees": 50,
+      "unconfirmed_trees": 0,
+      "unconfirmed_blocks": 0,
+      "note": "Unconfirmed = outside every zoning polygon of our zoning file (the CLUP 2021-2031 shows this land as Forest Reserve, Watershed); these squares are scored like the others."
+    },
+    "layout": {
+      "mode": "blocks",
+      "trees_requested": 50,
+      "trees_placed": 50,
+      "blocks": 6,
+      "hectares_used": 6.0,
+      "block_side_m": 100.0,
+      "usable_share": 0.6,
+      "usable_side_m": 77.46,
+      "per_species": [
+        {
+          "species_id": 8,
+          "species": "Kamagong",
+          "quota": 9,
+          "placed": 9,
+          "blocks": 1,
+          "blocks_placed": 1,
+          "spacing_m": 12.5,
+          "rows": 6,
+          "trees_per_row": 6,
+          "capacity": 36
+        },
+        {
+          "species_id": 42,
+          "species": "Weeping Fig (Balete)",
+          "quota": 9,
+          "placed": 9,
+          "blocks": 1,
+          "blocks_placed": 1,
+          "spacing_m": 20.0,
+          "rows": 3,
+          "trees_per_row": 3,
+          "capacity": 9
+        },
+        {
+          "species_id": 22,
+          "species": "Indian/Carabao Mango",
+          "quota": 8,
+          "placed": 8,
+          "blocks": 1,
+          "blocks_placed": 1,
+          "spacing_m": 11.0,
+          "rows": 7,
+          "trees_per_row": 7,
+          "capacity": 49
+        },
+        {
+          "species_id": 20,
+          "species": "Sampalok",
+          "quota": 8,
+          "placed": 8,
+          "blocks": 1,
+          "blocks_placed": 1,
+          "spacing_m": 12.5,
+          "rows": 6,
+          "trees_per_row": 6,
+          "capacity": 36
+        },
+        {
+          "species_id": 38,
+          "species": "Chesa/Tiesa",
+          "quota": 8,
+          "placed": 8,
+          "blocks": 1,
+          "blocks_placed": 1,
+          "spacing_m": 7.0,
+          "rows": 11,
+          "trees_per_row": 11,
+          "capacity": 121
+        },
+        {
+          "species_id": 32,
+          "species": "Salinggogon",
+          "quota": 8,
+          "placed": 8,
+          "blocks": 1,
+          "blocks_placed": 1,
+          "spacing_m": 6.5,
+          "rows": 11,
+          "trees_per_row": 11,
+          "capacity": 121
+        }
+      ],
+      "centre_utm": [
+        297330.5,
+        1626750.8
+      ],
+      "tiebreak": "squares whose W is practically equal are ordered by their distance to the centre of the chosen area (weight 1e-6 in the cost), so that the blocks sit together"
+    },
+    "saplings_allocated": 50,
+    "saplings_unallocated": 0,
+    "saplings_placed": 50,
+    "saplings_unmatched": 0,
+    "blocks_placed": 6,
+    "blocks_requested": 6,
+    "unused_candidate_points": 218,
+    "mean_W": 0.6888,
+    "total_W": 4.1326,
+    "mean_W_trees": 0.6906,
+    "spacing_check": "blocks are separate 100 m squares; inside a block the trees stand at the species spacing",
+    "area_choice": {
+      "type": "zone",
+      "name": "Agricultural Zone",
+      "display_name": "Agricultural Zone"
+    },
+    "season": {
+      "start": "2027-05-01",
+      "end": "2027-06-29",
+      "days": 60,
+      "window_months": [
+        5,
+        6
+      ],
+      "filter": "mark",
+      "species_total": 45,
+      "in_season": 36,
+      "partly": 2,
+      "out_of_season": 7,
+      "unknown": 0,
+      "removed": 0,
+      "removed_species_ids": [],
+      "kept": 45,
+      "removed_reason": "",
+      "message": "36 of 45 species are fully in season and 2 partly between 1 May and 29 Jun.",
+      "note": "Month granularity: a month counts if any day of it is inside the window. Scores S, P and W do not depend on the dates. A species with no planting months is 'unknown' and is never removed.",
+      "palette_common_months": [
+        5,
+        6
+      ],
+      "palette_common_months_in_window": [
+        5,
+        6
+      ]
+    },
+    "campaign": {
+      "name": "tree day",
+      "unit": "agri",
+      "start": "2027-05-01",
+      "end": "2027-06-29"
+    },
+    "field_checks": {
+      "exclude_not_plantable": false,
+      "excluded_points": 0,
+      "note": "The field-check switch is off: not_plantable points were NOT left out."
+    },
+    "request": {
+      "purpose": "urban",
+      "n_saplings": 50,
+      "layout_mode": "blocks",
+      "zone": "Agricultural Zone",
+      "barangay": null,
+      "polygon": null,
+      "seed": 42,
+      "species_ids": null,
+      "species_counts": null,
+      "campaign": {
+        "name": "tree day",
+        "unit": "agri"
+      },
+      "start": "2027-05-01",
+      "end": "2027-06-29",
+      "season_filter": "mark",
+      "include_unzoned": true
+    },
+    "plan_file": "plan_urban_20261013_032648.csv",
+    "timestamp": "20261013_032648"
+  },
+  "note": "manifest.json lists every other file of the kit; it cannot list its own hash."
+}
