@@ -44,20 +44,88 @@ def test_the_sample_kit_is_the_one_named_in_the_task(kit, pack):
     assert re.fullmatch(r"[0-9a-f]{8}", pack["pack_id"])
 
 
+ALLOWED_HOSTS = {"www.w3.org", "leafletjs.com", "tile.openstreetmap.org", "www.openstreetmap.org",     # w3.org = the SVG name space (a name, not an address that is visited); the rest: map tiles and links
+                 "bugs.chromium.org", "bugzilla.mozilla.org"}                                                 # addresses of browser bug reports inside Leaflet's own code comments (nothing is requested from them)
+
+
+def page_urls(page):
+    return sorted(set(re.findall(r"https?://([A-Za-z0-9.-]+)", page)))
+
+
 def test_the_page_is_one_self_contained_file_and_small(pack, tmp_path):
     f = tmp_path / "p.html"
     page = bfp.render_page(pack)
     f.write_text(page, encoding="utf-8")
-    assert f.stat().st_size < 120_000                                              # the sample kit: 6 blocks, 50 trees (about 45 KB)
+    assert f.stat().st_size < 300_000                                              # the sample kit: 6 blocks, 50 trees; Leaflet is about 150 KB of it (the page is about 215 KB)
     assert "Prototype. GPS accuracy not yet field-tested." in page                 # the permanent banner text is in the strings table that is inlined
     assert 'name="viewport"' in page and 'id="banner"' in page
     assert "/*__" not in page                                                      # every placeholder was filled
-    assert not re.search(r"<script[^>]+src=|<link[^>]+href=|@import|url\(", page)  # nothing is loaded from outside
-    assert not re.search(r"\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket", page)   # and nothing is sent anywhere
-    bare = page.replace("http://www.w3.org/2000/svg", "")                          # the SVG namespace name is not an address that is visited
-    assert "http://" not in bare and "https://" not in bare
+    assert not re.search(r"<script[^>]+src=|<link[^>]+href=|@import", page)        # nothing is loaded from outside: no CDN, no style sheet, no import
+    css_urls = re.findall(r"url\(([^)]*)\)", page)
+    assert set(css_urls) <= {"#default#VML"}, css_urls                              # Leaflet's picture files are cut out; only an old-Internet-Explorer line stays (it loads nothing)
+    ours = "".join((ROOT / "fieldpack" / n).read_text(encoding="utf-8") for n in ("app.js", "core.js", "strings.js"))
+    assert not re.search(r"\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket|importScripts", ours)      # our own code never sends or fetches anything
+    assert set(page_urls(page)) <= ALLOWED_HOSTS, page_urls(page)                  # the only addresses in the page: tile server, links and the SVG name
+    own = "".join((ROOT / "fieldpack" / n).read_text(encoding="utf-8") for n in ("app.js", "core.js", "strings.js", "app.css", "template.html"))
+    assert set(page_urls(own)) <= {"www.w3.org", "leafletjs.com"}                  # in our own files only the SVG name and the link of Leaflet's credit (the tile addresses come from the plan data)
     embedded = json.loads(re.search(r'<script type="application/json" id="pack-data">(.*?)</script>', page, re.S).group(1).replace("<\\/", "</"))
     assert embedded == pack                                                        # the plan travels inside the page: plan_id, check_code and every block
+
+
+def test_the_standard_map_is_the_only_tile_source_unless_satellite_is_asked_for(pack, kit):
+    assert [b["id"] for b in pack["basemaps"]] == ["osm"]
+    assert pack["basemaps"][0]["url"] == "https://tile.openstreetmap.org/{z}/{x}/{y}.png" and pack["basemaps"][0]["maxNativeZoom"] == 19
+    assert "OpenStreetMap" in pack["basemaps"][0]["attribution"] and "contributors" in pack["basemaps"][0]["attribution"]
+    page = bfp.render_page(pack)
+    assert "arcgisonline" not in page and "Esri" not in page                       # no satellite address and no satellite button text unless the build asks for it
+    sat = bfp.build_pack(*kit, satellite=True)
+    assert [b["id"] for b in sat["basemaps"]] == ["osm", "sat"]
+    assert sat["basemaps"][1]["url"].endswith("/MapServer/tile/{z}/{y}/{x}") and sat["basemaps"][1]["maxNativeZoom"] == 19      # the Esri service answers a grey "no data" tile above level 19 here
+    assert "Esri" in sat["basemaps"][1]["attribution"]
+    assert set(page_urls(bfp.render_page(sat))) <= ALLOWED_HOSTS | {"server.arcgisonline.com"}
+
+
+def test_the_referrer_policy_does_not_strip_the_referer_the_tile_policy_needs(pack):
+    """openstreetmap.org: "Browsers are expected to send a valid Referer header ... do not strip or blank the Referer". The pack asks for the origin only (never the secret path)."""
+    page = bfp.render_page(pack)
+    assert '<meta name="referrer" content="strict-origin-when-cross-origin">' in page
+    assert "referrerPolicy: 'strict-origin-when-cross-origin'" in page             # also set on every tile picture
+    assert "no-referrer" not in bfp.HEADERS_TEXT and "Referrer-Policy: strict-origin-when-cross-origin" in bfp.HEADERS_TEXT
+
+
+def test_leaflet_is_vendored_unmodified_with_its_licence_and_old_enough():
+    import hashlib
+    from datetime import date
+    v = ROOT / "fieldpack" / "vendor" / "leaflet-1.9.4"
+    digests = {n: hashlib.sha256((v / n).read_bytes()).hexdigest() for n in ("leaflet.js", "leaflet.css", "LICENSE")}
+    assert digests == {"leaflet.js": "db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a",
+                       "leaflet.css": "a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6",
+                       "LICENSE": "53e8dc25862014e4324741ca18fbe3611e11d42ef69f59f86ea8c5389647d4cb"}      # the files of the npm package leaflet@1.9.4, not edited
+    assert "BSD 2-Clause License" in (v / "LICENSE").read_text(encoding="utf-8") and "Leaflet 1.9.4" in (v / "leaflet.js").read_text(encoding="utf-8")[:200]
+    assert (date.today() - date(2023, 5, 18)).days >= 14                           # released 2023-05-18: far older than the two weeks asked for
+    readme = (v / "README.txt").read_text(encoding="utf-8")
+    assert "BSD-2-Clause" in readme and all(d in readme for d in digests.values())
+    page = bfp.render_page(bfp.build_pack(*bfp.read_kit(FIXTURE)))
+    assert (v / "leaflet.js").read_text(encoding="utf-8") in page                  # the whole library is inside the page
+    assert "url(images/" not in page and bfp.leaflet_css().count("url(images") == 0
+
+
+def test_square_and_planted_area_corners_equal_the_field_kit_maths(kit, pack):
+    """The map draws the 100 m grid square and the planted rectangle from corners given by the build (same block_geometry and transform), not from a second formula in the browser."""
+    from pyproj import Transformer
+    tr = Transformer.from_crs(fk.CFG["site_crs"], "EPSG:4326", always_xy=True)
+    rows = list(csv.DictReader(io.StringIO(kit[0])))
+    for r, b in zip(rows, pack["blocks"]):
+        g = pal.block_geometry(float(r["spacing_m"]), int(float(r["trees_per_row"])), int(float(r["rows"])), int(float(r["trees_planned"])))
+        half = g["side_m"] / 2.0
+        ll = lambda x, y: [round(v, 7) for v in reversed(tr.transform(float(r["utm_e"]) - half + x, float(r["utm_n"]) - half + y))]
+        s_ = g["side_m"]
+        assert b["square"] == [ll(0, 0), ll(s_, 0), ll(s_, s_), ll(0, s_)], r["block_ref"]
+        assert b["area"] == [ll(*g["corners"][k]) for k in ("SW", "SE", "NE", "NW")], r["block_ref"]
+        assert b["area"][0] == b["start"]                                          # the START corner is the SW corner of the planted rectangle
+        c = b["centre"]
+        mid = [sum(p[0] for p in b["square"]) / 4, sum(p[1] for p in b["square"]) / 4]
+        assert abs(mid[0] - c[0]) < 3e-6 and abs(mid[1] - c[1]) < 3e-6             # the square is centred on the block waypoint (within the CSV's 0.1 m rounding)
 
 
 def test_the_embedded_data_cannot_close_the_script(pack):

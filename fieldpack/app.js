@@ -12,7 +12,7 @@
   }
   const store = Core.makeStore(() => window.localStorage, `fieldpack:${pack.plan_id}:${pack.check_code}`)
   let state = store.load()
-  const view = { screen: 'home', ref: null, tree: null, skipOpen: false }
+  const view = { screen: 'home', ref: null, tree: null, skipOpen: false, keepScroll: false }
   const gps = { id: null, fix: null, status: 'off', error: '' }
   const compass = { heading: null, at: 0, moveHeading: null, moveAt: 0, status: 'off' }
   const root = document.getElementById('app')
@@ -128,7 +128,7 @@
     view.tree = null
     view.skipOpen = false
     if (!save()) alert(t('storageFail'))
-    render()
+    render(true)
   }
   function freshFix() {
     return gps.fix && Date.now() - gps.fix.at < 60000 ? gps.fix : null
@@ -207,8 +207,11 @@
       if (gps.status === 'ok') kids.push(h('button', { class: 'btn link', onclick: stopGps }, t('gpsStop')))
     }
     targetBox.replaceChildren(...kids)
-    const sk = document.getElementById('sketch')
-    if (sk) sk.replaceWith(sketch(block, k))
+    if (map) updateMap(block, k)
+    else {
+      const sk = document.getElementById('sketch')
+      if (sk) sk.replaceWith(sketch(block, k))
+    }
   }
 
   // ------------------------------------------------------------------ a small drawing of the block (display only: a flat approximation around START, good to centimetres over 100 m)
@@ -242,6 +245,129 @@
     return svg
   }
 
+  // ------------------------------------------------------------------ the real map (Leaflet, inlined in this page). The map tiles are the ONLY thing this page ever fetches from the network.
+  // Layers: the 100 m grid square, the planted rectangle, every tree as a numbered dot, the target, your position with the phone's accuracy circle, and a line to the target.
+  // Everything is drawn from the coordinates in the plan: if the tiles fail or there is no signal the map still shows all of it on a plain background and says so.
+  const mapState = { follow: false, base: 'osm', view: null, ref: null, ok: 0, bad: 0, btn: {} }
+  const ml = { user: null, acc: null, line: null, label: null, nobase: null, base: null, area: null }
+  let map = null
+  let mapHandlers = []
+
+  function treeIcon(block, tr, active) {
+    const r = state.trees[Core.key(block, tr[0])]
+    const cls = 'treeicon ' + (r ? (r.s === 'planted' ? 'st-planted' : 'st-skipped') : 'st-todo') + (active ? ' st-active' : '')
+    const size = active ? 36 : 26
+    const el = h('div', { class: cls, 'data-k': tr[0], 'data-lat': tr[1], 'data-lon': tr[2] }, String(tr[0]))
+    return L.divIcon({ className: '', html: el, iconSize: [size, size], iconAnchor: [size / 2, size / 2] })
+  }
+  function updateNoBase() {
+    if (!ml.nobase) return
+    const none = navigator.onLine === false || (mapState.bad >= 3 && mapState.ok === 0)
+    ml.nobase.hidden = !none
+  }
+  function setBase(id) {
+    const def = (pack.basemaps || []).find((b) => b.id === id)
+    if (!def || !map) return
+    if (ml.base) map.removeLayer(ml.base)
+    mapState.base = id
+    mapState.ok = 0
+    mapState.bad = 0
+    ml.base = L.tileLayer(def.url, { maxNativeZoom: def.maxNativeZoom, maxZoom: 22, attribution: def.attribution, referrerPolicy: 'strict-origin-when-cross-origin', keepBuffer: 1 })
+    ml.base.on('tileload', () => { mapState.ok++; updateNoBase() })
+    ml.base.on('tileerror', () => { mapState.bad++; updateNoBase() })
+    ml.base.addTo(map)
+    ml.base.bringToBack()
+    if (mapState.btn.base) mapState.btn.base.textContent = t(id === 'sat' ? 'mapBaseSat' : 'mapBaseOsm')
+    updateNoBase()
+  }
+  function setFollow(on) {
+    mapState.follow = on
+    if (mapState.btn.follow) mapState.btn.follow.textContent = t(on ? 'mapFollowOn' : 'mapFollowOff')
+    const fix = freshFix()
+    if (on && fix && map) map.panTo([fix.lat, fix.lon])
+  }
+  function mapSection(block, k) {
+    if (typeof L === 'undefined') return sketch(block, k)
+    const note = h('p', { class: 'note', id: 'mapnote', 'aria-live': 'polite' })
+    const btn = (label, fn) => h('button', { class: 'btn', onclick: fn }, label)
+    mapState.btn.follow = btn(t(mapState.follow ? 'mapFollowOn' : 'mapFollowOff'), () => setFollow(!mapState.follow))
+    mapState.btn.base = btn(t(mapState.base === 'sat' ? 'mapBaseSat' : 'mapBaseOsm'), () => {
+      const defs = pack.basemaps || []
+      if (defs.length > 1) setBase(defs[(defs.findIndex((d) => d.id === mapState.base) + 1) % defs.length].id)
+    })
+    const tools = h('div', { class: 'maptools' },
+      btn(t('mapMe'), () => {
+        const fix = freshFix()
+        note.textContent = fix ? '' : t('mapNoFix')
+        if (fix && map) map.setView([fix.lat, fix.lon], Math.max(map.getZoom(), 19))
+      }),
+      mapState.btn.follow,
+      (pack.basemaps || []).length > 1 ? mapState.btn.base : null,
+      btn(t('mapZoomIn'), () => map && map.zoomIn()),
+      btn(t('mapZoomOut'), () => map && map.zoomOut()))
+    return h('div', { id: 'mapbox' }, h('div', { id: 'map', class: 'map', role: 'application', 'aria-label': t('mapLabel') }), tools, note)
+  }
+  function destroyMap() {
+    for (const [type, fn] of mapHandlers) window.removeEventListener(type, fn)
+    mapHandlers = []
+    if (map) map.remove()
+    map = null
+    Object.keys(ml).forEach((key) => (ml[key] = null))
+  }
+  function initMap(block, k) {
+    const el = document.getElementById('map')
+    if (!el || typeof L === 'undefined') return
+    try {
+      map = L.map(el, { zoomControl: false, maxZoom: 22, zoomSnap: 0.5, attributionControl: false })
+      L.control.attribution({ prefix: '<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>' }).addTo(map)
+      const style = { color: '#000', weight: 2, fill: false }
+      L.polygon(block.square, Object.assign({ dashArray: '2 6' }, style)).addTo(map)
+      ml.area = L.polygon(block.area, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: 0.08 }).addTo(map)
+      for (const tr of block.trees) {
+        const m = L.marker([tr[1], tr[2]], { icon: treeIcon(block, tr, tr[0] === k), keyboard: false, zIndexOffset: tr[0] === k ? 1000 : 0 })
+        m.on('click', () => { view.tree = tr[0]; view.skipOpen = false; render(true) })
+        m.addTo(map)
+      }
+      ml.nobase = h('div', { class: 'nobase', role: 'status', hidden: true }, t('mapNoBase'))
+      el.append(ml.nobase)
+      setBase((pack.basemaps || []).some((b) => b.id === mapState.base) ? mapState.base : 'osm')
+      if (mapState.view && mapState.ref === block.ref) map.setView(mapState.view.center, mapState.view.zoom)
+      else map.fitBounds(ml.area.getBounds(), { padding: [24, 24], maxZoom: 20 })
+      map.on('moveend', () => { mapState.view = { center: map.getCenter(), zoom: map.getZoom() }; mapState.ref = block.ref })
+      map.on('dragstart', () => { if (mapState.follow) setFollow(false) })
+      for (const type of ['online', 'offline']) {
+        mapHandlers.push([type, updateNoBase])
+        window.addEventListener(type, updateNoBase)
+      }
+      updateMap(block, k)
+    } catch (e) {
+      destroyMap()
+      const box = document.getElementById('mapbox')
+      if (box) box.replaceWith(sketch(block, k))
+    }
+  }
+  function updateMap(block, k) {
+    if (!map) return
+    const fix = freshFix()
+    for (const key of ['user', 'acc', 'line', 'label']) {
+      if (ml[key]) { map.removeLayer(ml[key]); ml[key] = null }
+    }
+    if (!fix) return
+    const here = [fix.lat, fix.lon]
+    if (Number.isFinite(fix.acc)) ml.acc = L.circle(here, { radius: fix.acc, color: '#0033cc', weight: 2, dashArray: '4 4', fillColor: '#0033cc', fillOpacity: 0.12, interactive: false }).addTo(map)
+    ml.user = L.circleMarker(here, { radius: 9, color: '#fff', weight: 3, fillColor: '#0033cc', fillOpacity: 1, interactive: false }).addTo(map)
+    const tr = k === null ? null : Core.treeOf(block, k)
+    if (tr) {
+      const d = Core.distanceM(fix.lat, fix.lon, tr[1], tr[2])
+      const b = Core.bearingDeg(fix.lat, fix.lon, tr[1], tr[2])
+      const dl = Core.distanceLabel(d, fix.acc)
+      ml.line = L.polyline([here, [tr[1], tr[2]]], { color: '#0033cc', weight: 4, dashArray: '8 8', interactive: false }).addTo(map)
+      const mid = [(fix.lat + tr[1]) / 2, (fix.lon + tr[2]) / 2]
+      ml.label = L.marker(mid, { icon: L.divIcon({ className: '', html: h('div', { class: 'linelabel' }, t('mapLine', { d: dl.text, dir: Core.compassPoint(b), deg: Math.round(b) })), iconSize: [150, 30], iconAnchor: [75, 15] }), interactive: false, keyboard: false }).addTo(map)
+    }
+    if (mapState.follow) map.panTo(here, { animate: true })
+  }
+
   // ------------------------------------------------------------------ screens
   function treeButton(block, tr, active) {
     const r = state.trees[Core.key(block, tr[0])]
@@ -256,8 +382,10 @@
       h('button', { class: 'btn', onclick: () => { view.screen = 'home'; view.ref = null; view.tree = null; render() } }, t('back')),
       h('h2', null, `${block.ref} · ${block.name}`),
       h('p', { class: 'dist' }, t('progressLine', { done: p.planted, skipped: p.skipped, n: p.n })),
+      mapSection(block, k),
       targetBox,
-      sketch(block, k),
+      typeof L === 'undefined' ? null : h('p', { class: 'note' }, t('mapLegend')),
+      h('p', { class: 'note' }, t('mapHonest')),
       h('p', null, t('blockLine', { n: block.n, sp: block.spacing_m, rows: block.rows, per: block.per_row })),
       h('p', { class: 'note' }, t('startLine', { lat: fmt(block.start[0]), lon: fmt(block.start[1]) })),
       h('details', { class: 'more' }, h('summary', null, t('layoutHelp')), h('p', { class: 'note' }, t('orderLine')), block.note ? h('p', { class: 'note' }, block.note) : null),
@@ -316,12 +444,16 @@
       h('p', { class: 'note' }, t('gpsHonest')),
       h('button', { class: 'btn link', onclick: () => { if (confirm(t('confirmErase'))) { state = Core.emptyState(); save(); render() } } }, t('btnErase')))
   }
-  function render() {
+  function render(keepScroll) {
     targetBox = null
+    destroyMap()
     const b = view.screen === 'block' ? blockOf(view.ref) : null
     root.replaceChildren(b ? blockScreen(b) : homeScreen())
-    if (b) renderTarget()
-    window.scrollTo(0, 0)
+    if (b) {
+      renderTarget()
+      initMap(b, activeTree(b))
+    }
+    if (!keepScroll) window.scrollTo(0, 0)
   }
 
   document.getElementById('banner').textContent = t('banner')

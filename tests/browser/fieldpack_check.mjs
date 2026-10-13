@@ -33,6 +33,8 @@ const log = []
 const check = (name, ok, extra = '') => { log.push({ name, ok: !!ok, extra }); console.log((ok ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')) }
 
 await send('Page.enable')
+await send('Network.enable')
+await send('Network.setBlockedURLs', { urls: ['*tile.openstreetmap.org*', '*arcgisonline.com*'] }) // this check never contacts a tile server (the map has its own check)
 await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 740, deviceScaleFactor: 2, mobile: true })
 await send('Emulation.setTouchEmulationEnabled', { enabled: true })
 const origin = URL_.startsWith('file:') ? 'file://' : new globalThis.URL(URL_).origin

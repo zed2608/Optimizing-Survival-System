@@ -5,6 +5,7 @@ Written for Ayzhiedy and anyone who has never used Cloudflare. Follow it from to
 **What you get:** one web address (https) per plan, for example `https://fp-xxxxxxxxxx.pages.dev/<24 random letters and digits>/`. A planter opens it on a phone, allows location, and gets the planting guide of ONE plan (blocks, trees, GPS target, marks, results file).
 
 **What it is not (read this first):**
+- **The map pictures need signal.** The page draws the grid square, the trees and your position by itself, but the street map behind them comes from the OpenStreetMap server and needs phone signal. Without signal the page says "No background map (no signal)" and still works on a plain background.
 - It is a **prototype. GPS accuracy has not been field-tested**, and the page says so on every screen.
 - **Not offline yet.** The page has to load once with phone signal. The marks are saved on the phone, but if the planter closes the page and reopens it with no signal, it may not load. (Offline use is the next stage.)
 - **Anyone who has the address can read the plan inside it** (block places, species, zone names). The random name keeps it out of casual reach and out of search engines; it is not a password.
@@ -24,6 +25,15 @@ Written for Ayzhiedy and anyone who has never used Cloudflare. Follow it from to
 - "If you choose Direct Upload, you cannot switch to Git integration later." (We do not need Git for this.)
 - A Cloudflare account is needed (the steps assume one). **Whether a credit card is asked: the pages I read do not say. [RE-CHECK: the sign-up screens]**
 - `_headers` files are documented for Pages. **Whether they work with Direct Upload is NOT stated: section 5 tests it.**
+
+---
+
+## What really happened on the first upload (13 Oct 2026, reported by Ayzhiedy, not seen by me)
+
+- **Cloudflare gave a Workers project with a `workers.dev` address, not a Pages project with a `pages.dev` address.** So the address looks like `https://<name>.<your account name>.workers.dev/<random name>/` instead of `https://<project>.pages.dev/<random name>/`. **[RE-CHECK: the exact buttons you clicked and the address format on your screen; Cloudflare may have moved the "drag and drop your files" flow from Pages to Workers (static assets).]**
+- **The path worked as `/<random name>/`**: the folder name `field_pack_site` did NOT become part of the address, so the three files were at the root of the site (which is also where `_headers` and `robots.txt` must be).
+- Everything below that says "Pages" or "`.pages.dev`" applies the same way to a Workers project with a `.workers.dev` address; where the names of buttons differ, trust your screen. **[RE-CHECK: whether `_headers` is honoured by a Workers (static assets) project: the documentation says so for static assets as far as I remember, section 5 tests it.]**
+- The program prints the address pattern with both endings on purpose.
 
 ---
 
@@ -98,7 +108,7 @@ The folder contains `_headers` (it asks the web server to add `X-Robots-Tag: noi
 2. Press **F12**, click the **Network** tab, press **Ctrl+R** to reload.
 3. Click the first line (the name is the random name or "index.html").
 4. In the right panel click **Headers**, scroll to **Response Headers**.
-5. Look for `x-robots-tag: noindex, nofollow` (also `x-frame-options: DENY`, `x-content-type-options: nosniff`, `referrer-policy: no-referrer`).
+5. Look for `x-robots-tag: noindex, nofollow` (also `x-frame-options: DENY`, `x-content-type-options: nosniff`, `referrer-policy: strict-origin-when-cross-origin`).
    - **Present** = `_headers` works with Direct Upload.
    - **Absent** = it does not, or the file is not at the root of the site. Write "headers: absent" in your report to Claude Code. The page is still protected by its own `noindex` and by `robots.txt`; nothing breaks.
 
@@ -163,7 +173,10 @@ When the planting is over (or if the link went to the wrong people):
 ## 10. Who can see what
 
 - The page contains: plan number, check code, the kit's blocks (species, number of trees, spacing, coordinates, barangay and zone names, the kit's notes), the data version, and a short text "provisional, not yet signed off by the agriculturist". It contains **no** scores, no interview notes, no names of LGU staff or the agriculturist, no real field checks, and no outlines of LGU polygons.
-- The page makes **no network calls** (a test checks this): the planter's marks and name stay on the phone until the results file is sent by chat.
+- The page's own code sends **nothing** anywhere (a test checks this): the planter's marks and name stay on the phone until the results file is sent by chat.
+- **The only requests the page makes are map tiles** from `tile.openstreetmap.org` (and, only in a page built with `--satellite`, from Esri). Those servers can see the phone's address, the part of the map being looked at, and the address of the website the page is on (`https://<name>.workers.dev` or `.pages.dev`; **not** the secret folder name, because the page tells the browser to send the origin only). That is how every web map works.
+- **Why the referrer setting is not "no-referrer":** the OpenStreetMap tile rules say browsers are expected to send a valid Referer and tell apps not to strip or blank it (read on operations.osmfoundation.org/policies/tiles/ on 13 Oct 2026). The first version of `_headers` said `no-referrer`; it now says `strict-origin-when-cross-origin`, and the page repeats that in its own code. **[RE-CHECK: the policy page, it can change; OpenStreetMap may block apps that break it, without notice.]**
+- **Offline:** the OpenStreetMap rules do not allow "download for offline" on their server. The offline step of this project must **not** pre-download or save map tiles.
 - **Cloudflare holds a copy of the page** while the project exists. Anyone with the link can read it.
 
 ---

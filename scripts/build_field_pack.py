@@ -1,7 +1,7 @@
 """
 Field pack, Stage A1: pack ONE field kit (blocks.csv + manifest.json, a folder or the .zip the dashboard gives) into ONE self-contained web page for the planters' phones.
 
-    python scripts/build_field_pack.py path/to/field_kit_plan_xxx.zip [--out folder]
+    python scripts/build_field_pack.py path/to/field_kit_plan_xxx.zip [--out folder] [--satellite]
     python scripts/build_field_pack.py path/to/field_kit_plan_xxx.zip --site folder     (a folder ready to drag into Cloudflare Pages "Direct Upload": see docs/FIELD_PACK_HOSTING.md)
 
 The page has no network calls and no login. The plan is embedded as JSON; plan_id and check_code travel with it and are written into the results file.
@@ -29,6 +29,16 @@ import field_kit as fk  # noqa: E402
 import palettes as pal  # noqa: E402
 
 PACK_DIR = ROOT / "fieldpack"
+LEAFLET_DIR = PACK_DIR / "vendor" / "leaflet-1.9.4"          # Leaflet 1.9.4 (2023-05-18), BSD-2-Clause, unmodified files from the npm package; see its README.txt
+PACK_FORMAT = 2
+# The map pictures. Only the openstreetmap.org tile server is on by default (its usage policy was read and is met, see docs/PENDING_DOC_UPDATES.md); the Esri satellite layer is ONLY in the page when
+# the build is asked for it with --satellite, because Esri's terms for a page like this could not be read (marked RE-CHECK). Nothing is fetched until a person opens a block.
+BASEMAPS = {
+    "osm": {"id": "osm", "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "maxNativeZoom": 19,
+            "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'},
+    "sat": {"id": "sat", "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", "maxNativeZoom": 19,       # the service answers a grey "no data" tile above level 19 here
+            "attribution": "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community"},
+}
 COORD_TOLERANCE_DEG = 2e-6      # the kit's own columns are computed from the unrounded square centre; the CSV only keeps utm_e / utm_n to 0.1 m, so they may differ by a few centimetres
 NEEDED = ["block_ref", "point_id", "lat", "lon", "utm_e", "utm_n", "species_code", "common_name", "trees_planned", "spacing_m", "rows", "trees_per_row", "plan_id", "check_code",
           "start_lat", "start_lon", "first_tree_lat", "first_tree_lon", "rect_side_m", "margin_m"]
@@ -77,10 +87,14 @@ def tree_positions(spacing_m, per_row, rows, n, utm_e, utm_n):
         lat, lon = ll(t["x"], t["y"])
         out.append([t["k"], round(lat, 7), round(lon, 7), round(t["x"], 3), round(t["y"], 3)])
     sw = ll(*g["corners"]["SW"])
+    side = g["side_m"]
+    rnd = lambda pt: [round(pt[0], 7), round(pt[1], 7)]
+    g["square_ll"] = [rnd(ll(*c)) for c in ((0.0, 0.0), (side, 0.0), (side, side), (0.0, side))]                       # the 100 m grid square: SW, SE, NE, NW
+    g["area_ll"] = [rnd(ll(*g["corners"][k])) for k in ("SW", "SE", "NE", "NW")]                                         # the planted rectangle
     return out, (round(sw[0], 7), round(sw[1], 7)), g
 
 
-def build_pack(blocks_text, manifest):
+def build_pack(blocks_text, manifest, satellite=False):
     reader = csv.DictReader(io.StringIO(blocks_text))
     columns = [c.strip() for c in (reader.fieldnames or [])]
     missing = [c for c in NEEDED if c not in columns]
@@ -107,19 +121,27 @@ def build_pack(blocks_text, manifest):
                        "spacing_m": float(r["spacing_m"]), "rows": int(float(r["rows"])), "per_row": int(float(r["trees_per_row"])), "row_direction": r.get("row_direction", ""),
                        "start_corner": r.get("start_corner", ""), "barangay": r.get("barangay", ""), "zone": r.get("zone", ""), "flags": r.get("flags", ""), "note": r.get("notes", ""),
                        "centre": [float(r["lat"]), float(r["lon"])], "start": list(start), "side_m": float(r["rect_side_m"]), "margin_m": float(r["margin_m"]),
-                       "trees": trees, "row": {c: r.get(c, "") for c in columns}})
+                       "square": g["square_ll"], "area": g["area_ll"], "trees": trees, "row": {c: r.get(c, "") for c in columns}})
     ds = manifest.get("dataset") or {}
-    pack = {"format": 1, "plan_id": plan_id, "check_code": check_code, "built_on": manifest.get("built_on", ""), "dataset": {"tag": ds.get("tag", ""), "hash": ds.get("hash", "")},
-            "columns": columns, "blocks": blocks}
+    pack = {"format": PACK_FORMAT, "plan_id": plan_id, "check_code": check_code, "built_on": manifest.get("built_on", ""), "dataset": {"tag": ds.get("tag", ""), "hash": ds.get("hash", "")},
+            "columns": columns, "basemaps": [BASEMAPS["osm"]] + ([BASEMAPS["sat"]] if satellite else []), "blocks": blocks}
     pack["pack_id"] = hashlib.sha256(json.dumps(pack, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:8]
     return pack
+
+
+def leaflet_css():
+    """Leaflet's own stylesheet. Its three picture references (layer switch icons, default marker icon) are for controls this page does not use; they are replaced by `none` so that the page
+    asks for no file at all. Nothing else is changed."""
+    css = (LEAFLET_DIR / "leaflet.css").read_text(encoding="utf-8")
+    return re.sub(r"url\(images/[^)]*\)", "none", css)
 
 
 def render_page(pack):
     """The single HTML file: css, data, core.js, strings.js and app.js inlined."""
     tpl = (PACK_DIR / "template.html").read_text(encoding="utf-8")
     data = json.dumps(pack, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\!--")
-    parts = {"CSS": (PACK_DIR / "app.css").read_text(encoding="utf-8"), "DATA": data, "CORE": (PACK_DIR / "core.js").read_text(encoding="utf-8"),
+    parts = {"LEAFLET_CSS": leaflet_css(), "LEAFLET_JS": (LEAFLET_DIR / "leaflet.js").read_text(encoding="utf-8"),
+             "CSS": (PACK_DIR / "app.css").read_text(encoding="utf-8"), "DATA": data, "CORE": (PACK_DIR / "core.js").read_text(encoding="utf-8"),
              "STRINGS": (PACK_DIR / "strings.js").read_text(encoding="utf-8"), "APP": (PACK_DIR / "app.js").read_text(encoding="utf-8")}
     for k, v in parts.items():
         tpl = tpl.replace(f"/*__{k}__*/", v)
@@ -138,7 +160,7 @@ HEADERS_TEXT = """/*
   X-Robots-Tag: noindex, nofollow
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
-  Referrer-Policy: no-referrer
+  Referrer-Policy: strict-origin-when-cross-origin
 """
 ROBOTS_TEXT = "User-agent: *\nDisallow: /\n"
 SITE_ROOT_FILES = {"_headers", "robots.txt"}
@@ -186,10 +208,11 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("kit", help="field kit folder or .zip (needs blocks.csv and manifest.json)")
     ap.add_argument("--out", default=".", help="folder for the page (default: here)")
+    ap.add_argument("--satellite", action="store_true", help="also put the Esri World Imagery satellite layer in the page (OFF by default: its terms could not be verified)")
     ap.add_argument("--site", help="write a folder ready to drag into Cloudflare Pages (Direct Upload): _headers, robots.txt and <random name>/index.html; --out is then ignored")
     a = ap.parse_args(argv)
     text, manifest = read_kit(a.kit)
-    pack = build_pack(text, manifest)
+    pack = build_pack(text, manifest, satellite=a.satellite)
     if a.site:
         page, name = write_site(pack, a.site)
         n = sum(b["n"] for b in pack["blocks"])
@@ -197,7 +220,7 @@ def main(argv=None):
         print(f"Pack page   : {page}  ({page.stat().st_size / 1024:.1f} KB)  plan {pack['plan_id']}  check {pack['check_code']}  pack {pack['pack_id']}  {len(pack['blocks'])} blocks, {n} trees")
         print(f"DRAG THIS FOLDER into Cloudflare Pages (Direct Upload): {Path(a.site).resolve()}")
         print(f"Suggested project name (random, from `secrets`): {project}")
-        print(f"The address will be: https://<project name>.pages.dev/{name}/      e.g. https://{project}.pages.dev/{name}/")
+        print(f"The address will be: https://<your project address>/{name}/      e.g. https://{project}.pages.dev/{name}/ for a Pages project, or https://<name>.<account>.workers.dev/{name}/ for a Workers project")
         print("Anyone with that address can read the plan inside the page. Keep it to the planters; delete the project when the planting is done.")
         return page
     out = Path(a.out)

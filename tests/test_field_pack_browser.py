@@ -1,0 +1,50 @@
+"""Field pack in a real browser (headless Edge, 360 px wide, fake GPS, all tile requests intercepted so no map server is contacted).
+Runs only with OS_BROWSER_CHECK=1 (and Edge + node installed): python -m pytest tests/test_field_pack_browser.py
+It runs tests/browser/fieldpack_check.mjs (whole flow) and tests/browser/fieldpack_map_check.mjs (map: markers = the page's coordinates for every tree of every block, Referer, zoom levels,
+position and accuracy circle, line to the target, follow / re-centre, no background map, satellite only when built in)."""
+import os, shutil, socket, subprocess, sys, time
+from pathlib import Path
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURE = ROOT / "tests" / "fixtures" / "field_pack" / "field_kit_plan_urban_20261013_032648"
+EDGE = os.environ.get("EDGE") or "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+pytestmark = pytest.mark.skipif(os.environ.get("OS_BROWSER_CHECK") != "1" or shutil.which("node") is None or not Path(EDGE).exists(),
+                                reason="set OS_BROWSER_CHECK=1 (needs node and Microsoft Edge)")
+
+
+@pytest.fixture(scope="module")
+def site(tmp_path_factory):
+    folder = tmp_path_factory.mktemp("pages")
+    for sub, extra in (("normal", []), ("sat", ["--satellite"])):
+        r = subprocess.run([sys.executable, str(ROOT / "scripts" / "build_field_pack.py"), str(FIXTURE), "--out", str(folder / sub), *extra], capture_output=True, text=True, timeout=120)
+        assert r.returncode == 0, r.stderr
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"], cwd=folder, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(1.5)
+    yield {"port": port, "folder": folder, "out": tmp_path_factory.mktemp("shots")}
+    srv.terminate()
+
+
+def page(site, sub):
+    name = next((site["folder"] / sub).glob("fieldpack_*.html")).name
+    return f"http://127.0.0.1:{site['port']}/{sub}/{name}"
+
+
+def run(script, *args):
+    r = subprocess.run(["node", str(ROOT / "tests" / "browser" / script), *args], capture_output=True, text=True, timeout=240)
+    return r
+
+
+def test_whole_flow_in_the_browser(site):
+    r = run("fieldpack_check.mjs", page(site, "normal"), str(site["out"]))
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-1000:]
+    assert " 0 failed" in r.stdout
+
+
+def test_the_map_in_the_browser(site):
+    r = run("fieldpack_map_check.mjs", page(site, "normal"), str(site["out"]), page(site, "sat"))
+    assert r.returncode == 0, r.stdout[-3500:] + r.stderr[-1000:]
+    assert " 0 failed" in r.stdout and "every tree marker equals the page's coordinates (50 trees, 6 blocks)" in r.stdout
