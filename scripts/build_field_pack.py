@@ -30,7 +30,7 @@ import palettes as pal  # noqa: E402
 
 PACK_DIR = ROOT / "fieldpack"
 LEAFLET_DIR = PACK_DIR / "vendor" / "leaflet-1.9.4"          # Leaflet 1.9.4 (2023-05-18), BSD-2-Clause, unmodified files from the npm package; see its README.txt
-PACK_FORMAT = 2
+PACK_FORMAT = 3
 # The map pictures. Only the openstreetmap.org tile server is on by default (its usage policy was read and is met, see docs/PENDING_DOC_UPDATES.md); the Esri satellite layer is ONLY in the page when
 # the build is asked for it with --satellite, because Esri's terms for a page like this could not be read (marked RE-CHECK). Nothing is fetched until a person opens a block.
 BASEMAPS = {
@@ -91,6 +91,7 @@ def tree_positions(spacing_m, per_row, rows, n, utm_e, utm_n):
     rnd = lambda pt: [round(pt[0], 7), round(pt[1], 7)]
     g["square_ll"] = [rnd(ll(*c)) for c in ((0.0, 0.0), (side, 0.0), (side, side), (0.0, side))]                       # the 100 m grid square: SW, SE, NE, NW
     g["area_ll"] = [rnd(ll(*g["corners"][k])) for k in ("SW", "SE", "NE", "NW")]                                         # the planted rectangle
+    g["first_offset"] = [round(g["first_tree"][0] - g["corners"]["SW"][0], 3), round(g["first_tree"][1] - g["corners"]["SW"][1], 3)]   # tree 1 is this far east and north of the START corner
     return out, (round(sw[0], 7), round(sw[1], 7)), g
 
 
@@ -121,7 +122,7 @@ def build_pack(blocks_text, manifest, satellite=False):
                        "spacing_m": float(r["spacing_m"]), "rows": int(float(r["rows"])), "per_row": int(float(r["trees_per_row"])), "row_direction": r.get("row_direction", ""),
                        "start_corner": r.get("start_corner", ""), "barangay": r.get("barangay", ""), "zone": r.get("zone", ""), "flags": r.get("flags", ""), "note": r.get("notes", ""),
                        "centre": [float(r["lat"]), float(r["lon"])], "start": list(start), "side_m": float(r["rect_side_m"]), "margin_m": float(r["margin_m"]),
-                       "square": g["square_ll"], "area": g["area_ll"], "trees": trees, "row": {c: r.get(c, "") for c in columns}})
+                       "square": g["square_ll"], "area": g["area_ll"], "first_offset_m": g["first_offset"], "trees": trees, "row": {c: r.get(c, "") for c in columns}})
     ds = manifest.get("dataset") or {}
     pack = {"format": PACK_FORMAT, "plan_id": plan_id, "check_code": check_code, "built_on": manifest.get("built_on", ""), "dataset": {"tag": ds.get("tag", ""), "hash": ds.get("hash", "")},
             "columns": columns, "basemaps": [BASEMAPS["osm"]] + ([BASEMAPS["sat"]] if satellite else []), "blocks": blocks}

@@ -17,12 +17,15 @@ const WAKE_STUB = "window.__wl = { req: 0, rel: 0, on: [] }; Object.defineProper
 const IOS_GRANT = "window.__perm = 0; DeviceOrientationEvent.requestPermission = async () => { window.__perm++; return 'granted' }"
 const IOS_DENY = "window.__perm = 0; DeviceOrientationEvent.requestPermission = async () => { window.__perm++; return 'denied' }"
 
+// a fresh page in English (the intro already seen), standing on the block list
 async function fresh(url, script) {
   const ids = []
   if (script) ids.push((await b.addScript(script)).result.identifier)
   await b.open(url)
-  await ev('sessionStorage.clear(); localStorage.clear()')
+  await ev(`sessionStorage.clear(); localStorage.clear(); localStorage.setItem('fieldpack:prefs', JSON.stringify({ v: 1, observer: '', trees: {}, prefs: { lang: 'en', introDone: true } }))`)
   await b.open(url)
+  await tap('Start')
+  await sleep(250)
   return ids
 }
 const unscript = (ids) => Promise.all(ids.map((identifier) => b.send('Page.removeScriptToEvaluateOnNewDocument', { identifier })))
@@ -34,36 +37,36 @@ for (const [W, H] of [[360, 640], [390, 844]]) {
   // ======== A. no wake lock in this browser, no heading at all, then the Android compass
   let ids = await fresh(PAGE, WAKE_MISSING)
   const pack = JSON.parse(await ev("document.getElementById('pack-data').textContent"))
-  const blk = pack.blocks[0], t1 = blk.trees[0]
+  const blk = pack.blocks[0], ST = blk.start // the walk is to the START corner of the block
   await tap(blk.ref)
   await waitExpr(`document.querySelectorAll('#map .treeicon').length === ${blk.n}`)
   await tap('Start GPS')
-  await gps(t1[1] + 0.00036, t1[2], 6) // 40 m north of tree 1: the tree is due south (bearing 180)
+  await gps(ST[0] + 0.00036, ST[1], 6) // 40 m north of tree 1: the tree is due south (bearing 180)
   await waitFor(/about 40 m/)
   check(tag + 'no Screen Wake Lock in the browser: nothing breaks (no error)', b.events.length === 0 && (await text()).includes('about 40 m'))
-  check(tag + 'no heading yet: the cone is hidden, no turn cue, and the page says "Heading not available"', (await cone())?.shown === false && (await cue()) === '' && (await ev(`document.querySelector('.sheet').textContent`)).includes('Heading not available'))
+  check(tag + 'no heading yet: the cone is hidden, no turn cue, and the page says "Heading not available"', (await cone())?.shown === false && (await cue()) === '' && (await ev(`document.querySelector('.sheet').textContent`)).includes('not available'))
   await tap('Map: north up')
   await sleep(300)
-  check(tag + 'turning the map to heading-up without a heading is refused with a plain message, the map stays north up', (await text()).includes('Heading not available yet') && (await ev(`document.getElementById('maprot').dataset.rot === undefined`)))
+  check(tag + 'turning the map to heading-up without a heading is refused with a plain message, the map stays north up', (await text()).includes('does not know which way you face yet') && (await ev(`document.getElementById('maprot').dataset.rot === undefined`)))
   await noBadText(tag + 'the block screen with no heading')
 
   await settle(0)
   let c = await cone()
   check(tag + 'compass (Android deviceorientationabsolute): the cone shows, pointing at the heading (0°)', c && c.shown && c.src === 'compass' && away(c.hdg, 0) <= 3, JSON.stringify(c))
   check(tag + 'compass cone is the wide one (28°) when the compass is steady', c && c.half === 28)
-  check(tag + 'relative cue, target due south while facing north: "Turn around"', (await cue()) === 'Turn around', await cue())
+  check(tag + 'relative cue, START due south while facing north: "Turn around"', (await cue()) === 'Turn around', await cue())
   await settle(180)
   c = await cone()
   check(tag + 'the cone turned with the heading (180°)', c && away(c.hdg, 180) <= 3, JSON.stringify(c))
   check(tag + 'relative cue, facing the target: "Straight ahead"', (await cue()) === 'Straight ahead', await cue())
   await settle(90)
-  check(tag + 'relative cue, target 90° to the right: "Turn right 90°"', (await cue()) === 'Turn right 90°', await cue())
+  check(tag + 'relative cue, target 90° to the right: "Turn right (90°)"', (await cue()) === 'Turn right (90°)', await cue())
   await settle(270)
-  check(tag + 'relative cue, target 90° to the left: "Turn left 90°"', (await cue()) === 'Turn left 90°', await cue())
+  check(tag + 'relative cue, target 90° to the left: "Turn left (90°)"', (await cue()) === 'Turn left (90°)', await cue())
   await settle(210)
-  check(tag + 'relative cue, 30° off to the left: "Turn left 30°"', (await cue()) === 'Turn left 30°', await cue())
+  check(tag + 'relative cue, 30° off to the left: "Turn left (30°)"', (await cue()) === 'Turn left (30°)', await cue())
   await settle(150)
-  check(tag + 'relative cue, 30° off to the right: "Turn right 30°"', (await cue()) === 'Turn right 30°', await cue())
+  check(tag + 'relative cue, 30° off to the right: "Turn right (30°)"', (await cue()) === 'Turn right (30°)', await cue())
 
   // wrap-around: 355 -> 359 -> 1 -> 7 must go through north, never the long way round
   await settle(355, 40)
@@ -82,14 +85,14 @@ for (const [W, H] of [[360, 640], [390, 844]]) {
   c = await cone()
   check(tag + 'a compass that goes quiet is dropped (no stale arrow)', c && c.shown === false, JSON.stringify(c))
   // GPS heading while walking (about 1 m/s or faster), narrower cone
-  await gps(t1[1] + 0.00037, t1[2], 5, { heading: 45, speed: 2.0 })
+  await gps(ST[0] + 0.00037, ST[1], 5, { heading: 45, speed: 2.0 })
   await waitExpr(`document.querySelector('.cone') && document.querySelector('.cone').dataset.source === 'gps'`, 5000)
   c = await cone()
   check(tag + 'GPS heading while walking: the cone points at it (45°) and is narrower than the compass cone (12°)', c && c.src === 'gps' && away(c.hdg, 45) <= 3 && c.half === 12, JSON.stringify(c))
   await tap('Details')
-  check(tag + 'Details name the heading source and give the figure-8 hint for the compass', (await ev(`document.querySelector('.sheet').innerText`)).includes('Heading: GPS, while you walk'))
+  check(tag + 'Details name the heading source and give the figure-8 hint for the compass', (await ev(`document.querySelector('.sheet').innerText`)).includes('Which way you face: from your walking (GPS)'))
   await tap('Details')
-  await gps(t1[1] + 0.00036, t1[2], 5, { heading: 45, speed: 0.3 }) // too slow for a GPS heading
+  await gps(ST[0] + 0.00036, ST[1], 5, { heading: 45, speed: 0.3 }) // too slow for a GPS heading
   await sleep(6500)
   check(tag + 'GPS heading at walking pace below 1 m/s is not used', (await cone())?.shown === false)
 
@@ -137,21 +140,21 @@ for (const [W, H] of [[360, 640], [390, 844]]) {
   await waitExpr(`document.querySelectorAll('.chip').length === ${blk.n}`)
   check(tag + 'iOS: the compass permission is not asked before the tap', (await ev('window.__perm')) === 0)
   await tap('Start GPS')
-  await gps(t1[1] + 0.00036, t1[2], 6)
+  await gps(ST[0] + 0.00036, ST[1], 6)
   await waitFor(/about 40 m/)
   check(tag + 'iOS: the compass permission is asked once, inside the tap on Start GPS', (await ev('window.__perm')) === 1)
   for (let i = 0; i < 30; i++) { await b.iosHeading(120); await sleep(20) }
   await sleep(150)
   c = await cone()
   check(tag + 'iOS (webkitCompassHeading): the cone points at the heading (120°)', c && c.shown && c.src === 'compass' && away(c.hdg, 120) <= 3, JSON.stringify(c))
-  check(tag + 'iOS: relative cue from webkitCompassHeading (target due south, facing 120°): "Turn right 60°"', (await cue()) === 'Turn right 60°', await cue())
+  check(tag + 'iOS: relative cue from webkitCompassHeading (target due south, facing 120°): "Turn right (60°)"', (await cue()) === 'Turn right (60°)', await cue())
   for (const raw of [350, 355, 359, 2, 6]) { for (let i = 0; i < 6; i++) { await b.iosHeading(raw); await sleep(20) } }
   await unscript(ids)
   ids = await fresh(PAGE, IOS_DENY)
   await tap(blk.ref)
   await waitExpr(`document.querySelectorAll('.chip').length === ${blk.n}`)
   await tap('Start GPS')
-  await gps(t1[1] + 0.00036, t1[2], 6)
+  await gps(ST[0] + 0.00036, ST[1], 6)
   await waitFor(/about 40 m/)
   await tap('Details')
   check(tag + 'iOS permission refused: a plain message, no cone, the page keeps working', (await ev(`document.querySelector('.sheet').innerText`)).includes('Compass permission was refused.') && (await cone())?.shown === false)

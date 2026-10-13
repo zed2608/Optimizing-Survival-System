@@ -38,6 +38,13 @@ def pack(kit):
 
 
 # ---------------------------------------------------------------- the page and its data
+def strings_tables():
+    """STRINGS of fieldpack/strings.js as {"en": {...}, "fil": {...}}, read with node."""
+    r = subprocess.run([NODE, "-e", "process.stdout.write(JSON.stringify(require(process.argv[1])))", str(ROOT / "fieldpack" / "strings.js")], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)
+
+
 def test_the_sample_kit_is_the_one_named_in_the_task(kit, pack):
     assert pack["plan_id"] == "plan_urban_20261013_032648" and pack["check_code"] == "3b2afb9e"
     assert len(pack["blocks"]) == 6 and sum(b["n"] for b in pack["blocks"]) == 50
@@ -137,23 +144,24 @@ def test_the_embedded_data_cannot_close_the_script(pack):
 
 def test_every_text_the_person_reads_is_in_the_strings_table():
     app = (ROOT / "fieldpack" / "app.js").read_text(encoding="utf-8")
-    strings = (ROOT / "fieldpack" / "strings.js").read_text(encoding="utf-8")
-    keys = set(re.findall(r"^\s{2}(\w+):", strings, re.M))
+    keys = set(strings_tables()["en"])
     literals = set(re.findall(r"'(\w+)'", app))
-    used = {k for k in re.findall(r"\bt\('(\w+)'", app) if not k.endswith("_")}                  # 'reason_' + word is built at run time
+    used = {k for k in re.findall(r"\bt\('(\w+)'", app) if not k.endswith("_") and k not in ("s", "how", "intro", "before")}      # 'reason_' + word, 's' + step + 'Title', 'how' + n ... are built at run time
     assert used <= keys, sorted(used - keys)                                       # every t('key') exists
-    dyn = {k for k in keys if k.startswith("reason_")}
-    unused = {k for k in keys - literals if k not in dyn}
-    assert not unused, sorted(unused)                                              # and every key is used (the reasons are built as 'reason_' + word)
-    assert dyn == {"reason_" + r for r in re.findall(r"'(\w+)'", re.search(r"const REASONS = \[(.*?)\]", (ROOT / "fieldpack" / "core.js").read_text(encoding="utf-8")).group(1))}
+    dynamic = lambda k: k.startswith(("reason_", "dir_")) or re.fullmatch(r"(s[1-4]Title|how[1-4]|before[1-5]|intro[1-3](Title)?)", k)     # built from a prefix and a number or a word at run time
+    unused = {k for k in keys - literals if not dynamic(k)}
+    assert not unused, sorted(unused)                                              # and every key is used
+    assert {k for k in keys if k.startswith("reason_")} == {"reason_" + r for r in re.findall(r"'(\w+)'", re.search(r"const REASONS = \[(.*?)\]", (ROOT / "fieldpack" / "core.js").read_text(encoding="utf-8")).group(1))}
+    assert {k for k in keys if k.startswith("dir_")} == {"dir_" + p for p in ("N", "NE", "E", "SE", "S", "SW", "W", "NW")}                  # the eight directions, in words
     assert not re.search(r"textContent\s*=\s*'[^']|createTextNode\('[^']", app)    # no sentence is written straight into the code (an empty string is fine)
     assert "innerHTML" not in app                                                  # nothing from the plan is ever read as HTML
 
 
-def test_saving_goes_through_one_guarded_wrapper():
+def test_saving_goes_through_the_guarded_wrapper():
     app = (ROOT / "fieldpack" / "app.js").read_text(encoding="utf-8")
     core = (ROOT / "fieldpack" / "core.js").read_text(encoding="utf-8")
-    assert app.count("window.localStorage") == 1 and "makeStore(() => window.localStorage" in app and "localStorage." not in app
+    # the marks and the settings (language, intro seen, steps, checklist) both go through makeStore, which wraps every read and write in try / catch
+    assert app.count("window.localStorage") == 2 and app.count("makeStore(() => window.localStorage") == 2 and "localStorage." not in app
     assert "try {" in core[core.index("function makeStore"):]
 
 
@@ -253,10 +261,11 @@ def test_a_kit_that_was_changed_or_made_with_another_formula_is_refused(tmp_path
 # ---------------------------------------------------------------- the page's own maths, tested with node
 @needs_node
 @needs_node
+@needs_node
 def test_core_tests_in_node():
     r = subprocess.run([NODE, "--test", str(ROOT / "fieldpack" / "core.test.mjs")], capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stdout[-2500:] + r.stderr[-1500:]
-    assert "# fail 0" in r.stdout and "# pass 16" in r.stdout
+    assert "# fail 0" in r.stdout and "# pass 19" in r.stdout
 
 
 def run_sim(payload):
@@ -371,7 +380,9 @@ def test_nothing_null_or_undefined_can_become_text_on_the_page():
     and h() skips null, undefined and true/false. (The browser checks look for the words null / undefined / NaN and for missing text keys on every screen.)"""
     app = (ROOT / "fieldpack" / "app.js").read_text(encoding="utf-8")
     assert "const clean = (list) => list.filter((x) => x !== null && x !== undefined && typeof x !== 'boolean')" in app
-    assert app.count("replaceChildren(") == 3 and app.count("replaceChildren(...clean(") == 2          # the chips and the whole screen go through clean(); the credit line is a fixed list of nodes
+    assert app.count("replaceChildren(...clean(") == 2                                                         # the chips and the whole screen
+    others = [l.strip() for l in app.splitlines() if "replaceChildren(" in l and "replaceChildren(...clean(" not in l]
+    assert len(others) == 2 and any("ui.attrib" in l for l in others) and any("ui.miniSvg.replaceChildren(svg)" in l for l in others)      # the credit line and the little drawing: fixed nodes, never null
     assert "for (const kid of clean(kids.flat()))" in app
     assert not re.search(r"kids\.push\(.*\?.*: null\)", app)                                                   # no conditional null pushed into a plain list
     chips = app.split("function refreshChips")[1].split("function updateTopbar")[0]
@@ -407,3 +418,12 @@ def test_the_results_file_carries_the_prototype_notice_in_every_row(pack):
     assert all(r["status"] == "" and r["trees_planted"] == "" for r in rows)                  # nothing was marked: nothing is invented
 
 
+def test_the_first_tree_offset_comes_from_the_one_layout_function(kit, pack):
+    """The steps say "plant tree 1 at X m east and X m north of the stake": X comes from palettes.block_geometry through the builder, not from a formula in the browser."""
+    rows = list(csv.DictReader(io.StringIO(kit[0])))
+    for r, b in zip(rows, pack["blocks"]):
+        g = pal.block_geometry(float(r["spacing_m"]), int(float(r["trees_per_row"])), int(float(r["rows"])), int(float(r["trees_planned"])))
+        assert b["first_offset_m"] == [round(g["first_tree"][0] - g["corners"]["SW"][0], 3), round(g["first_tree"][1] - g["corners"]["SW"][1], 3)], r["block_ref"]
+        assert b["first_offset_m"] == [b["spacing_m"] / 2, b["spacing_m"] / 2]                      # half a spacing east and north: what the kit README says
+    app = (ROOT / "fieldpack" / "app.js").read_text(encoding="utf-8")
+    assert "first_offset_m" in app and not re.search(r"spacing\w*\s*\*\s*\(\s*\w+\s*\+\s*0\.5\s*\)", app)       # the page uses the offset it is given; no layout formula in the page

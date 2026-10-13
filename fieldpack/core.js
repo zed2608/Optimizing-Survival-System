@@ -47,6 +47,24 @@ const FieldPackCore = (function () {
     }
   }
 
+  // far / close / here, for the walk to the START corner (words, not colour alone). "here" = inside the larger of 2 m and how sure the phone says it is; "close" = within 30 m.
+  const CLOSE_M = 30
+  function startStatus(distance, accuracy) {
+    if (!Number.isFinite(distance)) return null
+    const known = Number.isFinite(accuracy) && accuracy >= 0
+    if (distance <= Math.max(MIN_ARRIVAL_M, known ? accuracy : 0)) return 'here'
+    return distance <= CLOSE_M ? 'close' : 'far'
+  }
+
+  // one adult pace is about 0.75 m: a spacing of 7 m is about 9 paces
+  const PACE_M = 0.75
+  const paces = (metres) => Math.max(1, Math.round(metres / PACE_M))
+
+  // row and place (both counted from 1) of tree k in a block with perRow trees in a row: tree 1 is row 1 place 1, the row is full after perRow trees
+  function rowPlace(k, perRow) {
+    return { row: Math.floor((k - 1) / perRow) + 1, place: ((k - 1) % perRow) + 1 }
+  }
+
   // never show more digits than the phone's accuracy supports
   function distanceLabel(distance, accuracy) {
     const known = Number.isFinite(accuracy) && accuracy >= 0
@@ -252,7 +270,7 @@ const FieldPackCore = (function () {
     }
   }
 
-  return { R, REASONS, EXTRA_COLUMNS, POINTS, distanceM, bearingDeg, compassPoint, turnDeg, arrival, distanceLabel, normDeg, angleDiff, smoothAngle, circularStd, coneHalfAngle, relativeCue, compassHeading, headingFromEvent, conePath,
+  return { R, REASONS, EXTRA_COLUMNS, POINTS, CLOSE_M, PACE_M, distanceM, bearingDeg, compassPoint, turnDeg, arrival, startStatus, paces, rowPlace, distanceLabel, normDeg, angleDiff, smoothAngle, circularStd, coneHalfAngle, relativeCue, compassHeading, headingFromEvent, conePath,
     progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc }
 })()
 

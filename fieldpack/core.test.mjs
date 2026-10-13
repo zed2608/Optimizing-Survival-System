@@ -128,10 +128,14 @@ test('saving: a phone that refuses storage never throws and keeps the marks in m
   assert.deepEqual(good.load(), s) // broken data: falls back, does not throw
 })
 
-test('strings: the reason words of the README exist and nothing is missing a text', () => {
-  for (const r of Core.REASONS) assert.ok(STRINGS['reason_' + r], r)
-  for (const [k, v] of Object.entries(STRINGS)) assert.ok(typeof v === 'string' && v.length > 0, k)
-  assert.equal(STRINGS.banner, 'Prototype. GPS accuracy not yet field-tested.')
+test('strings: two languages with the same keys; the reason words of the README and the notice exist in both', () => {
+  assert.deepEqual(Object.keys(STRINGS).sort(), ['en', 'fil'])
+  assert.deepEqual(Object.keys(STRINGS.en).sort(), Object.keys(STRINGS.fil).sort())
+  for (const lang of ['en', 'fil']) {
+    for (const r of Core.REASONS) assert.ok(STRINGS[lang]['reason_' + r], lang + ' ' + r)
+    for (const [k, v] of Object.entries(STRINGS[lang])) assert.ok(typeof v === 'string' && v.length > 0, lang + ' ' + k)
+  }
+  assert.equal(STRINGS.en.banner, 'Prototype. GPS accuracy not yet field-tested.')
 })
 
 const away = (a, b) => Math.abs(Core.angleDiff(a, b))
@@ -209,4 +213,35 @@ test('heading from an event: iOS compass heading, Android absolute event, relati
   assert.equal(Core.headingFromEvent({ type: 'deviceorientation', alpha: 90, beta: 0, gamma: 0 }, 0), null)
   assert.equal(Core.headingFromEvent(null, 0), null)
   assert.equal(Core.headingFromEvent({ webkitCompassHeading: NaN, absolute: false }, 0), null)
+})
+
+test('walking to START: far, close or here, in words', () => {
+  assert.equal(Core.startStatus(85, 6), 'far')
+  assert.equal(Core.startStatus(30, 6), 'close') // exactly 30 m is still close
+  assert.equal(Core.startStatus(30.1, 6), 'far')
+  assert.equal(Core.startStatus(12, 6), 'close')
+  assert.equal(Core.startStatus(6, 6), 'here') // inside how sure the phone is
+  assert.equal(Core.startStatus(6.1, 6), 'close')
+  assert.equal(Core.startStatus(1.5, 0.5), 'here') // never closer than the 2 m floor
+  assert.equal(Core.startStatus(2.5, 0.5), 'close')
+  assert.equal(Core.startStatus(4, null), 'close') // the phone said nothing about how sure it is: only the 2 m floor
+  assert.equal(Core.startStatus(NaN, 5), null)
+  assert.equal(Core.startStatus(20, 25), 'here') // a very unsure phone: inside 25 m counts as here, and the page says how unsure it is
+})
+
+test('paces: one pace is about 0.75 m', () => {
+  assert.equal(Core.paces(7), 9)
+  assert.equal(Core.paces(3.5), 5)
+  assert.equal(Core.paces(12.5), 17)
+  assert.equal(Core.paces(20), 27)
+  assert.equal(Core.paces(6.5), 9)
+  assert.equal(Core.paces(0.1), 1)
+})
+
+test('row and place of a tree: row by row, the row is full after perRow trees', () => {
+  assert.deepEqual(Core.rowPlace(1, 11), { row: 1, place: 1 })
+  assert.deepEqual(Core.rowPlace(11, 11), { row: 1, place: 11 })
+  assert.deepEqual(Core.rowPlace(12, 11), { row: 2, place: 1 })
+  assert.deepEqual(Core.rowPlace(8, 11), { row: 1, place: 8 })
+  assert.deepEqual(Core.rowPlace(9, 3), { row: 3, place: 3 })
 })
