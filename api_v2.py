@@ -37,6 +37,7 @@ import landcover as lcv  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
 import public_mode as pm  # noqa: E402  (public sandbox: every switch is OFF unless OS_PUBLIC_MODE / OS_STATE_DIR is set)
+import access_gate as ag  # noqa: E402  (shared access code: OFF unless OS_ACCESS_CODE is set)
 from names import fix_barangay_column  # noqa: E402
 import site_rules as sr  # noqa: E402
 import field_status as fst  # noqa: E402
@@ -1043,8 +1044,23 @@ async def lifespan(app):
 
 
 app = FastAPI(title="San Mateo Optimizing Survival API (v2)", version="2.0", lifespan=lifespan)
+app.add_middleware(pm.BodyCap)                                           # innermost: it must see the body as the route reads it
+
 LIMITER = pm.Limiter()
 KIT_GATE = pm.KitGate()
+SEEN_LOG = {"n": 0}                                                       # OS_LOG_VISITOR=1: print how the first requests' visitors are read (to check the host's proxy), then stop
+
+
+def visitor_key(request, st):
+    return pm.visitor_of(request.headers, request.client.host if request.client else None, st["proxy_hops"])
+
+
+def fetch_fc(d, lat, lon):
+    """The forecast for a place. In public mode the place is rounded to 0.1 degree (about 11 km: a few cells cover San Mateo), so strangers cannot make many different Open-Meteo calls."""
+    cache = d.work / d.cfg["cache_dir"]
+    if pm.is_on():
+        return adv.fetch_forecast(lat, lon, cache, cfg={**adv.CFG, "cache_coord_decimals": 1})
+    return adv.fetch_forecast(lat, lon, cache)
 
 
 def refuse(status, message, headers=None):
@@ -1068,6 +1084,13 @@ def sandbox_guard(request, d, st):
         return refuse(404, "Not found.")
     if d is not None and time.time() - d.sandbox_started > st["reset_hours"] * 3600 and not KIT_GATE.lock.locked():
         reset_sandbox(d)
+    if request.method == "GET":
+        rkind = pm.classify_read("GET", path)
+        if rkind is not None:
+            ok, wait = LIMITER.allow(rkind, visitor_key(request, st), st["limits"])
+            if not ok:
+                return refuse(429, f"Too many requests from this visitor. Please wait {wait} seconds and try again.", {"Retry-After": str(wait)})
+        return None
     if request.method != "POST":
         return None
     caps = st["caps"]
@@ -1084,7 +1107,7 @@ def sandbox_guard(request, d, st):
                 "field": (d.field_n_events, caps["field_events"], "field checks")}.get(kind)
         if full and full[0] >= full[1]:
             return refuse(429, f"The public sandbox holds the most it can ({full[1]} {full[2]}). It is emptied regularly: please try again later.", {"Retry-After": "600"})
-    who = pm.visitor_of(request.headers, request.client.host if request.client else None, st["proxy_hops"])
+    who = visitor_key(request, st)
     ok, wait = LIMITER.allow(kind, who, st["limits"])
     if not ok:
         return refuse(429, f"Too many requests from this visitor. Please wait {wait} seconds and try again.", {"Retry-After": str(wait)})
@@ -1094,10 +1117,73 @@ def sandbox_guard(request, d, st):
 @app.middleware("http")
 async def public_guard(request: Request, call_next):
     if pm.is_on():
-        blocked = sandbox_guard(request, getattr(request.app.state, "data", None), pm.settings())
+        st = pm.settings()
+        if os.environ.get("OS_LOG_VISITOR") and SEEN_LOG["n"] < 5:
+            SEEN_LOG["n"] += 1
+            print(f"[visitor check {SEEN_LOG['n']}/5] socket={request.client.host if request.client else None} x-forwarded-for={request.headers.get('x-forwarded-for')!r} "
+                  f"hops={st['proxy_hops']} -> counted as {visitor_key(request, st)}", flush=True)
+        blocked = sandbox_guard(request, getattr(request.app.state, "data", None), st)
         if blocked is not None:
             return blocked
     return await call_next(request)
+
+
+def wants_page(request):
+    return request.headers.get("sec-fetch-dest", "") == "document" or "text/html" in request.headers.get("accept", "")
+
+
+@app.middleware("http")
+async def access_gate(request: Request, call_next):
+    """Shared access code (OS_ACCESS_CODE; off when not set). Outside the sandbox guard: a visitor without the code reaches nothing else."""
+    if not ag.is_on():
+        return await call_next(request)
+    path = request.url.path
+    if path == "/login" and request.method == "POST":
+        st = pm.settings()
+        ok, wait = LIMITER.allow("login", visitor_key(request, st), st["limits"])
+        if not ok:
+            return Response(ag.login_page(f"Too many tries. Please wait {wait} seconds."), status_code=429, media_type="text/html", headers={"Retry-After": str(wait)})
+        form = ag.parse_form(await request.body())
+        if ag.code_ok(form.get("code")):
+            return Response(status_code=303, headers={"Location": ag.safe_next(form.get("next")), "Set-Cookie": ag.cookie_header(ag.make_cookie())})
+        return Response(ag.login_page("That code is not right. Please try again.", ag.safe_next(form.get("next"))), status_code=401, media_type="text/html")
+    if path == "/login":
+        return Response(ag.login_page(next_path=ag.safe_next(request.query_params.get("next"))), media_type="text/html")
+    if path == "/logout":
+        return Response(status_code=303, headers={"Location": "/login", "Set-Cookie": ag.cookie_header("", clear=True)})
+    if path in ag.EXEMPT or ag.cookie_ok(request.cookies.get(ag.COOKIE)):
+        return await call_next(request)
+    if request.method == "GET" and wants_page(request):
+        target = path + (("?" + request.url.query) if request.url.query else "")
+        return Response(status_code=303, headers={"Location": "/login?next=" + urllib.parse.quote(target, safe="/")})
+    msg = "An access code is needed. Open the page and log in."
+    return JSONResponse(status_code=401, content={"message": msg, "detail": msg, "login_required": True}, headers={"X-Login-Required": "1"})
+
+
+@app.middleware("http")
+async def sandbox_headers(request: Request, call_next):
+    """Headers for the shared sandbox (only when the sandbox or the access code is on): keep it out of search engines and out of frames."""
+    resp = await call_next(request)
+    if pm.is_on() or ag.is_on():
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow"
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+        resp.headers["X-Frame-Options"] = "DENY"
+        if request.url.path in ("/login", "/logout"):
+            resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.get("/ping")
+def ping():
+    """The host's health check: answers at once, needs no data and no access code."""
+    return {"ok": True}
+
+
+@app.get("/robots.txt")
+def robots():
+    if pm.is_on() or ag.is_on():
+        return Response("User-agent: *\nDisallow: /\n", media_type="text/plain")
+    raise HTTPException(404, "Not found.")
 
 
 app.add_middleware(CORSMiddleware, allow_origins=API_CFG["cors_origins"], allow_credentials=False,
@@ -2491,7 +2577,7 @@ def advisory_seasonal(species_id: int, lat: float = Query(ge=-90, le=90), lon: f
     if not (a.lat.min() - m <= lat <= a.lat.max() + m and a.lon.min() - m <= lon <= a.lon.max() + m):
         raise HTTPException(422, "The coordinate is outside the San Mateo area; the advisory is only offered for the mapped municipality.")
     try:
-        fc = adv.fetch_forecast(lat, lon, d.work / d.cfg["cache_dir"])
+        fc = fetch_fc(d, lat, lon)
     except adv.ForecastUnavailable as ex:
         raise HTTPException(503, str(ex))
     row = d.ctx.species.iloc[i]
@@ -2545,7 +2631,7 @@ def plan_advisory(plan_id: str, d=Depends(D)):
     summary = json.loads(js.read_text(encoding="utf-8"))
     lat, lon = round(float(plan.lat.mean()), 6), round(float(plan.lon.mean()), 6)
     try:
-        fc = adv.fetch_forecast(lat, lon, d.work / d.cfg["cache_dir"])
+        fc = fetch_fc(d, lat, lon)
     except adv.ForecastUnavailable as ex:
         raise HTTPException(503, str(ex))
     today = adv.today_local()
@@ -2675,7 +2761,7 @@ def weather_week(purpose: Purpose, lat: Optional[float] = Query(None, ge=-90, le
         if not (a_.lat.min() - m <= lat <= a_.lat.max() + m and a_.lon.min() - m <= lon <= a_.lon.max() + m):
             raise HTTPException(422, "The coordinate is outside the San Mateo area; the weather advice is only offered for the mapped municipality.")
     try:
-        fc = adv.fetch_forecast(lat, lon, d.work / d.cfg["cache_dir"])
+        fc = fetch_fc(d, lat, lon)
     except adv.ForecastUnavailable as ex:
         raise HTTPException(503, str(ex))
     c = adv.CFG

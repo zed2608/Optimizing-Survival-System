@@ -37,14 +37,14 @@ def test_the_dockerfile_does_what_the_procedure_says():
     d = read("Dockerfile")
     assert "FROM python:3.12-slim" in d                                         # the version the suite was run on
     assert "ENV VITE_API_BASE=" in d and "OS_PUBLIC_MODE=1" in d and "OS_STATIC_DIR=/app/frontend/dist" in d
-    assert "${PORT:-8001}" in d and "--host 0.0.0.0" in d and "/health" in d      # the host's PORT, all addresses, health check
+    assert "${PORT:-8001}" in d and "--host 0.0.0.0" in d and "/ping" in d      # the host's PORT, all addresses, health check
     assert "gunzip -c /tmp/deploy/site_scores.db.gz" in d and "requirements-deploy.txt" in d
     assert "USER app" in d                                                      # not root
 
 
 def test_render_blueprint_and_ignore_file():
     y = read("render.yaml")
-    assert "runtime: docker" in y and "plan: free" in y and "healthCheckPath: /health" in y and "branch: deploy-sandbox" in y
+    assert "runtime: docker" in y and "plan: free" in y and "healthCheckPath: /ping" in y and "branch: deploy-sandbox" in y
     ig = read(".dockerignore").splitlines()
     for must in ("data/field", "data/raw", "data/external", "data/processed/scores", "data/processed/models", ".git", "frontend/node_modules"):
         assert must in ig, f"{must} must stay out of the image"                # real field checks and big or private files never enter the image
