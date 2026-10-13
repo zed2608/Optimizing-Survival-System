@@ -17,27 +17,38 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs" / "FIELD_PACK_FILIPINO_REVIEW.md"
 
 GROUPS = [
-    ("The notice and the language switch", ("banner", "bannerClose", "bannerAgain", "title", "lang", "helpBtn", "helpTitle", "helpClose", "start", "back", "backLabel", "backToIntro")),
-    ("Landing page: how to use, before you go", ("how", "before", "gpsPromise")),
-    ("First-visit intro (3 cards)", ("intro",)),
-    ("Home: the blocks and the results", ("planLine", "builtLine", "storageWarn", "nameLabel", "blocksTitle", "totalsLine", "blockCard", "results", "btnDownload", "btnShare", "gpsHonest", "btnErase", "confirmErase", "topDone", "detailsTitle")),
-    ("Block screen: the four steps", ("step", "s1", "s2", "s3", "s4", "approxMap", "dirLine", "sureLine", "sureUnknown", "aboutM", "lessThanM", "exactM", "mini", "startLabel", "btn", "skip", "chips", "state", "rec", "treeAria", "reason_", "blockDone")),
-    ("GPS, compass and heading", ("gps", "fixOld", "approx", "targetCoords", "dir_", "cue", "heading", "rotate", "compass", "storageFail", "needName", "shareNone")),
-    ("The map", ("sheetLabel", "map", "layoutTitle", "blockLine", "orderLine", "startLine")),
+    ("The notice, the language switch and the text size", ("banner", "bannerChip", "bannerHide", "bannerShow", "title", "lang", "helpBtn", "helpTitle", "helpClose", "start", "back", "backLabel", "backToIntro", "size")),
+    ("First page: how to use, before you go", ("how", "before", "gpsPromise")),
+    ("The guided tour (first page, block list, block screen) and Help's tour button", ("helpTour", "tour", "tl", "th", "tb")),
+    ("Block list and results", ("planLine", "builtLine", "storageWarn", "nameLabel", "blocksTitle", "totalsLine", "blockCard", "results", "btnDownload", "btnShare", "gpsHonest", "btnErase", "confirmErase")),
+    ("Block screen: the panel and the four steps", ("topDone", "details", "sheet", "grabLabel", "stepOf", "stepPrev", "stepNextBtn", "s1", "s2", "s3", "s4", "detPaces", "approx", "skipGps", "treeName", "tgt", "aboutM", "lessThanM", "exactM", "dirLine", "notSure", "sureUnknown", "mini", "startLabel", "btn", "skip", "chips", "state", "rec", "treeAria", "reason_", "blockDone")),
+    ("GPS, compass and heading", ("gps", "fixOld", "targetCoords", "dir_", "cue", "heading", "rotate", "compass", "storageFail", "needName", "shareNone")),
+    ("The map", ("map", "layoutTitle", "blockLine", "orderLine", "startLine")),
     ("Help: if something goes wrong", ("trouble", "tLoc", "tNoSig", "tArrow", "tDie", "gpsTruth")),
 ]
 
-# lines the native reader should look at first, and why
+# the words and lines the native reader should look at first, and why (stage A1e: plain everyday Taglish)
 UNSURE = [
-    ("istaka (tulos)", "stake. 'Istaka' is used in the text, 'tulos' only once in brackets: which word do planters use?"),
-    ("panukat (tape)", "tape measure; the English word is kept in brackets."),
-    ("punla", "sapling. Not used in the planting steps (only 'puno' = tree); used in the checklist."),
-    ("hanay / pwesto", "row / place. Is 'pwesto' the word people use for a planting spot?"),
-    ("silangan (east), hilaga (north), timog (south), kanluran (west)", "the English word is kept in brackets in the steps because some planters know only 'east' and 'north'."),
-    ("sulok na START", "the START corner; 'START' is kept in English on purpose (the same word is on the map flag and on the printed kit)."),
-    ("Naitanim na / Laktawan / Ibalik", "Planted / Skip / Undo."),
-    ("Ang totoo tungkol sa GPS", "the honest note about GPS."),
+    ("Naitanim na", "the main button: 'Planted'. 'Naitanim' is the usual word, but would planters say 'Tanim na' or 'Tapos na'? The tour and Help use the same word."),
+    ("Itanim ang puno 1 / Itanim ang puno {k}", "'Plant tree 1'. Good as an action, but check that 'Itanim' reads naturally with a number."),
+    ("puno (tree)", "used for the tree: 'puno 1', 'Puno 3 · mga 12 m · Malapit'. 'Tree' would also be understood."),
+    ("mga 12 m, mga 9 hakbang", "'about 12 m', 'about 9 paces'. 'Mga' = about. 'hakbang' = step, used for a pace (1 pace is about 0.75 m): is 'hakbang' clear, or would 'steps' be better?"),
+    ("Malayo / Malapit / Nandito na", "Far / Close / Here (the word after the distance). Would 'Nandito na' be better as 'Andito na'?"),
+    ("east, north, south-west ... (kept in English)", "the eight directions are written in English ('Pumunta sa south-west') because a phone compass shows N E S W. Would planters rather read 'timog-kanluran' (south-west)? 'kaliwa' and 'kanan' (left, right) ARE used for the turn cue."),
+    ("Nailagay na ang stake", "the button for step 2, 'The stake is in'. Is 'Nailagay' (placed) the best verb for putting a stake in the ground ('Naitusok'? 'Naitayo'?)."),
+    ("Stake sa START. Puno 1: ...", "the step 2 sentence is short on purpose (12 words at most); check that it still reads as an instruction."),
+    ("Row {r}: {s} m north ng puno {j}", "'Row 2: 7 m north of tree 8'. 'ng' after 'north' = 'of': is that clear?"),
+    ("Hindi sigurado ang phone (mga 18 m). Gamitin ang tape measure.", "the one honest line when the phone is less sure than the tree spacing. 'Hindi sigurado' = 'not sure'."),
+    ("Gamitin ang tape measure", "'tape measure' is kept in English on purpose (the user's choice); 'lubid' (rope) is used once, in the checklist."),
+    ("Bato o bangin", "'Rock or ledge' (a reason for skipping a tree). 'Bangin' = cliff or drop."),
+    ("Sapa o baha", "'Creek or flooded'."),
+    ("Naka-block ang Location. Tingnan ang Help.", "'Location is blocked. See Help.' The word 'Location' is kept in English because phones show it that way."),
+    ("Mga hakbang / Step n sa 4 / Naunang step / Susunod na step", "'Step', 'Next step', 'Previous step' are kept as 'step' (English) in the labels; 'hakbang' is only used for paces."),
+    ("Tour: Next / Back / Done / Skip / Help / Close / Start", "kept in English: Filipinos already use these words on phones. Tell us if any of them should be Filipino."),
+    ("Laki ng letra, Paliitin / Palakihin ang letra", "'Text size', 'make the text smaller / bigger'. The buttons themselves say 'Aa -' and 'Aa +'."),
+    ("Mapa, Tinatayang lugar lang ang mapa", "'The map is approximate' (the short reminder under the target)."),
     ("tLocAndroid, tLocIphone", "[RE-CHECK] the menu names (Permissions, Location, Allow, Website Settings, Location Services) are from memory and NOT verified on a phone; they are written in English because that is how phones in the Philippines usually show them."),
+    ("pwesto, istaka, panukat, punla, hanay", "NOT USED any more (too deep): the page says 'spot', 'stake', 'tape measure', 'sapling', 'row'. 'spot' is used in the how-to ('Sukatin ang bawat spot'): is it clear?"),
 ]
 
 
@@ -57,11 +68,11 @@ def render(tables):
     en, fil = tables["en"], tables["fil"]
     out = ["# Field pack: every text in English and Filipino (for a native reader to check)", "",
            "Made from `fieldpack/strings.js` by `scripts/export_field_pack_strings.py`; do not edit this file by hand (a test compares it with the strings). "
-           "The Filipino is simple everyday Tagalog written by Claude Code and has **not** been checked by a native reader yet. "
+           "The Filipino is plain everyday Taglish (short sentences; common English words such as GPS, block, tape measure, row, stake, Start and Skip are kept) written by Claude Code and has **not** been checked by a native reader yet. "
            "`{name}` marks a value that the page fills in (a number, a name, a direction). The page is in Filipino unless the person chooses English. "
            "The results file is always in English.", "",
            f"**{len(en)} texts.** Both languages have exactly the same keys; no text is empty.", "",
-           "## Words and lines to look at first", "", "| Filipino text | Question |", "|---|---|"]
+           "## Words and lines to look at first (the ones we were unsure about)", "", "| Filipino text | Question |", "|---|---|"]
     for a, b in UNSURE:
         out.append(f"| {esc(a)} | {esc(b)} |")
     seen = set()

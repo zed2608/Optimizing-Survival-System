@@ -7,8 +7,11 @@ const PAGE = process.argv[2]
 const SAT_PAGE = process.argv[4] || ''
 const b = await launch({ out: process.argv[3] })
 const { ev, text, click, tap, check, sleep, waitFor, waitExpr, gps, noBadText } = b
+// the step arrows live under Details now: open them, press, close them
+const stepGo = async (label) => { await tap('Details'); await sleep(150); await tap(label); await sleep(250); await tap('Hide details'); await sleep(200) }
+const dotOn = () => ev(`[...document.querySelectorAll('.dots .dot')].findIndex((d) => d.classList.contains('on')) + 1`)
 await b.viewport(360, 640)
-const ENGLISH = `sessionStorage.clear(); localStorage.clear(); localStorage.setItem('fieldpack:prefs', JSON.stringify({ v: 1, observer: '', trees: {}, prefs: { lang: 'en', introDone: true } }))`
+const ENGLISH = `sessionStorage.clear(); localStorage.clear(); localStorage.setItem('fieldpack:prefs', JSON.stringify({ v: 1, observer: '', trees: {}, prefs: { lang: 'en', tour: { landing: true, home: true, block: true } } }))`
 await b.open(PAGE)
 await ev(ENGLISH)
 await b.open(PAGE)
@@ -61,19 +64,19 @@ check('your position (blue dot) and the circle of how sure the phone is are draw
 check('the START corner has its own mark on the map', await ev(`!!document.querySelector('#map .starticon')`))
 await noBadText('the block screen with a GPS reading and the map line')
 await gps(ST[0], ST[1], 3)
-await waitFor(/You are at START/)
-check('"you are at START" only inside how sure the phone is (3 m)', (await text()).includes('You are at START'))
+await waitFor(/Here/)
+check('"Here" at START only inside how sure the phone is (3 m)', /START · less than 2 m · Here/.test(await ev(`document.querySelector('.tgtline').textContent`)), await ev(`document.querySelector('.tgtline').textContent`))
 await ev(`document.querySelector('#map .treeicon[data-k="${t5[0]}"]').click()`)
-await waitFor(new RegExp(`Next: tree ${t5[0]} of ${b0.n}`))
-check('tapping a tree number on the map goes to step 3 with that tree as the next one', (await text()).includes('Step 3 of 4') && (await ev(`document.querySelector('.nextline').textContent`)).startsWith(`Next: tree ${t5[0]} of ${b0.n}`) && (await ev(`document.querySelector('#map .treeicon.st-active')?.dataset.k`)) === String(t5[0]))
-check('step 3: no line to the tree (GPS is not trusted to find a tree) and the sheet says the map is approximate', !(await ev(`!!document.querySelector('.linelabel')`)) && (await text()).includes('approximate place'))
+await waitFor(new RegExp(`Tree ${t5[0]} ·`))
+check('tapping a tree number on the map goes to step 3 with that tree as the target', (await dotOn()) === 3 && (await ev(`document.querySelector('.tgtline').textContent`)).startsWith(`Tree ${t5[0]} ·`) && (await ev(`document.querySelector('#map .treeicon.st-active')?.dataset.k`)) === String(t5[0]))
+check('step 3: the dashed line goes to THAT tree (with its distance), and the sheet says the map is approximate', /to Tree 5/.test(await ev(`document.querySelector('.linelabel')?.innerText || ''`).then((x) => x.replace(`Tree ${t5[0]}`, 'Tree 5'))) && (await text()).includes('approximate'), await ev(`document.querySelector('.linelabel')?.innerText`))
 await tap('Planted')
 await sleep(600)
 check('planted: the marker turns green', (await ev(`document.querySelector('#map .treeicon[data-k="${t5[0]}"]')?.className`)).includes('st-planted'))
-await tap('Next step'); await sleep(300)
+await stepGo('Next step')
 await tap(`Tree ${t5[0]}`)
 check('step 4: tapping a chip selects the same tree on the map', (await ev(`document.querySelector('.chip.active')?.dataset.k`)) === String(t5[0]) && (await ev(`document.querySelector('#map .treeicon.st-active')?.dataset.k`)) === String(t5[0]))
-await tap('Previous step'); await sleep(300)
+await stepGo('Previous step')
 await b.shot('map_1_step3')
 
 // ---- 4. follow, drag, centre on me
@@ -93,9 +96,9 @@ await sleep(600)
 check('dragging the map switches follow off', (await ev(`document.querySelector('.rbtn[aria-label^="Follow me"]').getAttribute('aria-label')`)) === 'Follow me: off')
 const afterDrag = await offCentre()
 check('the dragged map really moved away from your position', afterDrag > 50, Math.round(afterDrag) + ' px')
-await tap('Centre on me')
+await tap('Find me on the map')
 await sleep(900)
-check('"Centre on me" brings your position back to the middle', (await offCentre()) < 30, Math.round(await offCentre()) + ' px')
+check('"Find me on the map" brings your position back to the middle', (await offCentre()) < 30, Math.round(await offCentre()) + ' px')
 
 // ---- 5. no background map: tiles fail, and then the phone says it is offline
 b.tileMode = 'fail'
@@ -106,14 +109,14 @@ await tap('Start')
 await sleep(250)
 await tap(b0.ref)
 await waitExpr(`document.querySelectorAll('#map .treeicon').length === ${b0.n}`)
-await tap('Previous step'); await tap('Previous step'); await sleep(300)
+await stepGo('Previous step'); await stepGo('Previous step')
 await tap('Start GPS')
 await gps(ST[0] + 0.0002, ST[1], 8)
 await waitExpr(`document.querySelector('.nobase') && !document.querySelector('.nobase').hidden`, 9000)
 check('tiles failing: the map says "No background map (no signal)"', await ev(`document.querySelector('.nobase') && !document.querySelector('.nobase').hidden && document.querySelector('.nobase').innerText.includes('No background map (no signal)')`))
 await waitFor(/\d+ m/)
 check('...and still shows the grid square, the trees and your position', await ev(`document.querySelectorAll('#map .treeicon').length === ${b0.n} && document.querySelectorAll('#map svg path').length >= 3 && !!document.querySelector('#map .me .dot') && !!document.querySelector('.linelabel')`))
-await tap('I am at START'); await tap('I put the stake'); await sleep(300)
+await tap("I'm at START"); await sleep(300); await tap('Stake is in'); await sleep(300)
 await tap('Planted')
 await sleep(500)
 check('...and the page works (a tree can still be marked)', (await ev(`document.querySelector('#map .treeicon.st-planted')`)) !== null)

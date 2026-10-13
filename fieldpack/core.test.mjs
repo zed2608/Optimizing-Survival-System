@@ -245,3 +245,16 @@ test('row and place of a tree: row by row, the row is full after perRow trees', 
   assert.deepEqual(Core.rowPlace(8, 11), { row: 1, place: 8 })
   assert.deepEqual(Core.rowPlace(9, 3), { row: 3, place: 3 })
 })
+
+test('walking to ONE TREE: far, close or here; "here" is inside half a spacing (never less than 2 m), "close" within 30 m', () => {
+  assert.equal(Core.treeStatus(60, 7), 'far')
+  assert.equal(Core.treeStatus(30, 7), 'close')
+  assert.equal(Core.treeStatus(30.1, 7), 'far')
+  assert.equal(Core.treeStatus(13, 7), 'close')
+  assert.equal(Core.treeStatus(3.5, 7), 'here') // half of 7 m
+  assert.equal(Core.treeStatus(3.6, 7), 'close')
+  assert.equal(Core.treeStatus(1.9, 3), 'here') // a 3 m spacing: the floor is 2 m
+  assert.equal(Core.treeStatus(2.1, 3), 'close')
+  assert.equal(Core.treeStatus(5, undefined), 'close') // no spacing known: only the 2 m floor
+  assert.equal(Core.treeStatus(NaN, 7), null)
+})

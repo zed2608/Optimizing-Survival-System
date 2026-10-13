@@ -1,15 +1,17 @@
-/* Field pack, stage A1d: the page. Plain JavaScript, no framework. Every word the person reads comes from STRINGS (strings.js, one table per language) through t().
+/* Field pack, stage A1e: the page. Plain JavaScript, no framework. Every word the person reads comes from STRINGS (strings.js, one table per language) through t().
  * The plan (blocks, per-tree coordinates) is the JSON element with the id pack-data. Results and settings are kept on this phone only (localStorage, in try/catch).
  * The page's own code never sends anything anywhere; the map tiles are the only network requests (they come from the tile layers in the plan data).
- * Honest by design: phone GPS is 3 to 10 m off and trees are 3 to 20 m apart, so GPS guides the planter to the block's START corner and the tape or paces set each tree.
- * Screens: landing (how to use) -> home (the blocks) -> block (four steps with a map and a bottom sheet). Help and the first-visit intro are overlays. */
+ * Honest by design: phone GPS is 3 to 10 m off and trees are 3 to 20 m apart. The arrow and the distance point to the target (the START corner in step 1, the chosen tree after that),
+ * but they only bring the planter close: the tape measure or the paces set each tree, and the page says so.
+ * Screens: landing (how to use) -> home (the blocks) -> block (four steps, a map and a bottom panel that can be collapsed). Help and the guided tour are overlays.
+ * The whole interface scales with the Aa - / Aa + buttons (five levels, 85% to 150%, through the CSS variable --ui and rem units). */
 (function () {
   'use strict'
   const Core = FieldPackCore
   const pack = JSON.parse(document.getElementById('pack-data').textContent)
   const store = Core.makeStore(() => window.localStorage, `fieldpack:${pack.plan_id}:${pack.check_code}`)
   let state = store.load()
-  // settings of the person on this phone (language, intro seen, checklist, step of each block): kept apart from the marks
+  // settings of the person on this phone (language, text size, tours seen, checklist, step of each block): kept apart from the marks
   const prefsStore = Core.makeStore(() => window.localStorage, 'fieldpack:prefs')
   const prefsState = prefsStore.load()
   prefsState.prefs = prefsState.prefs || {}
@@ -23,7 +25,7 @@
     if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m))
     return s
   }
-  const view = { screen: 'landing', ref: null, tree: null, skipOpen: false, detailsOpen: false, step: 1 }
+  const view = { screen: 'landing', ref: null, tree: null, skipOpen: false, step: 1 }
   const gps = { id: null, fix: null, status: 'off', error: '' }
   // heading: where the phone / the person faces. Sources in order: the phone's compass, then the GPS heading while walking, else none.
   const hdg = { compass: { deg: null, at: 0, status: 'off', listening: false }, gps: { deg: null, speed: 0, at: 0 }, smooth: null, source: 'none', raw: [], paintQueued: false }
@@ -34,8 +36,10 @@
   let handlers = [] // window listeners to remove when the block screen is left
   let timer = null
   let overlay = null
+  let tour = null
   const wake = { want: false, sentinel: null }
   const root = document.getElementById('app')
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
   // ------------------------------------------------------------------ small helpers. The DOM is built with textContent only: nothing from the plan is ever read as HTML.
   // Nothing that is null, undefined or true/false may ever become text on the page: `h` skips them, and every other way of putting a list of nodes on the page goes through `clean`.
@@ -62,9 +66,11 @@
     locate: () => [svgEl('circle', { cx: 12, cy: 12, r: 4 }), svgEl('path', { d: 'M12 2v4M12 18v4M2 12h4M18 12h4' })],
     follow: () => [svgEl('path', { d: 'M12 3l7 18-7-4-7 4z' })],
     rotate: () => [svgEl('circle', { cx: 12, cy: 12, r: 9 }), svgEl('path', { d: 'M15.5 8.5l-2 5-5 2 2-5z' })],
-    plus: () => [svgEl('path', { d: 'M12 5v14M5 12h14' })],
-    minus: () => [svgEl('path', { d: 'M5 12h14' })],
+    zoomin: () => [svgEl('circle', { cx: 10.5, cy: 10.5, r: 6.5 }), svgEl('path', { d: 'M15.5 15.5L21 21M7.5 10.5h6M10.5 7.5v6' })], // a magnifier: this is the MAP zoom, not the text size
+    zoomout: () => [svgEl('circle', { cx: 10.5, cy: 10.5, r: 6.5 }), svgEl('path', { d: 'M15.5 15.5L21 21M7.5 10.5h6' })],
     layers: () => [svgEl('path', { d: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5' })],
+    chevUp: () => [svgEl('path', { d: 'M5 15l7-7 7 7' })],
+    chevDown: () => [svgEl('path', { d: 'M5 9l7 7 7-7' })],
   }
   const icon = (name) => svgEl('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, ...ICONS[name]())
   const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
@@ -81,23 +87,61 @@
     return dl.step > 1 ? (dl.value === 0 ? t('lessThanM', { d: dl.step }) : t('aboutM', { d: dl.value })) : t('exactM', { d: dl.value })
   }
 
-  // ------------------------------------------------------------------ the prototype notice: a thin strip, can be hidden for the session, always written into the results file
+  // ------------------------------------------------------------------ text size: five levels, the whole interface follows (rem units and the variable --ui); the phone's own font size is respected (the base is 100%)
+  const UI_LEVELS = [0.85, 1, 1.15, 1.3, 1.5]
+  const sizeIndex = () => (Number.isInteger(prefs.size) && prefs.size >= 0 && prefs.size < UI_LEVELS.length ? prefs.size : 1)
+  const uiScale = () => UI_LEVELS[sizeIndex()]
+  const markScale = () => Math.min(uiScale(), 1.3) // the numbered trees on the map grow a little less than the text
+  function applySize() {
+    document.documentElement.style.setProperty('--ui', String(uiScale()))
+    document.documentElement.dataset.ui = String(Math.round(uiScale() * 100))
+    for (const b of document.querySelectorAll('[data-size]')) b.disabled = (b.dataset.size === '-1' && sizeIndex() === 0) || (b.dataset.size === '1' && sizeIndex() === UI_LEVELS.length - 1)
+    for (const e of document.querySelectorAll('[data-size-now]')) e.textContent = t('sizeNow', { p: Math.round(uiScale() * 100) })
+  }
+  function setSize(delta) {
+    const i = Math.max(0, Math.min(UI_LEVELS.length - 1, sizeIndex() + delta))
+    if (i === sizeIndex()) return
+    prefs.size = i
+    savePrefs()
+    applySize()
+    if (map) { refreshMarkers(); layoutMap(); applyRotation() }
+    measureTour()
+  }
+  const sizeBtn = (delta) => h('button', { type: 'button', class: 'btn sizebtn', 'data-size': String(delta), 'aria-label': t(delta < 0 ? 'sizeSmallerLabel' : 'sizeBiggerLabel'), title: t(delta < 0 ? 'sizeSmallerLabel' : 'sizeBiggerLabel'), onclick: () => setSize(delta) }, t(delta < 0 ? 'sizeSmaller' : 'sizeBigger'))
+  const helpButton = () => h('button', { type: 'button', class: 'btn helpbtn', 'aria-label': t('helpTitle'), onclick: () => showHelp() }, t('helpBtn'))
+  const toolbox = () => h('div', { class: 'toolbox', 'data-tour': 'toolbox' }, sizeBtn(-1), sizeBtn(1), helpButton())
+
+  // ------------------------------------------------------------------ the prototype notice: a strip that can be made small (a "Prototype" chip that opens it again); always written into the results file
   const bannerEl = document.getElementById('banner')
+  const bannerText = document.getElementById('bannertext')
+  const closeBtn = document.getElementById('bannerclose')
+  const chipBtn = document.getElementById('bannerchip')
   let bannerOff = false
   try { bannerOff = window.sessionStorage.getItem('fieldpack_banner_off') === '1' } catch (e) { /* storage refused: the notice just shows */ }
-  const closeBtn = document.getElementById('bannerclose')
-  bannerEl.hidden = bannerOff
-  closeBtn.addEventListener('click', () => {
-    bannerEl.hidden = true
-    bannerOff = true
-    try { window.sessionStorage.setItem('fieldpack_banner_off', '1') } catch (e) { /* ignore */ }
-  })
+  function setBanner(off) {
+    bannerOff = off
+    try { window.sessionStorage.setItem('fieldpack_banner_off', off ? '1' : '0') } catch (e) { /* ignore */ }
+    paintBanner()
+  }
+  function paintBanner() { // expanded strip, or a small chip (on the block screen the chip sits on the map)
+    const inBlock = document.body.classList.contains('in-block')
+    bannerEl.classList.toggle('is-chip', bannerOff)
+    bannerEl.hidden = bannerOff && inBlock
+    if (ui.protoChip) ui.protoChip.hidden = !(bannerOff && inBlock)
+    if (ui.stage) ui.stage.classList.toggle('chip-on', bannerOff && inBlock)
+  }
+  closeBtn.addEventListener('click', () => setBanner(true))
+  chipBtn.addEventListener('click', () => setBanner(false))
   function paintStatic() { // the words of the strip and the page title, in the language in use
     document.documentElement.lang = lang === 'fil' ? 'fil' : 'en'
-    document.getElementById('bannertext').textContent = t('banner')
-    closeBtn.setAttribute('aria-label', t('bannerClose'))
-    closeBtn.setAttribute('title', t('bannerClose'))
+    bannerText.textContent = t('banner')
+    closeBtn.setAttribute('aria-label', t('bannerHide'))
+    closeBtn.setAttribute('title', t('bannerHide'))
+    chipBtn.setAttribute('aria-label', t('bannerShow'))
+    chipBtn.setAttribute('title', t('bannerShow'))
+    chipBtn.querySelector('.pill').textContent = t('bannerChip')
     document.title = t('title') + ' ' + pack.plan_id
+    paintBanner()
   }
 
   // ------------------------------------------------------------------ keep the screen awake while a block is open (fails silently when the phone cannot)
@@ -150,7 +194,7 @@
       },
       (err) => {
         gps.status = 'error'
-        gps.error = (err && err.code === 1 ? t('gpsDenied') : err && err.code === 3 ? t('gpsTimeout') : t('gpsUnavailable')) + (location.protocol === 'file:' ? ' ' + t('gpsFile') : '')
+        gps.error = err && err.code === 1 ? t('gpsDenied') : err && err.code === 3 ? t('gpsTimeout') : t('gpsUnavailable')
         updateAll()
       },
       { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 },
@@ -233,6 +277,17 @@
     paintHeading()
   }
 
+  // ------------------------------------------------------------------ the target: the START corner in step 1, the chosen tree (the next one, or the one tapped) from step 2 on
+  function curTarget(block) {
+    if (view.step === 1) return { kind: 'start', name: t('startLabel'), lat: block.start[0], lon: block.start[1] }
+    const k = activeTree(block)
+    if (k === null) return null
+    const tr = Core.treeOf(block, k)
+    return { kind: 'tree', k, name: t('treeName', { k }), lat: tr[1], lon: tr[2] }
+  }
+  const targetStatus = (block, tg, d, acc) => (tg.kind === 'start' ? Core.startStatus(d, acc) : Core.treeStatus(d, block.spacing_m))
+  const statusWord = (st) => t(st === 'here' ? 'tgtHere' : st === 'close' ? 'tgtClose' : 'tgtFar')
+
   // ------------------------------------------------------------------ steps of a block
   const stepOf = (block) => {
     const s = prefs.steps && prefs.steps[block.ref]
@@ -249,7 +304,7 @@
     refreshChips()
     refreshMarkers()
     drawMini()
-    if (view.step <= 2 && map) { const b = blockOf(view.ref); ensureStartVisible(b) }
+    if (map) ensureTargetShown()
   }
 
   // ------------------------------------------------------------------ recording
@@ -284,12 +339,13 @@
   function treeIcon(block, tr, active) {
     const r = state.trees[Core.key(block, tr[0])]
     const cls = 'treeicon ' + (r ? (r.s === 'planted' ? 'st-planted' : 'st-skipped') : 'st-todo') + (active ? ' st-active' : '')
-    const size = active ? 38 : 28
-    const el = h('div', { class: cls, 'data-k': tr[0], 'data-lat': tr[1], 'data-lon': tr[2] }, String(tr[0]))
+    const size = Math.round((active ? 38 : 28) * markScale())
+    const el = h('div', { class: cls, 'data-k': tr[0], 'data-lat': tr[1], 'data-lon': tr[2], style: `font-size:${Math.round((active ? 15 : 13) * markScale())}px` }, String(tr[0]))
     return L.divIcon({ className: '', html: el, iconSize: [size, size], iconAnchor: [size / 2, size / 2] })
   }
   function startIcon() {
-    return L.divIcon({ className: '', html: h('div', { class: 'starticon' }, t('startLabel')), iconSize: [60, 26], iconAnchor: [62, 28] })
+    const s = markScale()
+    return L.divIcon({ className: '', html: h('div', { class: 'starticon', style: `font-size:${Math.round(13 * s)}px;line-height:${Math.round(24 * s)}px` }, t('startLabel')), iconSize: [Math.round(60 * s), Math.round(26 * s)], iconAnchor: [Math.round(62 * s), Math.round(28 * s)] })
   }
   function userIcon() {
     const path = svgEl('path', { d: Core.conePath(40, 40, 38, 28), fill: 'rgba(0,51,204,0.38)', stroke: '#0033cc', 'stroke-width': 1.5 })
@@ -415,7 +471,10 @@
     const tr = Core.treeOf(blockOf(view.ref), k)
     if (tr) ensureVisible([tr[1], tr[2]])
   }
-  const ensureStartVisible = (block) => ensureVisible(block.start)
+  function ensureTargetShown() {
+    const tg = curTarget(blockOf(view.ref))
+    if (tg) ensureVisible([tg.lat, tg.lon])
+  }
   function fitBlock(block) {
     const sheetH = ui.sheet ? ui.sheet.offsetHeight : 0
     map.fitBounds(ml.area.getBounds(), { paddingTopLeft: [24, 24], paddingBottomRight: [84, sheetH + 24], maxZoom: 20, animate: false })
@@ -427,9 +486,10 @@
     for (const tr of block.trees) {
       const m = ml.markers[tr[0]]
       if (!m) continue
-      m.setIcon(treeIcon(block, tr, view.step >= 3 && tr[0] === k))
+      m.setIcon(treeIcon(block, tr, view.step >= 2 && tr[0] === k))
       m.setZIndexOffset(tr[0] === k ? 1000 : 0)
     }
+    if (ml.start) ml.start.setIcon(startIcon())
   }
   function destroyMap() {
     for (const [type, fn] of handlers) window.removeEventListener(type, fn)
@@ -446,10 +506,10 @@
       map = L.map(ui.mapEl, { zoomControl: false, attributionControl: false, maxZoom: 22, zoomSnap: 0.5, doubleClickZoom: false })
       L.polygon(block.square, { color: '#000', weight: 2, fill: false, dashArray: '2 6' }).addTo(map)
       ml.area = L.polygon(block.area, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: 0.08 }).addTo(map)
-      L.marker(block.start, { icon: startIcon(), keyboard: false, interactive: false, zIndexOffset: 800 }).addTo(map)
+      ml.start = L.marker(block.start, { icon: startIcon(), keyboard: false, interactive: false, zIndexOffset: 800 }).addTo(map)
       const k = activeTree(block)
       for (const tr of block.trees) {
-        const m = L.marker([tr[1], tr[2]], { icon: treeIcon(block, tr, view.step >= 3 && tr[0] === k), keyboard: false, zIndexOffset: tr[0] === k ? 1000 : 0 })
+        const m = L.marker([tr[1], tr[2]], { icon: treeIcon(block, tr, view.step >= 2 && tr[0] === k), keyboard: false, zIndexOffset: tr[0] === k ? 1000 : 0 })
         m.on('click', () => { if (view.step < 3) setStep(3); selectTree(tr[0]) })
         m.addTo(map)
         ml.markers[tr[0]] = m
@@ -487,12 +547,14 @@
     if (Number.isFinite(fix.acc)) ml.acc = L.circle(here, { radius: fix.acc, color: '#0033cc', weight: 2, dashArray: '4 4', fillColor: '#0033cc', fillOpacity: 0.12, interactive: false }).addTo(map)
     if (!ml.user) ml.user = L.marker(here, { icon: userIcon(), interactive: false, keyboard: false, zIndexOffset: 900 }).addTo(map)
     else ml.user.setLatLng(here)
-    const dStart = Core.distanceM(fix.lat, fix.lon, block.start[0], block.start[1])
-    if (view.step <= 2 && Core.startStatus(dStart, fix.acc) !== 'here') { // the line goes to the START corner (until you are there): GPS is only trusted to bring you that close
-      const d = dStart
-      ml.line = L.polyline([here, block.start], { color: '#0033cc', weight: 4, dashArray: '8 8', interactive: false }).addTo(map)
-      const mid = [(fix.lat + block.start[0]) / 2, (fix.lon + block.start[1]) / 2]
-      ml.label = L.marker(mid, { icon: L.divIcon({ className: '', html: h('div', { class: 'linelabel' }, t('mapLine', { d: distText(d, fix.acc) })), iconSize: [130, 30], iconAnchor: [65, 15] }), interactive: false, keyboard: false }).addTo(map)
+    const tg = curTarget(block)
+    if (tg) { // the dashed line goes to the target: START in step 1, the chosen tree after that (until the phone says it is there)
+      const d = Core.distanceM(fix.lat, fix.lon, tg.lat, tg.lon)
+      if (targetStatus(block, tg, d, fix.acc) !== 'here') {
+        ml.line = L.polyline([here, [tg.lat, tg.lon]], { color: '#0033cc', weight: 4, dashArray: '8 8', interactive: false }).addTo(map)
+        const mid = [(fix.lat + tg.lat) / 2, (fix.lon + tg.lon) / 2]
+        ml.label = L.marker(mid, { icon: L.divIcon({ className: '', html: h('div', { class: 'linelabel' }, t('mapLine', { d: distText(d, fix.acc), name: tg.name })), iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: false, keyboard: false }).addTo(map)
+      }
     }
     paintHeading()
     if (mapState.follow) centreOn(here)
@@ -513,7 +575,7 @@
       } else ui.cone.style.display = 'none'
     }
     applyRotation()
-    updateCue()
+    updateTarget()
   }
 
   // ------------------------------------------------------------------ the little drawing of the block (steps 3 and 4): trees done and the next one. Only the trees' own places from the plan are used.
@@ -543,18 +605,100 @@
     ui.mini.setAttribute('title', k === null ? t('miniDone') : t('miniNext', { k }))
   }
 
-  // ------------------------------------------------------------------ the bottom sheet
-  function updateCue() {
-    if (!ui.cue) return
+  // ------------------------------------------------------------------ the bottom panel: collapsed (one thin bar), normal (one step) or expanded (Details). The state is remembered while the page is open.
+  let sheetState = 'normal'
+  try { const s = window.sessionStorage.getItem('fieldpack_sheet'); if (s === 'collapsed' || s === 'normal' || s === 'expanded') sheetState = s } catch (e) { /* storage refused: the panel starts normal */ }
+  function setSheet(next, remember) {
+    sheetState = next
+    if (remember !== false) { try { window.sessionStorage.setItem('fieldpack_sheet', next) } catch (e) { /* ignore */ } }
+    applySheet()
+    if (map) requestAnimationFrame(() => { layoutMap(); applyRotation(); ensureTargetShown() })
+  }
+  function applySheet() {
+    if (!ui.sheet) return
+    const col = sheetState === 'collapsed', exp = sheetState === 'expanded'
+    ui.sheet.dataset.state = sheetState
+    ui.body.hidden = col
+    ui.sum.hidden = !col
+    ui.grabText.hidden = col
+    ui.btnDetails.hidden = col
+    ui.btnDetails.textContent = t(exp ? 'detailsHide' : 'detailsTitle')
+    ui.btnDetails.setAttribute('aria-expanded', String(exp))
+    ui.details.hidden = !exp
+    ui.btnChev.replaceChildren(icon(sheetState === 'normal' ? 'chevDown' : col ? 'chevUp' : 'chevDown'))
+    const label = t(col ? 'sheetOpen' : exp ? 'sheetCloseDetails' : 'sheetClose')
+    ui.btnChev.setAttribute('aria-label', label)
+    ui.btnChev.setAttribute('title', label)
+    ui.btnChev.setAttribute('aria-expanded', String(!col))
+    updateSheet()
+  }
+  const toggleSheet = () => setSheet(sheetState === 'normal' ? 'collapsed' : 'normal')
+  function grabDown(e) {
+    if (e.target.closest('button')) return
+    ui.drag = { y: e.clientY }
+    try { ui.grab.setPointerCapture(e.pointerId) } catch (er) { /* not every browser lets us */ }
+  }
+  function grabUp(e) { // a tap (little movement) toggles the panel; a drag up opens one more state, a drag down closes one
+    const d = ui.drag
+    ui.drag = null
+    if (!d) return
+    const dy = e.clientY - d.y
+    if (Math.abs(dy) < 12) return toggleSheet()
+    if (dy < 0) setSheet(sheetState === 'collapsed' ? 'normal' : 'expanded')
+    else setSheet(sheetState === 'expanded' ? 'normal' : 'collapsed')
+  }
+
+  // the arrow, the distance and the word for the target; the turn cue; the one line about how sure the phone is
+  function updateTarget() {
+    if (!ui.arrow) return
     const block = blockOf(view.ref)
+    const tg = curTarget(block)
     const fix = freshFix()
     const hs = headingNow()
-    if (view.step !== 1 || !fix || !hs) { ui.cue.hidden = true; ui.cue.textContent = ''; return }
-    const c = Core.relativeCue(Core.bearingDeg(fix.lat, fix.lon, block.start[0], block.start[1]), hs.deg)
-    ui.cue.hidden = false
-    ui.cue.textContent = c.kind === 'ahead' ? t('cueAhead') : c.kind === 'around' ? t('cueAround') : t(c.kind === 'left' ? 'cueLeft' : 'cueRight', { deg: c.deg })
-    ui.cue.dataset.kind = c.kind
-    ui.cue.dataset.turn = String(Math.round(c.turn))
+    ui.target.hidden = !tg || (view.step >= 3 && view.skipOpen)
+    ui.cue.hidden = true
+    ui.cue.textContent = ''
+    ui.dirline.hidden = true
+    ui.sureline.hidden = true
+    ui.approx.hidden = !(view.step >= 2 && tg)
+    ui.sum.textContent = tg ? tg.name : ''
+    if (!tg) return
+    ui.tgtline.textContent = t('tgtNone', { name: tg.name })
+    ui.arrow.toggleAttribute('hidden', !fix)
+    if (!fix) return
+    const d = Core.distanceM(fix.lat, fix.lon, tg.lat, tg.lon)
+    const b = Core.bearingDeg(fix.lat, fix.lon, tg.lat, tg.lon)
+    const st = targetStatus(block, tg, d, fix.acc)
+    const dist = distText(d, fix.acc)
+    ui.tgtline.textContent = t('tgtLine', { name: tg.name, d: dist, word: statusWord(st) })
+    ui.target.dataset.status = st
+    ui.sum.textContent = tg.name + ' · ' + dist
+    // the arrow: up = the way you face when the phone knows it, otherwise it points the way the map points (north up)
+    const c = hs ? Core.relativeCue(b, hs.deg) : null
+    const rot = hs ? c.turn : b
+    ui.arrowG.setAttribute('transform', `rotate(${rot.toFixed(1)} 12 12)`)
+    ui.arrow.dataset.mode = hs ? 'heading' : 'north'
+    ui.arrow.dataset.deg = String(Math.round(rot))
+    ui.arrow.dataset.target = tg.kind === 'start' ? 'start' : String(tg.k)
+    ui.arrow.setAttribute('aria-label', t('tgtAria', { name: tg.name }))
+    if (st !== 'here') {
+      if (c) {
+        ui.cue.hidden = false
+        ui.cue.textContent = c.kind === 'ahead' ? t('cueAhead') : c.kind === 'around' ? t('cueAround') : t(c.kind === 'left' ? 'cueLeft' : 'cueRight', { deg: c.deg })
+        ui.cue.dataset.kind = c.kind
+        ui.cue.dataset.turn = String(Math.round(c.turn))
+      } else {
+        ui.dirline.hidden = false
+        ui.dirline.textContent = t('dirLine', { dir: dirWord(b) })
+      }
+    }
+    // honest and short: when the phone is less sure than the distances that matter, say so once, and point to the tape measure (the arrow stays)
+    const known = Number.isFinite(fix.acc)
+    const limit = tg.kind === 'tree' ? block.spacing_m : 10
+    const sure = !known ? t('sureUnknown') : fix.acc > limit ? t('notSure', { m: Math.round(fix.acc) }) : ''
+    ui.sureline.textContent = sure
+    ui.sureline.hidden = sure === ''
+    if (sure !== '') ui.approx.hidden = true
   }
   function refreshChips() {
     if (!ui.chips) return
@@ -584,85 +728,63 @@
     const hs = headingNow()
     const off = block.first_offset_m
     const sp = block.spacing_m
+    const gpsOn = gps.status === 'ok' || gps.status === 'waiting'
+    const col = sheetState === 'collapsed'
     ui.stepLabel.textContent = t('stepOf', { n: step })
     ui.btnPrev.disabled = step === 1
     ui.btnNext.disabled = step === 4
     ui.title.textContent = t('s' + step + 'Title')
-    // the words of the step, with the real numbers of this block
-    let text = '', more = ''
-    if (step === 1) text = gps.status === 'off' || gps.status === 'error' ? '' : t('s1Text') // before GPS runs the Start GPS button comes first, with room above the main button
-    if (step === 2) { text = t('s2Text', { a: num(off[0]), b: num(off[1]), p: Core.paces(off[0]), q: Core.paces(off[1]) }); more = t('s2More') }
-    if (step === 3) { text = t('s3Text', { s: num(sp), p: Core.paces(sp), n: block.per_row }); more = t('approxMap') }
-    if (step === 4) { const p = Core.progress(block, state); text = t('s4Text', { p: p.planted, s: p.skipped, l: p.todo }); more = t('s4Blocked') }
-    ui.text.textContent = text
-    ui.text.hidden = text === ''
-    ui.more.textContent = more
-    ui.more.hidden = more === ''
-    // the next tree (step 3)
+    ui.dots.setAttribute('aria-label', t('stepOf', { n: step }))
+    ui.dots.setAttribute('title', t('stepOf', { n: step }))
+    for (const [i, d] of ui.dotEls.entries()) d.classList.toggle('on', i + 1 === step)
+    // the ONE instruction of the step, with the real numbers of this block (the paces and the rest are under Details)
     const finished = k === null
-    ui.nextLine.hidden = step !== 3 || finished
-    if (!finished) {
+    let text = ''
+    if (step === 1) text = gpsOn ? t('s1Text') : t('s1Off')
+    if (step === 2) text = t('s2Text', { a: num(off[0]), b: num(off[1]) })
+    if (step === 3 && !finished) {
       const rp = Core.rowPlace(k, block.per_row)
-      ui.nextLine.textContent = t('s3Next', { k, n: block.n }) + ' · ' + t('s3Row', { r: rp.row, c: rp.place })
+      text = rp.row === 1 && rp.place === 1 ? t('s3First', { a: num(off[0]), b: num(off[1]) }) : rp.place > 1 ? t('s3Walk', { s: num(sp), p: Core.paces(sp), k }) : t('s3Row', { r: rp.row, s: num(sp), j: k - block.per_row, k })
     }
-    // distance to the START corner, in words (steps 1 to 3): far / close / here
+    if (step === 4) { const p = Core.progress(block, state); text = t('s4Text', { p: p.planted, s: p.skipped, l: p.todo }) }
+    ui.text.textContent = text
+    ui.text.hidden = text === '' || (step >= 3 && (finished || view.skipOpen))
+    // messages: a GPS problem, the compass note, a short wait
     let msg = '', cls = ''
-    ui.startBox.hidden = step === 4
-    let distLine = '', dirLine = '', sureLine = ''
-    if (fix) {
-      const d = Core.distanceM(fix.lat, fix.lon, block.start[0], block.start[1])
-      const b = Core.bearingDeg(fix.lat, fix.lon, block.start[0], block.start[1])
-      const st = Core.startStatus(d, fix.acc)
-      distLine = st === 'here' ? t('s1Here') : t(st === 'close' ? 's1Close' : 's1Far', { d: distText(d, fix.acc) })
-      ui.distLine.dataset.status = st
-      dirLine = st === 'here' ? '' : t('dirLine', { dir: dirWord(b) })
-      const a = Core.arrival(d, fix.acc, sp)
-      sureLine = a.accuracyKnown ? t('sureLine', { m: Math.round(fix.acc) }) : t('sureUnknown')
-      ui.longAcc.textContent = a.approximate ? (a.accuracyKnown ? t('approxSpacing', { acc: Math.round(fix.acc), sp: num(sp) }) : t('approxUnknown')) : ''
-    } else {
-      delete ui.distLine.dataset.status
-      distLine = gps.status === 'waiting' ? t('s1Wait') : gps.status === 'ok' ? t('fixOld') : step === 1 ? t('s1NoGps') : ''
-      ui.longAcc.textContent = gps.status === 'ok' ? t('fixOld') : ''
-    }
-    ui.distLine.textContent = distLine
-    ui.dirLine.textContent = dirLine
-    ui.sureLine.textContent = sureLine
-    ui.sureLine.hidden = step !== 1
-    ui.dirLine.hidden = step !== 1
-    ui.distLine.className = 'startline' + (step === 1 && fix ? ' big' : '')
     if (gps.status === 'error') { msg = gps.error; cls = 'warn' }
+    else if (gps.status === 'waiting' && !fix) msg = t('s1Wait')
+    else if (gps.status === 'ok' && !fix) { msg = t('fixOld'); cls = 'warn' }
     if (ui.note) { msg = ui.note; cls = 'warn' }
     ui.status.textContent = msg
     ui.status.className = 'msg ' + cls
     ui.status.hidden = msg === ''
-    ui.btnGps.hidden = !((gps.status === 'off' || gps.status === 'error') && step === 1)
-    ui.btnGps.textContent = t(gps.status === 'error' ? 'gpsRetry' : 'gpsStart')
-    ui.fileNote.hidden = !(location.protocol === 'file:' && gps.status === 'off' && step === 1)
-    // the buttons
+    // the buttons: ONE big primary button for the step
     const marking = step >= 3
-    ui.btnPrimary.textContent = step === 1 ? t('s1Go') : step === 2 ? t('s2Next') : t('btnPlanted')
+    const noGps = gps.status === 'off' || gps.status === 'error'
+    ui.btnPrimary.textContent = step === 1 ? t(noGps ? (gps.status === 'error' ? 'gpsRetry' : 'gpsStart') : 's1Go') : step === 2 ? t('s2Next') : t('btnPlanted')
+    ui.btnPrimary.dataset.act = step === 1 ? (noGps ? 'gps' : 'next') : step === 2 ? 'next' : 'planted'
     ui.btnPrimary.hidden = marking && finished
-    ui.btnrow.hidden = marking && !finished && view.skipOpen // while the reasons are open they are the only thing to press
-    ui.btnSkip.hidden = !marking || finished
-    ui.btnUndo.hidden = !(marking && rec)
+    ui.btnSkip.textContent = t(marking ? (rec ? 'btnUndo' : 'btnSkip') : 'skipGps')
+    ui.btnSkip.dataset.act = marking ? (rec ? 'undo' : 'skip') : 'nogps'
+    ui.btnSkip.hidden = marking ? finished : !(step === 1 && noGps)
+    ui.btnrow.hidden = col || (marking && !finished && view.skipOpen) || (ui.btnPrimary.hidden && ui.btnSkip.hidden)
     ui.reasons.hidden = !(marking && !finished && view.skipOpen)
     ui.chips.hidden = step !== 4
     ui.blockDone.hidden = !(marking && finished)
-    // details
-    if (!finished) {
-      const tr = Core.treeOf(block, k)
-      ui.coords.textContent = t('targetCoords', { lat: fmt(tr[1]), lon: fmt(tr[2]) })
-    } else ui.coords.textContent = ''
+    // the target (arrow, distance, word)
+    updateTarget()
+    // Details (expanded panel)
+    ui.paces.textContent = t('detPaces', { p: Core.paces(off[0]), q: Core.paces(off[1]), s: num(sp), sp: Core.paces(sp), n: block.per_row })
+    const tg = curTarget(block)
+    ui.coords.textContent = tg ? t('targetCoords', { lat: fmt(tg.lat), lon: fmt(tg.lon) }) : ''
     ui.hdgLine.textContent = hs ? t(hs.source === 'compass' ? 'headingCompass' : 'headingGps') : t('headingNone')
     ui.hdgNote.textContent = hs ? (hs.source === 'gps' ? t('headingGpsNote') : '') : t('headingGpsNote')
     ui.hint.hidden = !(hs && hs.source === 'compass')
     ui.btnCompass.hidden = hdg.compass.status === 'ok'
     ui.compassMsg.textContent = hdg.compass.status === 'none' ? t('compassNone') : hdg.compass.status === 'denied' ? t('compassDenied') : ''
     ui.btnStop.hidden = gps.status === 'off'
-    ui.btnDetails.setAttribute('aria-expanded', String(view.detailsOpen))
-    ui.details.hidden = !view.detailsOpen
+    ui.fileNote.hidden = location.protocol !== 'file:'
     ui.stage.classList.toggle('has-mini', step >= 3)
-    updateCue()
   }
   function updateAll() {
     if (view.screen !== 'block') return
@@ -677,84 +799,106 @@
     updateAll()
   }
 
+  function primaryAction(block) {
+    if (view.step === 1) {
+      if (gps.status === 'off' || gps.status === 'error') { if (gps.status === 'error') stopGps(); startGps(); return }
+      return setStep(2)
+    }
+    if (view.step === 2) return setStep(3)
+    const k = activeTree(block)
+    if (k !== null) markPlanted(block, k)
+  }
+
   function blockScreen(block) {
     for (const key of Object.keys(ui)) delete ui[key]
     ui.note = ''
     ui.attrib = h('div', { class: 'attrib' })
+    // the handle: a drag handle, the step dots, the collapsed summary, Details and the chevron
+    ui.dotEls = [1, 2, 3, 4].map(() => h('span', { class: 'dot' }))
+    ui.dots = h('span', { class: 'dots', role: 'img' }, ui.dotEls)
+    ui.title = h('h2', { class: 'steptitle' })
+    ui.grabText = h('div', { class: 'grabtext' }, ui.title, ui.dots)
+    ui.sum = h('span', { class: 'sum' })
+    ui.btnDetails = h('button', { type: 'button', class: 'btn detailsbtn', 'aria-expanded': 'false', onclick: () => setSheet(sheetState === 'expanded' ? 'normal' : 'expanded') }, t('detailsTitle'))
+    ui.btnChev = h('button', { type: 'button', class: 'btn chevbtn', 'aria-expanded': 'true', onclick: () => { if (sheetState === 'expanded') setSheet('normal'); else toggleSheet() } })
+    ui.grab = h('div', { class: 'grab', 'aria-label': t('grabLabel'), title: t('grabLabel'), onpointerdown: grabDown, onpointerup: grabUp, onpointercancel: () => { ui.drag = null } },
+      h('span', { class: 'pill', 'aria-hidden': 'true' }), h('div', { class: 'grabrow' }, ui.grabText, ui.sum, ui.btnDetails, ui.btnChev))
     ui.stepLabel = h('span', { class: 'steplabel', 'aria-live': 'polite' })
     ui.btnPrev = h('button', { type: 'button', class: 'btn arrow', 'aria-label': t('stepPrev'), title: t('stepPrev'), onclick: () => setStep(view.step - 1) }, '‹')
     ui.btnNext = h('button', { type: 'button', class: 'btn arrow', 'aria-label': t('stepNextBtn'), title: t('stepNextBtn'), onclick: () => setStep(view.step + 1) }, '›')
-    ui.btnDetails = h('button', { type: 'button', class: 'btn detailsbtn', 'aria-expanded': 'false', onclick: () => { view.detailsOpen = !view.detailsOpen; updateSheet() } }, t('detailsTitle'))
-    ui.stepnav = h('div', { class: 'stepnav' }, ui.btnPrev, ui.stepLabel, ui.btnNext, ui.btnDetails)
-    ui.title = h('h2', { class: 'steptitle' })
+    ui.stepnav = h('div', { class: 'stepnav' }, ui.btnPrev, ui.stepLabel, ui.btnNext)
     ui.text = h('p', { class: 'steptext' })
-    ui.more = h('p', { class: 'note' })
-    ui.nextLine = h('p', { class: 'nextline' })
-    ui.distLine = h('p', { class: 'startline', 'aria-live': 'polite' })
-    ui.dirLine = h('p', { class: 'dirline' })
+    // the target: an arrow, then "Tree 3 · about 12 m · Close", then the turn cue (or the direction in words) and one line about how sure the phone is
+    ui.arrowG = svgEl('g', null, svgEl('path', { d: 'M12 2.5 L19.5 14 H14.5 V21.5 H9.5 V14 H4.5 Z', fill: 'currentColor', stroke: '#fff', 'stroke-width': 1, 'stroke-linejoin': 'round' }))
+    ui.arrow = svgEl('svg', { class: 'tgtarrow', viewBox: '0 0 24 24', role: 'img' }, ui.arrowG)
+    ui.arrow.setAttribute('hidden', '')
+    ui.tgtline = h('p', { class: 'tgtline', 'aria-live': 'polite' })
     ui.cue = h('p', { class: 'cue', hidden: true, 'aria-live': 'polite' })
-    ui.sureLine = h('p', { class: 'note' })
-    ui.btnGps = h('button', { type: 'button', class: 'btn good wide', onclick: () => { if (gps.status === 'error') stopGps(); startGps() } }, t('gpsStart'))
-    ui.startBox = h('div', { class: 'startbox' }, ui.distLine, ui.btnGps, ui.dirLine, ui.cue, ui.sureLine)
+    ui.dirline = h('p', { class: 'dirline', hidden: true })
+    ui.sureline = h('p', { class: 'sureline', hidden: true })
+    ui.approx = h('p', { class: 'note approx', hidden: true }, t('approxShort'))
+    ui.target = h('div', { class: 'target', hidden: true }, h('div', { class: 'tgtrow' }, ui.arrow, h('div', { class: 'tgttext' }, ui.tgtline, ui.cue, ui.dirline)), ui.sureline, ui.approx)
     ui.status = h('p', { class: 'msg', 'aria-live': 'polite' })
-    ui.fileNote = h('p', { class: 'note', hidden: true }, t('gpsFileMaybe'))
     ui.chips = h('div', { class: 'chips', role: 'group', 'aria-label': t('chipsLabel'), hidden: true })
     ui.blockDone = h('p', { class: 'ok', hidden: true }, t('blockDone'))
-    ui.btnPrimary = h('button', { type: 'button', class: 'btn good primary', onclick: () => {
-      if (view.step === 1) return setStep(2)
-      if (view.step === 2) return setStep(3)
+    ui.btnPrimary = h('button', { type: 'button', class: 'btn good primary', onclick: () => primaryAction(block) }, t('btnPlanted'))
+    ui.btnSkip = h('button', { type: 'button', class: 'btn bad secondary', hidden: true, onclick: () => {
       const k = activeTree(block)
-      if (k !== null) markPlanted(block, k)
-    } }, t('btnPlanted'))
-    ui.btnSkip = h('button', { type: 'button', class: 'btn bad secondary', hidden: true, onclick: () => { view.skipOpen = !view.skipOpen; updateSheet() } }, t('btnSkip'))
-    ui.btnUndo = h('button', { type: 'button', class: 'btn secondary', hidden: true, onclick: () => { const k = activeTree(block); if (k !== null) undo(block, k) } }, t('btnUndo'))
-    ui.btnrow = h('div', { class: 'btnrow' }, ui.btnPrimary, ui.btnSkip, ui.btnUndo)
-    ui.reasons = h('div', { hidden: true }, h('p', { class: 'note' }, t('skipWhy')),
+      if (ui.btnSkip.dataset.act === 'nogps') return setStep(2)
+      if (ui.btnSkip.dataset.act === 'undo') { if (k !== null) undo(block, k); return }
+      view.skipOpen = !view.skipOpen
+      updateSheet()
+    } }, t('btnSkip'))
+    ui.btnrow = h('div', { class: 'btnrow', 'data-tour': 'buttons' }, ui.btnPrimary, ui.btnSkip)
+    ui.reasons = h('div', { hidden: true }, h('p', { class: 'steptext' }, t('skipWhy')),
       h('div', { class: 'reasons' }, Core.REASONS.map((r) => h('button', { type: 'button', class: 'btn', onclick: () => { const k = activeTree(block); if (k !== null) markSkipped(block, k, r) } }, t('reason_' + r)))),
       h('p', { class: 'note' }, t('s4Blocked')),
       h('button', { type: 'button', class: 'btn link', onclick: () => { view.skipOpen = false; updateSheet() } }, t('skipCancel')))
-    // the collapsed Details: tree position, how sure the phone is, heading source, compass button, legend, the honest line, the notice, how the block is laid out
+    // Details: the step arrows, the paces, the place of the tree, how sure the phone is, the heading, the compass button, the legend, the honest lines, how the block is laid out
+    ui.paces = h('p', { class: 'note' })
     ui.coords = h('p', { class: 'note' })
-    ui.longAcc = h('p', { class: 'note warn' })
     ui.hdgLine = h('p', { class: 'note', style: 'font-weight:700' })
     ui.hdgNote = h('p', { class: 'note' })
     ui.hint = h('p', { class: 'note', hidden: true }, t('headingHint'))
     ui.btnCompass = h('button', { type: 'button', class: 'btn', onclick: () => startCompass() }, t('compassStart'))
     ui.compassMsg = h('p', { class: 'note' })
+    ui.fileNote = h('p', { class: 'note', hidden: true }, t('gpsFile'))
     ui.btnStop = h('button', { type: 'button', class: 'btn link', hidden: true, onclick: () => stopGps() }, t('gpsStop'))
-    ui.details = h('div', { class: 'inner', hidden: true }, ui.coords, ui.longAcc, ui.hdgLine, ui.hdgNote, ui.hint, ui.btnCompass, ui.compassMsg,
-      h('p', { class: 'note' }, t('mapLegend')), h('p', { class: 'note' }, t('mapHonest')), h('p', { class: 'note' }, t('banner') + ' ' + t('bannerAgain')),
-      h('h3', null, t('layoutTitle')), h('p', { class: 'note' }, t('blockLine', { n: block.n, sp: num(block.spacing_m), rows: block.rows, per: block.per_row })),
+    ui.details = h('div', { class: 'inner', hidden: true }, ui.stepnav, ui.paces, ui.coords, h('p', { class: 'note' }, t('approxMap')), ui.hdgLine, ui.hdgNote, ui.hint, ui.btnCompass, ui.compassMsg, ui.fileNote,
+      h('p', { class: 'note' }, t('mapLegend')), h('p', { class: 'note' }, t('mapHonest')), h('p', { class: 'note' }, t('s4Blocked')), h('p', { class: 'note' }, t('banner')),
+      h('h3', null, t('layoutTitle')), h('p', { class: 'note', style: 'font-weight:700' }, `${block.ref} · ${block.name}`), h('p', { class: 'note' }, t('blockLine', { n: block.n, sp: num(block.spacing_m), rows: block.rows, per: block.per_row })),
       h('p', { class: 'note' }, t('orderLine')), h('p', { class: 'note' }, t('startLine', { lat: fmt(block.start[0]), lon: fmt(block.start[1]) })), block.note ? h('p', { class: 'note' }, block.note) : null, ui.btnStop)
-    ui.sheet = h('section', { class: 'sheet', 'aria-label': t('sheetLabel') },
-      ui.stepnav, ui.title, ui.nextLine, ui.text, ui.more, ui.startBox, ui.status, ui.fileNote, ui.chips, ui.blockDone, ui.reasons, ui.btnrow, ui.details)
+    ui.body = h('div', { class: 'sheetbody' }, ui.text, ui.target, ui.status, ui.chips, ui.blockDone, ui.reasons, ui.details)
+    ui.sheet = h('section', { class: 'sheet', 'data-tour': 'sheet', 'aria-label': t('sheetLabel') }, ui.grab, ui.body, ui.btnrow)
     // the round buttons on the map
-    const rbtn = (name, label, fn, pressed) => h('button', { type: 'button', class: 'rbtn', 'aria-label': label, title: label, 'aria-pressed': pressed, onclick: fn }, icon(name))
+    const rbtn = (name, label, fn, pressed, tourId) => h('button', { type: 'button', class: 'rbtn', 'data-tour': tourId, 'aria-label': label, title: label, 'aria-pressed': pressed, onclick: fn }, icon(name))
     ui.btnMe = rbtn('locate', t('mapMe'), () => {
       ui.userMoved = true
       const fix = freshFix()
       ui.note = fix ? '' : t('mapNoFix')
       if (fix && map) centreOn([fix.lat, fix.lon], Math.max(map.getZoom(), 19))
       updateSheet()
-    })
+    }, null, 'me')
     ui.btnFollow = rbtn('follow', t('mapFollowOff'), () => setFollow(!mapState.follow), 'false')
-    ui.btnRotate = rbtn('rotate', t('mapNorthUp'), () => setRotate(!mapState.rotate), 'false')
+    ui.btnRotate = rbtn('rotate', t('mapNorthUp'), () => setRotate(!mapState.rotate), 'false', 'rotate')
     ui.btnBase = (pack.basemaps || []).length > 1 ? rbtn('layers', t('mapBaseOsm'), () => { const defs = pack.basemaps; setBase(defs[(defs.findIndex((d) => d.id === mapState.base) + 1) % defs.length].id); syncButtons() }) : null
     ui.mapEl = h('div', { id: 'map', class: 'map', role: 'application', 'aria-label': t('mapLabel') })
     ui.maprot = h('div', { id: 'maprot' }, ui.mapEl)
     ui.nobase = h('div', { class: 'nobase', role: 'status', hidden: true }, t('mapNoBase'))
     ui.miniSvg = h('div', { class: 'minisvg' })
     ui.mini = h('div', { class: 'mini', hidden: true }, ui.miniSvg)
-    ui.stage = h('div', { class: 'stage' + (ui.btnBase ? ' has-layers' : '') }, ui.maprot, ui.nobase, ui.attrib, ui.mini,
-      h('div', { class: 'mapbtns' }, ui.btnMe, ui.btnFollow, ui.btnRotate, ui.btnBase,
-        h('div', { class: 'pair' }, rbtn('plus', t('mapZoomIn'), () => { ui.userMoved = true; if (map) map.zoomIn() }), rbtn('minus', t('mapZoomOut'), () => { ui.userMoved = true; if (map) map.zoomOut() }))), ui.sheet)
+    ui.protoChip = h('button', { type: 'button', class: 'protochip', hidden: true, 'aria-label': t('bannerShow'), title: t('bannerShow'), onclick: () => setBanner(false) }, h('span', { class: 'pill' }, t('bannerChip')))
+    ui.stage = h('div', { class: 'stage' + (ui.btnBase ? ' has-layers' : '') }, ui.maprot, ui.nobase, ui.attrib, ui.protoChip, ui.mini,
+      h('div', { class: 'mapbtns' }, h('div', { class: 'mcol' }, ui.btnMe, ui.btnFollow, ui.btnRotate, ui.btnBase),
+        h('div', { class: 'mcol' }, rbtn('zoomin', t('mapZoomIn'), () => { ui.userMoved = true; if (map) map.zoomIn() }), rbtn('zoomout', t('mapZoomOut'), () => { ui.userMoved = true; if (map) map.zoomOut() }))), ui.sheet)
     ui.done = h('span', { class: 'done' })
     return h('div', { style: 'display:flex;flex-direction:column;flex:1;min-height:0' },
-      h('div', { class: 'topbar' }, h('button', { type: 'button', class: 'btn', 'aria-label': t('backLabel'), onclick: leaveBlock }, t('back')), h('div', { class: 'ttl' }, h('span', { class: 'ttl1' }, `${block.ref} · ${block.name}`), ui.done), helpButton()),
+      h('div', { class: 'topbar' }, h('button', { type: 'button', class: 'btn', 'aria-label': t('backLabel'), onclick: leaveBlock }, t('back')), h('div', { class: 'ttl' }, h('span', { class: 'ttl1', title: block.name }, block.ref), ui.done), toolbox()),
       ui.stage)
   }
 
   function leaveBlock() {
+    closeTour(false)
     stopGps()
     stopCompass()
     releaseWake()
@@ -792,31 +936,222 @@
     } catch (e) { /* the person closed the share sheet */ }
   }
 
-  // ------------------------------------------------------------------ language, help and the first-visit intro
+  // ------------------------------------------------------------------ the guided tour: a spotlight on the real element, a short card (title, text, step dots, Back / Next / Skip). Same look and flow as the tour of the main dashboard,
+  // written again here in plain JavaScript (this page stays one self-contained file). A step whose element is not on the screen is skipped. It runs by itself the first time for each screen.
+  const TOURS = {
+    landing: [
+      { id: 'l1', title: 'tl1Title', text: 'tl1', targets: ['[data-tour="l-title"]'] },
+      { id: 'l2', title: 'tl2Title', text: 'tl2', targets: ['[data-tour="l-how"]'] },
+      { id: 'l3', title: 'tl3Title', text: 'tl3', targets: ['[data-tour="l-start"]'] },
+      { id: 'l4', title: 'tl4Title', text: 'tl4', targets: ['[data-tour="toolbox"]'] },
+    ],
+    home: [
+      { id: 'h1', title: 'th1Title', text: 'th1', targets: ['[data-tour="h-blocks"]'] },
+      { id: 'h2', title: 'th2Title', text: 'th2', targets: ['#observer'] },
+      { id: 'h3', title: 'th3Title', text: 'th3', targets: ['[data-tour="h-results"]'] },
+    ],
+    block: [
+      { id: 'b1', title: 'tb1Title', text: 'tb1', targets: ['#map'], before: () => tourSheet('collapsed', true) },
+      { id: 'b2', title: 'tb2Title', text: 'tb2', targets: ['.me .dot', '[data-tour="me"]'], before: () => tourSheet('collapsed') },
+      { id: 'b3', title: 'tb3Title', text: 'tb3', targets: ['.me .cone', '[data-tour="rotate"]'], before: () => tourSheet('collapsed') },
+      { id: 'b4', title: 'tb4Title', text: 'tb4', targets: ['.starticon'], before: () => tourSheet('collapsed', true) },
+      { id: 'b5', title: 'tb5Title', text: 'tb5', targets: ['.treeicon.st-active', '.treeicon'], before: () => tourSheet('collapsed') },
+      { id: 'b6', title: 'tb6Title', text: 'tb6', targets: ['[data-tour="sheet"]'], before: () => tourSheet('normal') },
+      { id: 'b7', title: 'tb7Title', text: 'tb7', targets: ['[data-tour="buttons"]'], before: () => tourSheet('normal') },
+      { id: 'b8', title: 'tb8Title', text: 'tb8', targets: ['.topbar [data-tour="toolbox"]'] },
+    ],
+  }
+  function tourSheet(state2, refit) { // the panel is opened or closed for a step (and put back when the tour ends)
+    if (view.screen !== 'block' || !ui.sheet) return
+    if (sheetState !== state2) setSheet(state2, false)
+    if (refit && map && ml.area) requestAnimationFrame(() => { if (map && ml.area) { layoutMap(); fitBlock(blockOf(view.ref)) } })
+  }
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x))
+  // an element counts as shown when it is on the screen, not hidden, and not under the panel, the round buttons or the top bar (map markers cannot be hit-tested, so those are tested by their position)
+  function isShown(el) {
+    if (!el || !el.isConnected || el.closest('[hidden]')) return false
+    const cs = window.getComputedStyle(el)
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false
+    const r = el.getBoundingClientRect()
+    if (r.width < 2 || r.height < 2) return false
+    const vw = window.innerWidth, vh = window.innerHeight
+    if (r.right <= 0 || r.bottom <= 0 || r.left >= vw || r.top >= vh) return false
+    const x = clamp(r.left + r.width / 2, 1, vw - 1), y = clamp(r.top + r.height / 2, 1, vh - 1)
+    const inMap = !!el.closest('.leaflet-container')
+    if (inMap) {
+      if (el.id === 'map' || el.classList.contains('map')) return true
+      for (const sel of ['.sheet', '.topbar', '.mapbtns .rbtn', '.mini', '.protochip', '#banner']) {
+        for (const o of document.querySelectorAll(sel)) {
+          if (o.closest('[hidden]') || !o.getClientRects().length) continue
+          const b = o.getBoundingClientRect()
+          if (x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) return false
+        }
+      }
+      return true
+    }
+    const top = document.elementsFromPoint(x, y).find((e) => !e.closest('.tour'))
+    return !!top && (top === el || el.contains(top) || top.contains(el))
+  }
+  function findShown(targets) {
+    for (const sel of targets) for (const el of document.querySelectorAll(sel)) if (isShown(el)) return el
+    return null
+  }
+  function startTour(screen) {
+    closeOverlay()
+    closeTour(false)
+    const steps = TOURS[screen]
+    if (!steps) return
+    const tr = { screen, steps, idx: 0, token: 0, el: null, prevSheet: sheetState }
+    tr.hole = h('div', { class: 'tour-hole', 'aria-hidden': 'true' })
+    tr.count = h('div', { class: 'tour-count' })
+    tr.titleEl = h('h3', { class: 'tour-title' })
+    tr.textEl = h('p', { class: 'tour-text' })
+    tr.dots = h('div', { class: 'tour-dots', 'aria-hidden': 'true' }, steps.map(() => h('span', { class: 'tdot' })))
+    tr.btnBack = h('button', { type: 'button', class: 'btn tourbtn', onclick: () => tourGo(-1) }, t('tourBack'))
+    tr.btnNext = h('button', { type: 'button', class: 'btn good tourbtn', onclick: () => tourGo(1) }, t('tourNext'))
+    tr.btnSkip = h('button', { type: 'button', class: 'btn tourbtn ghost', onclick: () => closeTour(true) }, t('tourSkip'))
+    tr.card = h('div', { class: 'tour-card', tabindex: '-1', 'aria-live': 'polite' }, tr.count, tr.titleEl, tr.textEl, tr.dots, h('div', { class: 'tour-btns' }, tr.btnBack, tr.btnNext, tr.btnSkip))
+    tr.root = h('div', { class: 'tour', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('tourLabel'), 'data-screen': screen }, tr.hole, tr.card)
+    document.body.append(tr.root)
+    document.body.classList.add('has-tour')
+    tr.timer = setInterval(measureTour, 400)
+    tr.onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeTour(true) } else if (e.key === 'ArrowRight') tourGo(1)
+      else if (e.key === 'ArrowLeft') tourGo(-1)
+    }
+    window.addEventListener('keydown', tr.onKey)
+    window.addEventListener('resize', measureTour)
+    tour = tr
+    openTourStep(0, 1)
+  }
+  function tourGo(dir) {
+    if (!tour) return
+    const next = tour.idx + dir
+    if (next < 0) return
+    if (next >= tour.steps.length) return closeTour(true)
+    openTourStep(next, dir)
+  }
+  async function openTourStep(i, dir) {
+    const tr = tour
+    if (!tr) return
+    const token = ++tr.token
+    const step = tr.steps[i]
+    tr.idx = i
+    tr.shown = false
+    try { if (step.before) step.before() } catch (e) { /* a step that cannot get ready is skipped below */ }
+    let el = null
+    for (let n = 0; n < 8 && !el; n++) {
+      await sleep(n === 0 ? 160 : 110)
+      if (tour !== tr || token !== tr.token) return
+      for (const sel of step.targets) { // something below the fold is brought into view first
+        const first = document.querySelector(sel)
+        if (first && !first.closest('.leaflet-container') && !first.closest('[hidden]')) { try { first.scrollIntoView({ block: 'center', inline: 'nearest' }) } catch (e) { /* old browser */ } break }
+      }
+      el = findShown(step.targets)
+    }
+    if (tour !== tr || token !== tr.token) return
+    if (!el) { // not on the screen: skip this step (forwards, or backwards when going back)
+      const nx = i + dir
+      if (nx >= tr.steps.length) return closeTour(true)
+      if (nx < 0) return openTourStep(i + 1, 1)
+      return openTourStep(nx, dir)
+    }
+    tr.el = el
+    tr.shown = true
+    tr.count.textContent = t('tourStep', { n: i + 1, total: tr.steps.length })
+    tr.titleEl.textContent = t(step.title)
+    tr.textEl.textContent = t(step.text)
+    for (const [k, d] of [...tr.dots.children].entries()) d.classList.toggle('on', k === i)
+    tr.btnBack.disabled = i === 0
+    tr.btnNext.textContent = i === tr.steps.length - 1 ? t('tourDone') : t('tourNext')
+    tr.card.dataset.stepId = step.id
+    tr.card.dataset.target = el.id || el.className && String(el.className.baseVal !== undefined ? el.className.baseVal : el.className).split(' ')[0] || el.tagName
+    tr.side = null
+    measureTour()
+    fitTourTarget(tr)
+    measureTour()
+    tr.card.focus({ preventScroll: true })
+  }
+  // the landing page and the block list scroll: put the highlighted thing in the part of the screen the card does not cover
+  function fitTourTarget(tr) {
+    const sc = document.getElementById('app')
+    if (!tr.el || document.body.classList.contains('in-block') || !sc || !sc.contains(tr.el)) return
+    const vh = window.innerHeight
+    const r = tr.el.getBoundingClientRect()
+    const ch = tr.card.getBoundingClientRect().height
+    const want = (side) => {
+      const band = side === 'at-bottom' ? [8, vh - ch - 12] : [ch + 12, vh - 8]
+      const delta = r.height <= band[1] - band[0] ? (band[0] + band[1]) / 2 - (r.top + r.height / 2) : band[0] - r.top
+      const room = delta > 0 ? sc.scrollTop : sc.scrollHeight - sc.clientHeight - sc.scrollTop // how far the page can still move that way
+      return { side, delta, got: Math.sign(delta) * Math.min(Math.abs(delta), Math.max(0, room)) }
+    }
+    const a = want('at-bottom'), c = want('at-top')
+    const best = Math.abs(a.delta - a.got) <= Math.abs(c.delta - c.got) ? a : c
+    sc.scrollTop -= best.got
+    tr.side = best.side
+  }
+  function measureTour() {
+    const tr = tour
+    if (!tr || !tr.shown || !tr.el || !tr.el.isConnected) return
+    const r = tr.el.getBoundingClientRect()
+    const vw = window.innerWidth, vh = window.innerHeight
+    const big = r.width * r.height > vw * vh * 0.4 // a huge target (the whole map): outline only, no dimming
+    const pad = 4
+    Object.assign(tr.hole.style, { top: r.top - pad + 'px', left: r.left - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' })
+    tr.hole.classList.toggle('is-big', big)
+    const overlap = (c) => Math.max(0, Math.min(c.bottom, r.bottom) - Math.max(c.top, r.top)) * Math.max(0, Math.min(c.right, r.right) - Math.max(c.left, r.left))
+    const put = (side) => { tr.card.classList.remove('at-top', 'at-bottom'); tr.card.classList.add(side); return big ? 0 : overlap(tr.card.getBoundingClientRect()) }
+    const first = tr.side || (r.top + r.height / 2 > vh * 0.45 ? 'at-top' : 'at-bottom')
+    const other = first === 'at-top' ? 'at-bottom' : 'at-top'
+    let side = first
+    const o1 = put(first)
+    if (o1 > 0) { // the card would cover the highlighted thing: try the other side and keep the better one
+      if (put(other) < o1) side = other
+      else put(first)
+    }
+    tr.side = side
+    tr.root.dataset.covers = String(Math.round(big ? 0 : overlap(tr.card.getBoundingClientRect())))
+  }
+  function closeTour(markDone) {
+    const tr = tour
+    if (!tr) return
+    tour = null
+    tr.token++
+    clearInterval(tr.timer)
+    window.removeEventListener('keydown', tr.onKey)
+    window.removeEventListener('resize', measureTour)
+    tr.root.remove()
+    document.body.classList.remove('has-tour')
+    if (markDone) { prefs.tour = Object.assign({}, prefs.tour, { [tr.screen]: true }); savePrefs() }
+    if (tr.screen === 'block' && view.screen === 'block' && ui.sheet && sheetState !== tr.prevSheet) setSheet(tr.prevSheet, false)
+  }
+  function autoTour(screen) { // the first time for each screen
+    setTimeout(() => { if (!tour && !overlay && view.screen === screen && !(prefs.tour && prefs.tour[screen])) startTour(screen) }, 350)
+  }
+
+  // ------------------------------------------------------------------ language and Help
   function setLang(l) {
     lang = l
     prefs.lang = l
     savePrefs()
+    closeTour(false)
     paintStatic()
     const wasHelp = overlay && overlay.dataset.kind === 'help'
-    const wasIntro = overlay && overlay.dataset.kind === 'intro'
-    const introAt = wasIntro ? Number(overlay.dataset.at) : 0
     closeOverlay()
     render()
     if (wasHelp) showHelp()
-    if (wasIntro) showIntro(introAt)
   }
   const langSwitch = () => h('div', { class: 'lang', role: 'group', 'aria-label': t('langLabel') },
     ['fil', 'en'].map((l) => h('button', { type: 'button', class: 'btn langbtn', 'data-lang': l, 'aria-pressed': String(lang === l), onclick: () => { if (lang !== l) setLang(l) } }, t(l === 'fil' ? 'langFil' : 'langEn'))))
-  const helpButton = () => h('button', { type: 'button', class: 'btn helpbtn', 'aria-label': t('helpTitle'), onclick: () => showHelp() }, t('helpBtn'))
   function closeOverlay() {
     if (overlay) overlay.remove()
     overlay = null
     document.body.classList.remove('has-overlay')
   }
   function openOverlay(kind, children) {
+    closeTour(false)
     closeOverlay()
-    overlay = h('div', { class: 'overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': t(kind === 'help' ? 'helpTitle' : 'introTitle'), 'data-kind': kind }, h('div', { class: 'overlaybox' }, children))
+    overlay = h('div', { class: 'overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('helpTitle'), 'data-kind': kind }, h('div', { class: 'overlaybox' }, children))
     document.body.append(overlay)
     document.body.classList.add('has-overlay')
     const first = overlay.querySelector('button')
@@ -826,9 +1161,13 @@
     return h('div', { class: 'trouble' }, h('h3', null, t(titleKey)), h('p', null, t(textKey)), extraKey ? h('p', null, t(extraKey)) : null)
   }
   function showHelp() {
+    const screen = view.screen
     openOverlay('help', [
       h('div', { class: 'overlayhead' }, h('h2', null, t('helpTitle')), h('button', { type: 'button', class: 'btn', onclick: closeOverlay }, t('helpClose'))),
+      h('button', { type: 'button', class: 'btn good wide', 'data-act': 'tour', onclick: () => { closeOverlay(); startTour(screen) } }, t('helpTour')),
+      h('p', { class: 'note' }, t('helpTourText')),
       langSwitch(),
+      h('h3', null, t('sizeTitle')), h('div', { class: 'sizerow' }, sizeBtn(-1), sizeBtn(1), h('span', { class: 'sizenow', 'data-size-now': '1' }, t('sizeNow', { p: Math.round(uiScale() * 100) }))),
       h('h3', null, t('howTitle')), h('ol', { class: 'steps' }, [1, 2, 3, 4].map((i) => h('li', null, t('how' + i)))),
       h('h3', null, t('troubleTitle')),
       trouble('tLocTitle', 'tLocAndroid', 'tLocIphone'),
@@ -839,32 +1178,23 @@
       h('p', { class: 'note' }, t('banner')),
       h('button', { type: 'button', class: 'btn good wide', onclick: closeOverlay }, t('helpClose')),
     ])
-  }
-  function showIntro(at) {
-    const i = Math.max(0, Math.min(2, at || 0))
-    const last = i === 2
-    openOverlay('intro', [
-      h('div', { class: 'card', 'data-card': i + 1 }, h('p', { class: 'cardn' }, t('introCard', { n: i + 1 })), h('h2', null, t('intro' + (i + 1) + 'Title')), h('p', { class: 'cardtext' }, t('intro' + (i + 1)))),
-      h('div', { class: 'btnrow' },
-        h('button', { type: 'button', class: 'btn good primary', onclick: () => { if (last) { prefs.introDone = true; savePrefs(); closeOverlay() } else showIntro(i + 1) } }, t(last ? 'introDone' : 'introNext')),
-        last ? null : h('button', { type: 'button', class: 'btn secondary', onclick: () => { prefs.introDone = true; savePrefs(); closeOverlay() } }, t('introSkip'))),
-    ])
-    overlay.dataset.at = String(i)
+    applySize()
   }
 
   // ------------------------------------------------------------------ landing and home
   function landingScreen() {
     const checks = prefs.checks || {}
     return h('div', null,
-      h('div', { class: 'hdr' }, h('h1', null, t('title')), helpButton()),
+      h('div', { class: 'toolrow' }, toolbox()),
+      h('h1', { 'data-tour': 'l-title' }, t('title')),
       langSwitch(),
       h('h2', null, t('howTitle')),
-      h('ol', { class: 'steps' }, [1, 2, 3, 4].map((i) => h('li', null, t('how' + i)))),
+      h('ol', { class: 'steps', 'data-tour': 'l-how' }, [1, 2, 3, 4].map((i) => h('li', null, t('how' + i)))),
       h('p', { class: 'honest' }, t('gpsPromise')),
       h('h2', null, t('beforeTitle')),
       h('ul', { class: 'checklist' }, [1, 2, 3, 4, 5].map((i) => h('li', null, h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: checks[i] ? true : null, onchange: (e) => { prefs.checks = Object.assign({}, prefs.checks, { [i]: e.target.checked }); savePrefs() } }), h('span', null, t('before' + i)))))),
-      h('button', { type: 'button', class: 'btn good wide big', onclick: () => { view.screen = 'home'; render() } }, t('start')),
+      h('button', { type: 'button', class: 'btn good wide big', 'data-tour': 'l-start', onclick: () => { view.screen = 'home'; render() } }, t('start')),
       h('p', { class: 'note' }, t('planLine', { plan: pack.plan_id, code: pack.check_code, pack: pack.pack_id })),
       h('p', { class: 'note' }, t('builtLine', { date: pack.built_on, tag: pack.dataset.tag, hash: pack.dataset.hash })))
   }
@@ -874,12 +1204,13 @@
       return { n: s.n + p.n, planted: s.planted + p.planted, skipped: s.skipped + p.skipped }
     }, { n: 0, planted: 0, skipped: 0 })
     return h('div', null,
-      h('div', { class: 'hdr' }, h('button', { type: 'button', class: 'btn', 'aria-label': t('backToIntro'), onclick: () => { view.screen = 'landing'; render() } }, t('back')), h('h1', null, t('blocksTitle')), helpButton()),
+      h('div', { class: 'toolrow' }, h('button', { type: 'button', class: 'btn', 'aria-label': t('backToIntro'), onclick: () => { view.screen = 'landing'; render() } }, t('back')), toolbox()),
+      h('h1', null, t('blocksTitle')),
       store.ok ? null : h('p', { class: 'warn', role: 'alert' }, t('storageWarn')),
       h('label', { for: 'observer' }, t('nameLabel')),
       h('input', { id: 'observer', type: 'text', maxlength: '80', autocomplete: 'name', value: state.observer || '', oninput: (e) => { state.observer = e.target.value; save() } }),
       h('p', { class: 'note' }, t('totalsLine', totals)),
-      h('div', { class: 'blocks' }, pack.blocks.map((b) => {
+      h('div', { class: 'blocks', 'data-tour': 'h-blocks' }, pack.blocks.map((b) => {
         const p = Core.progress(b, state)
         return h('button', { type: 'button', class: 'bcard', onclick: () => { view.screen = 'block'; view.ref = b.ref; view.tree = null; view.skipOpen = false; view.step = stepOf(b); render() } },
           h('strong', null, b.ref), h('span', null, b.name), h('small', null, t('blockCard', { n: b.n, done: p.planted + p.skipped })),
@@ -887,7 +1218,7 @@
       })),
       h('h2', null, t('resultsTitle')),
       h('p', { class: 'note' }, t('resultsHelp')),
-      h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn good', onclick: download }, t('btnDownload')), typeof navigator.canShare === 'function' ? h('button', { type: 'button', class: 'btn', onclick: share }, t('btnShare')) : null),
+      h('div', { class: 'actions', 'data-tour': 'h-results' }, h('button', { type: 'button', class: 'btn good', onclick: download }, t('btnDownload')), typeof navigator.canShare === 'function' ? h('button', { type: 'button', class: 'btn', onclick: share }, t('btnShare')) : null),
       h('p', { class: 'note' }, t('gpsHonest')),
       h('p', { class: 'note' }, t('banner')),
       langSwitch(),
@@ -895,11 +1226,14 @@
   }
 
   function render() {
+    closeTour(false)
     destroyMap()
     const b = view.screen === 'block' ? blockOf(view.ref) : null
     document.body.classList.toggle('in-block', !!b)
     root.replaceChildren(...clean([b ? blockScreen(b) : view.screen === 'home' ? homeScreen() : landingScreen()]))
+    applySize()
     if (b) {
+      applySheet()
       refreshChips()
       updateTopbar()
       updateSheet()
@@ -910,11 +1244,13 @@
       timer = setInterval(headingTick, 500)
       requestAnimationFrame(() => { if (map) { layoutMap(); if (!ui.restoring && !ui.userMoved) fitBlock(b) } })
     }
+    paintBanner()
     root.scrollTop = 0
     window.scrollTo(0, 0)
+    autoTour(view.screen)
   }
 
+  applySize()
   paintStatic()
   render()
-  if (!prefs.introDone) showIntro(0)
 })()

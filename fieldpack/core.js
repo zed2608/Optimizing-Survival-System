@@ -56,6 +56,14 @@ const FieldPackCore = (function () {
     return distance <= CLOSE_M ? 'close' : 'far'
   }
 
+  // far / close / here for the walk to ONE TREE: "here" is inside half a spacing (never less than 2 m), "close" within 30 m. GPS is only 3 to 10 m good, so this is a hint, the tape decides.
+  function treeStatus(distance, spacing) {
+    if (!Number.isFinite(distance)) return null
+    const half = Number.isFinite(spacing) ? spacing / 2 : 0
+    if (distance <= Math.max(MIN_ARRIVAL_M, half)) return 'here'
+    return distance <= CLOSE_M ? 'close' : 'far'
+  }
+
   // one adult pace is about 0.75 m: a spacing of 7 m is about 9 paces
   const PACE_M = 0.75
   const paces = (metres) => Math.max(1, Math.round(metres / PACE_M))
@@ -270,7 +278,7 @@ const FieldPackCore = (function () {
     }
   }
 
-  return { R, REASONS, EXTRA_COLUMNS, POINTS, CLOSE_M, PACE_M, distanceM, bearingDeg, compassPoint, turnDeg, arrival, startStatus, paces, rowPlace, distanceLabel, normDeg, angleDiff, smoothAngle, circularStd, coneHalfAngle, relativeCue, compassHeading, headingFromEvent, conePath,
+  return { R, REASONS, EXTRA_COLUMNS, POINTS, CLOSE_M, PACE_M, distanceM, bearingDeg, compassPoint, turnDeg, arrival, startStatus, treeStatus, paces, rowPlace, distanceLabel, normDeg, angleDiff, smoothAngle, circularStd, coneHalfAngle, relativeCue, compassHeading, headingFromEvent, conePath,
     progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc }
 })()
 

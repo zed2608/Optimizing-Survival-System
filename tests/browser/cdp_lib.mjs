@@ -50,13 +50,37 @@ export async function launch({ out = tmpdir() } = {}) {
     tap: async (label) => {
       const find = `(() => { const L = ${JSON.stringify(label)}; const els = [...document.querySelectorAll('button, summary, [role=button]')].filter((e) => !e.hidden && e.getBoundingClientRect().width > 0); return els.find((x) => (x.getAttribute('aria-label') || '') === L || x.textContent.trim() === L) || els.find((x) => (x.getAttribute('aria-label') || '').includes(L)) || els.find((x) => x.textContent.trim().includes(L)) || null })()`
       // make sure nothing covers the middle of the button (a real finger would hit the cover): scroll the page or the bottom sheet a little until the button itself is under that point
-      const r = await ev(`(() => { const e = ${find}; if (!e) return null; if (!e.closest('.stage') && !e.closest('.overlay')) e.scrollIntoView({ block: 'center' }); const sheet = e.closest('.sheet'); const over = e.closest('.overlay .overlaybox'); for (let i = 0; i < 12; i++) { const r = e.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); if (top === e || e.contains(top)) break; if (sheet) sheet.scrollTop += 60; else if (over) over.scrollTop += 60; else break } const r = e.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return JSON.stringify({ x: r.x + r.width / 2, y: r.y + r.height / 2, covered: !(top === e || e.contains(top)), cover: top ? top.tagName + '.' + String(top.className && top.className.baseVal !== undefined ? top.className.baseVal : top.className) : 'nothing' }) })()`)
+      const r = await ev(`(() => { const e = ${find}; if (!e) return null; if (!e.closest('.stage') && !e.closest('.overlay')) e.scrollIntoView({ block: 'center' }); const sheet = e.closest('.sheetbody') || e.closest('.sheet'); const over = e.closest('.overlay .overlaybox'); for (let i = 0; i < 12; i++) { const r = e.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); if (top === e || e.contains(top)) break; if (sheet) sheet.scrollTop += 60; else if (over) over.scrollTop += 60; else break } const r = e.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return JSON.stringify({ x: r.x + r.width / 2, y: r.y + r.height / 2, covered: !(top === e || e.contains(top)), cover: top ? top.tagName + '.' + String(top.className && top.className.baseVal !== undefined ? top.className.baseVal : top.className) : 'nothing' }) })()`)
       if (!r) return false
       const p = JSON.parse(r)
       if (p.covered) b.check('a button was NOT covered when tapped: ' + label, false, 'covered by ' + p.cover)
       await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p.x, y: p.y }] })
       await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
       return true
+    },
+    // the same real touch tap, for an element found by a CSS selector (a drag handle, a tour button, a chip ...)
+    tapSel: async (sel) => {
+      const r = await ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e || e.closest('[hidden]')) return null; const r = e.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return null; const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return JSON.stringify({ x: r.x + r.width / 2, y: r.y + r.height / 2, covered: !(top === e || e.contains(top)), cover: top ? top.tagName + '.' + String(top.className && top.className.baseVal !== undefined ? top.className.baseVal : top.className) : 'nothing' }) })()`)
+      if (!r) return false
+      const p = JSON.parse(r)
+      if (p.covered) b.check('an element was NOT covered when tapped: ' + sel, false, 'covered by ' + p.cover)
+      await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p.x, y: p.y }] })
+      await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      return true
+    },
+    // a touch at a point, and a drag from one point to another (steps of 10 ms)
+    touch: async (x, y) => { await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] }); await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }) },
+    swipe: async (x, y0, y1, steps = 8) => {
+      await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: y0 }] })
+      for (let i = 1; i <= steps; i++) { await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y0 + ((y1 - y0) * i) / steps }] }); await sleep(10) }
+      await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    },
+    // a fresh page with the given settings of the person (language, text size level 0..4, tours seen)
+    fresh: async (url, { lang = 'en', size, tours = true, extra = {}, session = {} } = {}) => {
+      await b.open(url)
+      const prefs = Object.assign({ lang }, size === undefined ? {} : { size }, tours ? { tour: { landing: true, home: true, block: true } } : {}, extra)
+      await ev(`sessionStorage.clear(); localStorage.clear(); localStorage.setItem('fieldpack:prefs', ${JSON.stringify(JSON.stringify({ v: 1, observer: '', trees: {}, prefs }))}); for (const [k, v] of Object.entries(${JSON.stringify(session)})) sessionStorage.setItem(k, v)`)
+      await b.open(url)
     },
     gps: (lat, lon, accuracy, extra = {}) => send('Emulation.setGeolocationOverride', { latitude: lat, longitude: lon, accuracy, ...extra }),
     viewport: async (w, h) => {

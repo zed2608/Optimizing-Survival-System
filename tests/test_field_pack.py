@@ -63,7 +63,7 @@ def test_the_page_is_one_self_contained_file_and_small(pack, tmp_path):
     f = tmp_path / "p.html"
     page = bfp.render_page(pack)
     f.write_text(page, encoding="utf-8")
-    assert f.stat().st_size < 300_000                                              # the sample kit: 6 blocks, 50 trees; Leaflet is about 150 KB of it (the page is about 215 KB)
+    assert f.stat().st_size < 350_000                                              # the sample kit: 6 blocks, 50 trees; Leaflet is about 150 KB of it (the page is about 306 KB with both languages, the tour and the text sizes)
     assert "Prototype. GPS accuracy not yet field-tested." in page                 # the permanent banner text is in the strings table that is inlined
     assert 'name="viewport"' in page and 'id="banner"' in page
     assert "/*__" not in page                                                      # every placeholder was filled
@@ -167,11 +167,15 @@ def test_saving_goes_through_the_guarded_wrapper():
 
 def test_phone_layout_rules_in_the_css():
     css = (ROOT / "fieldpack" / "app.css").read_text(encoding="utf-8")
-    assert re.search(r"\.btn \{[^}]*min-height: 5\d+px", css)                                                              # tap targets of at least 52 px
-    assert re.search(r"\.chip \{[^}]*width: 48px; height: 48px", css) and re.search(r"\.rbtn \{ width: 48px; height: 48px", css)    # chips and the round map buttons: 48 px
-    assert re.search(r"\.btnrow \.primary \{[^}]*min-height: 60px", css)                                                   # "Planted here": 60 px (56 px or more)
+    # stage A1e: everything is in rem, the root size follows --ui (the Aa - / Aa + buttons) on top of the phone's own font setting, and every control stays at least 48 px
+    assert re.search(r"html \{[^}]*font-size: calc\(100% \* var\(--ui\)\)", css)                                           # 100% = the phone's own font size, times 0.85 ... 1.5
+    assert re.search(r"\.btn \{[^}]*min-height: max\(52px, 3\.25rem\)", css)                                               # tap targets of at least 52 px, growing with the text
+    assert "--ctl: max(48px," in css and re.search(r"\.chip \{[^}]*width: max\(48px, 3rem\); height: max\(48px, 3rem\)", css) and re.search(r"\.rbtn \{ width: var\(--ctl\); height: var\(--ctl\)", css)     # chips and the round map buttons: 48 px or more
+    assert re.search(r"\.btnrow \.primary \{[^}]*min-height: max\(60px, calc\(3\.75rem \* var\(--cap\)\)\)", css)                                  # "Planted": 60 px (56 px or more)
     assert "color: var(--fg)" in css and "--fg: #000" in css and "--bg: #fff" in css                                       # black on white for sunlight
-    assert re.search(r"body \{[^}]*font: 18px", css) and re.search(r"input\[type=text\] \{[^}]*font-size: 16px", css)       # inputs 16 px: iOS does not zoom
+    assert re.search(r"body \{[^}]*font: 1\.125rem", css) and re.search(r"input\[type=text\] \{[^}]*font-size: max\(16px, 1rem\)", css)       # inputs 16 px or more: iOS does not zoom
+    px = [l for l in css.splitlines() if re.search(r"(?<![\w-])font-size: \d+px", l)]
+    assert all(l.startswith((".attrib", "#bannerclose")) for l in px), px                                                   # text sizes are rem / em (only the map credit and the small x are in px)
     assert "height: 100dvh" in css and "height: 100vh" in css                                                              # the screen height follows the phone's address bar (100vh stays as the fallback)
     assert css.count("env(safe-area-inset-") >= 8                                                                           # notches and home bars: top bar, banner, sheet and buttons keep clear
     assert "viewport-fit=cover" in (ROOT / "fieldpack" / "template.html").read_text(encoding="utf-8")
@@ -265,7 +269,7 @@ def test_a_kit_that_was_changed_or_made_with_another_formula_is_refused(tmp_path
 def test_core_tests_in_node():
     r = subprocess.run([NODE, "--test", str(ROOT / "fieldpack" / "core.test.mjs")], capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stdout[-2500:] + r.stderr[-1500:]
-    assert "# fail 0" in r.stdout and "# pass 19" in r.stdout
+    assert "# fail 0" in r.stdout and "# pass 20" in r.stdout
 
 
 def run_sim(payload):
@@ -382,7 +386,7 @@ def test_nothing_null_or_undefined_can_become_text_on_the_page():
     assert "const clean = (list) => list.filter((x) => x !== null && x !== undefined && typeof x !== 'boolean')" in app
     assert app.count("replaceChildren(...clean(") == 2                                                         # the chips and the whole screen
     others = [l.strip() for l in app.splitlines() if "replaceChildren(" in l and "replaceChildren(...clean(" not in l]
-    assert len(others) == 2 and any("ui.attrib" in l for l in others) and any("ui.miniSvg.replaceChildren(svg)" in l for l in others)      # the credit line and the little drawing: fixed nodes, never null
+    assert len(others) == 3 and any("ui.attrib" in l for l in others) and any("ui.miniSvg.replaceChildren(svg)" in l for l in others) and any("ui.btnChev.replaceChildren(icon(" in l for l in others)      # the credit line, the little drawing and the chevron: fixed nodes, never null
     assert "for (const kid of clean(kids.flat()))" in app
     assert not re.search(r"kids\.push\(.*\?.*: null\)", app)                                                   # no conditional null pushed into a plain list
     chips = app.split("function refreshChips")[1].split("function updateTopbar")[0]

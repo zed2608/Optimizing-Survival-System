@@ -1,6 +1,6 @@
 """Field pack in a real browser (headless Edge, 360 px wide, fake GPS, all tile requests intercepted so no map server is contacted).
 Runs only with OS_BROWSER_CHECK=1 (and Edge + node installed): python -m pytest tests/test_field_pack_browser.py
-It runs tests/browser/fieldpack_check.mjs (whole flow at 360x640 and 390x844), fieldpack_heading_check.mjs (heading, cone, relative cue, heading-up rotation, wake lock; simulated events) and fieldpack_map_check.mjs (map: markers = the page's coordinates for every tree of every block, Referer, zoom levels,
+It runs tests/browser/fieldpack_check.mjs (whole flow at 360x640 and 390x844), fieldpack_ui_check.mjs (stage A1e: arrow to each tree, the three panel states, text sizes 85% to 150%, word limits, layout at 360x640 / 390x844 / 412x915, guided tours), fieldpack_heading_check.mjs (heading, cone, relative cue, heading-up rotation, wake lock; simulated events) and fieldpack_map_check.mjs (map: markers = the page's coordinates for every tree of every block, Referer, zoom levels,
 position and accuracy circle, line to the target, follow / re-centre, no background map, satellite only when built in)."""
 import os, shutil, socket, subprocess, sys, time
 from pathlib import Path
@@ -54,3 +54,12 @@ def test_the_map_in_the_browser(site):
     r = run("fieldpack_map_check.mjs", page(site, "normal"), str(site["out"]), page(site, "sat"))
     assert r.returncode == 0, r.stdout[-3500:] + r.stderr[-1000:]
     assert " 0 failed" in r.stdout and "every tree marker equals the page's coordinates (50 trees, 6 blocks)" in r.stdout
+
+
+def test_the_a1e_screen_in_the_browser(site):
+    """Arrow, distance and word to each tree; panel collapsed / normal / expanded and its drag handle; the prototype chip; text size 85% to 150%; the word limits of every panel state in both languages;
+    the layout at three phone sizes (no sideways scroll, buttons of 48 px or more, the main button visible); every tour step lights up a real element."""
+    r = subprocess.run(["node", str(ROOT / "tests" / "browser" / "fieldpack_ui_check.mjs"), page(site, "normal"), str(site["out"])], capture_output=True, text=True, timeout=1500)
+    assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-1000:]
+    assert " 0 failed" in r.stdout and "WORD LIMITS:" in r.stdout and "steps were shown" in r.stdout
+

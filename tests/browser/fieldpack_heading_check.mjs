@@ -22,7 +22,7 @@ async function fresh(url, script) {
   const ids = []
   if (script) ids.push((await b.addScript(script)).result.identifier)
   await b.open(url)
-  await ev(`sessionStorage.clear(); localStorage.clear(); localStorage.setItem('fieldpack:prefs', JSON.stringify({ v: 1, observer: '', trees: {}, prefs: { lang: 'en', introDone: true } }))`)
+  await ev(`sessionStorage.clear(); localStorage.clear(); localStorage.setItem('fieldpack:prefs', JSON.stringify({ v: 1, observer: '', trees: {}, prefs: { lang: 'en', tour: { landing: true, home: true, block: true } } }))`)
   await b.open(url)
   await tap('Start')
   await sleep(250)
@@ -44,7 +44,7 @@ for (const [W, H] of [[360, 640], [390, 844]]) {
   await gps(ST[0] + 0.00036, ST[1], 6) // 40 m north of tree 1: the tree is due south (bearing 180)
   await waitFor(/about 40 m/)
   check(tag + 'no Screen Wake Lock in the browser: nothing breaks (no error)', b.events.length === 0 && (await text()).includes('about 40 m'))
-  check(tag + 'no heading yet: the cone is hidden, no turn cue, and the page says "Heading not available"', (await cone())?.shown === false && (await cue()) === '' && (await ev(`document.querySelector('.sheet').textContent`)).includes('not available'))
+  check(tag + 'no heading yet: the cone is hidden, no turn cue, and the Details say the heading is not known', (await cone())?.shown === false && (await cue()) === '' && (await ev(`document.querySelector('.sheet').textContent`)).includes('not known'))
   await tap('Map: north up')
   await sleep(300)
   check(tag + 'turning the map to heading-up without a heading is refused with a plain message, the map stays north up', (await text()).includes('does not know which way you face yet') && (await ev(`document.getElementById('maprot').dataset.rot === undefined`)))
@@ -60,13 +60,13 @@ for (const [W, H] of [[360, 640], [390, 844]]) {
   check(tag + 'the cone turned with the heading (180°)', c && away(c.hdg, 180) <= 3, JSON.stringify(c))
   check(tag + 'relative cue, facing the target: "Straight ahead"', (await cue()) === 'Straight ahead', await cue())
   await settle(90)
-  check(tag + 'relative cue, target 90° to the right: "Turn right (90°)"', (await cue()) === 'Turn right (90°)', await cue())
+  check(tag + 'relative cue, target 90° to the right: "Turn right 90°"', (await cue()) === 'Turn right 90°', await cue())
   await settle(270)
-  check(tag + 'relative cue, target 90° to the left: "Turn left (90°)"', (await cue()) === 'Turn left (90°)', await cue())
+  check(tag + 'relative cue, target 90° to the left: "Turn left 90°"', (await cue()) === 'Turn left 90°', await cue())
   await settle(210)
-  check(tag + 'relative cue, 30° off to the left: "Turn left (30°)"', (await cue()) === 'Turn left (30°)', await cue())
+  check(tag + 'relative cue, 30° off to the left: "Turn left 30°"', (await cue()) === 'Turn left 30°', await cue())
   await settle(150)
-  check(tag + 'relative cue, 30° off to the right: "Turn right (30°)"', (await cue()) === 'Turn right (30°)', await cue())
+  check(tag + 'relative cue, 30° off to the right: "Turn right 30°"', (await cue()) === 'Turn right 30°', await cue())
 
   // wrap-around: 355 -> 359 -> 1 -> 7 must go through north, never the long way round
   await settle(355, 40)
@@ -91,7 +91,7 @@ for (const [W, H] of [[360, 640], [390, 844]]) {
   check(tag + 'GPS heading while walking: the cone points at it (45°) and is narrower than the compass cone (12°)', c && c.src === 'gps' && away(c.hdg, 45) <= 3 && c.half === 12, JSON.stringify(c))
   await tap('Details')
   check(tag + 'Details name the heading source and give the figure-8 hint for the compass', (await ev(`document.querySelector('.sheet').innerText`)).includes('Which way you face: from your walking (GPS)'))
-  await tap('Details')
+  await tap('Hide details')
   await gps(ST[0] + 0.00036, ST[1], 5, { heading: 45, speed: 0.3 }) // too slow for a GPS heading
   await sleep(6500)
   check(tag + 'GPS heading at walking pace below 1 m/s is not used', (await cone())?.shown === false)
@@ -147,7 +147,7 @@ for (const [W, H] of [[360, 640], [390, 844]]) {
   await sleep(150)
   c = await cone()
   check(tag + 'iOS (webkitCompassHeading): the cone points at the heading (120°)', c && c.shown && c.src === 'compass' && away(c.hdg, 120) <= 3, JSON.stringify(c))
-  check(tag + 'iOS: relative cue from webkitCompassHeading (target due south, facing 120°): "Turn right (60°)"', (await cue()) === 'Turn right (60°)', await cue())
+  check(tag + 'iOS: relative cue from webkitCompassHeading (target due south, facing 120°): "Turn right 60°"', (await cue()) === 'Turn right 60°', await cue())
   for (const raw of [350, 355, 359, 2, 6]) { for (let i = 0; i < 6; i++) { await b.iosHeading(raw); await sleep(20) } }
   await unscript(ids)
   ids = await fresh(PAGE, IOS_DENY)
