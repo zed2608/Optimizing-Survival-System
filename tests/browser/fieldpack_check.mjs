@@ -32,6 +32,25 @@ const waitFor = async (re, ms = 6000) => { const t0 = Date.now(); while (Date.no
 const log = []
 const check = (name, ok, extra = '') => { log.push({ name, ok: !!ok, extra }); console.log((ok ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')) }
 
+// Words that must never be visible: a JavaScript null / undefined / NaN written into the page, a text key that was not found ("[gpsStart]"), or a value that was not filled in ("{lat}").
+const badText = async () => JSON.parse(await ev(`(() => {
+  const out = []
+  const word = /\\b(null|undefined|NaN)\\b/
+  const hole = /\\{[A-Za-z]+\\}|\\[[A-Za-z]+(_[A-Za-z]+)*\\]/
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  let n
+  while ((n = w.nextNode())) {
+    const p = n.parentElement
+    if (!p || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(p.tagName)) continue
+    if (word.test(n.textContent) || hole.test(n.textContent)) out.push(n.textContent.trim().slice(0, 50))
+  }
+  for (const e of document.querySelectorAll('[aria-label], [title]')) {
+    const v = (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')
+    if (word.test(v) || hole.test(v)) out.push('attribute: ' + v.trim().slice(0, 50))
+  }
+  return JSON.stringify(out)
+})()`))
+const noBadText = async (where) => { const bad = await badText(); check(`no "null", "undefined", "NaN" or missing text on ${where}`, bad.length === 0, bad.join(' | ')) }
 await send('Page.enable')
 await send('Network.enable')
 await send('Network.setBlockedURLs', { urls: ['*tile.openstreetmap.org*', '*arcgisonline.com*'] }) // this check never contacts a tile server (the map has its own check)
@@ -51,15 +70,18 @@ const layout = await ev(`JSON.stringify({ sw: document.documentElement.scrollWid
 const L = JSON.parse(layout)
 check('home: no sideways scroll at 360 px', L.sw <= L.cw, layout)
 check('home: tap targets at least 44 px, text at least 16 px', L.small === 0 && L.minFont >= 16)
+await noBadText('the home screen')
 await shot('fp_1_home')
 
 await ev("(() => { const i = document.getElementById('observer'); i.value = 'Test Planter'; i.dispatchEvent(new Event('input', { bubbles: true })) })()")
 await click(b.ref)
 await sleep(300)
 check('block screen lists trees 1..N and the START corner', (await text()).includes('START corner') && (await ev(`document.querySelectorAll('.tree').length`)) === b.n)
+await noBadText('the block screen before GPS (the Start GPS button)')
 await shot('fp_2_block_before_gps')
 
 await click('Start GPS')
+await noBadText('the block screen just after tapping Start GPS (no reading yet)')
 await fakeGps(t1[1] + 0.00036, t1[2], 6) // about 40 m north of tree 1, accuracy 6 m
 await waitFor(/Distance to the tree/)
 let txt = await text()
@@ -69,7 +91,8 @@ if (gpsWorked) {
   check('direction is south (target is south of the phone)', /Direction: S \(1[6-9]\d°/.test(txt))
   check('far away: not "arrived"', !txt.includes('You are at the tree position'))
   check('no compass: only degrees and letters, and it says so', txt.includes('No compass heading'))
-  await shot('fp_3_gps_far')
+  await noBadText('the block screen with a GPS reading')
+await shot('fp_3_gps_far')
   await fakeGps(t1[1], t1[2], 12) // right on the tree but accuracy 12 m (worse than a 7 m spacing for some species)
   await waitFor(/You are at the tree position/)
   txt = await text()
@@ -107,6 +130,7 @@ if (csv) {
   if (gpsWorked) check('results file: block 1 is planted with 1 tree (partly done), by the name typed', r1[pack.columns.indexOf('status')] === 'planted' && r1[pack.columns.indexOf('trees_planted')] === '1' && r1[pack.columns.length + 2] === 'Test Planter', r1.slice(pack.columns.indexOf('status'), pack.columns.indexOf('status') + 2).join('|') + ' observer=' + r1[pack.columns.length + 2])
   writeFileSync(join(OUT, 'fp_results.csv'), csv)
 } else check('results file was made', false)
+await noBadText('the home screen after marking trees')
 await shot('fp_6_home_after')
 
 writeFileSync(join(OUT, 'fp_report.json'), JSON.stringify({ page: URL_, gpsWorked, log }, null, 1))

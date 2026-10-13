@@ -19,6 +19,8 @@
   let targetBox = null
 
   // ------------------------------------------------------------------ small helpers (the DOM is built with textContent only: nothing from the plan is ever read as HTML)
+  // Nothing that is null, undefined or true/false may ever become text on the page: `h` skips them, and every other way of putting a list of nodes on the page goes through `clean`.
+  const clean = (list) => list.filter((x) => x !== null && x !== undefined && typeof x !== 'boolean')
   function h(tag, attrs, ...kids) {
     const e = document.createElement(tag)
     for (const [k, v] of Object.entries(attrs || {})) {
@@ -27,7 +29,7 @@
       else if (k.startsWith('on')) e.addEventListener(k.slice(2), v)
       else e.setAttribute(k, v === true ? '' : v)
     }
-    for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) e.append(kid.nodeType ? kid : document.createTextNode(String(kid)))
+    for (const kid of clean(kids.flat())) e.append(kid.nodeType ? kid : document.createTextNode(String(kid)))
     return e
   }
   const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
@@ -160,7 +162,10 @@
     const block = blockOf(view.ref)
     const k = activeTree(block)
     const kids = []
-    if (gps.status === 'off') kids.push(h('button', { class: 'btn big', onclick: startGps }, t('gpsStart')), location.protocol === 'file:' ? h('p', { class: 'note' }, t('gpsFileMaybe')) : null)
+    if (gps.status === 'off') {
+      kids.push(h('button', { class: 'btn big', onclick: startGps }, t('gpsStart')))
+      if (location.protocol === 'file:') kids.push(h('p', { class: 'note' }, t('gpsFileMaybe')))
+    }
     if (gps.status === 'waiting') kids.push(h('p', { class: 'note' }, t('gpsWaiting')))
     if (gps.status === 'error') kids.push(h('p', { class: 'warn', role: 'alert' }, gps.error), h('button', { class: 'btn', onclick: () => { if (gps.id !== null) navigator.geolocation.clearWatch(gps.id); gps.id = null; gps.status = 'off'; gps.error = ''; renderTarget() } }, t('gpsRetry')))
     if (k === null) {
@@ -206,7 +211,7 @@
       }
       if (gps.status === 'ok') kids.push(h('button', { class: 'btn link', onclick: stopGps }, t('gpsStop')))
     }
-    targetBox.replaceChildren(...kids)
+    targetBox.replaceChildren(...clean(kids))
     if (map) updateMap(block, k)
     else {
       const sk = document.getElementById('sketch')
@@ -372,7 +377,7 @@
   function treeButton(block, tr, active) {
     const r = state.trees[Core.key(block, tr[0])]
     const sym = r ? (r.s === 'planted' ? '✓' : '✗') : ''
-    return h('button', { class: `tree ${r ? r.s : 'todo'}${tr[0] === active ? ' active' : ''}`, onclick: () => { view.tree = tr[0]; view.skipOpen = false; render() }, 'aria-label': t('treeAria', { k: tr[0], state: r ? t(r.s === 'planted' ? 'recPlanted' : 'recSkipped', { reason: t('reason_' + r.reason) }) : t('stateTodo') }) }, h('span', null, tr[0]), h('small', null, sym))
+    return h('button', { class: `tree ${r ? r.s : 'todo'}${tr[0] === active ? ' active' : ''}`, onclick: () => { view.tree = tr[0]; view.skipOpen = false; render() }, 'aria-label': t('treeAria', { k: tr[0], state: !r ? t('stateTodo') : r.s === 'planted' ? t('recPlanted') : t('recSkipped', { reason: t('reason_' + r.reason) }) }) }, h('span', null, tr[0]), h('small', null, sym))
   }
   function blockScreen(block) {
     const k = activeTree(block)
@@ -448,7 +453,7 @@
     targetBox = null
     destroyMap()
     const b = view.screen === 'block' ? blockOf(view.ref) : null
-    root.replaceChildren(b ? blockScreen(b) : homeScreen())
+    root.replaceChildren(...clean([b ? blockScreen(b) : homeScreen()]))
     if (b) {
       renderTarget()
       initMap(b, activeTree(b))

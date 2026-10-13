@@ -357,3 +357,15 @@ def test_the_dashboard_import_accepts_the_results_file(client, fresh, tmp_path):
     wrong = text.replace(pk["check_code"], "deadbeef")
     rej = client.post("/field-checks/import", params={"observer": "Team leader"}, content=wrong.encode("utf-8"), headers={"content-type": "text/csv"}).json()
     assert rej["accepted"] == 0 and rej["rejected"] == 4 and "check code" in rej["rows"][0]["reason"]
+
+def test_nothing_null_or_undefined_can_become_text_on_the_page():
+    """The first map version showed the word "null" under the Start GPS button: a null in a list given to replaceChildren becomes the text "null". Now every list goes through clean(),
+    and h() skips null, undefined and true/false. (The browser checks look for the words null / undefined / NaN and for missing text keys on every screen.)"""
+    app = (ROOT / "fieldpack" / "app.js").read_text(encoding="utf-8")
+    assert "const clean = (list) => list.filter((x) => x !== null && x !== undefined && typeof x !== 'boolean')" in app
+    calls = re.findall(r"replaceChildren\((.*)\)\s*$", app, re.M)
+    assert len(calls) == 2 and all(c.startswith("...clean(") or c.startswith("...clean([") for c in calls), calls      # the target card and the whole screen
+    assert "for (const kid of clean(kids.flat()))" in app
+    assert not re.search(r"kids\.push\(.*\?.*: null\)", app)                                                   # no conditional null pushed into a plain list
+    tree_button = app.split("function treeButton")[1].split("function blockScreen")[0]
+    assert tree_button.count("t('reason_' + r.reason)") == 1 and "r.s === 'planted' ? t('recPlanted') : t('recSkipped'" in tree_button     # the reason is only looked up for a skipped tree

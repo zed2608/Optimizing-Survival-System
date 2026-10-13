@@ -47,6 +47,25 @@ function onTile(p) {
   if (tileMode === 'fail') send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'InternetDisconnected' })
   else send('Fetch.fulfillRequest', { requestId: p.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'image/png' }], body: PNG })
 }
+// Words that must never be visible: a JavaScript null / undefined / NaN written into the page, a text key that was not found ("[gpsStart]"), or a value that was not filled in ("{lat}").
+const badText = async () => JSON.parse(await ev(`(() => {
+  const out = []
+  const word = /\\b(null|undefined|NaN)\\b/
+  const hole = /\\{[A-Za-z]+\\}|\\[[A-Za-z]+(_[A-Za-z]+)*\\]/
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  let n
+  while ((n = w.nextNode())) {
+    const p = n.parentElement
+    if (!p || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(p.tagName)) continue
+    if (word.test(n.textContent) || hole.test(n.textContent)) out.push(n.textContent.trim().slice(0, 50))
+  }
+  for (const e of document.querySelectorAll('[aria-label], [title]')) {
+    const v = (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')
+    if (word.test(v) || hole.test(v)) out.push('attribute: ' + v.trim().slice(0, 50))
+  }
+  return JSON.stringify(out)
+})()`))
+const noBadText = async (where) => { const bad = await badText(); check(`no "null", "undefined", "NaN" or missing text on ${where}`, bad.length === 0, bad.join(' | ')) }
 await send('Page.enable')
 await send('Runtime.enable')
 await send('Fetch.enable', { patterns: [{ urlPattern: '*tile.openstreetmap.org*' }, { urlPattern: '*server.arcgisonline.com*' }] })
@@ -56,6 +75,7 @@ const origin = new URL(PAGE).origin
 await send('Browser.grantPermissions', { permissions: ['geolocation'], origin }).catch(() => {})
 await send('Page.navigate', { url: PAGE })
 await sleep(1500)
+await noBadText('the home screen')
 const pack = JSON.parse(await ev("document.getElementById('pack-data').textContent"))
 const pagePath = new URL(PAGE).pathname
 
@@ -82,6 +102,7 @@ await ev("(() => { const i = document.getElementById('observer'); i.value = 'Map
 await click(b0.ref)
 await waitExpr(`document.querySelectorAll('#map .treeicon').length === ${b0.n}`)
 await sleep(800)
+await noBadText('the block screen with the map, before GPS')
 for (let i = 0; i < 4; i++) { await click('Zoom in'); await sleep(250) }
 await sleep(1200)
 const osm = tiles.filter((x) => x.url.includes('tile.openstreetmap.org'))
@@ -94,12 +115,14 @@ check('no sideways scroll at 360 px; our buttons are at least 44 px high', await
 
 // ---- 3. GPS: position, accuracy circle, line to the target, target selection, arrival
 await click('Start GPS')
+await noBadText('the block screen just after tapping Start GPS')
 const t1 = b0.trees[0], t5 = b0.trees[Math.min(4, b0.n - 1)]
 await fakeGps(t1[1] + 0.00036, t1[2], 6) // 40 m north of tree 1
 await waitFor(/Distance to the tree/)
 await waitExpr(`document.querySelector('.linelabel')`)
 const label = await ev(`document.querySelector('.linelabel')?.innerText`)
 check('line to the active target with distance and bearing', /about 40 m · S 180°/.test(label || ''), label)
+await noBadText('the block screen with a GPS reading and the map line')
 check('your position (blue dot) and the accuracy circle are drawn', await ev(`!!document.querySelector('#map svg path[fill="#0033cc"][fill-opacity="1"]') && !!document.querySelector('#map svg path[stroke-dasharray="4 4"]')`))
 await shotMap('map_1_far')
 await ev(`document.querySelector('#map .treeicon[data-k="${t5[0]}"]').click()`)
