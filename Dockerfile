@@ -40,5 +40,5 @@ USER app
 
 EXPOSE 8001
 HEALTHCHECK --interval=60s --timeout=10s --start-period=40s \
-  CMD python -c "import os,urllib.request;urllib.request.urlopen('http://127.0.0.1:%s/health'%os.environ.get('PORT','8001'),timeout=8)"
+  CMD python -c "import os,urllib.request;urllib.request.urlopen('http://127.0.0.1:%s/ping'%os.environ.get('PORT','8001'),timeout=8)"
 CMD ["sh", "-c", "exec python -m uvicorn api_v2:app --host 0.0.0.0 --port ${PORT:-8001}"]

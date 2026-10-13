@@ -7,7 +7,7 @@ services:
     plan: free
     branch: deploy-sandbox
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    healthCheckPath: /ping
     autoDeploy: false
     envVars:
       - key: OS_PUBLIC_MODE

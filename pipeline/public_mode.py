@@ -31,6 +31,9 @@ LIMITS = {
     "kit": (6, 3600),
     "field": (60, 3600),
     "compute": (60, 60),
+    "login": (10, 600),                  # wrong access codes (pipeline/access_gate.py)
+    "read": (300, 60),                   # every other GET in public mode
+    "weather": (30, 60),                 # GETs that can make the service call Open-Meteo
 }
 GLOBAL_FACTOR = 5
 CAPS = {"import_bytes": 200_000, "body_bytes": 1_000_000, "plans": 200, "kits": 30, "field_events": 2000}
@@ -156,6 +159,15 @@ def classify(method, path):
     return None
 
 
+def classify_read(method, path):
+    """Rate-limit kind of a GET in public mode: weather (can cause a call to Open-Meteo) or read; None = not limited (health check, the page's own files)."""
+    if method != "GET" or path == "/ping" or path.startswith("/assets/") or path in ("/robots.txt", "/login", "/logout"):
+        return None
+    if path in ("/weather/week", "/advisory/seasonal") or re.fullmatch(r"/plans/[^/]+/advisory", path):
+        return "weather"
+    return "read"
+
+
 def visitor_of(headers, client_host, hops):
     """The visitor address: the X-Forwarded-For entry `hops` from the right (the one added by the host's own proxy), else the socket address."""
     if hops > 0:
@@ -182,3 +194,29 @@ class KitGate:
     def leave(self):
         if self.lock.locked():
             self.lock.release()
+
+
+class BodyCap:
+    """Pure ASGI middleware: in public mode a request body larger than the cap is refused with 413 WHILE it is read (also when it comes in pieces with no Content-Length)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["method"] not in ("POST", "PUT", "PATCH") or not is_on():
+            return await self.app(scope, receive, send)
+        from fastapi import HTTPException
+        caps = settings()["caps"]
+        cap = caps["import_bytes"] if scope["path"] == "/field-checks/import" else caps["body_bytes"]
+        total = 0
+
+        async def capped():
+            nonlocal total
+            m = await receive()
+            if m["type"] == "http.request":
+                total += len(m.get("body", b""))
+                if total > cap:
+                    raise HTTPException(413, f"That request is too large for the public sandbox (limit {cap // 1000} KB).")
+            return m
+
+        await self.app(scope, capped, send)
