@@ -100,7 +100,7 @@ test('results file: blocks.csv columns first and unchanged, then the extra colum
   const s = Core.emptyState()
   s.observer = 'Ana "Nick", Cruz'
   s.trees['AAA-B01:1'] = { s: 'planted', lat: 14.7000012, lon: 121.1000004, acc: 6.04, t: '2026-10-13T01:00:00Z' }
-  const lines = Core.exportCsv(pack([b, mkBlock('BBB-B01', 2)]), s).trim().split('\r\n')
+  const lines = Core.exportCsv(pack([b, mkBlock('BBB-B01', 2)]), s, undefined, 'Prototype. GPS accuracy not yet field-tested.').trim().split('\r\n')
   assert.equal(lines.length, 3)
   const header = lines[0].split(',')
   assert.deepEqual(header.slice(0, 8), ['block_ref', 'point_id', 'status', 'trees_planted', 'moved_lat', 'moved_lon', 'plan_id', 'check_code'])
@@ -109,7 +109,7 @@ test('results file: blocks.csv columns first and unchanged, then the extra colum
   assert.ok(lines[1].includes('"Ana ""Nick"", Cruz"'))
   assert.ok(lines[1].includes('14.700001,121.100000,6'))
   assert.ok(lines[1].includes('1:planted::14.700001:121.100000:6:2026-10-13T01:00:00Z'))
-  assert.match(lines[2], /^BBB-B01,7,,,,,plan_x,abcd1234,,,,,,,,$/) // not decided: status and trees_planted empty, nothing invented
+  assert.match(lines[2], /^BBB-B01,7,,,,,plan_x,abcd1234,,,,,,,,,Prototype\. GPS accuracy not yet field-tested\.$/) // not decided: status and trees_planted empty, nothing invented, but the prototype warning travels with every row
 })
 
 test('saving: a phone that refuses storage never throws and keeps the marks in memory', () => {
@@ -132,4 +132,81 @@ test('strings: the reason words of the README exist and nothing is missing a tex
   for (const r of Core.REASONS) assert.ok(STRINGS['reason_' + r], r)
   for (const [k, v] of Object.entries(STRINGS)) assert.ok(typeof v === 'string' && v.length > 0, k)
   assert.equal(STRINGS.banner, 'Prototype. GPS accuracy not yet field-tested.')
+})
+
+const away = (a, b) => Math.abs(Core.angleDiff(a, b))
+
+test('angles: signed shortest difference and the 359 to 1 wrap', () => {
+  assert.equal(Core.angleDiff(359, 1), 2)
+  assert.equal(Core.angleDiff(1, 359), -2)
+  assert.equal(Core.angleDiff(10, 190), -180)
+  assert.equal(Core.angleDiff(0, 90), 90)
+  assert.equal(Core.normDeg(-30), 330)
+  assert.equal(Core.normDeg(725), 5)
+})
+
+test('smoothing: low-pass on a circle, no spin through 180 when the heading crosses north', () => {
+  assert.equal(Core.smoothAngle(null, 123, 0.3), 123)
+  assert.equal(Core.smoothAngle(undefined, 400, 0.3), 40)
+  let h = 350
+  const seen = []
+  for (const raw of [352, 355, 358, 1, 3, 5, 359, 2]) { const n = Core.smoothAngle(h, raw, 0.4); seen.push(away(h, n)); h = n }
+  assert.ok(Math.max(...seen) < 10, 'never a big jump: ' + seen.join(','))
+  let g = 359
+  for (let i = 0; i < 40; i++) g = Core.smoothAngle(g, 1, 0.3)
+  close(away(g, 1), 0, 0.01, 'converges to 1 through north, not through 180')
+  assert.equal(Core.smoothAngle(100, NaN, 0.5), 100)
+  assert.equal(Core.smoothAngle(100, 200, 0), 100)
+  assert.equal(Core.smoothAngle(100, 200, 1), 200)
+})
+
+test('uncertainty: stable compass, shaky compass and GPS heading while walking give different cones', () => {
+  close(Core.circularStd([10, 10, 10, 10]), 0, 1e-6, 'identical')
+  assert.ok(Core.circularStd([358, 2, 359, 1, 0]) < 3, 'a cluster around north is stable, not spread over 360')
+  assert.ok(Core.circularStd([0, 90, 180, 270, 45, 225]) > 60, 'all over the place')
+  assert.equal(Core.coneHalfAngle('compass', 3, 0), 28)
+  assert.equal(Core.coneHalfAngle('compass', 30, 0), 50)
+  assert.equal(Core.coneHalfAngle('gps', 3, 2.5), 12)
+  assert.equal(Core.coneHalfAngle('gps', 3, 1.0), 18)
+  assert.equal(Core.coneHalfAngle('none', 0, 0), null)
+  assert.ok(Core.coneHalfAngle('gps', 3, 2.5) < Core.coneHalfAngle('compass', 3, 0), 'GPS heading while moving is narrower than the compass')
+  assert.match(Core.conePath(40, 40, 36, 28), /^M 40 40 L [\d.]+ [\d.]+ A 36 36 0 0 1 [\d.]+ [\d.]+ Z$/)
+})
+
+test('relative cue: straight ahead, left, right, around, from heading and bearing', () => {
+  assert.deepEqual(Core.relativeCue(90, 90), { kind: 'ahead', deg: 0, turn: 0 })
+  assert.equal(Core.relativeCue(100, 90).kind, 'ahead') // 10 degrees: still straight ahead
+  assert.deepEqual(Core.relativeCue(90, 0), { kind: 'right', deg: 90, turn: 90 })
+  assert.deepEqual(Core.relativeCue(90, 180), { kind: 'left', deg: 90, turn: -90 })
+  assert.deepEqual(Core.relativeCue(350, 10), { kind: 'left', deg: 20, turn: -20 }) // across north
+  assert.deepEqual(Core.relativeCue(10, 350), { kind: 'right', deg: 20, turn: 20 })
+  assert.equal(Core.relativeCue(180, 0).kind, 'around')
+  assert.equal(Core.relativeCue(90, null), null)
+  assert.equal(Core.relativeCue(90, NaN), null)
+  assert.equal(Core.relativeCue(80, 40).deg, 40)
+})
+
+test('compass heading from device angles: flat phone, upright phone, west and east', () => {
+  close(away(Core.compassHeading(0, 0, 0), 0), 0, 1e-6, 'flat, facing north')
+  close(away(Core.compassHeading(90, 0, 0), 270), 0, 1e-6, 'flat, turned a quarter turn anticlockwise = facing west')
+  close(away(Core.compassHeading(270, 0, 0), 90), 0, 1e-6, 'flat, facing east')
+  close(away(Core.compassHeading(180, 0, 0), 180), 0, 1e-6, 'flat, facing south')
+  close(away(Core.compassHeading(0, 90, 0), 0), 0, 1e-6, 'upright, back of the phone facing north')
+  close(away(Core.compassHeading(90, 90, 0), 270), 0, 1e-6, 'upright, facing west')
+  close(away(Core.compassHeading(270, 90, 0), 90), 0, 1e-6, 'upright, facing east')
+  close(away(Core.compassHeading(0, 50, 0), 0), 0, 1e-6, 'tilted 50 degrees, facing north')
+  close(away(Core.compassHeading(90, 0, 0, 90), 0), 0, 1e-6, 'screen turned 90 degrees adds to the flat heading')
+  assert.equal(Core.compassHeading(null, 0, 0), null)
+  assert.equal(Core.compassHeading(10, undefined, 0), null)
+})
+
+test('heading from an event: iOS compass heading, Android absolute event, relative event gives nothing', () => {
+  assert.equal(Core.headingFromEvent({ webkitCompassHeading: 120 }, 0), 120)
+  assert.equal(Core.headingFromEvent({ webkitCompassHeading: 350 }, 20), 10)
+  close(away(Core.headingFromEvent({ type: 'deviceorientationabsolute', alpha: 270, beta: 0, gamma: 0 }, 0), 90), 0, 1e-6)
+  close(away(Core.headingFromEvent({ type: 'deviceorientation', absolute: true, alpha: 90, beta: 0, gamma: 0 }, 0), 270), 0, 1e-6)
+  assert.equal(Core.headingFromEvent({ type: 'deviceorientation', absolute: false, alpha: 90, beta: 0, gamma: 0 }, 0), null)
+  assert.equal(Core.headingFromEvent({ type: 'deviceorientation', alpha: 90, beta: 0, gamma: 0 }, 0), null)
+  assert.equal(Core.headingFromEvent(null, 0), null)
+  assert.equal(Core.headingFromEvent({ webkitCompassHeading: NaN, absolute: false }, 0), null)
 })

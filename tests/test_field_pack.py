@@ -146,7 +146,7 @@ def test_every_text_the_person_reads_is_in_the_strings_table():
     unused = {k for k in keys - literals if k not in dyn}
     assert not unused, sorted(unused)                                              # and every key is used (the reasons are built as 'reason_' + word)
     assert dyn == {"reason_" + r for r in re.findall(r"'(\w+)'", re.search(r"const REASONS = \[(.*?)\]", (ROOT / "fieldpack" / "core.js").read_text(encoding="utf-8")).group(1))}
-    assert not re.search(r"textContent\s*=\s*'|createTextNode\('", app)              # no sentence is written straight into the code
+    assert not re.search(r"textContent\s*=\s*'[^']|createTextNode\('[^']", app)    # no sentence is written straight into the code (an empty string is fine)
     assert "innerHTML" not in app                                                  # nothing from the plan is ever read as HTML
 
 
@@ -159,9 +159,15 @@ def test_saving_goes_through_one_guarded_wrapper():
 
 def test_phone_layout_rules_in_the_css():
     css = (ROOT / "fieldpack" / "app.css").read_text(encoding="utf-8")
-    assert re.search(r"\.btn \{[^}]*min-height: 5\d+px", css) and re.search(r"\.tree \{[^}]*min-height: 5\d+px", css)     # tap targets of at least 52 px
+    assert re.search(r"\.btn \{[^}]*min-height: 5\d+px", css)                                                              # tap targets of at least 52 px
+    assert re.search(r"\.chip \{[^}]*width: 48px; height: 48px", css) and re.search(r"\.rbtn \{ width: 48px; height: 48px", css)    # chips and the round map buttons: 48 px
+    assert re.search(r"\.btnrow \.primary \{[^}]*min-height: 60px", css)                                                   # "Planted here": 60 px (56 px or more)
     assert "color: var(--fg)" in css and "--fg: #000" in css and "--bg: #fff" in css                                       # black on white for sunlight
-    assert re.search(r"body \{[^}]*font: 18px", css)
+    assert re.search(r"body \{[^}]*font: 18px", css) and re.search(r"input\[type=text\] \{[^}]*font-size: 16px", css)       # inputs 16 px: iOS does not zoom
+    assert "height: 100dvh" in css and "height: 100vh" in css                                                              # the screen height follows the phone's address bar (100vh stays as the fallback)
+    assert css.count("env(safe-area-inset-") >= 8                                                                           # notches and home bars: top bar, banner, sheet and buttons keep clear
+    assert "viewport-fit=cover" in (ROOT / "fieldpack" / "template.html").read_text(encoding="utf-8")
+    assert "[hidden] { display: none !important; }" in css
 
 
 # ---------------------------------------------------------------- the trees: the SAME maths as field_kit.py
@@ -246,10 +252,11 @@ def test_a_kit_that_was_changed_or_made_with_another_formula_is_refused(tmp_path
 
 # ---------------------------------------------------------------- the page's own maths, tested with node
 @needs_node
+@needs_node
 def test_core_tests_in_node():
     r = subprocess.run([NODE, "--test", str(ROOT / "fieldpack" / "core.test.mjs")], capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stdout[-2500:] + r.stderr[-1500:]
-    assert "# fail 0" in r.stdout and "# pass 10" in r.stdout
+    assert "# fail 0" in r.stdout and "# pass 16" in r.stdout
 
 
 def run_sim(payload):
@@ -322,7 +329,7 @@ def test_the_dashboard_import_accepts_the_results_file(client, fresh, tmp_path):
         acts.append({"ref": b2["ref"], "k": k, "s": "skipped", "reason": "rock_or_ledge", "t": iso(30)})
     acts += [{"ref": b3["ref"], "k": 1, "s": "planted", "t": iso(20), **fix(b3, 1)}, {"ref": b3["ref"], "k": 2, "s": "planted", "t": iso(19), **fix(b3, 2)},
              {"ref": b3["ref"], "k": 3, "s": "skipped", "reason": "paved", "t": iso(18)}]       # block 3: two planted, one skipped
-    text = run_sim({"mode": "csv", "pack": pk, "observer": "Ana Cruz", "actions": acts})
+    text = run_sim({"mode": "csv", "pack": pk, "observer": "Ana Cruz", "actions": acts, "notice": "Prototype. GPS accuracy not yet field-tested. (pack " + pk["pack_id"] + ")"})
     rows = list(csv.DictReader(io.StringIO(text)))
     header = next(csv.reader(io.StringIO(text)))
     original = next(csv.reader(io.StringIO((kit_dir / "blocks.csv").read_text(encoding="utf-8"))))
@@ -333,6 +340,7 @@ def test_the_dashboard_import_accepts_the_results_file(client, fresh, tmp_path):
     assert (by[b2["ref"]]["status"], by[b2["ref"]]["reason"]) == ("rock_or_ledge", "rock_or_ledge")
     assert (by[b3["ref"]]["status"], by[b3["ref"]]["trees_planted"]) == ("planted", "2") and "paved" in by[b3["ref"]]["note"]
     assert all(r["moved_lat"] == "" and r["moved_lon"] == "" for r in rows)            # a tree's position is not the block's centre: never filled by the page
+    assert all(r["pack_notice"].startswith("Prototype. GPS accuracy not yet field-tested.") for r in rows)          # the warning travels with every row of the results file
     assert all(r["plan_id"] == plan_id and r["check_code"] == pk["check_code"] for r in rows)
     undecided = [r for r in rows if r["block_ref"] not in (b0["ref"], b1["ref"], b2["ref"], b3["ref"])]
     assert undecided and all(r["status"] == "" and r["trees_planted"] == "" for r in undecided)
@@ -363,9 +371,39 @@ def test_nothing_null_or_undefined_can_become_text_on_the_page():
     and h() skips null, undefined and true/false. (The browser checks look for the words null / undefined / NaN and for missing text keys on every screen.)"""
     app = (ROOT / "fieldpack" / "app.js").read_text(encoding="utf-8")
     assert "const clean = (list) => list.filter((x) => x !== null && x !== undefined && typeof x !== 'boolean')" in app
-    calls = re.findall(r"replaceChildren\((.*)\)\s*$", app, re.M)
-    assert len(calls) == 2 and all(c.startswith("...clean(") or c.startswith("...clean([") for c in calls), calls      # the target card and the whole screen
+    assert app.count("replaceChildren(") == 3 and app.count("replaceChildren(...clean(") == 2          # the chips and the whole screen go through clean(); the credit line is a fixed list of nodes
     assert "for (const kid of clean(kids.flat()))" in app
     assert not re.search(r"kids\.push\(.*\?.*: null\)", app)                                                   # no conditional null pushed into a plain list
-    tree_button = app.split("function treeButton")[1].split("function blockScreen")[0]
-    assert tree_button.count("t('reason_' + r.reason)") == 1 and "r.s === 'planted' ? t('recPlanted') : t('recSkipped'" in tree_button     # the reason is only looked up for a skipped tree
+    chips = app.split("function refreshChips")[1].split("function updateTopbar")[0]
+    assert chips.count("t('reason_' + r.reason)") == 1 and "r.s === 'planted' ? t('recPlanted') : t('recSkipped'" in chips     # the reason is only looked up for a skipped tree
+
+
+def test_a1c_screen_has_the_parts_that_were_asked_for():
+    app = (ROOT / "fieldpack" / "app.js").read_text(encoding="utf-8")
+    core = (ROOT / "fieldpack" / "core.js").read_text(encoding="utf-8")
+    for must in ("class: 'topbar'", "class: 'stage'", "class: 'sheet'", "class: 'chips'", "class: 'mapbtns'", "class: 'rbtn'", "btnPlanted", "btnSkip", "detailsTitle"):
+        assert must in app, must
+    # the wake lock is wrapped: a missing feature or a refusal is silent
+    wake = app.split("async function requestWake")[1].split("document.addEventListener('visibilitychange'")[0]
+    assert "try {" in wake and "catch (e)" in wake and "navigator.wakeLock" in wake and "release" in wake
+    assert "document.addEventListener('visibilitychange'" in app and "wake.want" in app
+    # iOS compass permission is only asked inside the tap on Start GPS, and the listeners never wait for it
+    assert app.index("startCompass() // first") < app.index("requestWake()\n    const p = gpsProblem()")
+    assert "DeviceOrientationEvent.requestPermission" in app and "'deviceorientationabsolute'" in app
+    assert "webkitCompassHeading" in core and "compassHeading" in core
+    # map rotation: the container is turned with CSS, markers and labels are turned back; no rotation plugin is used
+    css = (ROOT / "fieldpack" / "app.css").read_text(encoding="utf-8")
+    assert "rotate(calc(-1 * var(--maprot, 0deg)))" in css and "--maprot" in app
+    assert "leaflet-rotate" not in app and "RotatedMarker" not in app
+    assert not re.search(r"\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket", app)
+
+
+def test_the_results_file_carries_the_prototype_notice_in_every_row(pack):
+    sim = subprocess.run([NODE, "-e", "const C = require(process.argv[1]); const p = JSON.parse(require('fs').readFileSync(0, 'utf8')); process.stdout.write(C.exportCsv(p, C.emptyState(), undefined, 'Prototype. GPS accuracy not yet field-tested. (pack ' + p.pack_id + ')'))", str(ROOT / "fieldpack" / "core.js")],
+                         input=json.dumps(pack), capture_output=True, text=True, timeout=60)
+    assert sim.returncode == 0, sim.stderr
+    rows = list(csv.DictReader(io.StringIO(sim.stdout)))
+    assert len(rows) == len(pack["blocks"]) and all(r["pack_notice"].startswith("Prototype. GPS accuracy not yet field-tested.") for r in rows)
+    assert all(r["status"] == "" and r["trees_planted"] == "" for r in rows)                  # nothing was marked: nothing is invented
+
+

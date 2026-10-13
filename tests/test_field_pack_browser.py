@@ -1,6 +1,6 @@
 """Field pack in a real browser (headless Edge, 360 px wide, fake GPS, all tile requests intercepted so no map server is contacted).
 Runs only with OS_BROWSER_CHECK=1 (and Edge + node installed): python -m pytest tests/test_field_pack_browser.py
-It runs tests/browser/fieldpack_check.mjs (whole flow) and tests/browser/fieldpack_map_check.mjs (map: markers = the page's coordinates for every tree of every block, Referer, zoom levels,
+It runs tests/browser/fieldpack_check.mjs (whole flow at 360x640 and 390x844), fieldpack_heading_check.mjs (heading, cone, relative cue, heading-up rotation, wake lock; simulated events) and fieldpack_map_check.mjs (map: markers = the page's coordinates for every tree of every block, Referer, zoom levels,
 position and accuracy circle, line to the target, follow / re-centre, no background map, satellite only when built in)."""
 import os, shutil, socket, subprocess, sys, time
 from pathlib import Path
@@ -34,7 +34,7 @@ def page(site, sub):
 
 
 def run(script, *args):
-    r = subprocess.run(["node", str(ROOT / "tests" / "browser" / script), *args], capture_output=True, text=True, timeout=240)
+    r = subprocess.run(["node", str(ROOT / "tests" / "browser" / script), *args], capture_output=True, text=True, timeout=300)
     return r
 
 
@@ -42,6 +42,12 @@ def test_whole_flow_in_the_browser(site):
     r = run("fieldpack_check.mjs", page(site, "normal"), str(site["out"]))
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-1000:]
     assert " 0 failed" in r.stdout
+
+
+def test_heading_rotation_cue_and_wake_lock_in_the_browser(site):
+    r = run("fieldpack_heading_check.mjs", page(site, "normal"), str(site["out"]))
+    assert r.returncode == 0, r.stdout[-3500:] + r.stderr[-1000:]
+    assert " 0 failed" in r.stdout and "heading across north" in r.stdout
 
 
 def test_the_map_in_the_browser(site):

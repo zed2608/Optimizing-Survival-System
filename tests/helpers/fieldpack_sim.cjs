@@ -16,7 +16,7 @@ process.stdin.on('end', () => {
       if (a.lat !== undefined) Object.assign(rec, { lat: a.lat, lon: a.lon, acc: a.acc })
       state.trees[Core.key(block(a.ref), a.k)] = rec
     }
-    process.stdout.write(Core.exportCsv(req.pack, state))
+    process.stdout.write(Core.exportCsv(req.pack, state, undefined, req.notice))
   } else if (req.mode === 'distance') {
     process.stdout.write(JSON.stringify(req.pairs.map((p) => [Core.distanceM(...p), Core.bearingDeg(...p)])))
   }

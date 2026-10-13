@@ -1,140 +1,128 @@
-// Browser check of the field pack (Stage A1): headless Edge at 360 px wide with a FAKE GPS (CDP geolocation override). Not run by pytest.
-//   node tests/browser/fieldpack_check.mjs <page.html or http://... address> <folder for pictures>
-// It walks the whole flow: pick a block, start GPS, see distance / bearing / accuracy, "arrived", mark planted, skip with a reason, reload (the marks stay), export the results file.
-// It says whether GPS worked for the way the page was opened (file or http address): this is a DESKTOP browser, so it is only a hint for phones, not a phone test.
-import { spawn } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+// Whole flow of the field pack in headless Edge at 360 x 640 and 390 x 844 with a FAKE GPS (tiles intercepted: no map server is contacted). Not run by pytest by default (see tests/test_field_pack_browser.py).
+//   node tests/browser/fieldpack_check.mjs <page: a file path or an http address> <folder for pictures>
+// Home (banner, notice, name field, block cards), the block screen (map fills the screen, top bar, bottom sheet, chips, Details), GPS far / on the point / approximate, planted, skipped with a reason,
+// the marks staying after a reload, the results file (blocks.csv columns first, prototype notice in every row), and the words null / undefined / NaN never being visible.
 import { pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
+import { launch } from './cdp_lib.mjs'
 
-const EDGE = process.env.EDGE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
 const target = process.argv[2]
-const OUT = process.argv[3] || tmpdir()
-const URL_ = /^https?:/.test(target) ? target : pathToFileURL(resolve(target)).href
-const PORT = 9400 + Math.floor(Math.random() * 400)
-const edge = spawn(EDGE, [`--remote-debugging-port=${PORT}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'edge_fp_'))}`, '--headless=new', '--disable-gpu', '--no-first-run', 'about:blank'], { stdio: 'ignore' })
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-let tgt
-for (let i = 0; i < 60; i++) { try { tgt = (await (await fetch(`http://127.0.0.1:${PORT}/json`)).json()).find((t) => t.type === 'page'); if (tgt) break } catch {} await sleep(300) }
-const ws = new WebSocket(tgt.webSocketDebuggerUrl)
-await new Promise((r) => (ws.onopen = r))
-let id = 0
-const pending = new Map()
-ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id) } }
-const send = (method, params = {}) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })) })
-const ev = async (expr) => { const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true }); if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails).slice(0, 400)); return r.result?.result?.value }
-const shot = async (n) => writeFileSync(join(OUT, n + '.png'), Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64'))
-const text = () => ev('document.body.innerText')
-const click = (label) => ev(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(${JSON.stringify(label)})); if (!b) return false; b.click(); return true })()`)
-const fakeGps = (lat, lon, accuracy) => send('Emulation.setGeolocationOverride', { latitude: lat, longitude: lon, accuracy })
-const waitFor = async (re, ms = 6000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (re.test(await text())) return true; await sleep(150) } return false }
-const log = []
-const check = (name, ok, extra = '') => { log.push({ name, ok: !!ok, extra }); console.log((ok ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')) }
+const url = /^https?:/.test(target) ? target : pathToFileURL(resolve(target)).href
+const b = await launch({ out: process.argv[3] })
+const { ev, text, click, tap, check, sleep, waitFor, waitExpr, gps, noBadText } = b
+b.tileMode = 'ok'
 
-// Words that must never be visible: a JavaScript null / undefined / NaN written into the page, a text key that was not found ("[gpsStart]"), or a value that was not filled in ("{lat}").
-const badText = async () => JSON.parse(await ev(`(() => {
-  const out = []
-  const word = /\\b(null|undefined|NaN)\\b/
-  const hole = /\\{[A-Za-z]+\\}|\\[[A-Za-z]+(_[A-Za-z]+)*\\]/
-  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-  let n
-  while ((n = w.nextNode())) {
-    const p = n.parentElement
-    if (!p || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(p.tagName)) continue
-    if (word.test(n.textContent) || hole.test(n.textContent)) out.push(n.textContent.trim().slice(0, 50))
-  }
-  for (const e of document.querySelectorAll('[aria-label], [title]')) {
-    const v = (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')
-    if (word.test(v) || hole.test(v)) out.push('attribute: ' + v.trim().slice(0, 50))
-  }
-  return JSON.stringify(out)
-})()`))
-const noBadText = async (where) => { const bad = await badText(); check(`no "null", "undefined", "NaN" or missing text on ${where}`, bad.length === 0, bad.join(' | ')) }
-await send('Page.enable')
-await send('Network.enable')
-await send('Network.setBlockedURLs', { urls: ['*tile.openstreetmap.org*', '*arcgisonline.com*'] }) // this check never contacts a tile server (the map has its own check)
-await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 740, deviceScaleFactor: 2, mobile: true })
-await send('Emulation.setTouchEmulationEnabled', { enabled: true })
-const origin = URL_.startsWith('file:') ? 'file://' : new globalThis.URL(URL_).origin
-await send('Browser.grantPermissions', { permissions: ['geolocation'], origin }).catch(() => {})
-await send('Page.navigate', { url: URL_ })
-await sleep(1500)
+for (const [W, H] of [[360, 640], [390, 844]]) {
+  const tag = `${W}x${H}: `
+  await b.viewport(W, H)
+  await b.open(url)
+  await ev('sessionStorage.clear(); localStorage.clear()')
+  await b.open(url)
+  const pack = JSON.parse(await ev("document.getElementById('pack-data').textContent"))
+  const blk = pack.blocks[0]
+  const t1 = blk.trees[0]
 
-const pack = JSON.parse(await ev("document.getElementById('pack-data').textContent"))
-const b = pack.blocks[0]
-const t1 = b.trees[0]
-check('page opens and shows the banner', (await text()).includes('Prototype. GPS accuracy not yet field-tested.'))
-check('secure context (needed for GPS)', true, 'isSecureContext=' + (await ev('window.isSecureContext')) + ' protocol=' + (await ev('location.protocol')))
-const layout = await ev(`JSON.stringify({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, small: [...document.querySelectorAll('button, input')].filter((e) => { const r = e.getBoundingClientRect(); return r.width && (r.height < 44 || r.width < 44) }).length, minFont: Math.min(...[...document.querySelectorAll('#app *, #banner')].filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())).map((e) => parseFloat(getComputedStyle(e).fontSize))) })`)
-const L = JSON.parse(layout)
-check('home: no sideways scroll at 360 px', L.sw <= L.cw, layout)
-check('home: tap targets at least 44 px, text at least 16 px', L.small === 0 && L.minFont >= 16)
-await noBadText('the home screen')
-await shot('fp_1_home')
+  // ---- home
+  check(tag + 'the prototype notice is visible on first load', (await ev(`(() => { const e = document.getElementById('banner'); return !e.hidden && e.getBoundingClientRect().height > 0 && e.innerText.includes('Prototype. GPS accuracy not yet field-tested.') })()`)))
+  check(tag + 'home: no sideways scroll', await ev('document.documentElement.scrollWidth <= document.documentElement.clientWidth'))
+  check(tag + 'home: the name field is 16 px or bigger (no zoom on iOS) and the block cards are big', await ev(`parseFloat(getComputedStyle(document.getElementById('observer')).fontSize) >= 16 && [...document.querySelectorAll('.bcard')].every((c) => c.getBoundingClientRect().height >= 70)`))
+  check(tag + 'home: a card for every block with a progress bar', (await ev(`document.querySelectorAll('.bcard .bar').length`)) === pack.blocks.length)
+  await noBadText(tag + 'the home screen')
 
-await ev("(() => { const i = document.getElementById('observer'); i.value = 'Test Planter'; i.dispatchEvent(new Event('input', { bubbles: true })) })()")
-await click(b.ref)
-await sleep(300)
-check('block screen lists trees 1..N and the START corner', (await text()).includes('START corner') && (await ev(`document.querySelectorAll('.tree').length`)) === b.n)
-await noBadText('the block screen before GPS (the Start GPS button)')
-await shot('fp_2_block_before_gps')
+  // ---- the notice can be hidden for the session; its tap area is bigger than the button; it comes back in Details
+  const slop = await ev(`(() => { const r = document.getElementById('bannerclose').getBoundingClientRect(); const e = document.elementFromPoint(r.x - 6, r.y + r.height / 2); return e && e.id === 'bannerclose' })()`)
+  check(tag + 'the notice close button has a bigger tap area than its drawing', slop)
+  await ev("document.getElementById('observer').value = 'Flow Tester'; document.getElementById('observer').dispatchEvent(new Event('input', { bubbles: true }))")
 
-await click('Start GPS')
-await noBadText('the block screen just after tapping Start GPS (no reading yet)')
-await fakeGps(t1[1] + 0.00036, t1[2], 6) // about 40 m north of tree 1, accuracy 6 m
-await waitFor(/Distance to the tree/)
-let txt = await text()
-const gpsWorked = /Distance to the tree/.test(txt)
-check('GPS reading arrives and distance / direction / accuracy are shown', gpsWorked, gpsWorked ? txt.match(/Distance to the tree: [^\n]+/)[0] + ' | ' + txt.match(/Direction: [^\n]+/)[0] + ' | ' + txt.match(/Phone GPS accuracy[^\n]*/)[0] : txt.match(/(This page|GPS only|Location|The phone|No GPS)[^\n]*/)?.[0])
-if (gpsWorked) {
-  check('direction is south (target is south of the phone)', /Direction: S \(1[6-9]\d°/.test(txt))
-  check('far away: not "arrived"', !txt.includes('You are at the tree position'))
-  check('no compass: only degrees and letters, and it says so', txt.includes('No compass heading'))
-  await noBadText('the block screen with a GPS reading')
-await shot('fp_3_gps_far')
-  await fakeGps(t1[1], t1[2], 12) // right on the tree but accuracy 12 m (worse than a 7 m spacing for some species)
-  await waitFor(/You are at the tree position/)
-  txt = await text()
-  check('on the point: arrived is claimed only within the reported accuracy', txt.includes('You are at the tree position'))
-  check('accuracy worse than the spacing: says the point is only approximate', b.spacing_m < 12 ? txt.includes('only approximate') : true, 'spacing ' + b.spacing_m)
-  await shot('fp_4_gps_arrived')
-  await click('Planted here')
+  // ---- block screen
+  await tap(blk.ref)
+  await waitExpr(`document.querySelectorAll('.treeicon').length === ${blk.n}`)
   await sleep(500)
-  txt = await text()
-  check('planted: the next tree becomes the target', txt.includes(`Tree 2 of ${b.n}`))
-  await click('Skip this tree')
+  const lay = JSON.parse(await ev(`(() => { const r = (s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x, b.y, b.width, b.height] }; const ban = document.getElementById('banner'); return JSON.stringify({ vw: innerWidth, vh: innerHeight, banner: ban.hidden ? 0 : ban.getBoundingClientRect().height, top: r('.topbar'), stage: r('.stage'), map: r('#map'), sheet: r('.sheet'), sw: document.documentElement.scrollWidth, sh: document.documentElement.scrollHeight }) })()`))
+  check(tag + 'the map fills the screen under the slim top bar (100dvh): the stage reaches the bottom edge and the full width', Math.abs(lay.stage[1] + lay.stage[3] - lay.vh) <= 1 && lay.stage[2] === lay.vw && lay.map[2] === lay.vw, JSON.stringify({ stage: lay.stage.map(Math.round), vh: lay.vh }))
+  check(tag + 'the top bar is slim', lay.top[3] <= 64, Math.round(lay.top[3]) + ' px')
+  check(tag + 'no sideways scroll and no page scroll on the block screen', lay.sw <= lay.vw && lay.sh <= lay.vh + 1, `${lay.sw}x${lay.sh}`)
+  check(tag + 'the bottom sheet leaves the map visible (sheet under 50% of the screen height)', lay.sheet[3] < lay.vh * 0.5, Math.round(lay.sheet[3]) + ' px of ' + lay.vh)
+  const hidden = await ev(`(() => { const a = document.querySelector('.treeicon.st-active').getBoundingClientRect(); const s = document.querySelector('.sheet').getBoundingClientRect(); return a.bottom > s.top + 1 })()`)
+  check(tag + 'the sheet does not cover the active tree by default', !hidden)
+  const sizes = JSON.parse(await ev(`JSON.stringify({ min: Math.min(...[...document.querySelectorAll('.stage button, .topbar button')].filter((e) => e.getBoundingClientRect().width > 0).map((e) => Math.min(e.getBoundingClientRect().width, e.getBoundingClientRect().height))), primary: document.querySelector('.btnrow .primary').getBoundingClientRect().height })`))
+  check(tag + 'every button is at least 48 px, and "Planted here" at least 56 px high', sizes.min >= 47.5 && sizes.primary >= 56, `smallest ${sizes.min}, primary ${sizes.primary}`)
+  check(tag + 'top bar says "0 of N done"; chips for every tree', (await ev(`document.querySelector('.topbar .done').textContent`)) === `0 of ${blk.n} done` && (await ev(`document.querySelectorAll('.chip').length`)) === blk.n)
+  check(tag + 'Details are collapsed (no START corner, no legend in the main view)', !(await text()).includes('START corner') && !(await text()).includes('Dotted square'))
+  await tap('Details')
   await sleep(300)
-  check('skip offers the README reasons', (await text()).includes('Rock or ledge') && (await text()).includes('Owner refused'))
-  await click('Rock or ledge')
-  await sleep(500)
-  check('skipped: tree 3 is next and progress says 1 planted 1 skipped', (await text()).includes(`Tree 3 of ${b.n}`) && /1 planted, 1 skipped/.test(await text()))
-  await shot('fp_5_after_marks')
-}
-await send('Page.reload')
-await sleep(1500)
-await click(b.ref)
-await sleep(300)
-if (gpsWorked) check('after reload the marks are still there (saved on the phone)', /1 planted, 1 skipped/.test(await text()))
-await click('Back to all blocks')
-await sleep(300)
-await ev("window.__blobs = []; const o = URL.createObjectURL.bind(URL); URL.createObjectURL = (x) => { window.__blobs.push(x); return o(x) }")
-await click('Save results file')
-await sleep(500)
-const csv = await ev('window.__blobs[0] ? window.__blobs[0].text() : null')
-if (csv) {
-  const lines = csv.replace(/^\uFEFF/, '').trim().split(/\r?\n/)
-  check('results file has the blocks.csv columns first, one row per block', lines.length === pack.blocks.length + 1 && lines[0].startsWith(pack.columns.join(',')))
-  const parse = (line) => { const out = []; let cur = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++ } else if (c === '"') q = false; else cur += c } else if (c === '"') q = true; else if (c === ',') { out.push(cur); cur = '' } else cur += c } out.push(cur); return out }
-  const r1 = parse(lines[1])
-  if (gpsWorked) check('results file: block 1 is planted with 1 tree (partly done), by the name typed', r1[pack.columns.indexOf('status')] === 'planted' && r1[pack.columns.indexOf('trees_planted')] === '1' && r1[pack.columns.length + 2] === 'Test Planter', r1.slice(pack.columns.indexOf('status'), pack.columns.indexOf('status') + 2).join('|') + ' observer=' + r1[pack.columns.length + 2])
-  writeFileSync(join(OUT, 'fp_results.csv'), csv)
-} else check('results file was made', false)
-await noBadText('the home screen after marking trees')
-await shot('fp_6_home_after')
+  check(tag + 'Details open: target position, START corner, legend, the honest 3 to 10 m line, the notice', await ev(`(() => { const t = document.querySelector('.sheet').innerText; return t.includes('Target position') && t.includes('START corner') && t.includes('Dotted square') && t.includes('3 to 10 m') && t.includes('Prototype. GPS accuracy not yet field-tested.') })()`))
+  await tap('Details')
+  await noBadText(tag + 'the block screen before GPS')
+  await b.shot(`flow_${W}_1_block`)
 
-writeFileSync(join(OUT, 'fp_report.json'), JSON.stringify({ page: URL_, gpsWorked, log }, null, 1))
-console.log(`\n${log.filter((l) => l.ok).length} passed, ${log.filter((l) => !l.ok).length} failed; GPS worked on this way of opening the page: ${gpsWorked}`)
-ws.close(); spawn('taskkill', ['/PID', String(edge.pid), '/T', '/F'], { stdio: 'ignore' })
-await sleep(500)
-process.exit(log.some((l) => !l.ok) ? 1 : 0)
+  // ---- GPS far, on the point, approximate
+  await tap('Start GPS')
+  await noBadText(tag + 'the block screen just after tapping Start GPS')
+  await gps(t1[1] + 0.00036, t1[2], 6) // 40 m north of tree 1
+  await waitFor(/about 40 m/)
+  const sheet = await ev(`document.querySelector('.sheet').innerText`)
+  check(tag + 'distance and bearing in the sheet, accuracy shown', /about 40 m/.test(sheet) && /S 180°/.test(sheet) && /±6 m/.test(sheet), sheet.replace(/\n+/g, ' | ').slice(0, 150))
+  check(tag + 'not "arrived" while far', !sheet.includes('You are at the tree'))
+  await noBadText(tag + 'the block screen with a GPS reading')
+  await gps(t1[1], t1[2], 3)
+  await waitFor(/You are at the tree/)
+  check(tag + '"arrived" only inside the reported accuracy (3 m)', (await text()).includes('You are at the tree'))
+  await gps(t1[1], t1[2], 12)
+  await waitFor(/only approximate/)
+  check(tag + 'accuracy worse than the spacing says the position is only approximate', (await text()).includes('only approximate') && blk.spacing_m < 12)
+  await gps(t1[1], t1[2], 3)
+  await waitFor(/You are at the tree/)
+
+  // ---- planted, then skipped with a reason
+  await tap('Planted here')
+  await sleep(500)
+  check(tag + 'planted: the next tree is the target and the chip is green', (await ev(`document.querySelector('.ttl2').textContent`)) === `Tree 2 of ${blk.n}` && (await ev(`document.querySelector('.chip[data-k="1"]').className`)).includes('planted'))
+  await gps(blk.trees[1][1] + 0.0005, blk.trees[1][2], 5) // away from tree 2: the planted tap will ask (the dialog is accepted by the check)
+  await sleep(700)
+  await tap('Skip')
+  await sleep(300)
+  check(tag + 'skip shows the README reasons', (await text()).includes('Rock or ledge') && (await text()).includes('Owner refused') && (await text()).includes('Creek or waterlogged'))
+  await tap('Rock or ledge')
+  await sleep(500)
+  check(tag + 'skipped: tree 3 is next, "2 of N done" in the top bar', (await ev(`document.querySelector('.ttl2').textContent`)) === `Tree 3 of ${blk.n}` && (await ev(`document.querySelector('.topbar .done').textContent`)) === `2 of ${blk.n} done`)
+  await tap('Planted here')
+  await sleep(500)
+  check(tag + 'planting while away from the tree asked first ("anyway?")', b.dialogs.some((d) => /anyway/.test(d)))
+  await tap('Tree 3')
+  await sleep(300)
+  await tap('Undo')
+  await sleep(400)
+  check(tag + 'undo takes a mark back ("2 of N done" again)', (await ev(`document.querySelector('.topbar .done').textContent`)) === `2 of ${blk.n} done`)
+  await noBadText(tag + 'the block screen after marking')
+
+  // ---- the marks stay after a reload
+  await b.send('Page.reload')
+  await sleep(1500)
+  await tap(blk.ref)
+  await waitExpr(`document.querySelectorAll('.chip').length === ${blk.n}`)
+  check(tag + 'after a reload the marks are still there', (await ev(`document.querySelector('.topbar .done').textContent`)) === `2 of ${blk.n} done`, await ev(`document.querySelector('.topbar .done').textContent`))
+
+  // ---- results file
+  await tap('Back')
+  await sleep(300)
+  await ev("window.__blobs = []; const o = URL.createObjectURL.bind(URL); URL.createObjectURL = (x) => { window.__blobs.push(x); return o(x) }")
+  await tap('Save results file')
+  await sleep(500)
+  const csv = await ev('window.__blobs[0] ? window.__blobs[0].text() : null')
+  check(tag + 'a results file was made', !!csv)
+  if (csv) {
+    const lines = csv.replace(/^﻿/, '').trim().split(/\r?\n/)
+    const parse = (line) => { const out = []; let cur = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++ } else if (c === '"') q = false; else cur += c } else if (c === '"') q = true; else if (c === ',') { out.push(cur); cur = '' } else cur += c } out.push(cur); return out }
+    const head = parse(lines[0])
+    const r1 = parse(lines[1])
+    const col = (n) => head.indexOf(n)
+    check(tag + 'results file: blocks.csv columns first, one row per block', lines.length === pack.blocks.length + 1 && head.slice(0, pack.columns.length).join(',') === pack.columns.join(','))
+    check(tag + 'results file: block 1 planted with its count, by the name typed, plan and check code kept', r1[col('status')] === 'planted' && Number(r1[col('trees_planted')]) >= 1 && r1[col('observer')] === 'Flow Tester' && r1[col('plan_id')] === pack.plan_id && r1[col('check_code')] === pack.check_code)
+    check(tag + 'results file: the prototype notice is in every row', lines.slice(1).every((l) => parse(l)[col('pack_notice')].startsWith('Prototype. GPS accuracy not yet field-tested.')))
+    check(tag + 'results file: moved_lat and moved_lon stay empty', lines.slice(1).every((l) => parse(l)[col('moved_lat')] === '' && parse(l)[col('moved_lon')] === ''))
+  }
+  await noBadText(tag + 'the home screen after marking trees')
+}
+check('no uncaught page errors during the whole run', b.events.length === 0, b.events.length ? JSON.stringify(b.events[0].params.exceptionDetails).slice(0, 200) : '')
+await b.done('flow_report')

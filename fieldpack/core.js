@@ -8,7 +8,7 @@ const FieldPackCore = (function () {
   const rad = (d) => (d * Math.PI) / 180
   const POINTS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
   const REASONS = ['paved', 'building', 'rock_or_ledge', 'creek_or_waterlogged', 'too_steep', 'existing_tree', 'owner_refused', 'other'] // the words of the kit README and of field_verify.REASONS
-  const EXTRA_COLUMNS = ['reason', 'note', 'observer', 'observed_at', 'gps_lat', 'gps_lon', 'gps_accuracy_m', 'tree_log'] // appended after the 32 columns of blocks.csv; the dashboard import reads them by name
+  const EXTRA_COLUMNS = ['reason', 'note', 'observer', 'observed_at', 'gps_lat', 'gps_lon', 'gps_accuracy_m', 'tree_log', 'pack_notice'] // appended after the 32 columns of blocks.csv; the dashboard import reads them by name (pack_notice: the prototype warning travels with the results)
   const MIN_ARRIVAL_M = 2
 
   function distanceM(lat1, lon1, lat2, lon2) {
@@ -53,6 +53,78 @@ const FieldPackCore = (function () {
     const step = !known ? 5 : accuracy >= 20 ? 10 : accuracy >= 8 ? 5 : accuracy >= 3 ? 2 : 1
     const v = Math.max(0, Math.round(distance / step) * step)
     return { value: v, step, text: step > 1 ? (v === 0 ? `less than ${step}` : `about ${v}`) : `${v}` }
+  }
+
+
+  // ------------------------------------------------------------------ heading (which way the phone or the person faces): smoothing, uncertainty and the turn cue
+  const normDeg = (d) => ((d % 360) + 360) % 360
+  // signed shortest turn from angle a to angle b, in degrees, from -180 up to 180 (positive = clockwise = to the right)
+  const angleDiff = (a, b) => ((((b - a) % 360) + 540) % 360) - 180
+
+  // low-pass filter on a circle: 359 followed by 1 moves by 2 degrees, never by 358
+  function smoothAngle(prev, next, alpha) {
+    if (!Number.isFinite(next)) return Number.isFinite(prev) ? prev : null
+    if (!Number.isFinite(prev)) return normDeg(next)
+    const a = Math.min(1, Math.max(0, alpha))
+    return normDeg(prev + a * angleDiff(prev, next))
+  }
+
+  // spread of a list of angles in degrees (circular standard deviation): 0 = all the same, large = unstable
+  function circularStd(angles) {
+    const a = angles.filter(Number.isFinite)
+    if (a.length < 2) return 0
+    let sx = 0, sy = 0
+    for (const d of a) { sx += Math.cos(rad(d)); sy += Math.sin(rad(d)) }
+    const r = Math.hypot(sx, sy) / a.length
+    if (r < 1e-9) return 180
+    return Math.min(180, (Math.sqrt(-2 * Math.log(Math.min(1, r))) * 180) / Math.PI)
+  }
+
+  // half-width of the direction cone, degrees: wide for the compass (and wider when it is unstable), narrower for the GPS heading while walking
+  function coneHalfAngle(source, std, speed) {
+    if (source === 'gps') return Number.isFinite(speed) && speed >= 1.5 ? 12 : 18
+    if (source === 'compass') return Number.isFinite(std) && std > 15 ? 50 : 28
+    return null
+  }
+
+  // what to say to turn from the way you face (heading) to the target (bearing)
+  function relativeCue(bearing, heading) {
+    if (!Number.isFinite(bearing) || !Number.isFinite(heading)) return null
+    const turn = angleDiff(heading, bearing)
+    const n = Math.round(Math.abs(turn))
+    if (n <= 15) return { kind: 'ahead', deg: n, turn }
+    if (n >= 150) return { kind: 'around', deg: n, turn }
+    return { kind: turn > 0 ? 'right' : 'left', deg: n, turn }
+  }
+
+  // Compass heading in degrees from the three angles of a deviceorientation event (alpha, beta, gamma; absolute = relative to north).
+  // Phone held flat (screen up): the way its TOP points (plus the screen rotation). Phone held upright: the way its BACK (camera side) faces. Both come from the W3C rotation matrix.
+  function compassHeading(alpha, beta, gamma, screenAngle) {
+    if (![alpha, beta, gamma].every(Number.isFinite)) return null
+    const a = rad(alpha), b = rad(beta), g = rad(gamma)
+    const cA = Math.cos(a), sA = Math.sin(a), cB = Math.cos(b), sB = Math.sin(b), cG = Math.cos(g), sG = Math.sin(g)
+    const m12 = -cB * sA, m22 = cA * cB, m32 = sB // device y axis (the top) in east, north, up
+    const m13 = cG * sA * sB + cA * sG, m23 = sA * sG - cA * cG * sB // device z axis (out of the screen) east and north parts
+    const m33 = cB * cG
+    let deg
+    if (m33 > 0.5) deg = (Math.atan2(m12, m22) * 180) / Math.PI + (Number.isFinite(screenAngle) ? screenAngle : 0)
+    else deg = (Math.atan2(-m13, -m23) * 180) / Math.PI
+    return Number.isFinite(deg) ? normDeg(deg) : null
+  }
+
+  // heading from one orientation event: iOS gives webkitCompassHeading; Android's absolute event gives alpha / beta / gamma; a relative event (no north) gives nothing
+  function headingFromEvent(e, screenAngle) {
+    if (!e) return null
+    if (typeof e.webkitCompassHeading === 'number' && Number.isFinite(e.webkitCompassHeading)) return normDeg(e.webkitCompassHeading + (Number.isFinite(screenAngle) ? screenAngle : 0))
+    if (e.absolute === true || e.type === 'deviceorientationabsolute') return compassHeading(e.alpha, e.beta, e.gamma, screenAngle)
+    return null
+  }
+
+  // the SVG path of the cone: a pie slice that points up, centre (cx, cy), radius r, half-width in degrees
+  function conePath(cx, cy, r, half) {
+    const h = rad(Math.min(89, Math.max(1, half)))
+    const x1 = cx - r * Math.sin(h), y1 = cy - r * Math.cos(h), x2 = cx + r * Math.sin(h)
+    return `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y1.toFixed(2)} Z`
   }
 
   // ------------------------------------------------------------------ the trees of a block and what has been recorded
@@ -110,7 +182,7 @@ const FieldPackCore = (function () {
 
   // Same 32 columns as blocks.csv in the same order, one row per block, then EXTRA_COLUMNS. A block with no decision keeps status and trees_planted empty (the import skips it).
   // moved_lat and moved_lon stay empty: they mean "where the BLOCK's centre really is" and one tree's position does not tell that.
-  function exportCsv(pack, state, nowIso) {
+  function exportCsv(pack, state, nowIso, notice) {
     const header = pack.columns.concat(EXTRA_COLUMNS)
     const lines = [header.map(esc).join(',')]
     for (const b of pack.blocks) {
@@ -129,6 +201,7 @@ const FieldPackCore = (function () {
       row.gps_lat = lastPlanted ? fix6(lastPlanted.r.lat) : ''
       row.gps_lon = lastPlanted ? fix6(lastPlanted.r.lon) : ''
       row.gps_accuracy_m = lastPlanted && Number.isFinite(lastPlanted.r.acc) ? String(Math.round(lastPlanted.r.acc * 10) / 10) : ''
+      row.pack_notice = notice || ''
       row.tree_log = recs
         .map((x) => [x.k, x.r.s, x.r.reason || '', fix6(x.r.lat), fix6(x.r.lon), Number.isFinite(x.r.acc) ? Math.round(x.r.acc * 10) / 10 : '', x.r.t || ''].join(':'))
         .join('|')
@@ -179,7 +252,8 @@ const FieldPackCore = (function () {
     }
   }
 
-  return { R, REASONS, EXTRA_COLUMNS, POINTS, distanceM, bearingDeg, compassPoint, turnDeg, arrival, distanceLabel, progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc }
+  return { R, REASONS, EXTRA_COLUMNS, POINTS, distanceM, bearingDeg, compassPoint, turnDeg, arrival, distanceLabel, normDeg, angleDiff, smoothAngle, circularStd, coneHalfAngle, relativeCue, compassHeading, headingFromEvent, conePath,
+    progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc }
 })()
 
 if (typeof module !== 'undefined' && module.exports) module.exports = FieldPackCore
