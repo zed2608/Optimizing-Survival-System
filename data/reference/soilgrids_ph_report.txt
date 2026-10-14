@@ -1,0 +1,21 @@
+SoilGrids pH reference (stage C2). Display only. Made 2026-10-15 from soilgrids_ph_download.json.
+Variable phh2o (pH in water), 0-5, 5-15, 15-30 cm; mean, Q0.05, Q0.95; 0-30 cm = weighted mean (weights 5, 10, 15 cm: PROVISIONAL). Stored as pH x 10 by the service: divided by 10. The service's value 0 (no data) is EMPTY here.
+squares: 8088 | with a pH: 7438 | without (empty, not filled): 650 | coverage 92.0%
+SoilGrids cells under the 8,088 squares: 1495 different cells of 250 m x 250 m (the squares are 100 m: about 5.4 squares share a cell)
+cells that carry a pH: 1318 | cells with no data: 177
+pH mean 0-30 cm: min 5.40 | median 5.70 | max 6.45
+width of Q0.05 to Q0.95 (the model's own uncertainty): median 3.20 | min 2.60 | max 3.80 pH units, over 7438 squares
+
+SANITY 1: pH against the LGU soil map (squares with a texture / series in the map; the model does not know our soil map)
+  (outside the LGU soil map) | -                     squares  3393 | with pH  3389 | mean 5.68 min 5.40 max 6.00
+  Antipolo Clay Loam | Clay Loam                     squares   146 | with pH    36 | mean 6.09 min 5.90 max 6.25
+  Antipolo Clay | Clay                               squares  2903 | with pH  2796 | mean 5.80 min 5.50 max 6.45
+  Binangonan Clay | Clay                             squares   789 | with pH   767 | mean 5.68 min 5.50 max 6.10
+  Marikina Loam | Loam                               squares   254 | with pH   154 | mean 6.16 min 5.78 max 6.45
+  Marikina Silt Loam | Silt Loam                     squares   502 | with pH   195 | mean 6.22 min 6.05 max 6.43
+  Novaliches Clay Loam | Clay Loam                   squares    26 | with pH    26 | mean 6.21 min 6.20 max 6.30
+  Quingua Sandy Loam | Sandy Loam                    squares    75 | with pH    75 | mean 6.17 min 5.95 max 6.35
+SANITY 2: the usual range of soil pH in water is about 3.5 to 9.5; flags below
+  no flag
+
+Where the squares have NO pH (top zones):  High Density Residential - Mixed Use Zone 458; Medium Density Residential Zone 57; Minor Commercial - Mixed Use Zone 42; Medium Industrial Zone 25; Cemetery Zone 19; (outside zoning map) 16; Agricultural Zone 13; General Institutional Zone 11

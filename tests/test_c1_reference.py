@@ -259,9 +259,9 @@ def test_the_species_detail_still_works_without_the_file(client):
 # ================================================================ the dashboard side
 def test_the_card_section_is_wired_and_has_the_agreed_words():
     card = (ROOT / "frontend" / "src" / "new" / "SpeciesCard.jsx").read_text(encoding="utf-8")
-    assert "<ClimateReference cref={d.climate_reference} cv={cv} />" in card and "buildClimate" in card and "PROVISIONAL" in card
+    assert "<ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} />" in card and "buildClimate" in card and "PROVISIONAL" in card
     js = (ROOT / "frontend" / "src" / "new" / "climateRef.js").read_text(encoding="utf-8")
-    for must in ("Klima at lupa (reference lang)", "Pasok", "Mas mababa kaysa saklaw ng species", "Mas mataas kaysa saklaw ng species", "Walang datos pa",
+    for must in ("Klima at lupa (reference lang)", "Pasok", "Mababa sa saklaw na nakalista (hindi pa verified)", "Lampas sa saklaw na nakalista (hindi pa verified)", "Walang datos pa",
                  "Hindi ito bahagi ng score. Pinakamalapit na istasyon ang gamit, hindi San Mateo mismo."):
         assert must in js, must
     assert not re.search(r"\b\d{3,}\.\d\b", js)                                                                                  # no number is typed in the code (2574.4 comes from the file)
@@ -271,4 +271,4 @@ def test_the_node_tests_of_the_section_pass():
     import shutil
     r = subprocess.run([shutil.which("node"), "--test", "src/new/climateRef.test.mjs"], cwd=ROOT / "frontend", capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
     assert r.returncode == 0, r.stdout[-1500:]
-    assert "# pass 6" in r.stdout and "# fail 0" in r.stdout
+    assert "# pass 9" in r.stdout and "# fail 0" in r.stdout

@@ -1,0 +1,85 @@
+{
+ "accessed_date": "2026-10-15",
+ "service": "https://maps.isric.org/mapserv?map=/map/phh2o.map",
+ "grid": "EPSG:152160 (Homolosine), 250 m",
+ "box_x0_x1_y0_y1": [
+  13144750.0,
+  13171000.0,
+  1627750.0,
+  1643250.0
+ ],
+ "layers": [
+  {
+   "coverage": "phh2o_0-5cm_mean",
+   "file": "phh2o_0-5cm_mean.tif",
+   "http": 200,
+   "bytes": 4195,
+   "sha256": "c74636ff4bce470f657f958352afaa39889949ac51842f7ab990ecf8ca0489e2",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_0-5cm_mean&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  },
+  {
+   "coverage": "phh2o_0-5cm_Q0.05",
+   "file": "phh2o_0-5cm_Q0.05.tif",
+   "http": 200,
+   "bytes": 4473,
+   "sha256": "984fb8126fb7d830c52a06feaccf47b330f82ffc9f8a61b08864c08df365ee92",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_0-5cm_Q0.05&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  },
+  {
+   "coverage": "phh2o_0-5cm_Q0.95",
+   "file": "phh2o_0-5cm_Q0.95.tif",
+   "http": 200,
+   "bytes": 5055,
+   "sha256": "9a3ff01c078e77cbbd3a932b6bc0f90735879dd7e35225186afc61d2b8e84999",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_0-5cm_Q0.95&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  },
+  {
+   "coverage": "phh2o_5-15cm_mean",
+   "file": "phh2o_5-15cm_mean.tif",
+   "http": 200,
+   "bytes": 4292,
+   "sha256": "1feca41cd55f0f5a46ce3043f9f8d26119389cf3c231477a121a8f729b8e19f4",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_5-15cm_mean&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  },
+  {
+   "coverage": "phh2o_5-15cm_Q0.05",
+   "file": "phh2o_5-15cm_Q0.05.tif",
+   "http": 200,
+   "bytes": 4382,
+   "sha256": "684b243b8747d4849817eb0e021388de96b5992a7aff525a5b76d6c637ab74d8",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_5-15cm_Q0.05&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  },
+  {
+   "coverage": "phh2o_5-15cm_Q0.95",
+   "file": "phh2o_5-15cm_Q0.95.tif",
+   "http": 200,
+   "bytes": 5025,
+   "sha256": "ee8930b3d8b8278b33c27dcc0e9fd21570c4bad4b9aad66d61e16c9eecd14e3d",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_5-15cm_Q0.95&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  },
+  {
+   "coverage": "phh2o_15-30cm_mean",
+   "file": "phh2o_15-30cm_mean.tif",
+   "http": 200,
+   "bytes": 4251,
+   "sha256": "f552d834513dcf10c9fcf5791fd42123bcc6923416bbc12cbc7c99ef4b811a79",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_15-30cm_mean&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  },
+  {
+   "coverage": "phh2o_15-30cm_Q0.05",
+   "file": "phh2o_15-30cm_Q0.05.tif",
+   "http": 200,
+   "bytes": 4328,
+   "sha256": "5e2294da93edef1e856eb42c1c1bf9524448dbd0a3c1ce6a9990d3c91864f973",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_15-30cm_Q0.05&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  },
+  {
+   "coverage": "phh2o_15-30cm_Q0.95",
+   "file": "phh2o_15-30cm_Q0.95.tif",
+   "http": 200,
+   "bytes": 4834,
+   "sha256": "e7ab904118e688d3991a97281a51416759f1dacb2dc1c7a9404ae6de78e5d0e0",
+   "url": "https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=phh2o_15-30cm_Q0.95&FORMAT=image%2Ftiff&SUBSET=x(13144750,13171000)&SUBSET=y(1627750,1643250)&SUBSETTINGCRS=http://www.opengis.net/def/crs/EPSG/0/152160"
+  }
+ ]
+}

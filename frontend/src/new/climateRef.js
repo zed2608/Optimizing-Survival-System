@@ -14,8 +14,9 @@ export const TEXT = {
   to: { en: 'to', fil: 'hanggang' },
   noData: { en: 'No data yet', fil: 'Walang datos pa' },
   fits: { en: 'Fits: San Mateo rain is inside the range', fil: 'Pasok: nasa saklaw ang ulan sa San Mateo' },
-  below: { en: 'Lower than the species range', fil: 'Mas mababa kaysa saklaw ng species' },
-  above: { en: 'Higher than the species range', fil: 'Mas mataas kaysa saklaw ng species' },
+  below: { en: 'Under the listed range (not yet verified)', fil: 'Mababa sa saklaw na nakalista (hindi pa verified)' },
+  above: { en: 'Beyond the listed range (not yet verified)', fil: 'Lampas sa saklaw na nakalista (hindi pa verified)' },
+  refWord: { en: 'Reference', fil: 'Reference' },
   notScored: {
     en: 'This is not part of the score. The nearest station is used, not San Mateo itself.',
     fil: 'Hindi ito bahagi ng score. Pinakamalapit na istasyon ang gamit, hindi San Mateo mismo.',
@@ -25,6 +26,17 @@ export const TEXT = {
   noLayer: { en: 'No data yet (there is no pH map)', fil: 'Walang datos pa (walang pH map)' },
   noReference: { en: 'The reference file could not be read.', fil: 'Hindi mabasa ang reference file.' },
   type1: { en: 'The sources list Type I for this species', fil: 'Nakalista ang Type I para sa species na ito' },
+  phNone: { en: 'No pH estimate for this place', fil: 'Walang pH estimate sa lugar na ito' },
+  phSite: { en: 'Estimated pH', fil: 'Tinatayang pH' },
+  phRangeWord: { en: 'possibly', fil: 'posibleng' },
+  phEstimate: { en: 'Estimate only, not measured in San Mateo', fil: 'Estimate lang, hindi sinukat sa San Mateo' },
+  phUnverified: { en: 'range not yet verified', fil: 'range hindi pa verified' },
+  phInside: { en: 'Inside the range (according to the model)', fil: 'Nasa saklaw (ayon sa modelo)' },
+  phOutside: { en: 'Beyond the listed range (not yet verified)', fil: 'Labas sa saklaw na nakalista (hindi pa verified)' },
+  phUncertain: { en: 'Not certain: the model is too unsure to say', fil: 'Hindi tiyak: masyadong malawak ang duda ng modelo para sabihin' },
+  phModelName: { en: 'SoilGrids 2.0 (model, 250 m, not measured in San Mateo)', fil: 'SoilGrids 2.0 (modelo, 250 m, hindi sinukat sa San Mateo)' },
+  phMunicipality: { en: 'Whole municipality (middle values of all squares)', fil: 'Buong bayan (gitnang halaga ng lahat ng square)' },
+  phNotScored: { en: 'This is not part of the score.', fil: 'Hindi ito kasama sa score.' },
   notType1: { en: 'The sources do not list Type I for this species', fil: 'Hindi nakalista ang Type I para sa species na ito' },
 }
 
@@ -51,7 +63,7 @@ export function sourceLine(item) {
 const STATUS_WORDS = { provisional_proxy: { en: 'provisional stand-in', fil: 'pansamantalang kapalit' }, provisional: { en: 'provisional', fil: 'pansamantala' }, pending: null, no_layer: null }
 
 // cref = the "climate_reference" object of GET /species/{id}; cv = its clean_values. Returns { rows, notice, title, scored: false } or { error } when the service sent nothing.
-export function buildClimate(cref, cv) {
+export function buildClimate(cref, cv, sitePh = null) {
   if (!cref || !Array.isArray(cref.items) || cref.items.length === 0) return { error: TEXT.noReference, title: TEXT.title, notice: TEXT.notScored, rows: [], scored: false }
   const by = Object.fromEntries(cref.items.map((i) => [i.key, i]))
   const rainItem = by.annual_rainfall_mm
@@ -75,6 +87,7 @@ export function buildClimate(cref, cv) {
     asOf: rainRef ? rainItem.accessed_date : null,
     verdict: verdictKey ? TEXT[verdictKey] : TEXT.noData,
     verdictCode: verdictKey ?? 'no_data',
+    verdictRef: verdictKey && rainRef ? { name: sourceLine(rainItem), status: rainItem.status, statusWords: STATUS_WORDS[rainItem.status] ?? null } : null,
   })
   // temperature and pH: the species range, and "no data yet" for San Mateo (nothing is compared)
   for (const [id, label, item, lo, hi, unit] of [
@@ -94,6 +107,29 @@ export function buildClimate(cref, cv) {
       verdict: TEXT.noData,
       verdictCode: 'no_data',
     })
+  }
+  // pH of the site from SoilGrids (a model estimate, display only): the line, the species range tagged "not yet verified", inside / outside, and the credit
+  const phRow = rows.find((r) => r.id === 'ph')
+  if (sitePh && sitePh.available && has(sitePh.ph_mean)) {
+    const lo = has(sitePh.ph_q05) ? sitePh.ph_q05 : null
+    const hi = has(sitePh.ph_q95) ? sitePh.ph_q95 : null
+    const one = (v) => Number(v).toFixed(1)
+    const span = lo !== null && hi !== null ? ` (${TEXT.phRangeWord.en} ${one(lo)}–${one(hi)})` : ''
+    const spanF = lo !== null && hi !== null ? ` (${TEXT.phRangeWord.fil} ${one(lo)}–${one(hi)})` : ''
+    phRow.reference = { en: `${TEXT.phSite.en}: ${one(sitePh.ph_mean)}${span}`, fil: `${TEXT.phSite.fil}: ${one(sitePh.ph_mean)}${spanF}` }
+    phRow.status = 'model_estimate'
+    phRow.statusWords = TEXT.phEstimate
+    phRow.source = null
+    phRow.attribution = sitePh.attribution
+    phRow.scope = sitePh.scope === 'municipality' ? TEXT.phMunicipality : null
+    phRow.speciesTag = phRow.species ? TEXT.phUnverified : null
+    const code = { inside: 'inside', outside: 'outside', uncertain: 'uncertain' }[sitePh.verdict] ?? 'no_data'
+    phRow.verdictCode = code
+    phRow.verdict = code === 'inside' ? TEXT.phInside : code === 'outside' ? TEXT.phOutside : code === 'uncertain' ? TEXT.phUncertain : TEXT.noData
+    phRow.extraNote = TEXT.phNotScored
+    phRow.verdictRef = code === 'no_data' ? null : { name: TEXT.phModelName, status: 'model_estimate', statusWords: TEXT.phEstimate }
+  } else if (sitePh && sitePh.available === false && (sitePh.reason === 'no_value_here' || sitePh.reason === 'no_values')) {
+    phRow.reference = TEXT.phNone
   }
   // climate type: a plain reference line (the species' own list of climate types comes from its sources)
   const t1 = cv?.corona_has_type_I

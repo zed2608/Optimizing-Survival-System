@@ -76,8 +76,10 @@ function Two({ t }) {
   )
 }
 
-function ClimateReference({ cref, cv }) {
-  const c = buildClimate(cref, cv)
+const TEXT_REF = 'Reference'
+
+function ClimateReference({ cref, cv, sitePh = null }) {
+  const c = buildClimate(cref, cv, sitePh)
   return (
     <section className="nw-card-sec nw-climate" aria-label={c.title.en} data-section="climate-reference">
       <h3>
@@ -95,6 +97,7 @@ function ClimateReference({ cref, cv }) {
                 <div>
                   <span className="muted">Species: </span>
                   <Two t={r.species} />
+                  {r.speciesTag && <span className="nw-draft" data-role="ph-unverified"> <Two t={r.speciesTag} /></span>}
                 </div>
               )}
               <div>
@@ -102,6 +105,13 @@ function ClimateReference({ cref, cv }) {
                 <Two t={r.reference} />
                 {r.statusWords && <span className="nw-draft"> {r.statusWords.en} / {r.statusWords.fil}</span>}
               </div>
+              {r.scope && <div className="muted" data-role="ph-scope"><Two t={r.scope} /></div>}
+              {r.attribution && (
+                <div className="muted nw-ph-credit" data-role="ph-credit">
+                  {r.attribution.replace(' [VERIFY]', '')}
+                  {r.attribution.includes('[VERIFY]') && <> <span className="nw-draft" title="The licence is not stated by the service; the team has to confirm it">VERIFY</span></>}
+                </div>
+              )}
               {r.source && (
                 <div className="muted" data-role="source">
                   {r.source}{r.asOf ? ` · ${r.asOf}` : ''}
@@ -112,6 +122,13 @@ function ClimateReference({ cref, cv }) {
                   <Two t={r.verdict} />
                 </div>
               )}
+              {r.verdictRef && r.verdictCode !== 'no_data' && (
+                <div className="muted" data-role="verdict-ref" data-ref-status={r.verdictRef.status}>
+                  {TEXT_REF}: {typeof r.verdictRef.name === 'string' ? r.verdictRef.name : <Two t={r.verdictRef.name} />}
+                  {r.verdictRef.statusWords && <> · <Two t={r.verdictRef.statusWords} /></>}
+                </div>
+              )}
+              {r.extraNote && <div className="muted" data-role="ph-not-scored"><Two t={r.extraNote} /></div>}
             </dd>
           </div>
         ))}
@@ -124,7 +141,7 @@ function ClimateReference({ cref, cv }) {
 }
 
 export default function SpeciesCard({ speciesId, window: win, onClose, onFindAreas, point = null, view = 'compact', pointId = null }) {
-  const api = useApi(`/species/${speciesId}?${seasonQuery(win, false)}`)
+  const api = useApi(`/species/${speciesId}?${seasonQuery(win, false)}${pointId ? `&point_id=${pointId}` : ''}`)
   const advice = useApi(`/species/${speciesId}/advice?${seasonQuery(win, false)}${pointId ? `&point_id=${pointId}` : ''}`) // ways to improve survival: advice only, hidden when it cannot be loaded
   const closeRef = useRef(null)
   const closeFn = useRef(onClose)
@@ -259,7 +276,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
               <Fact label="Dry-season tolerance" rows={[F.dry_season_raw]} />
             </Section>
 
-            <ClimateReference cref={d.climate_reference} cv={cv} />
+            <ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} />
 
             <Section title="The tree">
               <Fact label="Mature height" rows={[F.mature_height_m]} text={one('mature_height_m', 'm')} />

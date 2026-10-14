@@ -34,6 +34,7 @@ import advice as sva  # noqa: E402  (ways to improve survival: advice only, no s
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
 import field_pack as fpk  # noqa: E402  (the Field Pack page, stage A2)
+import soilgrids_ph as sgph  # noqa: E402  (site pH of the squares, a model estimate: DISPLAY ONLY, never read by a score; stage C2)
 import climate_reference as cref  # noqa: E402  (rain / climate type / temperature / pH of San Mateo: DISPLAY ONLY, never read by a score; stage C1)
 import pack_store as ps  # noqa: E402  (stored planter links: token, expiry, one pack per plan)
 import landcover as lcv  # noqa: E402
@@ -1005,6 +1006,7 @@ def load_data(cfg=None):
         d.climate_ref = cref.load(ROOT / "data" / "config" / "climate_reference.csv")
     except (OSError, cref.ReferenceError):
         d.climate_ref = None
+    d.soil_ph = sgph.load(ROOT / "data" / "reference" / "soilgrids_ph.csv")                  # stage C2: empty dict when the file is not there (nothing is invented)
     d.interview_notes = {int(k): g[["note", "source", "provisional"]].to_dict("records") for k, g in it.groupby("species_id")} if it is not None else {}
     pf = root / "species_partners.csv"                                  # "Works well with": starting rules from pipeline/partners.py (provisional)
     d.partners = pd.read_csv(pf) if pf.is_file() else None
@@ -1518,7 +1520,7 @@ def species_list(season=Depends(season_q), d=Depends(D)):
 
 
 @app.get("/species/{species_id}")
-def species_detail(species_id: int, season=Depends(season_q), d=Depends(D)):
+def species_detail(species_id: int, point_id: Optional[int] = Query(None, description="a grid square: its SoilGrids pH estimate is shown (display only)"), season=Depends(season_q), d=Depends(D)):
     i = d.species_idx.get(species_id)
     if i is None:
         raise HTTPException(404, f"species_id {species_id} not found (valid ids: {int(d.ctx.species.species_id.min())}-{int(d.ctx.species.species_id.max())})")
@@ -1543,6 +1545,7 @@ def species_detail(species_id: int, season=Depends(season_q), d=Depends(D)):
                          for r in d.nursery_rows.get(species_id, [])] if d.nursery_table_present else None),
             "interview_notes": d.interview_notes.get(species_id, []),
             "climate_reference": cref.for_species(d.climate_ref, row),
+            "site_ph": sgph.site_answer(d.soil_ph, point_id, row.get("ph_min"), row.get("ph_max")),
             "purpose_scores": {p: purpose_breakdown(d, species_id, p) for p in mt.PURPOSES}}
 
 

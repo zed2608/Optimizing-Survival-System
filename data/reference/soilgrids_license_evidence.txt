@@ -1,0 +1,13 @@
+Licence evidence for SoilGrids 2.0 phh2o, read 2026-10-15 (stage C2b). What the service metadata and ISRIC's own pages say, word for word where quoted.
+
+1) WCS GetCapabilities  https://maps.isric.org/mapserv?map=/map/phh2o.map&SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCapabilities
+   and WMS GetCapabilities (same map file): AccessConstraints = "None", Fees = "None". NO licence name or URL is written there.
+   Title "SoilGrids250m 2.0 - Soil pH in H2O"; Abstract "Soil pH x 10 in H2O at 6 standard depths (to convert to pH values divide by 10) ...".
+2) REST  https://rest.isric.org/soilgrids/v2.0/properties/query  (answer: "mapped_units": "pH*10", "d_factor": 10; no licence field)
+   and https://rest.isric.org/soilgrids/v2.0/openapi.json, description: "Please check ISRIC's data policy, disclaimer and citation: https://isric.org/about/data-policy".
+3) ISRIC Data and Software Policy (a PDF, https://isric.org/about/data-policy, 5 pages), the section on the access category, point 5: "... such derivative predictions/visualisations (e.g. SoilGrids)
+   may be freely distributed by ISRIC under a CC-BY 4.0 licence or a license having terms and conditions similar thereto."
+
+RESULT: the service metadata does NOT state a licence (AccessConstraints None). The data policy says SoilGrids may be distributed "under a CC-BY 4.0 licence or a license having terms and conditions
+similar thereto". So "CC BY 4.0" is supported only through that policy sentence, not by the service itself. The credit therefore keeps the tag [VERIFY] until the team (or ISRIC) confirms the exact licence of the
+SoilGrids 2.0 layers.

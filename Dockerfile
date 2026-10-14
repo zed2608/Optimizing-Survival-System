@@ -25,6 +25,7 @@ COPY pipeline/ pipeline/
 COPY fieldpack/ fieldpack/
 COPY data/processed/ data/processed/
 COPY data/config/ data/config/
+COPY data/reference/soilgrids_ph.csv data/reference/
 COPY data/BRGY_BOUNDARY.* data/LandUses.* data/
 COPY frontend/src/new/fieldStatus.json frontend/src/new/fieldStatus.json
 COPY --from=web /web/dist/ frontend/dist/

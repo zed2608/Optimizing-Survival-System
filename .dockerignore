@@ -12,6 +12,7 @@ data/field
 data/raw
 data/external
 data/validation
+data/reference/raw
 data/*.pkl
 data/*.csv
 data/processed/scores
