@@ -174,3 +174,15 @@ body.has-overlay { overflow: hidden; }
 .tour-btns { display: flex; flex-wrap: wrap; gap: .4em; }
 .tourbtn { margin: 0; min-width: max(48px, calc(3rem * var(--cap))); min-height: max(48px, calc(3rem * var(--cap))); padding: .3em .8em; font-size: 1em; }
 .tourbtn.ghost { background: #fff; border-color: #64748b; color: #334155; }
+
+/* stage A1f: the GPS bar (always there, says how the GPS is, opens the way to fix it or to go on without it) and the error buttons */
+.gpsbar { position: sticky; top: 0; z-index: 4; background: #fff; display: flex; width: 100%; justify-content: space-between; align-items: center; min-height: max(48px, calc(3rem * var(--cap))); margin: .1rem 0 .3rem; padding: 0 .75rem; font-size: calc(1rem * var(--cap)); font-weight: 700; text-align: left; }
+.gpsbar[data-state="ok"] { border-color: var(--good); color: var(--good); }
+.gpsbar[data-state="waiting"], .gpsbar[data-state="off"] { border-color: #7a5200; background: #fff3d6; }
+.gpsbar[data-state="error"] { border-color: var(--bad); background: #ffe9e9; color: var(--bad); }
+.gpsbar[data-state="nogps"] { border-style: dashed; }
+.errrow { display: grid; gap: .4rem; margin: .3rem 0; }
+.errrow .btn { margin: 0; width: 100%; }
+.gpspanel .btn { margin: .3rem 0; }
+.gpsmsg { font-size: 1.125rem; margin: .2rem 0; }
+.sheet[data-gps="open"] { max-height: calc(100% - 8px); }  /* the GPS panel gets room: its buttons come first */

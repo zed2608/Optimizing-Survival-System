@@ -52,6 +52,34 @@ UNSURE = [
 ]
 
 
+# Stage A1f (appended): words that changed because of "no GPS is never a dead end" and the plain-words pass, and the questions for the native reader
+A1F_CHANGES = [
+    ("Continue without GPS", "Ituloy nang walang GPS (panel button) / Ituloy, walang GPS (short button in step 1)", "new"),
+    ("Try GPS again / Use GPS", "Subukan ulit ang GPS / Gamitin ang GPS", "new"),
+    ("GPS: working / not ready / finding you / blocked / problem / No GPS", "GPS: gumagana / hindi pa handa / hinahanap ka / naka-block / may problema / Walang GPS", "new (the GPS bar)"),
+    ("Location is blocked. Allow it, then try again.", "Naka-block ang Location. Payagan ito, tapos subukan ulit.", "was: 'Location is blocked. See Help.'"),
+    ("How to allow Location (Android Chrome, iPhone Safari)", "Paano payagan ang Location", "new, short; the menu names are [RE-CHECK]"),
+    ("Tree 3 · row 1, spot 3", "Puno 3 · row 1, spot 3", "new (no GPS: the place of the tree in the plan)"),
+    ("The compass was not allowed. The page still works.", "Hindi pinayagan ang compass. Gumagana pa rin ang page.", "was: 'Compass permission was refused.'"),
+    ("This phone gave no compass.", "Walang compass na nakuha sa phone.", "was: 'No compass reading from this phone.'"),
+    ("The GPS is not updating. Move a little or wait.", "Hindi nag-a-update ang GPS. Gumalaw nang kaunti o maghintay.", "was: 'The GPS reading is old.'"),
+    ("GPS is not ready. Start GPS first.", "Hindi pa handa ang GPS. I-start muna ang GPS.", "was: 'No GPS reading yet.'"),
+    ("GPS works only on an https link.", "Gumagana lang ang GPS sa https link.", "was: 'GPS needs a secure (https) page.'"),
+    ("Map: aerial photo", "Mapa: litrato mula sa taas", "was: 'Map: satellite' (only in the build with the photo layer)"),
+]
+A1F_QUESTIONS = [
+    ("Ituloy nang walang GPS", "Is 'Ituloy nang walang GPS' (continue without GPS) clear and polite enough? Would 'Magpatuloy kahit walang GPS' sound better?"),
+    ("Subukan ulit ang GPS / Gamitin ang GPS", "Try again / Use GPS. Natural, or would 'I-on ulit ang GPS' be the everyday phrase?"),
+    ("GPS: hinahanap ka", "'GPS: finding you'. Does 'hinahanap ka' (it is looking for you) read naturally for a GPS that is still searching?"),
+    ("GPS: hindi pa handa", "'GPS: not ready'. Alternative: 'GPS: hindi pa naka-on' for off and 'hindi pa handa' only for searching?"),
+    ("Naka-block ang Location. Payagan ito", "'Location is blocked. Allow it.' Is 'Payagan' (allow) the word people use for phone permissions, or 'I-allow'?"),
+    ("row 1, spot 3", "'row' and 'spot' kept in English for the place of a tree without GPS. Would 'hanay' or 'pwesto' be understood better after all?"),
+    ("Walang GPS: tape measure at hakbang ang gamit", "'No GPS: the tape measure and your steps are what you use.' Natural?"),
+    ("Hindi pinayagan ang compass", "'The compass was not allowed.' Is 'pinayagan' right here, since the person pressed 'Don't allow' on the phone prompt?"),
+    ("tLocAndroid, tLocIphone, gpsAllowAndroid, gpsAllowIphone", "[RE-CHECK] the menu names (Permissions, Location, Allow, Website Settings) are from memory and NOT verified on a phone."),
+]
+
+
 def load_strings():
     node = shutil.which("node")
     if not node:
@@ -75,6 +103,9 @@ def render(tables):
            "## Words and lines to look at first (the ones we were unsure about)", "", "| Filipino text | Question |", "|---|---|"]
     for a, b in UNSURE:
         out.append(f"| {esc(a)} | {esc(b)} |")
+    out += ["", "## Stage A1f: words that changed, and questions for the native reader", "", "| English | Filipino | Note |", "|---|---|---|"]
+    out += [f"| {esc(a)} | {esc(b)} | {esc(c)} |" for a, b, c in A1F_CHANGES]
+    out += ["", "| Filipino text | Question |", "|---|---|"] + [f"| {esc(a)} | {esc(b)} |" for a, b in A1F_QUESTIONS]
     seen = set()
     for title, prefixes in GROUPS:
         keys = [k for k in en if k not in seen and any(k == p or k.startswith(p) for p in prefixes)]

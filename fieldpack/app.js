@@ -25,8 +25,9 @@
     if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m))
     return s
   }
-  const view = { screen: 'landing', ref: null, tree: null, skipOpen: false, step: 1 }
-  const gps = { id: null, fix: null, status: 'off', error: '' }
+  const view = { screen: 'landing', ref: null, tree: null, skipOpen: false, gpsOpen: false, step: 1 }
+  // status: off (not asked yet) | waiting | ok | error (reason: denied | timeout | unavailable | none | insecure) | nogps (the person chose to go on without GPS: kept in memory only, never saved)
+  const gps = { id: null, fix: null, status: 'off', error: '', reason: '' }
   // heading: where the phone / the person faces. Sources in order: the phone's compass, then the GPS heading while walking, else none.
   const hdg = { compass: { deg: null, at: 0, status: 'off', listening: false }, gps: { deg: null, speed: 0, at: 0 }, smooth: null, source: 'none', raw: [], paintQueued: false }
   const mapState = { follow: false, rotate: false, base: 'osm', view: null, ref: null, ok: 0, bad: 0 }
@@ -163,40 +164,40 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wake.want && !wake.sentinel) requestWake() })
 
   // ------------------------------------------------------------------ GPS
-  function gpsProblem() {
-    if (!('geolocation' in navigator)) return t('gpsNone')
-    if (window.isSecureContext === false) return t('gpsInsecure')
+  const GPS_TEXT = { none: 'gpsNone', insecure: 'gpsInsecure', denied: 'gpsDenied', timeout: 'gpsTimeout', unavailable: 'gpsUnavailable' }
+  function gpsProblem() { // '' when the phone and the page can use GPS, else why not
+    if (!('geolocation' in navigator)) return 'none'
+    if (window.isSecureContext === false) return 'insecure'
     return ''
+  }
+  function gpsFail(reason) {
+    gps.status = 'error'
+    gps.reason = reason
+    gps.error = t(GPS_TEXT[reason] || 'gpsUnavailable')
+    updateAll()
   }
   function startGps() {
     startCompass() // first: iOS only asks for the compass inside a tap
     requestWake()
     const p = gpsProblem()
-    if (p) {
-      gps.status = 'error'
-      gps.error = p
-      updateAll()
-      return
-    }
+    if (p) return gpsFail(p)
     if (gps.id !== null) return
     gps.status = 'waiting'
+    gps.reason = ''
     updateAll()
     gps.id = navigator.geolocation.watchPosition(
       (pos) => {
         const c = pos.coords
         gps.fix = { lat: c.latitude, lon: c.longitude, acc: Number.isFinite(c.accuracy) ? c.accuracy : null, at: Date.now() }
         gps.status = 'ok'
+        gps.reason = ''
         if (Number.isFinite(c.heading) && Number.isFinite(c.speed) && c.speed >= 1) {
           hdg.gps = { deg: c.heading, speed: c.speed, at: Date.now() }
           onHeadingSample('gps', c.heading)
         }
         updateAll()
       },
-      (err) => {
-        gps.status = 'error'
-        gps.error = err && err.code === 1 ? t('gpsDenied') : err && err.code === 3 ? t('gpsTimeout') : t('gpsUnavailable')
-        updateAll()
-      },
+      (err) => gpsFail(err && err.code === 1 ? 'denied' : err && err.code === 3 ? 'timeout' : 'unavailable'),
       { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 },
     )
   }
@@ -205,8 +206,21 @@
     gps.id = null
     gps.status = 'off'
     gps.error = ''
+    gps.reason = ''
     gps.fix = null
     updateAll()
+  }
+  // "Continue without GPS": the page keeps working with the tape measure and the steps (row and spot from the plan). Not saved: the GPS bar brings GPS back at any time, and a reload starts fresh.
+  function setNoGps() {
+    stopGps()
+    gps.status = 'nogps'
+    view.gpsOpen = false
+    updateAll()
+  }
+  function retryGps() {
+    stopGps()
+    view.gpsOpen = false
+    startGps()
   }
 
   // ------------------------------------------------------------------ heading: compass, GPS heading, smoothing
@@ -618,6 +632,7 @@
     if (!ui.sheet) return
     const col = sheetState === 'collapsed', exp = sheetState === 'expanded'
     ui.sheet.dataset.state = sheetState
+    ui.sheet.dataset.gps = view.gpsOpen ? 'open' : ''
     ui.body.hidden = col
     ui.sum.hidden = !col
     ui.grabText.hidden = col
@@ -655,7 +670,7 @@
     const tg = curTarget(block)
     const fix = freshFix()
     const hs = headingNow()
-    ui.target.hidden = !tg || (view.step >= 3 && view.skipOpen)
+    ui.target.hidden = !tg || (view.step >= 3 && view.skipOpen) || view.gpsOpen
     ui.cue.hidden = true
     ui.cue.textContent = ''
     ui.dirline.hidden = true
@@ -665,7 +680,14 @@
     if (!tg) return
     ui.tgtline.textContent = t('tgtNone', { name: tg.name })
     ui.arrow.toggleAttribute('hidden', !fix)
-    if (!fix) return
+    if (!fix) { // no GPS reading: no arrow and no distance; the row and the spot of the tree (from the plan) and the tape measure take over
+      if (tg.kind === 'tree') {
+        const rp = Core.rowPlace(tg.k, block.per_row)
+        ui.tgtline.textContent = t('tgtNoGps', { name: tg.name, r: rp.row, c: rp.place })
+        if (gps.status === 'nogps') { ui.sureline.textContent = t('noGpsTip'); ui.sureline.hidden = false; ui.approx.hidden = true }
+      }
+      return
+    }
     const d = Core.distanceM(fix.lat, fix.lon, tg.lat, tg.lon)
     const b = Core.bearingDeg(fix.lat, fix.lon, tg.lat, tg.lon)
     const st = targetStatus(block, tg, d, fix.acc)
@@ -740,7 +762,7 @@
     // the ONE instruction of the step, with the real numbers of this block (the paces and the rest are under Details)
     const finished = k === null
     let text = ''
-    if (step === 1) text = gpsOn ? t('s1Text') : t('s1Off')
+    if (step === 1) text = gps.status === 'nogps' ? t('s1NoGps') : gpsOn ? t('s1Text') : t('s1Off')
     if (step === 2) text = t('s2Text', { a: num(off[0]), b: num(off[1]) })
     if (step === 3 && !finished) {
       const rp = Core.rowPlace(k, block.per_row)
@@ -748,7 +770,7 @@
     }
     if (step === 4) { const p = Core.progress(block, state); text = t('s4Text', { p: p.planted, s: p.skipped, l: p.todo }) }
     ui.text.textContent = text
-    ui.text.hidden = text === '' || (step >= 3 && (finished || view.skipOpen))
+    ui.text.hidden = text === '' || (step >= 3 && (finished || view.skipOpen)) || view.gpsOpen
     // messages: a GPS problem, the compass note, a short wait
     let msg = '', cls = ''
     if (gps.status === 'error') { msg = gps.error; cls = 'warn' }
@@ -757,7 +779,9 @@
     if (ui.note) { msg = ui.note; cls = 'warn' }
     ui.status.textContent = msg
     ui.status.className = 'msg ' + cls
-    ui.status.hidden = msg === ''
+    ui.status.hidden = msg === '' || view.gpsOpen
+    ui.errRow.hidden = !(gps.status === 'error' && step >= 2 && !view.gpsOpen)
+    updateGpsBar()
     // the buttons: ONE big primary button for the step
     const marking = step >= 3
     const noGps = gps.status === 'off' || gps.status === 'error'
@@ -767,10 +791,10 @@
     ui.btnSkip.textContent = t(marking ? (rec ? 'btnUndo' : 'btnSkip') : 'skipGps')
     ui.btnSkip.dataset.act = marking ? (rec ? 'undo' : 'skip') : 'nogps'
     ui.btnSkip.hidden = marking ? finished : !(step === 1 && noGps)
-    ui.btnrow.hidden = col || (marking && !finished && view.skipOpen) || (ui.btnPrimary.hidden && ui.btnSkip.hidden)
-    ui.reasons.hidden = !(marking && !finished && view.skipOpen)
-    ui.chips.hidden = step !== 4
-    ui.blockDone.hidden = !(marking && finished)
+    ui.btnrow.hidden = col || (marking && !finished && view.skipOpen) || view.gpsOpen || (ui.btnPrimary.hidden && ui.btnSkip.hidden)
+    ui.reasons.hidden = !(marking && !finished && view.skipOpen) || view.gpsOpen
+    ui.chips.hidden = step !== 4 || view.gpsOpen
+    ui.blockDone.hidden = !(marking && finished) || view.gpsOpen
     // the target (arrow, distance, word)
     updateTarget()
     // Details (expanded panel)
@@ -782,9 +806,35 @@
     ui.hint.hidden = !(hs && hs.source === 'compass')
     ui.btnCompass.hidden = hdg.compass.status === 'ok'
     ui.compassMsg.textContent = hdg.compass.status === 'none' ? t('compassNone') : hdg.compass.status === 'denied' ? t('compassDenied') : ''
-    ui.btnStop.hidden = gps.status === 'off'
+    ui.btnStop.hidden = !(gps.status === 'ok' || gps.status === 'waiting')
     ui.fileNote.hidden = location.protocol !== 'file:'
     ui.stage.classList.toggle('has-mini', step >= 3)
+  }
+  // the GPS bar: one small line that says how the GPS is and opens the way to fix it or to go on without it
+  function gpsBarKey() {
+    const st = gps.status
+    if (st === 'ok') return freshFix() ? 'gpsBarOk' : 'gpsBarWait'
+    if (st === 'waiting') return 'gpsBarWait'
+    if (st === 'nogps') return 'gpsBarNone'
+    if (st === 'error') return gps.reason === 'denied' ? 'gpsBarBlocked' : 'gpsBarProblem'
+    return 'gpsBarOff'
+  }
+  function updateGpsBar() {
+    if (!ui.gpsbar) return
+    ui.gpsbar.textContent = t(gpsBarKey()) + ' \u203a'
+    ui.gpsbar.dataset.state = gps.status === 'ok' && !freshFix() ? 'waiting' : gps.status
+    ui.gpsbar.setAttribute('aria-expanded', String(view.gpsOpen))
+    ui.gpsbar.setAttribute('aria-label', t(gpsBarKey()) + '. ' + t('gpsBarLabel'))
+    ui.gpsPanel.hidden = !view.gpsOpen
+    ui.sheet.dataset.gps = view.gpsOpen ? 'open' : ''
+    if (!view.gpsOpen) return
+    const st = gps.status
+    const msgKey = st === 'ok' ? 'gpsMsgOk' : st === 'waiting' ? 'gpsMsgWait' : st === 'nogps' ? 'gpsMsgNoGps' : st === 'error' ? (gps.reason === 'denied' ? 'gpsMsgDenied' : gps.reason === 'timeout' ? 'gpsMsgTimeout' : gps.reason === 'none' ? 'gpsMsgNone' : 'gpsMsgProblem') : 'gpsMsgOff'
+    ui.gpsMsg.textContent = t(msgKey)
+    ui.gpsAllow.hidden = !(st === 'error' && gps.reason === 'denied')
+    ui.btnGpsTry.textContent = t(st === 'off' ? 'gpsStart' : st === 'nogps' ? 'gpsUse' : 'gpsAgain')
+    ui.btnGpsTry.hidden = st === 'ok'
+    ui.btnGpsNone.hidden = st === 'nogps'
   }
   function updateAll() {
     if (view.screen !== 'block') return
@@ -801,7 +851,7 @@
 
   function primaryAction(block) {
     if (view.step === 1) {
-      if (gps.status === 'off' || gps.status === 'error') { if (gps.status === 'error') stopGps(); startGps(); return }
+      if (gps.status === 'off' || gps.status === 'error') return retryGps()
       return setStep(2)
     }
     if (view.step === 2) return setStep(3)
@@ -839,12 +889,19 @@
     ui.approx = h('p', { class: 'note approx', hidden: true }, t('approxShort'))
     ui.target = h('div', { class: 'target', hidden: true }, h('div', { class: 'tgtrow' }, ui.arrow, h('div', { class: 'tgttext' }, ui.tgtline, ui.cue, ui.dirline)), ui.sureline, ui.approx)
     ui.status = h('p', { class: 'msg', 'aria-live': 'polite' })
+    ui.errRow = h('div', { class: 'errrow', hidden: true }, h('button', { type: 'button', class: 'btn good', onclick: () => retryGps() }, t('gpsAgain')), h('button', { type: 'button', class: 'btn', onclick: () => setNoGps() }, t('gpsContinue')))
+    ui.gpsbar = h('button', { type: 'button', class: 'btn gpsbar', 'data-tour': 'gps', 'aria-expanded': 'false', onclick: () => { view.gpsOpen = !view.gpsOpen; updateSheet(); ui.body.scrollTop = 0 } })
+    ui.gpsMsg = h('p', { class: 'gpsmsg' })
+    ui.gpsAllow = h('div', { hidden: true }, h('p', { class: 'note', style: 'font-weight:700' }, t('gpsAllowTitle')), h('p', { class: 'note' }, t('gpsAllowAndroid')), h('p', { class: 'note' }, t('gpsAllowIphone')))
+    ui.btnGpsTry = h('button', { type: 'button', class: 'btn good wide', onclick: () => retryGps() }, t('gpsAgain'))
+    ui.btnGpsNone = h('button', { type: 'button', class: 'btn wide', onclick: () => setNoGps() }, t('gpsContinue'))
+    ui.gpsPanel = h('div', { class: 'gpspanel', hidden: true }, ui.gpsMsg, ui.btnGpsTry, ui.btnGpsNone, ui.gpsAllow, h('button', { type: 'button', class: 'btn link', onclick: () => { view.gpsOpen = false; updateSheet() } }, t('helpClose')))
     ui.chips = h('div', { class: 'chips', role: 'group', 'aria-label': t('chipsLabel'), hidden: true })
     ui.blockDone = h('p', { class: 'ok', hidden: true }, t('blockDone'))
     ui.btnPrimary = h('button', { type: 'button', class: 'btn good primary', onclick: () => primaryAction(block) }, t('btnPlanted'))
     ui.btnSkip = h('button', { type: 'button', class: 'btn bad secondary', hidden: true, onclick: () => {
       const k = activeTree(block)
-      if (ui.btnSkip.dataset.act === 'nogps') return setStep(2)
+      if (ui.btnSkip.dataset.act === 'nogps') return setNoGps()
       if (ui.btnSkip.dataset.act === 'undo') { if (k !== null) undo(block, k); return }
       view.skipOpen = !view.skipOpen
       updateSheet()
@@ -863,12 +920,12 @@
     ui.btnCompass = h('button', { type: 'button', class: 'btn', onclick: () => startCompass() }, t('compassStart'))
     ui.compassMsg = h('p', { class: 'note' })
     ui.fileNote = h('p', { class: 'note', hidden: true }, t('gpsFile'))
-    ui.btnStop = h('button', { type: 'button', class: 'btn link', hidden: true, onclick: () => stopGps() }, t('gpsStop'))
+    ui.btnStop = h('button', { type: 'button', class: 'btn link', hidden: true, onclick: () => setNoGps() }, t('gpsStop'))
     ui.details = h('div', { class: 'inner', hidden: true }, ui.stepnav, ui.paces, ui.coords, h('p', { class: 'note' }, t('approxMap')), ui.hdgLine, ui.hdgNote, ui.hint, ui.btnCompass, ui.compassMsg, ui.fileNote,
       h('p', { class: 'note' }, t('mapLegend')), h('p', { class: 'note' }, t('mapHonest')), h('p', { class: 'note' }, t('s4Blocked')), h('p', { class: 'note' }, t('banner')),
       h('h3', null, t('layoutTitle')), h('p', { class: 'note', style: 'font-weight:700' }, `${block.ref} · ${block.name}`), h('p', { class: 'note' }, t('blockLine', { n: block.n, sp: num(block.spacing_m), rows: block.rows, per: block.per_row })),
       h('p', { class: 'note' }, t('orderLine')), h('p', { class: 'note' }, t('startLine', { lat: fmt(block.start[0]), lon: fmt(block.start[1]) })), block.note ? h('p', { class: 'note' }, block.note) : null, ui.btnStop)
-    ui.body = h('div', { class: 'sheetbody' }, ui.text, ui.target, ui.status, ui.chips, ui.blockDone, ui.reasons, ui.details)
+    ui.body = h('div', { class: 'sheetbody' }, ui.gpsbar, ui.gpsPanel, ui.text, ui.target, ui.status, ui.errRow, ui.chips, ui.blockDone, ui.reasons, ui.details)
     ui.sheet = h('section', { class: 'sheet', 'data-tour': 'sheet', 'aria-label': t('sheetLabel') }, ui.grab, ui.body, ui.btnrow)
     // the round buttons on the map
     const rbtn = (name, label, fn, pressed, tourId) => h('button', { type: 'button', class: 'rbtn', 'data-tour': tourId, 'aria-label': label, title: label, 'aria-pressed': pressed, onclick: fn }, icon(name))
@@ -909,6 +966,7 @@
     view.ref = null
     view.tree = null
     view.skipOpen = false
+    view.gpsOpen = false
     render()
   }
 

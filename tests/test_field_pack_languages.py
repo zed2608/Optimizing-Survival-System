@@ -47,7 +47,7 @@ def test_filipino_is_really_translated_and_not_a_copy(tables):
     """Plain Taglish keeps common English words (Start, Skip, Help, Next, Back, Close, Done, Undo, GPS, START, the eight directions), so some values are the same in both languages: only those."""
     same = {k for k, v in tables["en"].items() if v == tables["fil"][k]}
     kept_english = {"langFil", "langEn", "startLabel", "exactM", "helpBtn", "helpTitle", "helpClose", "start", "back", "sizeSmaller", "sizeBigger", "tourNext", "tourBack", "tourDone", "tourSkip", "tl3Title",
-                    "btnSkip", "btnUndo", "skipCancel", "gpsStart", "bannerChip", "tgtNone", "tgtLine", "planLine", "detailsTitle", "dir_N", "dir_NE", "dir_E", "dir_SE", "dir_S", "dir_SW", "dir_W", "dir_NW", "helpTour", "resultsTitle"}
+                    "btnSkip", "btnUndo", "skipCancel", "gpsStart", "bannerChip", "tgtNone", "tgtLine", "planLine", "detailsTitle", "dir_N", "dir_NE", "dir_E", "dir_SE", "dir_S", "dir_SW", "dir_W", "dir_NW", "helpTour", "resultsTitle", "tgtNoGps"}
     assert same <= kept_english, sorted(same - kept_english)
     sentences = [k for k in tables["en"] if re.fullmatch(r"(how[1-4]|before[1-5]|gpsPromise|s1Text|s1Off|s2Text|s3First|s3Walk|s3Row|s4Text|notSure|sureUnknown|approxShort|approxMap|mapHonest|gpsHonest|blockDone|t[lhb][1-8]|t[A-Z]\w+)", k)]
     assert len(sentences) > 30 and not [k for k in sentences if k in same]

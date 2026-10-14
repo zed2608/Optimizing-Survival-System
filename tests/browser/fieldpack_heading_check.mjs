@@ -157,7 +157,7 @@ for (const [W, H] of [[360, 640], [390, 844]]) {
   await gps(ST[0] + 0.00036, ST[1], 6)
   await waitFor(/about 40 m/)
   await tap('Details')
-  check(tag + 'iOS permission refused: a plain message, no cone, the page keeps working', (await ev(`document.querySelector('.sheet').innerText`)).includes('Compass permission was refused.') && (await cone())?.shown === false)
+  check(tag + 'iOS permission refused: a plain message, no cone, the page keeps working', (await ev(`document.querySelector('.sheet').innerText`)).includes('The compass was not allowed.') && (await cone())?.shown === false)
   await noBadText(tag + 'the block screen after the compass permission was refused')
   await unscript(ids)
 }

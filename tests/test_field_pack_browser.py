@@ -63,3 +63,11 @@ def test_the_a1e_screen_in_the_browser(site):
     assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-1000:]
     assert " 0 failed" in r.stdout and "WORD LIMITS:" in r.stdout and "steps were shown" in r.stdout
 
+
+
+def test_no_gps_is_never_a_dead_end_in_the_browser(site):
+    """Stage A1f: GPS off, blocked, timeout, no signal, a GPS that never answers, and "continue without GPS": in every state a button to try GPS and one to go on without it, 48 px or more and not covered;
+    row and spot instead of the arrow; the arrow is back when GPS is; nothing is saved. Three phone sizes, both languages, text 85 and 150 percent."""
+    r = subprocess.run(["node", str(ROOT / "tests" / "browser" / "fieldpack_nogps_check.mjs"), page(site, "normal"), str(site["out"])], capture_output=True, text=True, timeout=1500)
+    assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-1000:]
+    assert " 0 failed" in r.stdout

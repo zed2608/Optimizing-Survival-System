@@ -126,7 +126,7 @@ b.tileMode = 'ok'
 check('no uncaught page errors during the whole run', b.events.length === 0, b.events.length ? JSON.stringify(b.events[0].params.exceptionDetails).slice(0, 200) : '')
 
 // ---- 6. the satellite layer exists only when the page was built with --satellite
-check('a normal page has no satellite button and mentions no Esri address', !(await ev(`!!document.querySelector('.rbtn[aria-label="Map: standard"], .rbtn[aria-label="Map: satellite"]')`)) && !(await ev('document.documentElement.outerHTML')).includes('arcgisonline'))
+check('a normal page has no satellite button and mentions no Esri address', !(await ev(`!!document.querySelector('.rbtn[aria-label="Map: standard"], .rbtn[aria-label="Map: aerial photo"]')`)) && !(await ev('document.documentElement.outerHTML')).includes('arcgisonline'))
 if (SAT_PAGE) {
   b.tiles.length = 0
   await b.open(SAT_PAGE)
@@ -141,7 +141,7 @@ if (SAT_PAGE) {
   const esri = b.tiles.filter((x) => x.url.includes('server.arcgisonline.com'))
   check('satellite built in: the button switches to Esri World Imagery tiles in {z}/{y}/{x} order, never above level 19', hasButton && esri.length > 0 && esri.every((x) => /\/tile\/(\d+)\/(\d+)\/(\d+)$/.test(x.url) && Number(x.url.match(/\/tile\/(\d+)\//)[1]) <= 19), `${esri.length} Esri tile requests`)
   check('the satellite layer shows its source line', (await ev(`document.querySelector('.attrib')?.innerText`)).includes('Esri'))
-  check('the button says which map is on', (await ev(`document.querySelector('.rbtn[aria-label="Map: satellite"]')`)) !== null)
+  check('the button says which map is on', (await ev(`document.querySelector('.rbtn[aria-label="Map: aerial photo"]')`)) !== null)
   await b.shot('map_3_satellite')
 }
 await b.done('map_report')
