@@ -29,6 +29,7 @@ NOTICE = "Demo / sandbox. Data is provisional and not yet signed off by the agri
 LIMITS = {
     "plan": (20, 3600),
     "kit": (6, 3600),
+    "pack": (20, 3600),                  # making a planter link (POST /plans/<id>/field-pack), stage A2
     "field": (60, 3600),
     "compute": (60, 60),
     "login": (10, 600),                  # wrong access codes (pipeline/access_gate.py)
@@ -152,6 +153,8 @@ def classify(method, path):
         return "plan"
     if re.fullmatch(r"/plans/[^/]+/field-kit", path):
         return "kit"
+    if re.fullmatch(r"/plans/[^/]+/field-pack", path):
+        return "pack"
     if path in ("/field-checks", "/field-checks/import"):
         return "field"
     if path in ("/plan-event/preview", "/rank/area"):

@@ -50,3 +50,25 @@ export async function apiPostText(path, text, signal) {
   }
   return payload
 }
+
+// DELETE (switch a planter link off). Same error handling as apiPost.
+export async function apiDelete(path, signal) {
+  let res
+  try {
+    res = await fetch(`${API_BASE}${path}`, { method: 'DELETE', signal, headers: { Accept: 'application/json' } })
+  } catch (e) {
+    if (e?.name === 'AbortError') throw e
+    throw new ApiError(`The planning service could not be reached at ${API_BASE}.`, { network: true })
+  }
+  let payload
+  try {
+    payload = await res.json()
+  } catch {
+    payload = null
+  }
+  if (!res.ok) {
+    const d = payload?.detail
+    throw new ApiError(typeof d === 'string' ? d : `The service answered with an error (HTTP ${res.status}).`, { status: res.status })
+  }
+  return payload
+}

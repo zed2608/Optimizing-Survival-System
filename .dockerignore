@@ -22,6 +22,7 @@ data/processed/cache
 data/processed/*.db.bak
 docs
 tests
+fieldpack/*.test.mjs
 scripts
 backend
 *.tif

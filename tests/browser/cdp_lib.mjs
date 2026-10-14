@@ -21,6 +21,7 @@ export async function launch({ out = tmpdir() } = {}) {
   const events = []
   const tiles = []
   const dialogs = []
+  const consoleErrors = []
   const b = { tileMode: 'ok', log: [] }
   const send = (method, params = {}) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })) })
   ws.onmessage = (m) => {
@@ -28,20 +29,23 @@ export async function launch({ out = tmpdir() } = {}) {
     if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); return }
     if (d.method === 'Page.javascriptDialogOpening') { dialogs.push(d.params.message); send('Page.handleJavaScriptDialog', { accept: true }) }
     else if (d.method === 'Fetch.requestPaused') {
+      if (b.onPaused && b.onPaused(d.params, send)) return // a check may take over some requests (a failing service call)
       tiles.push({ url: d.params.request.url, referer: d.params.request.headers.Referer || d.params.request.headers.referer || null })
       if (b.tileMode === 'fail') send('Fetch.failRequest', { requestId: d.params.requestId, errorReason: 'InternetDisconnected' })
       else send('Fetch.fulfillRequest', { requestId: d.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'image/png' }], body: PNG })
     } else if (d.method === 'Runtime.exceptionThrown') events.push(d)
+    else if (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'error') consoleErrors.push(d.params.args.map((a) => a.value ?? a.description ?? '').join(' ').slice(0, 200))
+    else if (d.method === 'Log.entryAdded' && d.params.entry.level === 'error') consoleErrors.push((d.params.entry.text + ' ' + (d.params.entry.url || '')).slice(0, 200))
   }
   const ev = async (expr) => {
     const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })
     if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails).slice(0, 400))
     return r.result?.result?.value
   }
-  await send('Page.enable'); await send('Runtime.enable')
+  await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable')
   await send('Fetch.enable', { patterns: [{ urlPattern: '*tile.openstreetmap.org*' }, { urlPattern: '*server.arcgisonline.com*' }] })
   Object.assign(b, {
-    send, ev, tiles, dialogs, events, out, sleep,
+    send, ev, tiles, dialogs, events, consoleErrors, out, sleep,
     shot: async (n) => writeFileSync(join(out, n + '.png'), Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64')),
     text: () => ev('document.body.innerText'),
     // click by visible text or by aria-label

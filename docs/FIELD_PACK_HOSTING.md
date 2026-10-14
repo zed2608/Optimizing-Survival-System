@@ -207,3 +207,17 @@ Did section 5 show x-robots-tag? (present / absent / not tested)
 ```
 
 Do not paste your Cloudflare password or any code from an email.
+
+---
+
+## 13. Two ways to give planters the page (stage A2, 15 Oct 2026)
+
+**Inside the main system (new, the one to use when the system is on Render).** In the dashboard, Campaign Logs (or the plan result) > the plan > **"Make a link for the planter"** makes the Field Pack of that plan, shows its link, a QR code, a Copy button and the time the link stops. The planter opens it on the phone **without the access code**: the link itself (a random 22-character token) is the key. Nothing is uploaded anywhere.
+- It stops after **at most 24 hours** (and never after the next sandbox reset), when the **server restarts or sleeps** (the free Render plan does both), or when you press **"Switch off this link"**. The planter must save the results file before leaving.
+- One live link per plan (making a new one replaces the old one); at most 30 links in all (the oldest is replaced).
+- The satellite layer is never in a served page. There is **no results upload yet**: the planter still saves the CSV on the phone and sends it to the team leader.
+- Details and limits: `docs/PENDING_DOC_UPDATES.md`, section "Field pack, Stage A2".
+
+**Cloudflare Pages Direct Upload (older, sections 1 to 12 above).** Still works and is still the way to get a link that lives longer than a restart, because Cloudflare keeps the page until you delete the project. Use it when the planting is days away and the Render service may have slept or restarted, or when the main system is not on a public address.
+
+Which one? For a demo or a planting day the same week: the link from the dashboard. For a link that must survive restarts: Cloudflare (section 1 builds the folder with `scripts/build_field_pack.py`, which now calls `pipeline/field_pack.py`; the page it makes is byte for byte the same).

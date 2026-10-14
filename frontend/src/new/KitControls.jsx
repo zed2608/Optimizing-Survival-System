@@ -5,6 +5,7 @@ import { apiPost } from './apiPost.js'
 import HelpTip from './HelpTip.jsx'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
+import PlanterLink from './PlanterLink.jsx'
 import { formatBytes } from './season.js'
 
 // "Build field kit" for a saved plan: builds it (POST /plans/{id}/field-kit), shows what was built and a download link (GET /kits/{id}.zip). Rebuilding is allowed and replaces the old kit.
@@ -51,6 +52,7 @@ export default function KitControls({ planId, onChanged, simple = false }) {
         </ul>
         {info.status === 'error' && <p className="fc-bad">The kit information could not be loaded: {info.error.message}</p>}
         {error && <p className="fc-bad" role="alert">{error}</p>}
+        <PlanterLink planId={planId} />
       </div>
     )
   }
@@ -103,6 +105,7 @@ export default function KitControls({ planId, onChanged, simple = false }) {
           {error}
         </p>
       )}
+      <PlanterLink planId={planId} />
     </div>
   )
 }

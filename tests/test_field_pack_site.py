@@ -42,7 +42,7 @@ def test_headers_and_robots_keep_the_page_out_of_search_engines(pack, tmp_path):
 
 
 def test_the_random_name_comes_from_secrets_and_not_from_the_plan(pack, tmp_path, monkeypatch):
-    src = (ROOT / "scripts" / "build_field_pack.py").read_text(encoding="utf-8")
+    src = (ROOT / "pipeline" / "field_pack.py").read_text(encoding="utf-8")        # the code moved from scripts/ to pipeline/ in stage A2a (the wrapper in scripts/ has no logic)
     assert "import secrets" in src and not re.search(r"^\s*import random|^\s*from random|time\.time|datetime|uuid", src, re.M)      # no other source of the name
     names = {bfp.random_name() for _ in range(200)}
     assert len(names) == 200                                                                       # no repeats

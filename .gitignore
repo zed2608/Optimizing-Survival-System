@@ -28,3 +28,4 @@ data/external/lgu/
 
 # round 19: the trained Random Forest file (never committed)
 data/processed/models/
+data/processed/packs/

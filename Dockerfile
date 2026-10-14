@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements-deploy.txt
 
 COPY api_v2.py .
 COPY pipeline/ pipeline/
+COPY fieldpack/ fieldpack/
 COPY data/processed/ data/processed/
 COPY data/config/ data/config/
 COPY data/BRGY_BOUNDARY.* data/LandUses.* data/

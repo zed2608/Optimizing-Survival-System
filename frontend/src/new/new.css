@@ -892,3 +892,20 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
 .nw-notice-sandbox { height: 52px; white-space: normal; background: #fde68a; line-height: 1.3; padding: 4px 16px; }
 .nw-credits-list { margin: 0; padding-left: 18px; font-size: 13px; }
 .nw-credits-list li { margin-bottom: 8px; }
+
+/* stage A2: the link for the planter (QR code, copy, when it stops, switch off) */
+.nw-plink { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--nw-line, #cbd5e1); }
+.nw-plink h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.nw-plink .nw-fil { display: block; font-size: 12px; font-weight: 400; opacity: 0.8; }
+.nw-plink-main { min-height: 48px; text-align: left; }
+.nw-plink-main .nw-fil { color: inherit; }
+.nw-plink-box { display: grid; gap: 10px; margin-top: 10px; }
+.nw-plink-url { display: flex; gap: 8px; align-items: stretch; }
+.nw-plink-url input { flex: 1; min-width: 0; padding: 8px; font: 13px/1.3 ui-monospace, Consolas, monospace; border: 1px solid var(--nw-line, #94a3b8); border-radius: 8px; background: transparent; color: inherit; }
+.nw-plink-qr { width: 200px; max-width: 100%; height: auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px; }
+.nw-plink-qr path { fill: #000; shape-rendering: crispEdges; }
+.nw-plink-warn { padding: 8px 10px; border-radius: 8px; background: #fff7e0; color: #5b4a12; font-size: 13px; }
+.nw-plink-warn .nw-fil { color: #6b5a22; }
+.nw-plink-ask { display: grid; gap: 8px; padding: 10px; border: 1px solid #b91c1c; border-radius: 8px; }
+.nw-plink-ask .nw-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.nw-plink .btn, .nw-plink .nw-btn { min-height: 44px; }

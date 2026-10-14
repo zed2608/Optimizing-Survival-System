@@ -14,11 +14,20 @@ import hashlib
 import hmac
 import html
 import os
+import re
 import time
 import urllib.parse
 
 COOKIE = "os_access"
-EXEMPT = ("/ping", "/login", "/logout", "/robots.txt")
+EXEMPT = ("/ping", "/login", "/logout", "/robots.txt", "/favicon.ico")       # /favicon.ico: browsers ask for it by themselves (the planter page has none); the answer is an empty 204
+# Stage A2: the planter link. A planter has no access code: /field/<token>/ is opened by its TOKEN (random, expires, checked by the route). Exactly one path segment after /field/,
+# so that every other /field/... path stays behind the code, and a wrong token gets the same plain 404 as any other (not a redirect to the login page).
+FIELD_PATH = re.compile(r"^/field/[^/]+/?$")
+
+
+def is_field_path(path):
+    return bool(FIELD_PATH.match(path or ""))
+
 HOURS = 12.0
 NOTICE = "Demo / sandbox. Data is provisional and not yet signed off by the agriculturist. Entries reset regularly."
 

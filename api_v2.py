@@ -10,7 +10,7 @@ Palette and matching come from pipeline/palettes.py, pipeline/matching.py and pi
 Every value shown carries its source id, URL and rank where one exists (resolved from species_sources); inputs that come from a
 file rather than a cited source (site elevation, slope, soil code) say which file.
 """
-import dataclasses, hashlib, json, math, os, re, sqlite3, sys, threading, time, unicodedata, urllib.parse, urllib.request, zipfile
+import dataclasses, hashlib, json, logging, math, os, re, sqlite3, sys, tempfile, threading, time, unicodedata, urllib.parse, urllib.request, zipfile
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from contextlib import asynccontextmanager
@@ -33,6 +33,8 @@ import advisory as adv  # noqa: E402
 import advice as sva  # noqa: E402  (ways to improve survival: advice only, no score is touched)
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
+import field_pack as fpk  # noqa: E402  (the Field Pack page, stage A2)
+import pack_store as ps  # noqa: E402  (stored planter links: token, expiry, one pack per plan)
 import landcover as lcv  # noqa: E402
 import matching as mt  # noqa: E402
 import palettes as pal  # noqa: E402
@@ -1151,7 +1153,7 @@ async def access_gate(request: Request, call_next):
         return Response(ag.login_page(next_path=ag.safe_next(request.query_params.get("next"))), media_type="text/html")
     if path == "/logout":
         return Response(status_code=303, headers={"Location": "/login", "Set-Cookie": ag.cookie_header("", clear=True)})
-    if path in ag.EXEMPT or ag.cookie_ok(request.cookies.get(ag.COOKIE)):
+    if path in ag.EXEMPT or (request.method == "GET" and ag.is_field_path(path)) or ag.cookie_ok(request.cookies.get(ag.COOKIE)):
         return await call_next(request)
     if request.method == "GET" and wants_page(request):
         target = path + (("?" + request.url.query) if request.url.query else "")
@@ -1179,6 +1181,12 @@ def ping():
     return {"ok": True}
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon_none():
+    """Browsers ask for /favicon.ico on their own (the planter page has no icon, and a planter has no access code): an empty answer keeps the console clean."""
+    return Response(status_code=204)
+
+
 @app.get("/robots.txt")
 def robots():
     if pm.is_on() or ag.is_on():
@@ -1187,7 +1195,7 @@ def robots():
 
 
 app.add_middleware(CORSMiddleware, allow_origins=API_CFG["cors_origins"], allow_credentials=False,
-                   allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
+                   allow_methods=["GET", "POST", "DELETE", "OPTIONS"], allow_headers=["*"])
 
 
 def plain_validation_message(errors, limit=4):
@@ -2563,6 +2571,94 @@ def download_kit(filename: str, d=Depends(D)):
     if path.parent != (d.work / d.cfg["kits_dir"]).resolve() or not path.is_file():
         raise HTTPException(404, f"No field kit has been built for plan '{plan_id}' yet. Build it with POST /plans/{plan_id}/field-kit.")
     return FileResponse(path, media_type="application/zip", filename=path.name)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# the planter link (stage A2): a Field Pack page made from a saved plan, kept under a random token, served WITHOUT the access code (the token is the key)
+# ---------------------------------------------------------------------------------------------------------------------
+class _HideFieldToken(logging.Filter):
+    """The access log of the server would print /field/<token>/ in full: cut the token to its first 4 characters."""
+
+    def filter(self, record):
+        a = record.args
+        if isinstance(a, tuple) and len(a) >= 3 and isinstance(a[2], str):
+            record.args = a[:2] + (re.sub(r"(/field/)([^/?\s]{4})[^/?\s]*", r"\1\2...", a[2]),) + a[3:]
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_HideFieldToken())
+PACK_HEADERS = {"Cache-Control": "no-store", "Referrer-Policy": "strict-origin-when-cross-origin", "X-Robots-Tag": "noindex, nofollow"}
+
+
+def pack_limits(d):
+    """(hours the link lives, the latest moment it may live to). In the public sandbox the link never outlives the next reset (OS_RESET_HOURS is the ceiling)."""
+    if pm.is_on():
+        reset = pm.settings()["reset_hours"]
+        return min(ps.TTL_HOURS, reset), d.sandbox_started + reset * 3600
+    return ps.TTL_HOURS, None
+
+
+def pack_answer(info, replaced=None):
+    out = {"live": True, "token": info["token"], "url": f"/field/{info['token']}/", "expires_at": info["expires_at"], "pack_id": info["pack_id"], "check_code": info["check_code"],
+           "note": "The link stops working at the time shown, when the server restarts, or when you switch it off. The planter must save the results file before leaving."}
+    if replaced is not None:
+        out["replaced"] = replaced
+    return out
+
+
+@app.post("/plans/{plan_id}/field-pack")
+def make_field_pack(plan_id: str, d=Depends(D)):
+    """Make the Field Pack page of a saved plan in blocks and keep it under a new random token (one live pack per plan: a new one replaces the old one)."""
+    csv, _ = plan_files(d, plan_id)
+    gated = pm.is_on()
+    if gated and not KIT_GATE.try_enter():
+        raise HTTPException(429, "Another field kit or link is being built. Please wait a minute and try again.", headers={"Retry-After": "60"})
+    try:
+        with tempfile.TemporaryDirectory(dir=d.work) as tmp:                       # the kit of the page is made in a throw-away folder: the saved field kit of the plan is not touched
+            r = fk.make_kit(csv, Path(tmp), pdf=False, data_dir=d.root)
+            text, manifest = fpk.read_kit(r["kit_dir"])
+            pack = fpk.build_pack(text, manifest)                                  # satellite layer: never in a served pack
+            html = fpk.render_page(pack)
+    except FileNotFoundError as ex:
+        raise HTTPException(404, str(ex))
+    except (fpk.PackError, ValueError) as ex:
+        raise HTTPException(400, f"A planter link needs a plan made in blocks, and this plan could not be packed: {ex}")
+    finally:
+        if gated:
+            KIT_GATE.leave()
+    ttl, latest = pack_limits(d)
+    try:
+        saved = ps.store(d.work, plan_id, html, pack_id=pack["pack_id"], check_code=pack["check_code"], latest_end=latest, ttl_hours=ttl)
+    except ValueError as ex:
+        raise HTTPException(503, str(ex), headers={"Retry-After": "60"})
+    return pack_answer(saved, replaced=saved["replaced"])
+
+
+@app.get("/plans/{plan_id}/field-pack")
+def field_pack_info(plan_id: str, d=Depends(D)):
+    """Is there a live planter link for this plan, and until when?"""
+    check_plan_id(plan_id)
+    ps.cleanup(d.work)
+    live = ps.info(d.work, plan_id)
+    return pack_answer(live) if live else {"live": False, "note": f"No planter link is live for this plan (POST /plans/{plan_id}/field-pack makes one)."}
+
+
+@app.delete("/plans/{plan_id}/field-pack")
+def revoke_field_pack(plan_id: str, d=Depends(D)):
+    """Switch the planter link of this plan off (the page is deleted at once)."""
+    check_plan_id(plan_id)
+    return {"plan_id": plan_id, "revoked": ps.revoke(d.work, plan_id)}
+
+
+@app.get("/field/{token}/", include_in_schema=False)
+def field_pack_page(token: str, request: Request):
+    """The planter's page. No access code: the token opens it. Unknown, expired and revoked tokens get the SAME plain 404 (same body, same length)."""
+    work = request.app.state.data.work
+    ps.cleanup(work)
+    html = ps.lookup(work, token)
+    if html is None:
+        return Response(ps.NOT_FOUND_BODY, status_code=404, media_type="text/plain; charset=utf-8", headers=PACK_HEADERS)
+    return Response(html, media_type="text/html; charset=utf-8", headers=PACK_HEADERS)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
