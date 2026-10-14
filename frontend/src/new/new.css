@@ -909,3 +909,12 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
 .nw-plink-ask { display: grid; gap: 8px; padding: 10px; border: 1px solid #b91c1c; border-radius: 8px; }
 .nw-plink-ask .nw-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .nw-plink .btn, .nw-plink .nw-btn { min-height: 44px; }
+
+/* stage C1: Climate and soil (reference only) in the Species card */
+.nw-climate .nw-fil { display: block; font-size: 12px; font-weight: 400; opacity: 0.8; }
+.nw-climate-rows { margin: 0; }
+.nw-climate dd { overflow-wrap: anywhere; }
+.nw-climate-verdict { margin-top: 4px; font-weight: 600; }
+.nw-climate-verdict.is-below, .nw-climate-verdict.is-above { color: #92400e; }
+.nw-climate-verdict.is-no_data { color: inherit; opacity: 0.8; font-weight: 400; }
+.nw-climate-note { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: #fff7e0; color: #5b4a12; font-size: 13px; }

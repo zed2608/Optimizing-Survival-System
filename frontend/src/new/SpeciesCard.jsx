@@ -11,6 +11,7 @@ import ProvisionalTag from './ProvisionalTag.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 import WeatherCard from './WeatherCard.jsx'
 import { BEST_MONTHS_NOTE, monthsText, parseMonths, seasonQuery } from './season.js'
+import { buildClimate } from './climateRef.js'
 
 const sourceOf = (f) => ({ url: f.source_url, rank: f.source_rank, rank_basis: f.rank_basis, off_list: f.off_list, flags: f.flags })
 const present = (v) => v !== null && v !== undefined && String(v).trim() !== '' && String(v).toLowerCase() !== 'nan'
@@ -64,6 +65,64 @@ function Section({ title, big = false, children }) {
 }
 
 // The species card: a right-hand drawer with everything the dataset says about one species (GET /species/{id}), every value with its source and rank.
+// Climate and soil, REFERENCE ONLY (stage C1): the species range for rain, temperature and pH, the reference for San Mateo with its station and status, and an honest comparison for rain only.
+// Not part of any score. English with the same line in Filipino under it.
+function Two({ t }) {
+  return (
+    <>
+      {t.en}
+      <span className="nw-fil">{t.fil}</span>
+    </>
+  )
+}
+
+function ClimateReference({ cref, cv }) {
+  const c = buildClimate(cref, cv)
+  return (
+    <section className="nw-card-sec nw-climate" aria-label={c.title.en} data-section="climate-reference">
+      <h3>
+        <Two t={c.title} /> <span className="nw-draft">PROVISIONAL</span>
+      </h3>
+      {c.error && <p className="unavailable">{c.error.en}</p>}
+      <dl className="nw-climate-rows">
+        {c.rows.map((r) => (
+          <div className="nw-fact" key={r.id} data-row={r.id}>
+            <dt>
+              <Two t={r.label} />
+            </dt>
+            <dd>
+              {r.species && (
+                <div>
+                  <span className="muted">Species: </span>
+                  <Two t={r.species} />
+                </div>
+              )}
+              <div>
+                <span className="muted">San Mateo: </span>
+                <Two t={r.reference} />
+                {r.statusWords && <span className="nw-draft"> {r.statusWords.en} / {r.statusWords.fil}</span>}
+              </div>
+              {r.source && (
+                <div className="muted" data-role="source">
+                  {r.source}{r.asOf ? ` · ${r.asOf}` : ''}
+                </div>
+              )}
+              {r.verdict && (
+                <div className={`nw-climate-verdict is-${r.verdictCode}`} data-verdict={r.verdictCode}>
+                  <Two t={r.verdict} />
+                </div>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="nw-climate-note" role="note">
+        <Two t={c.notice} />
+      </p>
+    </section>
+  )
+}
+
 export default function SpeciesCard({ speciesId, window: win, onClose, onFindAreas, point = null, view = 'compact', pointId = null }) {
   const api = useApi(`/species/${speciesId}?${seasonQuery(win, false)}`)
   const advice = useApi(`/species/${speciesId}/advice?${seasonQuery(win, false)}${pointId ? `&point_id=${pointId}` : ''}`) // ways to improve survival: advice only, hidden when it cannot be loaded
@@ -199,6 +258,8 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
               <Fact label="Preferred climate" rows={[F.preferred_climate_seasons]} />
               <Fact label="Dry-season tolerance" rows={[F.dry_season_raw]} />
             </Section>
+
+            <ClimateReference cref={d.climate_reference} cv={cv} />
 
             <Section title="The tree">
               <Fact label="Mature height" rows={[F.mature_height_m]} text={one('mature_height_m', 'm')} />

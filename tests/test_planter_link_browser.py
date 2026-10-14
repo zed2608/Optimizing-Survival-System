@@ -109,3 +109,12 @@ def test_the_existing_field_pack_checks_pass_on_the_pack_served_by_the_route(ser
     r = node(script, served_fixture_pack, str(server["out"]))
     assert r.returncode == 0, r.stdout[-3500:] + r.stderr[-1000:]
     assert " 0 failed" in r.stdout and must in r.stdout
+
+
+def test_the_species_card_shows_the_climate_reference_in_the_browser(server):
+    """Stage C1: the section "Climate and soil (reference only)" of the Species card, at a desktop and a phone width, in both languages, with no sideways scroll."""
+    import climate_reference as cref
+    rain = ("%g" % cref.load()["annual_rainfall_mm"]["value"])
+    r = node("species_card_climate_check.mjs", server["base"], server["cookie"], rain, str(server["out"]), timeout=600)
+    assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-1000:]
+    assert " 0 failed" in r.stdout and "no sideways scroll" in r.stdout

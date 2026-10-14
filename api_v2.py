@@ -34,6 +34,7 @@ import advice as sva  # noqa: E402  (ways to improve survival: advice only, no s
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
 import field_pack as fpk  # noqa: E402  (the Field Pack page, stage A2)
+import climate_reference as cref  # noqa: E402  (rain / climate type / temperature / pH of San Mateo: DISPLAY ONLY, never read by a score; stage C1)
 import pack_store as ps  # noqa: E402  (stored planter links: token, expiry, one pack per plan)
 import landcover as lcv  # noqa: E402
 import matching as mt  # noqa: E402
@@ -1000,6 +1001,10 @@ def load_data(cfg=None):
     d.purpose_tags = {int(k): g[["tag", "basis"]].to_dict("records") for k, g in tt.groupby("species_id")} if tt is not None else {}
     d.nursery_rows = {int(k): g.to_dict("records") for k, g in nt[nt.matched_species_id.astype(str) != ""].assign(matched_species_id=lambda x: x.matched_species_id.astype(int)).groupby("matched_species_id")} if nt is not None else {}
     d.nursery_table_present = nt is not None
+    try:                                                                                       # stage C1: the reference values for the Species card (display only); a missing or bad file just means "no reference"
+        d.climate_ref = cref.load(ROOT / "data" / "config" / "climate_reference.csv")
+    except (OSError, cref.ReferenceError):
+        d.climate_ref = None
     d.interview_notes = {int(k): g[["note", "source", "provisional"]].to_dict("records") for k, g in it.groupby("species_id")} if it is not None else {}
     pf = root / "species_partners.csv"                                  # "Works well with": starting rules from pipeline/partners.py (provisional)
     d.partners = pd.read_csv(pf) if pf.is_file() else None
@@ -1537,6 +1542,7 @@ def species_detail(species_id: int, season=Depends(season_q), d=Depends(D)):
             "nursery": ([{"listed_name": r["listed_name"], "in_system": r["in_system"], "match_note": r["match_note"], "source": "LGU nursery list (handwritten); quantities unknown"}
                          for r in d.nursery_rows.get(species_id, [])] if d.nursery_table_present else None),
             "interview_notes": d.interview_notes.get(species_id, []),
+            "climate_reference": cref.for_species(d.climate_ref, row),
             "purpose_scores": {p: purpose_breakdown(d, species_id, p) for p in mt.PURPOSES}}
 
 
