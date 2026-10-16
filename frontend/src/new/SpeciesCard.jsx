@@ -211,16 +211,16 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
                 note="A team decision, not a sourced fact."
               />
               <FlagBadges flags={d.flags} />
-              <div className="nw-card-tags" aria-label="Purpose tags and nursery">
+              <div className="nw-card-tags" aria-label="Trait tags and nursery">
                 {(d.purpose_tags ?? []).length > 0 && (
                   <div className="nw-tagrow">
-                    <span className="nw-tagrow-label">Purpose</span>
+                    <span className="nw-tagrow-label">Katangian (Trait)</span>
                     {d.purpose_tags.map((t) => (
                       <span key={t} className="nw-chip nw-chip-tag">
                         {t}
                       </span>
                     ))}
-                    <ProvisionalTag title="Purpose tags are filters from rules over the type text; to be confirmed by the agriculturist" />
+                    <ProvisionalTag title="Trait tags are filters from rules over the type text; to be confirmed by the agriculturist" />
                   </div>
                 )}
                 {d.in_nursery === true && (

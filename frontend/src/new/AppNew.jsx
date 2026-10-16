@@ -725,7 +725,7 @@ export default function AppNew() {
           n={2}
           id="purpose"
           icon="tree"
-          title="Purpose"
+          title="Layunin ng pagtatanim (Planting purpose)"
           summary={PURPOSE_SHORT[purpose]}
           open={openStep === 'purpose'}
           onToggle={() => toggleStep('purpose')}

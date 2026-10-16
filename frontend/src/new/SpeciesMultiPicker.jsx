@@ -9,7 +9,7 @@ import SeasonBadge from './SeasonBadge.jsx'
 // are out of season are hidden (a species that is already chosen stays visible so that nothing disappears from under the user).
 export default function SpeciesMultiPicker({ species, selected, onChange, onlySeason, onInfo }) {
   const [query, setQuery] = useState('')
-  const [tag, setTag] = useState('') // purpose filter (species_purpose_tags: provisional)
+  const [tag, setTag] = useState('') // trait filter (species_purpose_tags: provisional; a filter only, it never changes a score)
   const [nurseryOnly, setNurseryOnly] = useState(false) // only species that are in the LGU nursery list
   if (species.status === 'loading') return <div className="v2 v2-embedded"><Loading what="Loading the species list" /></div>
   if (species.status === 'error') return <div className="v2 v2-embedded"><ErrorBox error={species.error} onRetry={species.retry} title="Could not load the species list" brief /></div>
@@ -31,10 +31,10 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
       <input id="nw-species-search" type="search" className="nw-input" placeholder="Search species" value={query} onChange={(e) => setQuery(e.target.value)} />
       <div className="nw-pfilter">
         <label className="nw-label nw-pfilter-label" htmlFor="nw-purpose-filter">
-          Purpose <ProvisionalTag />
+          Salain ayon sa katangian (Filter by trait) <ProvisionalTag />
         </label>
         <select id="nw-purpose-filter" className="nw-input" value={tag} onChange={(e) => setTag(e.target.value)}>
-          <option value="">All purposes</option>
+          <option value="">Lahat ng katangian (All traits)</option>
           {PURPOSE_TAGS.map((t) => (
             <option key={t} value={t}>
               {t}
