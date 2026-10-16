@@ -274,7 +274,7 @@ def test_plan_event_response_content_and_sources(client):
     for p in j["palette"]:
         assert {"species", "share", "quota", "placed", "unmatched", "purpose_score_source_ids", "needs_both_sexes"} <= set(p)
         assert all(j["sources"][str(s)]["url"] for s in p["purpose_score_source_ids"])
-    assert any("one tree per cell" in x for x in j["limits"]) and any("pH" in x for x in j["limits"]) and any("provisional" in x.lower() for x in j["limits"])
+    assert any("holds at most one planting block of one species" in x and "9 to 900 trees" in x for x in j["limits"]) and any("pH" in x for x in j["limits"]) and any("provisional" in x.lower() for x in j["limits"])
     assert "Each point is a ~100 m grid cell" in " ".join(j["limits"])
 
 

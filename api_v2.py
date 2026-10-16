@@ -129,7 +129,7 @@ LIMITS = [
     "All weights, caps, thresholds and purpose scores are PROVISIONAL until the agriculturist signs off.",
     "{DATASET_LIMIT}",
     "{S_LIMIT}",
-    "Each point is a ~100 m grid cell, so a plan places at most one tree per cell.",
+    "{BLOCK_LIMIT}",
     "Species data marked species_data_unverified cites a source file that was not provided.",
     "Scores are not valid outside the mapped municipality of San Mateo, Rizal.",
     "{PLANTING} planting squares + {OTHER} other squares = {TOTAL} map squares.",
@@ -186,7 +186,10 @@ def limits_of(d):
                 + (f"Known issues left for the agriculturist: {'; '.join(left)}." if left else ""))
     else:
         dset = "The species data release is not named."
-    fill = {"{DATASET_LIMIT}": dset, "{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil, "{S_LIMIT}": rp.s_limit_text(d.ctx)}
+    caps = pal.block_table(d.ctx.species).capacity.dropna()                      # what one cell really holds in the default blocks layout (from the species table, never typed here)
+    block = (f"Each point is a ~100 m grid cell, and a cell holds at most one planting block of one species. A block holds {int(caps.min())} to {int(caps.max())} trees, depending on the planting distance "
+             "of the species; a plan in the points layout places one tree per cell.") if len(caps) else "Each point is a ~100 m grid cell, and a cell holds at most one planting block of one species."
+    fill = {"{BLOCK_LIMIT}": block, "{DATASET_LIMIT}": dset, "{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil, "{S_LIMIT}": rp.s_limit_text(d.ctx)}
     out = []
     for t in LIMITS:
         for k, v in fill.items():
