@@ -118,3 +118,10 @@ def test_the_species_card_shows_the_climate_reference_in_the_browser(server):
     r = node("species_card_climate_check.mjs", server["base"], server["cookie"], rain, str(server["out"]), timeout=600)
     assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-1000:]
     assert " 0 failed" in r.stdout and "no sideways scroll" in r.stdout
+
+
+def test_the_dashboard_fits_a_phone_in_the_browser(server):
+    """C4 (overnight 2026-10-15): at 360 and 390 px wide, no sideways scroll, nothing clipped by the right edge (search box, season note, tabs, cards) and the main buttons at least 44 px tall."""
+    r = node("responsive_check.mjs", server["base"], server["cookie"], str(server["out"]), timeout=900)
+    assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-1000:]
+    assert " 0 failed" in r.stdout and "nothing is clipped by the screen edge" in r.stdout and "no sideways scroll" in r.stdout
