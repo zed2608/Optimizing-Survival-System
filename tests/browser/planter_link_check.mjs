@@ -70,7 +70,7 @@ const planter = await fetchStatus(link)
 check('without the access code the link answers 200 (not a redirect to the login page)', planter.status === 200 && planter.type !== 'opaqueredirect', JSON.stringify(planter))
 check('without the code every other address still asks for it', (await fetchStatus(`${BASE}/health`)).status === 401 && (await fetchStatus(`${BASE}/plans`)).status === 401)
 const bad = await fetchStatus(`${BASE}/field/${'a'.repeat(22)}/`)
-check('a wrong token gets the plain 404 "Not found."', bad.status === 404 && bad.body === 'Not found.', JSON.stringify(bad))
+check('a wrong token gets the plain 404 with the clear message (Filipino and English)', bad.status === 404 && bad.body.startsWith('Hindi mabuksan ang link na ito. Humingi ng bagong link sa nagbigay nito.') && bad.body.includes('This link cannot be opened.'), JSON.stringify(bad))
 
 // ---- replace: a new link, the old one dies
 await tapV(mine('[data-act="make"]'))

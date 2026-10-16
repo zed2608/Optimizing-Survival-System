@@ -241,6 +241,8 @@ def test_every_bad_token_gets_the_same_404_and_the_page_has_the_right_headers(fr
     res = [anon.get(u) for u in bad]
     assert {r.status_code for r in res} == {404}
     assert len({r.text for r in res}) == 1 and len({r.headers["content-length"] for r in res}) == 1 and res[0].text == ps.NOT_FOUND_BODY       # same body, same length
+    assert res[0].text.startswith("Hindi mabuksan ang link na ito. Humingi ng bagong link sa nagbigay nito.") and "This link cannot be opened. Ask the person who gave it to you for a new link." in res[0].text   # C7: plain words in both languages
+    assert not any(w in res[0].text.lower() for w in ("expired", "revoked", "nag-expire", "binawi", "unknown", "token"))                   # and it never says WHY (expired, revoked or unknown look the same)
     assert len({r.headers["content-type"] for r in res}) == 1 and all(r.headers["cache-control"] == "no-store" for r in res)
     live = c.post(f"/plans/{pid}/field-pack").json()
     r = anon.get(live["url"])

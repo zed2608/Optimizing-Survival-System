@@ -23,7 +23,8 @@ MAX_PACKS = 30
 TTL_HOURS = 24.0
 TOKEN_BYTES = 16
 TOKEN_SHAPE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
-NOT_FOUND_BODY = "Not found."                    # the one body for every bad, expired or revoked token (same text, same length)
+NOT_FOUND_BODY = ("Hindi mabuksan ang link na ito. Humingi ng bagong link sa nagbigay nito.\n"
+                  "This link cannot be opened. Ask the person who gave it to you for a new link.")   # the one body for every bad, expired, revoked or unknown token (same text, same length: it never says which)
 PLAN_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
 
 
