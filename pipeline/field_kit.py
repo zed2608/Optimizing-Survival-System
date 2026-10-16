@@ -192,6 +192,15 @@ def month_names(value):
     return ";".join(CFG["months"][int(m) - 1] for m in str(value).replace(",", ";").split(";") if m.strip())
 
 
+def kit_limit_lines(meta):
+    """Three short plain-Filipino lines added to the KNOWN LIMITS of the kit README (C6). They state facts of the data and the rules (nothing new is scored):
+    pH, rain and temperature are not scored; a square without soil data is scored WITHOUT the soil term (it is left out of the weighted mean, so it is not punished and its score can be higher than the truth);
+    the species data of the release is not verified by the agriculturist."""
+    return ["Hindi kasama sa score ang pH, ulan at temperatura.",
+            "Ang mga square na walang datos ng lupa ay walang soil data: hindi isinasama ang lupa sa score nila, kaya hindi sila pinaparusahan at maaaring mas mataas ang score kaysa sa tunay.",
+            f"Hindi pa verified ng agriculturist ang species data (release {meta.get('dataset_tag', 'unknown')})."]
+
+
 def dataset_info(data_dir):
     """Release tag and the combined 12-character hash, read from dataset_release.txt (never the long sha256); falls back to the database row."""
     f = Path(data_dir) / "dataset_release.txt"
@@ -436,7 +445,7 @@ def palette_rows(df):
 
 def write_readme_blocks(df, meta, summary, path):
     pal = "\n".join(f"  {c}  {n:<26} {k:>4} trees{'   <- plant BOTH male and female trees' if d else ''}" for c, n, k, d in palette_rows(df))
-    limits = "\n".join(f"  - {x}" for x in summary.get("limits", []))
+    limits = "\n".join(f"  - {x}" for x in list(summary.get("limits", [])) + kit_limit_lines(meta))
     s = summary
     lay = s.get("layout", {})
     ex = df.drop_duplicates("species_code")
@@ -516,7 +525,7 @@ def write_readme(df, meta, summary, path):
     if "trees_planned" in df.columns:
         return write_readme_blocks(df, meta, summary, path)
     pal = "\n".join(f"  {c}  {n:<26} {k:>4} trees{'   <- plant BOTH male and female trees' if d else ''}" for c, n, k, d in palette_rows(df))
-    limits = "\n".join(f"  - {x}" for x in summary.get("limits", []))
+    limits = "\n".join(f"  - {x}" for x in list(summary.get("limits", [])) + kit_limit_lines(meta))
     s = summary
     extra = []
     if s.get("saplings_unmatched") or s.get("saplings_unallocated"):

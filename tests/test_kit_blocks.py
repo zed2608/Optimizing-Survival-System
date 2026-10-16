@@ -78,3 +78,8 @@ def test_manifest_counts_and_pdf_has_a_layout_page_per_species(kit):
     assert pdf.is_file() and pdf.stat().st_size > 5000
     pages = len(re.findall(rb"/Type\s*/Page(?![s\w])", pdf.read_bytes()))
     assert pages >= 1 + len(kit["plan"]) + 1                                                  # overview + one page per block + a table page
+
+
+def test_blocks_readme_has_the_three_filipino_limits(kit):
+    t = (kit["dir"] / "README.txt").read_text(encoding="utf-8")
+    assert "Hindi kasama sa score ang pH, ulan at temperatura." in t and "walang datos ng lupa" in t and "Hindi pa verified ng agriculturist ang species data (release" in t

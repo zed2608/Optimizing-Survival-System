@@ -275,3 +275,21 @@ def test_kit_from_a_real_run_plan_output(tmp_path):
     assert len(pts) == len(plan) and pts.point_ref.is_unique and set(pts.point_id) == set(plan.point_id)
     assert len(ET.parse(r["kit_dir"] / "points.gpx").getroot().findall("g:wpt", GPX)) == len(plan)
     assert r["manifest"]["counts"]["per_species"].keys() == set(pts.species_code)
+
+
+# ---- C6 (overnight 2026-10-15): three short Filipino limits in the README ---------------------------------------------------
+def test_readme_has_the_three_filipino_limits_with_the_release_tag(kit):
+    t = (kit["dir"] / "README.txt").read_text(encoding="utf-8")
+    tag = kit["res"]["meta"]["dataset_tag"]
+    assert "Hindi kasama sa score ang pH, ulan at temperatura." in t
+    assert "walang datos ng lupa" in t and "hindi isinasama ang lupa sa score nila" in t
+    assert f"Hindi pa verified ng agriculturist ang species data (release {tag})." in t
+    block = t[t.index("KNOWN LIMITS"):]
+    assert block.index("pH, ulan") < block.index("walang datos ng lupa") < block.index("species data (release")      # in this order, inside the existing KNOWN LIMITS block
+    assert len(t.splitlines()) < 75                                                                                 # still about one page: no layout change
+
+
+def test_the_limit_lines_are_plain_and_use_the_given_tag():
+    lines = fk.kit_limit_lines({"dataset_tag": "v9"})
+    assert len(lines) == 3 and "v9" in lines[2] and all(len(x) < 200 for x in lines)
+    assert "unknown" in fk.kit_limit_lines({})[2]
