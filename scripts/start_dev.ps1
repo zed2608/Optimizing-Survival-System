@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Run it from anywhere:   .\scripts\start_dev.ps1
-    It FIRST checks (and only reports problems, it never installs or downloads anything):
+    It FIRST checks (and only reports problems, it never installs or downloads anything; the ONE thing it may build is the saved scores and the model, with scriptsebuild_scores.py, and only when they are missing):
       - the virtual environment .venv and the Python packages the backend needs,
       - Node.js, npm and frontend\node_modules,
       - the processed data the backend loads,
@@ -76,8 +76,8 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) { $problems += "Node.
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { $problems += "npm is not installed or not on the PATH." }
 if (-not (Test-Path (Join-Path $Frontend "node_modules"))) { $problems += "frontend\node_modules is missing. Install the frontend packages:  cd frontend; npm install" }
 
-# ---- the data the backend loads
-foreach ($f in "data\processed\site_points_clean.csv", "data\processed\species_clean.csv", "data\processed\purpose_scores.csv", "data\processed\scores\site_scores.db", "data\processed\optimizing_survival.db") {
+# ---- the data the backend loads (the saved scores and the model are handled below: they are git-ignored, so a fresh clone has none)
+foreach ($f in "data\processed\site_points_clean.csv", "data\processed\species_clean.csv", "data\processed\purpose_scores.csv", "data\processed\optimizing_survival.db") {
     if (-not (Test-Path (Join-Path $Root $f))) { $problems += "Missing data file $f. See the data pipeline section of README.md." }
 }
 
@@ -85,6 +85,25 @@ foreach ($f in "data\processed\site_points_clean.csv", "data\processed\species_c
 foreach ($pair in @(@("backend", $ApiPort), @("frontend", $WebPort))) {
     $p = Get-Listener $pair[1]
     if ($null -ne $p) { $problems += "Port $($pair[1]) (the $($pair[0])) is already used by $($p.ProcessName) (id $($p.Id)). If it is an old copy, stop it:  Stop-Process -Id $($p.Id)   (or run  .\scripts\start_dev.ps1 -Stop ), or pick another port with -ApiPort / -WebPort." }
+}
+
+# ---- the saved scores and the Random Forest model (git-ignored: a fresh clone has none). Rebuilt ONLY when one of them is missing; existing files are never overwritten.
+$scoreFiles = "data\processed\scores\site_scores.csv", "data\processed\scores\site_scores.db", "data\processed\models\rf_site_suitability.joblib"
+$missingScores = @($scoreFiles | Where-Object { -not (Test-Path (Join-Path $Root $_)) })
+if ($missingScores.Count -eq 0) {
+    Write-Host "Saved scores and model found: they are NOT rebuilt." -ForegroundColor Green
+} elseif ($problems.Count -eq 0) {
+    Write-Host ""
+    Write-Host "The saved scores or the model are missing ($($missingScores -join ', ')). They are not in git (the files are too big), so they are built now: python scripts\rebuild_scores.py (several minutes)." -ForegroundColor Yellow
+    if ($CheckOnly) {
+        Write-Host "CheckOnly: nothing was built. A normal start would run scripts\rebuild_scores.py now."
+    } else {
+        & $Python (Join-Path $Root "scripts\rebuild_scores.py")
+        if ($LASTEXITCODE -ne 0) { $problems += "scripts\rebuild_scores.py failed (exit code $LASTEXITCODE). Read its messages above; the backend cannot start without the saved scores." }
+        else { Write-Host "Scores and model built." -ForegroundColor Green }
+    }
+} else {
+    $problems += "The saved scores or the model are missing ($($missingScores -join ', ')). After the problems above are fixed, this script runs scripts\rebuild_scores.py for you."
 }
 
 if ($problems.Count -gt 0) {
