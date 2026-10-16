@@ -1,5 +1,6 @@
 import { useApi } from '../v2/useApi.js'
 import Icon from './Icon.jsx'
+import { weatherError } from './weatherText.js'
 
 const GLYPH = { good_to_plant: 'check', plant_with_care: 'warn', avoid_this_week: 'close', unknown: 'question' }
 
@@ -12,7 +13,7 @@ export default function PlanWeather({ result, includeUnzoned, onOpenWeather }) {
   return (
     <div className="nw-planweather">
       {api.status === 'loading' && <p className="nw-plain">Loading this week's weather…</p>}
-      {api.status === 'error' && <p className="nw-plain">{api.error.network ? 'The planning service could not be reached, so there is no weather now.' : 'Weather is not available now.'}</p>}
+      {api.status === 'error' && <p className="nw-plain">{weatherError(api.error).main}</p>}
       {d && (
         <p className="nw-plain" role="status">
           <strong>

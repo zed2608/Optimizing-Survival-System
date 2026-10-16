@@ -7,6 +7,7 @@ import SeasonBadge from './SeasonBadge.jsx'
 import SourceGroup from './SourceGroup.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import { formatDay } from './season.js'
+import { weatherError } from './weatherText.js'
 
 const VERDICT = {
   good_to_plant: { glyph: 'check', cls: 'good' },
@@ -155,8 +156,8 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
       )}
       {api.status === 'error' && (
         <section className="v2 v2-embedded nw-wcard" role="alert">
-          <h3>Weather is not available now</h3>
-          <p className="nw-plain">{api.error.network ? 'The planning service could not be reached, so there is no forecast now.' : api.error.message}</p>
+          <h3>{weatherError(api.error).main}</h3>
+          {weatherError(api.error).detail && <p className="nw-plain muted">{weatherError(api.error).detail}</p>}
           <button type="button" className="btn" onClick={api.retry}>
             Try again
           </button>

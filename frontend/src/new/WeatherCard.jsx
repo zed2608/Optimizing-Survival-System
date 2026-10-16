@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Icon from './Icon.jsx'
 import { useApi } from '../v2/useApi.js'
 import { formatDay, windowForecastMessage } from './season.js'
+import { weatherError } from './weatherText.js'
 
 const GROUPS = [
   { code: 'not_in_planting_window', icon: 'clock', label: 'Not in planting window' },
@@ -92,7 +93,8 @@ export default function WeatherCard({ url, title = 'Weather advice', win = null 
           {api.status === 'loading' && <p className="nw-plain">Loading the forecast…</p>}
           {api.status === 'error' && (
             <p className="fc-bad" role="alert">
-              {api.error.network ? 'The planning service could not be reached, so there is no weather advice now.' : `Weather advice is not available now. ${api.error.message}`}
+              {weatherError(api.error).main}
+              {weatherError(api.error).detail && <span className="muted"> {weatherError(api.error).detail}</span>}
             </p>
           )}
           {d && (
