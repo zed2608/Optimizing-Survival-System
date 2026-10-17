@@ -97,7 +97,7 @@ def test_the_sheet_has_one_row_per_species_and_attribute_that_has_a_value():
     assert sum(1 for r in rows if r["attribute"] == "rain_max_mm") == 44                            # Palosapis has no rain_max (removed on purpose): no row, nothing invented
     assert not [r for r in rows if r["attribute"] == "rain_max_mm" and r["common_name"] == "Palosapis"]
     narra = next(r for r in rows if r["species_id"] == 1 and r["attribute"] == "ph_min")
-    assert narra["common_name"] == "Narra" and narra["scientific_name"] == "Pterocarpus indicus" and narra["current_value"] == "5" and narra["source_rank"] == "3" and narra["source"].startswith("https://prosea")
+    assert narra["common_name"] == "Narra" and narra["scientific_name"] == "Pterocarpus indicus" and narra["current_value"] == "5" and narra["source_rank"] == "3" and narra["source"].startswith("https://ecocrop.apps.fao.org")       # PH integration: the pH row now shows the evidence file's source (FAO EcoCrop), not the old cited one
     assert all(r["verdict"] == "" and r["corrected_value"] == "" and r["remarks"] == "" and r["reviewer"] == "" and r["date"] == "" for r in rows)
     assert any("OFF-LIST" in r["source_note"] for r in rows) and any("FLAGGED" in r["source_note"] for r in rows)       # off-list and flagged sources are marked
 

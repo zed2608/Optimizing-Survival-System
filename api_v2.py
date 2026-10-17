@@ -34,6 +34,7 @@ import advice as sva  # noqa: E402  (ways to improve survival: advice only, no s
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
 import field_pack as fpk  # noqa: E402  (the Field Pack page, stage A2)
+import species_ph_evidence as spe  # noqa: E402  (pH evidence file and rain / temperature agreement: DISPLAY ONLY)
 import soilgrids_ph as sgph  # noqa: E402  (site pH of the squares, a model estimate: DISPLAY ONLY, never read by a score; stage C2)
 import climate_reference as cref  # noqa: E402  (rain / climate type / temperature / pH of San Mateo: DISPLAY ONLY, never read by a score; stage C1)
 import pack_store as ps  # noqa: E402  (stored planter links: token, expiry, one pack per plan)
@@ -1522,6 +1523,19 @@ def species_list(season=Depends(season_q), d=Depends(D)):
             "note": "GET /species/{species_id} lists every field with its source URL and rank", **season_extra(d, season)}
 
 
+PH_FIELDS = ("ph_min", "ph_max")
+CLIMATE_FIELDS = {"rain_min_mm": "rain", "rain_max_mm": "rain", "temp_min_c": "temp", "temp_max_c": "temp"}
+CLIMATE_UNMATCHED = "Paunang saklaw; hindi makita o hindi tugma sa sanggunian"
+
+
+@app.get("/species-ph-reference")
+def species_ph_reference():
+    """pH reference of every species, compact (the plan result lists it per species). Display only; from the evidence file; a missing file gives an empty list."""
+    t = spe.load()
+    return {"available": t is not None, "provisional": True, "tag": spe.TAG, "none_text": spe.NONE_TEXT,
+            "species": {str(i): spe.reference(i) for i in sorted(t)} if t else {}}
+
+
 @app.get("/species/{species_id}")
 def species_detail(species_id: int, point_id: Optional[int] = Query(None, description="a grid square: its SoilGrids pH estimate is shown (display only)"), season=Depends(season_q), d=Depends(D)):
     i = d.species_idx.get(species_id)
@@ -1530,14 +1544,24 @@ def species_detail(species_id: int, point_id: Optional[int] = Query(None, descri
     row = d.ctx.species.iloc[i]
     rows = d.sources[d.sources.species_id == species_id]
     sx = {"season": season_object(d.species_months[i], season), "season_window": season_block(d, season)} if season is not None else {}
-    fields = [{"field_name": r.field_name, "value_as_written": py(r.value_text), "source_id": int(r.source_id), "source_url": py(r.source_url),
-               "source_rank": py(r.source_rank), "rank_basis": py(r.rank_basis), "off_list": py(r.off_list), "flags": py(r.flags)}
-              for r in rows.itertuples(index=False)]
+    # pH: the old draft range and its source are NOT shown (cross-check: not traceable); `ph_reference` below comes from the evidence file. Rain / temperature: the source link and rank are
+    # shown ONLY when the cited page matches the draft (species_climate_agreement.csv); otherwise `unmatched_source` true and no link.
+    fields = []
+    for r in rows.itertuples(index=False):
+        if r.field_name in PH_FIELDS:
+            continue
+        f = {"field_name": r.field_name, "value_as_written": py(r.value_text), "source_id": int(r.source_id), "source_url": py(r.source_url),
+             "source_rank": py(r.source_rank), "rank_basis": py(r.rank_basis), "off_list": py(r.off_list), "flags": py(r.flags)}
+        par = CLIMATE_FIELDS.get(r.field_name)
+        if par and not spe.climate_match(species_id, par):
+            f.update(source_url=None, source_rank=None, rank_basis=None, unmatched_source=True)
+        fields.append(f)
+    vmin, vmax, vkind = spe.verdict_range(species_id)
     return {**sx, "species_id": species_id, "common_name": row.common_name, "scientific_name": row.scientific_name,
             "confidence": {"share_of_cells_with_rank1_or_2_source": py(row.confidence_r12), "cells_cited": py(row.n_cells_cited),
                            "cells_rank1_or_2": py(row.n_cells_rank12)},
             "flags": d.ctx.species_flags.get(species_id, []),
-            "fields": fields, "clean_values": {k: py(v) for k, v in row.items()},
+            "fields": fields, "clean_values": {k: py(v) for k, v in row.items() if k not in PH_FIELDS},
             "provisional_note": "root_urban_safety_prov and root_soil_binding_prov are provisional scores from tag_maps_root.csv, not sourced facts; "
                                 "is_high_value_crop is a team decision",
             "reference_urls": d.refs[d.refs.species_id == species_id].reference_url.tolist(),
@@ -1548,7 +1572,9 @@ def species_detail(species_id: int, point_id: Optional[int] = Query(None, descri
                          for r in d.nursery_rows.get(species_id, [])] if d.nursery_table_present else None),
             "interview_notes": d.interview_notes.get(species_id, []),
             "climate_reference": cref.for_species(d.climate_ref, row),
-            "site_ph": sgph.site_answer(d.soil_ph, point_id, row.get("ph_min"), row.get("ph_max")),
+            "ph_reference": spe.reference(species_id),
+            "climate_sources": {par: (spe.climate_match(species_id, par) or {"unmatched_source": True, "text": CLIMATE_UNMATCHED}) for par in ("rain", "temp")},
+            "site_ph": sgph.site_answer(d.soil_ph, point_id, vmin, vmax, vkind),
             "purpose_scores": {p: purpose_breakdown(d, species_id, p) for p in mt.PURPOSES}}
 
 

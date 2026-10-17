@@ -215,6 +215,27 @@ def write(df, out_dir, cc_dir):
     return L
 
 
+def build_climate_agreement(cc_dir):
+    """species_climate_agreement.csv: for rain and temperature, does the page of the cited source match the draft? agreement = match when EITHER cross-check pass says match (pass 1 status, pass 2 agreement).
+    The source URL and the quote are given ONLY for a match; the API shows the source link of a rain / temperature value only then."""
+    cc_dir = Path(cc_dir)
+    p1 = pd.read_csv(cc_dir / "species_ph_crosscheck.csv").set_index("species_id")
+    p2 = pd.read_csv(cc_dir / "species_crosscheck_pass2.csv")
+    sc = pd.read_csv(ROOT / "data" / "processed" / "species_clean.csv")
+    rows = []
+    for sid in sorted(int(x) for x in sc.species_id):
+        for par, col in (("rain", "rain_status"), ("temp", "temp_status")):
+            url = quote = ""
+            agree = "no_match"
+            if sid in p1.index and p1.loc[sid, col] == "match":
+                agree, url, quote = "match", str(p1.loc[sid, "url"]), str(p1.loc[sid, par + "_text_quote"])
+            q = p2[(p2.species_id == sid) & (p2.parameter == par) & (p2.agreement == "match")]
+            if len(q) and agree != "match":
+                agree, url, quote = "match", str(q.iloc[0].source_url_used), str(q.iloc[0].exact_quote)
+            rows.append({"species_id": sid, "parameter": par, "agreement": agree, "source_url_if_match": url if agree == "match" else "", "quote_if_match": quote if agree == "match" else ""})
+    return pd.DataFrame(rows)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--crosscheck-dir", default=str(ROOT / "reports" / "overnight"))
@@ -223,6 +244,9 @@ def main():
     df = build(a.crosscheck_dir, a.out_dir)
     sanity(df)
     print("\n".join(write(df, a.out_dir, a.crosscheck_dir)))
+    ag = build_climate_agreement(a.crosscheck_dir)
+    ag.to_csv(Path(a.out_dir) / "species_climate_agreement.csv", index=False, encoding="utf-8")
+    print("climate agreement:", ag.groupby("parameter").agreement.value_counts().to_dict())
 
 
 if __name__ == "__main__":
