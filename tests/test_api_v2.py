@@ -99,7 +99,8 @@ def test_species_list_has_key_fields_confidence_and_resolved_sources(client):
 def test_species_detail_lists_every_field_with_url_and_rank(client, data):
     j = client.get("/species/1").json()
     assert j["common_name"] == "Narra" and set(j["purpose_scores"]) == {"urban", "planting", "watershed"}
-    n_rows = int((data.sources.species_id == 1).sum())
+    # PH integration: the two pH rows (ph_min, ph_max) are no longer listed with their old source; the pH comes from "ph_reference" (evidence file)
+    n_rows = int((data.sources.species_id == 1).sum() - data.sources[(data.sources.species_id == 1)].field_name.isin(["ph_min", "ph_max"]).sum())
     assert len(j["fields"]) == n_rows >= 40
     assert all(f["source_id"] and "source_url" in f and "source_rank" in f and f["field_name"] for f in j["fields"])
     assert all(f["source_url"] for f in j["fields"] if f["field_name"] == "elev_max_m")

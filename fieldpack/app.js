@@ -1256,37 +1256,87 @@
       h('p', { class: 'note' }, t('planLine', { plan: pack.plan_id, code: pack.check_code, pack: pack.pack_id })),
       h('p', { class: 'note' }, t('builtLine', { date: pack.built_on, tag: pack.dataset.tag, hash: pack.dataset.hash })))
   }
+  // Texts of the soil pH section (kept here, not in strings.js: they are new and not yet part of the Filipino review file). Same two languages.
+  const PH_T = {
+    fil: {
+      phTitle: 'Bago magtanim: sukatin ang pH',
+      phIntro: 'Ang mga pH range sa ibaba ay mula sa sanggunian at hindi pa pirmado ng agriculturist. Sukatin sa mismong lugar.',
+      phNone: 'Walang nakumpirmang pH range',
+      phNoneList: '{n} species ang walang nakumpirmang pH range: {names}. Itanong sa agriculturist/MAO bago magtanim kung kaduda-duda ang pH.',
+      phTol: 'Matitiis',
+      phOpt: 'Pinakamainam',
+      phListed: 'Nakalista',
+      phConflict: 'May magkaibang sanggunian; itanong sa agriculturist',
+      phPickLabel: 'Piliin ang species',
+      phInputLabel: 'pH na nasukat mo (3.0 hanggang 10.0)',
+      phReset: 'I-reset',
+      phBad: 'Maglagay ng numero mula 3.0 hanggang 10.0.',
+      phCmpOptimal: 'Nasa pinakamainam na saklaw',
+      phCmpTolerated: 'Nasa saklaw na matitiis, hindi pinakamainam',
+      phCmpListed: 'Nasa saklaw na nakalista',
+      phCmpOutside: 'Labas sa saklaw',
+      phCmpOutsideOptimal: 'Labas sa pinakamainam na saklaw',
+      phCmpNone: 'Walang nakumpirmang pH range',
+      phNote: 'Gumamit ng pH test kit o meter sa mismong lugar. Hindi ito sine-save.',
+    },
+    en: {
+      phTitle: 'Before planting: measure the soil pH',
+      phIntro: 'Soil pH ranges below come from sources and are not yet signed by the agriculturist. Measure on site.',
+      phNone: 'No confirmed pH range',
+      phNoneList: '{n} species have no confirmed pH range: {names}. Ask the agriculturist or MAO before planting where the pH is doubtful.',
+      phTol: 'Tolerated',
+      phOpt: 'Best',
+      phListed: 'Listed',
+      phConflict: 'Sources disagree; ask the agriculturist',
+      phPickLabel: 'Choose species',
+      phInputLabel: 'pH you measured (3.0 to 10.0)',
+      phReset: 'Clear',
+      phBad: 'Enter a number from 3.0 to 10.0.',
+      phCmpOptimal: 'Inside the best range',
+      phCmpTolerated: 'Inside the tolerated range, not the best',
+      phCmpListed: 'Inside the listed range',
+      phCmpOutside: 'Outside the range',
+      phCmpOutsideOptimal: 'Outside the best range',
+      phCmpNone: 'No confirmed pH range',
+      phNote: 'Use a pH test kit or meter on the spot. This is not saved.',
+    },
+  }
+  const tp = (id, vars) => {
+    let x = (PH_T[lang] || PH_T.fil)[id]
+    for (const k in vars || {}) x = x.split('{' + k + '}').join(String(vars[k]))
+    return x
+  }
   // "Bago magtanim: sukatin ang pH": the soil pH reference of the species in this plan (text from the plan, no network) and the "Sukat sa lugar" check. Nothing is saved.
   const phRange = (a, b) => (a != null && b != null ? a + '–' + b : null)
   function phLine(r) {
-    if (r.status !== 'sourced') return t('phNone')
-    const bits = [['phTol', phRange(r.tol_min, r.tol_max)], ['phOpt', phRange(r.opt_min, r.opt_max)], ['phListed', phRange(r.listed_min, r.listed_max)]].filter((x) => x[1]).map((x) => t(x[0]) + ' ' + x[1])
-    return bits.join(' · ') + (r.conflict ? ' · ' + t('phConflict') : '')
+    if (r.status !== 'sourced') return tp('phNone')
+    const bits = [['phTol', phRange(r.tol_min, r.tol_max)], ['phOpt', phRange(r.opt_min, r.opt_max)], ['phListed', phRange(r.listed_min, r.listed_max)]].filter((x) => x[1]).map((x) => tp(x[0]) + ' ' + x[1])
+    return bits.join(' · ') + (r.conflict ? ' · ' + tp('phConflict') : '')
   }
   function phSection() {
     const list = pack.ph || []
     if (!list.length) return null
     const none = list.filter((r) => r.status !== 'sourced')
     const result = h('p', { class: 'note', role: 'status', 'data-role': 'ph-result' })
-    const input = h('input', { id: 'ph-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '6.5', 'aria-label': t('phInputLabel') })
-    const pick = h('select', { id: 'ph-species', 'aria-label': t('phPickLabel') }, list.map((r, i) => h('option', { value: String(i) }, r.name)))
+    const input = h('input', { id: 'ph-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '6.5', 'aria-label': tp('phInputLabel') })
+    const pick = h('select', { id: 'ph-species', 'aria-label': tp('phPickLabel') }, list.map((r, i) => h('option', { value: String(i) }, r.name)))
     const update = () => {
       const typed = input.value.trim() !== ''
       const v = Core.parsePh(input.value)
-      result.textContent = !typed ? '' : v === null ? t('phBad') : ({ optimal: t('phCmpOptimal'), tolerated: t('phCmpTolerated'), listed: t('phCmpListed'), outside: t('phCmpOutside'), outside_optimal: t('phCmpOutsideOptimal'), none: t('phCmpNone') })[Core.phCompare(v, list[Number(pick.value)])]
+      result.textContent = !typed ? '' : v === null ? tp('phBad') : ({ optimal: tp('phCmpOptimal'), tolerated: tp('phCmpTolerated'), listed: tp('phCmpListed'), outside: tp('phCmpOutside'), outside_optimal: tp('phCmpOutsideOptimal'), none: tp('phCmpNone') })[Core.phCompare(v, list[Number(pick.value)])]
     }
     input.addEventListener('input', update)
     pick.addEventListener('change', update)
     return h('div', { class: 'phbox', 'data-role': 'ph-section' },
-      h('h2', null, t('phTitle')),
-      h('p', { class: 'note' }, t('phIntro')),
-      none.length ? h('p', { class: 'warn', 'data-role': 'ph-none-list' }, t('phNoneList', { n: none.length, names: none.map((r) => r.name).join(', ') })) : null,
+      h('h2', null, tp('phTitle')),
+      h('p', { class: 'note' }, tp('phIntro')),
+      none.length ? h('p', { class: 'warn', 'data-role': 'ph-none-list' }, tp('phNoneList', { n: none.length, names: none.map((r) => r.name).join(', ') })) : null,
       h('ul', { class: 'plain' }, list.map((r) => h('li', null, h('strong', null, r.name), ': ', phLine(r)))),
-      h('label', { for: 'ph-species' }, t('phPickLabel')), pick,
-      h('label', { for: 'ph-input' }, t('phInputLabel')), input,
-      h('button', { type: 'button', class: 'btn', onclick: () => { input.value = ''; update() } }, t('phReset')),
+      h('label', { for: 'ph-species' }, tp('phPickLabel')), pick,
+      h('label', { for: 'ph-input' }, tp('phInputLabel')), input,
+      h('button', { type: 'button', class: 'btn', onclick: () => { input.value = ''; update() } }, tp('phReset')),
       result,
-      h('p', { class: 'note' }, t('phNote')))
+      h('p', { class: 'note' }, tp('phNote')))
   }
   function homeScreen() {
     const totals = pack.blocks.reduce((s, b) => {
