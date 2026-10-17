@@ -258,3 +258,17 @@ test('walking to ONE TREE: far, close or here; "here" is inside half a spacing (
   assert.equal(Core.treeStatus(5, undefined), 'close') // no spacing known: only the 2 m floor
   assert.equal(Core.treeStatus(NaN, 7), null)
 })
+
+test('soil pH check: parsing and the five answers (same rules as the dashboard)', () => {
+  assert.equal(Core.parsePh('6,5'), 6.5)
+  assert.equal(Core.parsePh('2.9'), null)
+  assert.equal(Core.parsePh('abc'), null)
+  const REF = { status: 'sourced', verdict_kind: 'tolerance', tol_min: 5, tol_max: 7.5, opt_min: 5.5, opt_max: 6.5, listed_min: null, listed_max: null }
+  assert.equal(Core.phCompare(6, REF), 'optimal')
+  assert.equal(Core.phCompare(5.2, REF), 'tolerated')
+  assert.equal(Core.phCompare(8, REF), 'outside')
+  assert.equal(Core.phCompare(6, { status: 'sourced', verdict_kind: 'listed', listed_min: 5, listed_max: 7.5 }), 'listed')
+  assert.equal(Core.phCompare(8, { status: 'sourced', verdict_kind: 'optimal_only', opt_min: 5, opt_max: 6.5 }), 'outside_optimal')
+  assert.equal(Core.phCompare(6, { status: 'none' }), 'none')
+  assert.equal(Core.phCompare(null, REF), 'none')
+})

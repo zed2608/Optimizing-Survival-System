@@ -278,8 +278,24 @@ const FieldPackCore = (function () {
     }
   }
 
+  // Soil pH reference (PH integration): the measured pH against the evidence range of a species. Same rules as frontend/src/new/phEvidence.js (a test compares them). Nothing is saved or sent.
+  function parsePh(text) {
+    const t = String(text == null ? '' : text).trim().replace(',', '.')
+    if (!/^\d{1,2}(\.\d{1,2})?$/.test(t)) return null
+    const v = Number(t)
+    return v >= 3 && v <= 10 ? v : null
+  }
+  function phCompare(ph, ref) {
+    if (ph == null || !ref || ref.status !== 'sourced') return 'none'
+    const inside = (lo, hi) => lo != null && hi != null && ph >= lo && ph <= hi
+    if (inside(ref.opt_min, ref.opt_max)) return 'optimal'
+    if (inside(ref.tol_min, ref.tol_max)) return 'tolerated'
+    if (inside(ref.listed_min, ref.listed_max)) return ref.verdict_kind === 'optimal_only' ? 'optimal' : 'listed'
+    return ref.verdict_kind === 'optimal_only' ? 'outside_optimal' : 'outside'
+  }
+
   return { R, REASONS, EXTRA_COLUMNS, POINTS, CLOSE_M, PACE_M, distanceM, bearingDeg, compassPoint, turnDeg, arrival, startStatus, treeStatus, paces, rowPlace, distanceLabel, normDeg, angleDiff, smoothAngle, circularStd, coneHalfAngle, relativeCue, compassHeading, headingFromEvent, conePath,
-    progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc }
+    progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc, parsePh, phCompare }
 })()
 
 if (typeof module !== 'undefined' && module.exports) module.exports = FieldPackCore

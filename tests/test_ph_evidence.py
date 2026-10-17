@@ -160,3 +160,19 @@ def test_frontend_source_wiring():
     assert "<PlanPh " in (src / "PlanResult.jsx").read_text(encoding="utf-8")
     tool = ph.split("export function PhMeasureTool")[1].split("export default")[0]
     assert "fetch(" not in tool and "localStorage" not in tool and "apiGet" not in tool and "apiPost" not in tool
+
+
+def test_field_pack_carries_the_ph_reference():
+    import field_pack as bfp
+    FIXTURE = ROOT / "tests" / "fixtures" / "field_pack" / "field_kit_plan_urban_20261013_032648"
+    text, manifest = bfp.read_kit(FIXTURE)
+    pack = bfp.build_pack(text, manifest)
+    assert pack["ph"] and {e["code"] for e in pack["ph"]} == {b["species_code"] for b in pack["blocks"]}
+    for e in pack["ph"]:
+        assert e["status"] in ("sourced", "none")
+        if e["status"] == "none":
+            assert not e.get("verdict_min")
+        assert "source_url" not in e          # text only: the page has no extra web address
+    page = bfp.render_page(pack)
+    assert "Bago magtanim: sukatin ang pH" in page and "phCompare" in page
+    assert len(page.encode("utf-8")) < 2_000_000          # still one small page

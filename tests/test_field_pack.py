@@ -269,7 +269,7 @@ def test_a_kit_that_was_changed_or_made_with_another_formula_is_refused(tmp_path
 def test_core_tests_in_node():
     r = subprocess.run([NODE, "--test", str(ROOT / "fieldpack" / "core.test.mjs")], capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stdout[-2500:] + r.stderr[-1500:]
-    assert "# fail 0" in r.stdout and "# pass 20" in r.stdout
+    assert "# fail 0" in r.stdout and "# pass 21" in r.stdout
 
 
 def run_sim(payload):

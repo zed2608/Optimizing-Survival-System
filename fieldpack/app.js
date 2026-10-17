@@ -1256,6 +1256,38 @@
       h('p', { class: 'note' }, t('planLine', { plan: pack.plan_id, code: pack.check_code, pack: pack.pack_id })),
       h('p', { class: 'note' }, t('builtLine', { date: pack.built_on, tag: pack.dataset.tag, hash: pack.dataset.hash })))
   }
+  // "Bago magtanim: sukatin ang pH": the soil pH reference of the species in this plan (text from the plan, no network) and the "Sukat sa lugar" check. Nothing is saved.
+  const phRange = (a, b) => (a != null && b != null ? a + '–' + b : null)
+  function phLine(r) {
+    if (r.status !== 'sourced') return t('phNone')
+    const bits = [['phTol', phRange(r.tol_min, r.tol_max)], ['phOpt', phRange(r.opt_min, r.opt_max)], ['phListed', phRange(r.listed_min, r.listed_max)]].filter((x) => x[1]).map((x) => t(x[0]) + ' ' + x[1])
+    return bits.join(' · ') + (r.conflict ? ' · ' + t('phConflict') : '')
+  }
+  function phSection() {
+    const list = pack.ph || []
+    if (!list.length) return null
+    const none = list.filter((r) => r.status !== 'sourced')
+    const result = h('p', { class: 'note', role: 'status', 'data-role': 'ph-result' })
+    const input = h('input', { id: 'ph-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '6.5', 'aria-label': t('phInputLabel') })
+    const pick = h('select', { id: 'ph-species', 'aria-label': t('phPickLabel') }, list.map((r, i) => h('option', { value: String(i) }, r.name)))
+    const update = () => {
+      const typed = input.value.trim() !== ''
+      const v = Core.parsePh(input.value)
+      result.textContent = !typed ? '' : v === null ? t('phBad') : ({ optimal: t('phCmpOptimal'), tolerated: t('phCmpTolerated'), listed: t('phCmpListed'), outside: t('phCmpOutside'), outside_optimal: t('phCmpOutsideOptimal'), none: t('phCmpNone') })[Core.phCompare(v, list[Number(pick.value)])]
+    }
+    input.addEventListener('input', update)
+    pick.addEventListener('change', update)
+    return h('div', { class: 'phbox', 'data-role': 'ph-section' },
+      h('h2', null, t('phTitle')),
+      h('p', { class: 'note' }, t('phIntro')),
+      none.length ? h('p', { class: 'warn', 'data-role': 'ph-none-list' }, t('phNoneList', { n: none.length, names: none.map((r) => r.name).join(', ') })) : null,
+      h('ul', { class: 'plain' }, list.map((r) => h('li', null, h('strong', null, r.name), ': ', phLine(r)))),
+      h('label', { for: 'ph-species' }, t('phPickLabel')), pick,
+      h('label', { for: 'ph-input' }, t('phInputLabel')), input,
+      h('button', { type: 'button', class: 'btn', onclick: () => { input.value = ''; update() } }, t('phReset')),
+      result,
+      h('p', { class: 'note' }, t('phNote')))
+  }
   function homeScreen() {
     const totals = pack.blocks.reduce((s, b) => {
       const p = Core.progress(b, state)
@@ -1274,6 +1306,7 @@
           h('strong', null, b.ref), h('span', null, b.name), h('small', null, t('blockCard', { n: b.n, done: p.planted + p.skipped })),
           h('div', { class: 'bar', role: 'img', 'aria-label': t('blockCard', { n: b.n, done: p.planted + p.skipped }) }, h('span', { class: 'p', style: `width:${(100 * p.planted) / p.n}%` }), h('span', { class: 's', style: `width:${(100 * p.skipped) / p.n}%` })))
       })),
+      phSection(),
       h('h2', null, t('resultsTitle')),
       h('p', { class: 'note' }, t('resultsHelp')),
       h('div', { class: 'actions', 'data-tour': 'h-results' }, h('button', { type: 'button', class: 'btn good', onclick: download }, t('btnDownload')), typeof navigator.canShare === 'function' ? h('button', { type: 'button', class: 'btn', onclick: share }, t('btnShare')) : null),

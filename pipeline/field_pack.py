@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "pipeline"))
 import field_kit as fk  # noqa: E402
 import palettes as pal  # noqa: E402
+import species_ph_evidence as spe  # noqa: E402
 
 PACK_DIR = ROOT / "fieldpack"
 LEAFLET_DIR = PACK_DIR / "vendor" / "leaflet-1.9.4"          # Leaflet 1.9.4 (2023-05-18), BSD-2-Clause, unmodified files from the npm package; see its README.txt
@@ -93,6 +94,27 @@ def tree_positions(spacing_m, per_row, rows, n, utm_e, utm_n):
     return out, (round(sw[0], 7), round(sw[1], 7)), g
 
 
+PH_KEYS = ("status", "verdict_kind", "verdict_min", "verdict_max", "tol_min", "tol_max", "opt_min", "opt_max", "listed_min", "listed_max", "source_name", "source_rank", "conflict", "scope")
+
+
+def ph_reference_list(blocks):
+    """The soil pH reference of each species of the plan (from data/reference/species_ph_evidence.csv; matched by common name). Text only: no new network call, no score. A species the file does not know
+    (or no file) is listed as status none: 'walang nakumpirmang pH range'. Ranges are 'from a source, not yet signed by the agriculturist'."""
+    t = spe.load() or {}
+    by_name = {str(r.get("common_name", "")).strip().lower(): sid for sid, r in t.items()}
+    out, seen = [], set()
+    for b in blocks:
+        if b["species_code"] in seen:
+            continue
+        seen.add(b["species_code"])
+        sid = by_name.get(str(b["name"]).strip().lower())
+        ref = spe.reference(sid) if sid is not None else None
+        e = {"code": b["species_code"], "name": b["name"], "species_id": sid}
+        e.update({k: (ref or {}).get(k) for k in PH_KEYS} if ref else {"status": "none"})
+        out.append(e)
+    return out
+
+
 def build_pack(blocks_text, manifest, satellite=False):
     reader = csv.DictReader(io.StringIO(blocks_text))
     columns = [c.strip() for c in (reader.fieldnames or [])]
@@ -122,8 +144,9 @@ def build_pack(blocks_text, manifest, satellite=False):
                        "centre": [float(r["lat"]), float(r["lon"])], "start": list(start), "side_m": float(r["rect_side_m"]), "margin_m": float(r["margin_m"]),
                        "square": g["square_ll"], "area": g["area_ll"], "first_offset_m": g["first_offset"], "trees": trees, "row": {c: r.get(c, "") for c in columns}})
     ds = manifest.get("dataset") or {}
+    pack_ph = ph_reference_list(blocks)
     pack = {"format": PACK_FORMAT, "plan_id": plan_id, "check_code": check_code, "built_on": manifest.get("built_on", ""), "dataset": {"tag": ds.get("tag", ""), "hash": ds.get("hash", "")},
-            "columns": columns, "basemaps": [BASEMAPS["osm"]] + ([BASEMAPS["sat"]] if satellite else []), "blocks": blocks}
+            "ph": pack_ph, "columns": columns, "basemaps": [BASEMAPS["osm"]] + ([BASEMAPS["sat"]] if satellite else []), "blocks": blocks}
     pack["pack_id"] = hashlib.sha256(json.dumps(pack, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:8]
     return pack
 
