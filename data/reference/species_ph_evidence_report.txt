@@ -1,0 +1,11 @@
+species_ph_evidence_report (made by scripts/build_species_ph_evidence.py; no network; inputs: C:\Users\user\Desktop\Optimizing_Survival_System\reports\overnight)
+
+species: 45 | sourced: 29 | none: 16
+verdict_kind: {'tolerance': 20, 'optimal_only': 5, 'listed': 4}
+source_kind: {'ecocrop': 18, 'icraf': 6, 'da_pcaarrd': 4, 'compilation_secondary': 1}
+source_rank: {1: 4, 3: 25}
+scope: {'species': 26, 'genus_or_group': 3}
+conflict = yes: 1 (43)
+verdict range equal to the OLD draft (species_clean ph_min/ph_max): 3 of 29
+the OLD draft range equal to ANY range of the evidence (tolerance, optimal or listed): 6 of 29
+none species: 3 Dao, 4 Banaba, 8 Kamagong, 9 Katmon, 10 Batikuling, 11 Palosapis, 21 Yakal, 23 Santol, 32 Salinggogon, 33 White Lauan, 34 Red Lauan, 35 Bagtikan, 37 Apitong, 40 Peacock Flower Tree, 42 Weeping Fig (Balete), 44 Balai Lamok
