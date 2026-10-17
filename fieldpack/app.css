@@ -186,3 +186,10 @@ body.has-overlay { overflow: hidden; }
 .gpspanel .btn { margin: .3rem 0; }
 .gpsmsg { font-size: 1.125rem; margin: .2rem 0; }
 .sheet[data-gps="open"] { max-height: calc(100% - 8px); }  /* the GPS panel gets room: its buttons come first */
+
+/* Suriin sa lugar (site checklist) */
+.clitem { border: 1px solid var(--line, #cbd5e1); border-radius: 8px; padding: 10px; margin: 10px 0; min-width: 0; }
+.clitem legend { font-weight: 700; padding: 0 4px; max-width: 100%; overflow-wrap: anywhere; }
+.clitem blockquote { margin: 6px 0; padding-left: 10px; border-left: 3px solid #94a3b8; overflow-wrap: anywhere; }
+.clitem a { overflow-wrap: anywhere; }
+.clitem .actions { flex-wrap: wrap; }

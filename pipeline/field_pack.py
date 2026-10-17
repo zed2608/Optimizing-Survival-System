@@ -115,6 +115,35 @@ def ph_reference_list(blocks):
     return out
 
 
+CHECKLIST_CSV = ROOT / "data" / "reference" / "site_checklist.csv"
+ZONE_COND = re.compile(r"Zone condition: ([^.]+)\.")
+
+
+def checklist_for_pack(blocks, path=None):
+    """The "Suriin sa lugar" questions (data/reference/site_checklist.csv), the genera of the plan's species, the species' shade tolerance (species table, draft) and the zone conditions of the blocks.
+    Text only: no network, no score; the planter's answers are never saved. An absent file gives no section (the pack still builds)."""
+    p = Path(path or CHECKLIST_CSV)
+    if not p.is_file():
+        return None
+    import pandas as pd
+    items = []
+    with open(p, encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            ids, labels = r["options"].split("|"), r["option_labels"].split("|")
+            tips = [r["tip_if_oo"]] + ([r["tip_if_middle"]] if len(ids) == 4 else []) + [r["tip_if_hindi"], r["tip_if_hindi_sigurado"]]
+            kinds = ["oo", "middle", "hindi", "hindi_sigurado"] if len(ids) == 4 else ["oo", "hindi", "hindi_sigurado"]
+            items.append({"id": r["item_id"], "question": r["question_fil"], "why": r["why_fil"], "options": [{"id": i, "label": l, "tip": t, "kind": k} for i, l, t, k in zip(ids, labels, tips, kinds)],
+                          "genus_tip": r["genus_tip_if_oo"], "genus": [g for g in r["applies_to_genus"].split("|") if g], "note": r["note"],
+                          "source": {"name": r["source_name"], "scope": r["source_scope"], "url": r["source_url"], "quotes": [q for q in r["source_quote"].split(" || ") if q] if r["quote_verified"] == "yes" else []}})
+    names = {str(b["name"]).strip().lower() for b in blocks}
+    sp = pd.read_csv(ROOT / "data" / "processed" / "species_clean.csv")
+    sp = sp[sp.common_name.str.strip().str.lower().isin(names)]
+    clean = lambda v: "" if v is None or str(v).lower() == "nan" else str(v)
+    species = [{"name": r.common_name, "genus": clean(r.genus), "shade_tol": clean(r.shade_tol), "light_preference": clean(r.light_preference)} for r in sp.itertuples()]
+    conds = sorted({m.group(1) for b in blocks for m in [ZONE_COND.search(b.get("note", ""))] if m})
+    return {"items": items, "species": species, "genera": sorted({s["genus"] for s in species if s["genus"]}), "zone_conditions": conds}
+
+
 def build_pack(blocks_text, manifest, satellite=False):
     reader = csv.DictReader(io.StringIO(blocks_text))
     columns = [c.strip() for c in (reader.fieldnames or [])]
@@ -146,7 +175,7 @@ def build_pack(blocks_text, manifest, satellite=False):
     ds = manifest.get("dataset") or {}
     pack_ph = ph_reference_list(blocks)
     pack = {"format": PACK_FORMAT, "plan_id": plan_id, "check_code": check_code, "built_on": manifest.get("built_on", ""), "dataset": {"tag": ds.get("tag", ""), "hash": ds.get("hash", "")},
-            "ph": pack_ph, "columns": columns, "basemaps": [BASEMAPS["osm"]] + ([BASEMAPS["sat"]] if satellite else []), "blocks": blocks}
+            "ph": pack_ph, "checklist": checklist_for_pack(blocks), "columns": columns, "basemaps": [BASEMAPS["osm"]] + ([BASEMAPS["sat"]] if satellite else []), "blocks": blocks}
     pack["pack_id"] = hashlib.sha256(json.dumps(pack, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:8]
     return pack
 

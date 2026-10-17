@@ -272,3 +272,27 @@ test('soil pH check: parsing and the five answers (same rules as the dashboard)'
   assert.equal(Core.phCompare(6, { status: 'none' }), 'none')
   assert.equal(Core.phCompare(null, REF), 'none')
 })
+
+const ITEMS = [
+  { id: 'C1', genus: ['Bambusa', 'Cocos'], genus_tip: 'Huwag itanim ang Bamboo o Niyog', options: [{ id: 'oo', kind: 'oo', tip: 'a' }, { id: 'hindi', kind: 'hindi', tip: 'b' }, { id: 'hindi_sigurado', kind: 'hindi_sigurado', tip: 'c' }] },
+  { id: 'C4', genus: [], genus_tip: '', options: [{ id: '6_plus', kind: 'oo', tip: 'd' }, { id: '3_hanggang_6', kind: 'middle', tip: 'e' }, { id: 'mas_mababa_sa_3', kind: 'hindi', tip: 'f' }, { id: 'hindi_sigurado', kind: 'hindi_sigurado', tip: 'g' }] },
+  { id: 'C9', genus: [], genus_tip: '', options: [{ id: 'oo', kind: 'oo', tip: 'h' }, { id: 'hindi', kind: 'hindi', tip: 'i' }, { id: 'hindi_sigurado', kind: 'hindi_sigurado', tip: 'j' }] },
+]
+
+test('site checklist: the counts of the answers (Oo, Hindi, Hindi sigurado, other, not answered)', () => {
+  assert.deepEqual(Core.checklistCounts(ITEMS, {}), { oo: 0, hindi: 0, hindi_sigurado: 0, other: 0, unanswered: 3 })
+  assert.deepEqual(Core.checklistCounts(ITEMS, { C1: 'oo', C4: '3_hanggang_6', C9: 'hindi_sigurado' }), { oo: 1, hindi: 0, hindi_sigurado: 1, other: 1, unanswered: 0 })
+  assert.deepEqual(Core.checklistCounts(ITEMS, { C1: 'hindi', C4: 'mas_mababa_sa_3', C9: 'nonsense' }), { oo: 0, hindi: 2, hindi_sigurado: 0, other: 0, unanswered: 1 })
+  assert.deepEqual(Core.checklistCounts(null, null), { oo: 0, hindi: 0, hindi_sigurado: 0, other: 0, unanswered: 0 })
+})
+
+test('site checklist: the genus tip appears only for "Oo" and only when the plan has that genus', () => {
+  assert.equal(Core.checklistTips(ITEMS[0], 'oo', ['Cocos', 'Ficus']).genusTip, 'Huwag itanim ang Bamboo o Niyog')
+  assert.equal(Core.checklistTips(ITEMS[0], 'oo', ['Bambusa']).tip, 'a')
+  assert.equal(Core.checklistTips(ITEMS[0], 'oo', ['Ficus']).genusTip, '')
+  assert.equal(Core.checklistTips(ITEMS[0], 'oo', []).genusTip, '')
+  assert.equal(Core.checklistTips(ITEMS[0], 'hindi', ['Cocos']).genusTip, '')
+  assert.equal(Core.checklistTips(ITEMS[0], 'hindi', ['Cocos']).tip, 'b')
+  assert.equal(Core.checklistTips(ITEMS[1], '3_hanggang_6', ['Cocos']).tip, 'e')
+  assert.deepEqual(Core.checklistTips(ITEMS[2], 'wala', ['Cocos']), { tip: '', genusTip: '' })
+})

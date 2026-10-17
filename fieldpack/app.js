@@ -1338,6 +1338,62 @@
       result,
       h('p', { class: 'note' }, tp('phNote')))
   }
+  // "Suriin sa lugar": ten questions the PLANTER answers (Oo / Hindi / Hindi sigurado) with a tip for each answer, its source and quotation. The system checks nothing; the answers stay in this page's memory only
+  // (not saved, not in any field check, plan or CSV). The questions, tips and quotations are in pack.checklist (data/reference/site_checklist.csv); only the frame texts are here (like the pH texts, not in strings.js).
+  const CL_T = {
+    fil: { title: 'Suriin sa lugar', intro: 'Hindi ito sinusuri ng system at hindi bahagi ng score. Para ito sa pagpapasya sa mismong lugar.', source: 'Sanggunian', quote: 'Sipi', scope: 'saklaw', noQuote: 'Walang naberipikang sipi',
+      species: 'Mga species sa plano (shade tolerance at light preference mula sa species table, draft)', cond: 'Kondisyon ng zone sa planong ito (mula sa app)', noCond: 'Walang nakalistang kondisyon ng zone sa planong ito.',
+      counts: '{oo} Oo, {hindi} Hindi, {hs} hindi sigurado', other: ', {n} iba pang sagot', left: ', {n} hindi pa sinasagot', saved: 'Ang mga sagot ay hindi sine-save.', open: 'buksan ang sanggunian' },
+    en: { title: 'Check on site', intro: 'The system does not check this and it is not part of the score. It is for deciding on the spot.', source: 'Source', quote: 'Quotation', scope: 'scope', noQuote: 'No verified quotation',
+      species: 'Species in the plan (shade tolerance and light preference from the species table, draft)', cond: 'Zone conditions in this plan (from the app)', noCond: 'No zone condition is listed for this plan.',
+      counts: '{oo} Yes, {hindi} No, {hs} not sure', other: ', {n} other answers', left: ', {n} not answered', saved: 'The answers are not saved.', open: 'open the source' },
+  }
+  const tc = (id, vars) => {
+    let x = (CL_T[lang] || CL_T.fil)[id]
+    for (const k in vars || {}) x = x.split('{' + k + '}').join(String(vars[k]))
+    return x
+  }
+  const siteAnswers = {}
+  function checklistSection() {
+    const cl = pack.checklist
+    if (!cl || !(cl.items || []).length) return null
+    const summary = h('p', { class: 'note', role: 'status', 'data-role': 'cl-counts' })
+    const refreshCounts = () => {
+      const c = Core.checklistCounts(cl.items, siteAnswers)
+      summary.textContent = tc('counts', { oo: c.oo, hindi: c.hindi, hs: c.hindi_sigurado }) + (c.other ? tc('other', { n: c.other }) : '') + (c.unanswered ? tc('left', { n: c.unanswered }) : '')
+    }
+    const extras = (it) => {
+      const out = []
+      if (it.id === 'C4' && cl.species.length) out.push(h('div', { class: 'note', 'data-role': 'cl-species' }, h('strong', null, tc('species')),
+        h('ul', { class: 'plain' }, cl.species.map((sp) => h('li', null, sp.name + ': ' + [sp.shade_tol ? 'shade ' + sp.shade_tol : '', sp.light_preference].filter(Boolean).join('; '))))))
+      if (it.id === 'C8') out.push(h('div', { class: 'note', 'data-role': 'cl-zone' }, h('strong', null, tc('cond')), cl.zone_conditions.length ? h('ul', { class: 'plain' }, cl.zone_conditions.map((z) => h('li', null, z))) : h('p', null, tc('noCond'))))
+      return out
+    }
+    const build = (it) => {
+      const chosen = siteAnswers[it.id]
+      const t = chosen ? Core.checklistTips(it, chosen, cl.genera) : null
+      const src = it.source || {}
+      const box = h('fieldset', { class: 'clitem', 'data-item': it.id },
+        h('legend', null, it.question),
+        h('p', { class: 'note' }, it.why),
+        h('div', { class: 'actions' }, it.options.map((o) => h('button', { type: 'button', class: 'btn' + (chosen === o.id ? ' good' : ''), 'aria-pressed': String(chosen === o.id), 'data-option': o.id,
+          onclick: () => { siteAnswers[it.id] = o.id; box.replaceWith(build(it)); refreshCounts() } }, o.label))),
+        t ? h('p', { class: 'note', role: 'status', 'data-role': 'cl-tip' }, t.tip) : null,
+        t && t.genusTip ? h('p', { class: 'warn', 'data-role': 'cl-genus-tip' }, t.genusTip) : null,
+        ...extras(it),
+        h('p', { class: 'note', 'data-role': 'cl-source' }, tc('source') + ': ' + src.name + ' (' + tc('scope') + ': ' + src.scope + ')', src.url ? [' ', h('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, tc('open'))] : null),
+        (src.quotes || []).length ? h('blockquote', { class: 'note', 'data-role': 'cl-quote' }, src.quotes.map((q) => h('p', null, q))) : (src.url ? h('p', { class: 'note', 'data-role': 'cl-noquote' }, tc('noQuote')) : null),
+        it.note ? h('p', { class: 'note' }, it.note) : null)
+      return box
+    }
+    refreshCounts()
+    return h('div', { class: 'checklist', 'data-role': 'cl-section' },
+      h('h2', null, tc('title')),
+      h('p', { class: 'note', 'data-role': 'cl-intro' }, tc('intro')),
+      cl.items.map(build),
+      summary,
+      h('p', { class: 'note' }, tc('saved')))
+  }
   function homeScreen() {
     const totals = pack.blocks.reduce((s, b) => {
       const p = Core.progress(b, state)
@@ -1357,6 +1413,7 @@
           h('div', { class: 'bar', role: 'img', 'aria-label': t('blockCard', { n: b.n, done: p.planted + p.skipped }) }, h('span', { class: 'p', style: `width:${(100 * p.planted) / p.n}%` }), h('span', { class: 's', style: `width:${(100 * p.skipped) / p.n}%` })))
       })),
       phSection(),
+      checklistSection(),
       h('h2', null, t('resultsTitle')),
       h('p', { class: 'note' }, t('resultsHelp')),
       h('div', { class: 'actions', 'data-tour': 'h-results' }, h('button', { type: 'button', class: 'btn good', onclick: download }, t('btnDownload')), typeof navigator.canShare === 'function' ? h('button', { type: 'button', class: 'btn', onclick: share }, t('btnShare')) : null),
