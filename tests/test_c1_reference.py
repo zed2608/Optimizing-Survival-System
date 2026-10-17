@@ -259,7 +259,7 @@ def test_the_species_detail_still_works_without_the_file(client):
 # ================================================================ the dashboard side
 def test_the_card_section_is_wired_and_has_the_agreed_words():
     card = (ROOT / "frontend" / "src" / "new" / "SpeciesCard.jsx").read_text(encoding="utf-8")
-    assert "<ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} />" in card and "buildClimate" in card and "PROVISIONAL" in card
+    assert "<ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} phRef={d.ph_reference ?? null} />" in card and "buildClimate" in card and "PROVISIONAL" in card
     js = (ROOT / "frontend" / "src" / "new" / "climateRef.js").read_text(encoding="utf-8")
     for must in ("Klima at lupa (reference lang)", "Pasok", "Mababa sa saklaw na nakalista (hindi pa verified)", "Lampas sa saklaw na nakalista (hindi pa verified)", "Walang datos pa",
                  "Hindi ito bahagi ng score. Pinakamalapit na istasyon ang gamit, hindi San Mateo mismo."):

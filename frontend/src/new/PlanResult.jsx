@@ -5,6 +5,7 @@ import { fmt, pct } from '../v2/scale.js'
 import HelpTip from './HelpTip.jsx'
 import KitControls from './KitControls.jsx'
 import MatchChip from './MatchChip.jsx'
+import PlanPh from './PlanPh.jsx'
 import PlanProgress from './PlanProgress.jsx'
 import PlanWeather from './PlanWeather.jsx'
 import AdviceSection from './AdviceSection.jsx'
@@ -284,6 +285,8 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
               </div>
             )}
           </section>
+
+          <PlanPh species={planted.map((p) => ({ id: p.species_id, name: p.species }))} />
 
           <section className="nw-pcard" aria-label="Weather for this plan">
             <div className="nw-pcard-head">

@@ -36,6 +36,9 @@ export const TEXT = {
   phUncertain: { en: 'Not certain: the model is too unsure to say', fil: 'Hindi tiyak: masyadong malawak ang duda ng modelo para sabihin' },
   phModelName: { en: 'SoilGrids 2.0 (model, 250 m, not measured in San Mateo)', fil: 'SoilGrids 2.0 (modelo, 250 m, hindi sinukat sa San Mateo)' },
   phMunicipality: { en: 'Whole municipality (middle values of all squares)', fil: 'Buong bayan (gitnang halaga ng lahat ng square)' },
+  phNoVerdict: { en: 'No verdict: this species has no confirmed pH range.', fil: 'Walang hatol: walang nakumpirmang pH range ang species na ito.' },
+  phNoRangeSpecies: { en: 'No confirmed pH range', fil: 'Walang nakumpirmang pH range' },
+  phOutsideOptimal: { en: 'Outside the best range (not yet verified)', fil: 'Labas sa pinakamainam na saklaw (hindi pa verified)' },
   phNotScored: { en: 'This is not part of the score.', fil: 'Hindi ito kasama sa score.' },
   notType1: { en: 'The sources do not list Type I for this species', fil: 'Hindi nakalista ang Type I para sa species na ito' },
 }
@@ -63,7 +66,9 @@ export function sourceLine(item) {
 const STATUS_WORDS = { provisional_proxy: { en: 'provisional stand-in', fil: 'pansamantalang kapalit' }, provisional: { en: 'provisional', fil: 'pansamantala' }, pending: null, no_layer: null }
 
 // cref = the "climate_reference" object of GET /species/{id}; cv = its clean_values. Returns { rows, notice, title, scored: false } or { error } when the service sent nothing.
-export function buildClimate(cref, cv, sitePh = null) {
+// phRef (4th argument) = the evidence-file reference of the species (ph_reference): the species pH range and the "no verdict" case come from it, never from cv.ph_min / cv.ph_max.
+// Left out (undefined) = the earlier behaviour (the range of cv), kept for the older tests.
+export function buildClimate(cref, cv, sitePh = null, phRef = undefined) {
   if (!cref || !Array.isArray(cref.items) || cref.items.length === 0) return { error: TEXT.noReference, title: TEXT.title, notice: TEXT.notScored, rows: [], scored: false }
   const by = Object.fromEntries(cref.items.map((i) => [i.key, i]))
   const rainItem = by.annual_rainfall_mm
@@ -123,13 +128,29 @@ export function buildClimate(cref, cv, sitePh = null) {
     phRow.attribution = sitePh.attribution
     phRow.scope = sitePh.scope === 'municipality' ? TEXT.phMunicipality : null
     phRow.speciesTag = phRow.species ? TEXT.phUnverified : null
-    const code = { inside: 'inside', outside: 'outside', uncertain: 'uncertain' }[sitePh.verdict] ?? 'no_data'
+    const code = { inside: 'inside', outside: 'outside', outside_optimal: 'outside_optimal', uncertain: 'uncertain', no_confirmed_range: 'no_confirmed_range' }[sitePh.verdict] ?? 'no_data'
     phRow.verdictCode = code
-    phRow.verdict = code === 'inside' ? TEXT.phInside : code === 'outside' ? TEXT.phOutside : code === 'uncertain' ? TEXT.phUncertain : TEXT.noData
+    phRow.verdict =
+      code === 'inside' ? TEXT.phInside : code === 'outside' ? TEXT.phOutside : code === 'outside_optimal' ? TEXT.phOutsideOptimal : code === 'uncertain' ? TEXT.phUncertain : code === 'no_confirmed_range' ? TEXT.phNoVerdict : TEXT.noData
     phRow.extraNote = TEXT.phNotScored
     phRow.verdictRef = code === 'no_data' ? null : { name: TEXT.phModelName, status: 'model_estimate', statusWords: TEXT.phEstimate }
   } else if (sitePh && sitePh.available === false && (sitePh.reason === 'no_value_here' || sitePh.reason === 'no_values')) {
     phRow.reference = TEXT.phNone
+  }
+  if (phRow && phRef !== undefined) {
+    // the species range comes from the evidence file only
+    if (!phRef || phRef.status !== 'sourced') {
+      phRow.species = TEXT.phNoRangeSpecies
+      phRow.speciesTag = null
+      phRow.verdictCode = 'no_confirmed_range'
+      phRow.verdict = TEXT.phNoVerdict
+      phRow.verdictRef = null
+    } else {
+      const f = (v) => String(Math.round(Number(v) * 10) / 10)
+      const t = `${f(phRef.verdict_min)} to ${f(phRef.verdict_max)}`
+      phRow.species = { en: t, fil: `${f(phRef.verdict_min)} hanggang ${f(phRef.verdict_max)}` }
+      phRow.speciesTag = TEXT.phUnverified
+    }
   }
   // climate type: a plain reference line (the species' own list of climate types comes from its sources)
   const t1 = cv?.corona_has_type_I

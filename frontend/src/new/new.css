@@ -965,3 +965,16 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
   .nw-root.sidebar-open .nw-legend.v2.v2-embedded, .nw-root.panel-open .nw-search, .nw-root.panel-open .nw-mapview, .nw-root.panel-open .nw-toasts.v2.v2-embedded,
   .nw-root.panel-open .nw-legend-btn, .nw-root.panel-open .nw-legend.v2.v2-embedded { display: none; }   /* the panel covers the width: what would float over it waits until it is closed */
 }
+
+/* PH integration: pH evidence row, "Sukat sa lugar" tool, plan pH card */
+.nw-climate-verdict.is-outside_optimal, .nw-climate-verdict.is-ph-outside, .nw-climate-verdict.is-ph-outside_optimal { color: #92400e; }
+.nw-climate-verdict.is-ph-optimal, .nw-climate-verdict.is-ph-tolerated, .nw-climate-verdict.is-ph-listed { color: #166534; }
+.nw-climate-verdict.is-no_confirmed_range, .nw-climate-verdict.is-ph-none { color: inherit; opacity: 0.8; font-weight: 400; }
+.nw-ph-lines { margin: 0 0 4px; }
+.nw-ph-conflict { margin-top: 4px; padding: 4px 8px; border-radius: 8px; background: #fef3c7; color: #92400e; }
+.nw-ph-tool { margin-top: 10px; padding: 8px; border-radius: 8px; background: rgba(100, 116, 139, 0.1); }
+.nw-ph-tool-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.nw-ph-tool-row input { width: 6rem; min-height: 40px; font-size: 16px; padding: 4px 8px; }
+.nw-ph-tool-bad { color: #991b1b; margin-top: 4px; }
+.nw-ph-plan li { margin: 2px 0; }
+.nw-ph-summary { font-weight: 600; }

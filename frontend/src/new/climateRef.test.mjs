@@ -135,3 +135,24 @@ test('each comparison names its reference (station or model) and its status', ()
   assert.equal(p.verdictRef.status, 'model_estimate')
   assert.equal(row(buildClimate(cref('no_data', null, null), CV), 'rain').verdictRef, null)
 })
+
+// ---- PH integration: the species pH range comes from the evidence file (4th argument), never from the old cv.ph_min / cv.ph_max
+const PH_REF = { status: 'sourced', verdict_kind: 'tolerance', verdict_min: 5, verdict_max: 7.5 }
+
+test('phRef: sourced range shown from the evidence file; none -> "no verdict"; outside_optimal and no_confirmed_range codes', () => {
+  const cvOld = { ...CV, ph_min: 1, ph_max: 2 }
+  const r = row(buildClimate(cref('fits', 1200, 3000), cvOld, SITE, PH_REF), 'ph')
+  assert.equal(r.species.en, '5 to 7.5')
+  assert.equal(r.speciesTag.fil, 'range hindi pa verified')
+  const none = row(buildClimate(cref('fits', 1200, 3000), CV, SITE, { status: 'none' }), 'ph')
+  assert.equal(none.species.fil, 'Walang nakumpirmang pH range')
+  assert.equal(none.verdictCode, 'no_confirmed_range')
+  assert.equal(none.verdict.fil, 'Walang hatol: walang nakumpirmang pH range ang species na ito.')
+  assert.equal(none.speciesTag, null)
+  const nofile = row(buildClimate(cref('fits', 1200, 3000), CV, null, null), 'ph')
+  assert.equal(nofile.verdictCode, 'no_confirmed_range')
+  const oo = row(buildClimate(cref('fits', 1200, 3000), CV, { ...SITE, verdict: 'outside_optimal' }, PH_REF), 'ph')
+  assert.equal(oo.verdictCode, 'outside_optimal')
+  assert.equal(oo.verdict.fil, 'Labas sa pinakamainam na saklaw (hindi pa verified)')
+  assert.equal(row(buildClimate(cref('fits', 1200, 3000), CV, { ...SITE, verdict: 'no_confirmed_range' }, { status: 'none' }), 'ph').verdictCode, 'no_confirmed_range')
+})

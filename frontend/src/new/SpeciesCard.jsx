@@ -12,6 +12,8 @@ import SeasonBadge from './SeasonBadge.jsx'
 import WeatherCard from './WeatherCard.jsx'
 import { BEST_MONTHS_NOTE, monthsText, parseMonths, seasonQuery } from './season.js'
 import { buildClimate } from './climateRef.js'
+import PhEvidence from './PhEvidence.jsx'
+import { PH_TEXT } from './phEvidence.js'
 
 const sourceOf = (f) => ({ url: f.source_url, rank: f.source_rank, rank_basis: f.rank_basis, off_list: f.off_list, flags: f.flags })
 const present = (v) => v !== null && v !== undefined && String(v).trim() !== '' && String(v).toLowerCase() !== 'nan'
@@ -24,6 +26,7 @@ function Fact({ label, rows = [], text, large = false, extra = null, note = '' }
   const shown = text !== undefined ? text : found.length ? found.map((r) => r.value_as_written).join(' · ') : null
   const sources = [...new Map(found.filter((r) => r.source_url).map((r) => [`${r.source_url}|${r.source_rank}`, r])).values()]
   const draft = found.some((r) => r.flags)
+  const unmatched = found.length > 0 && found.every((r) => r.unmatched_source) // rain / temperature whose cited page does not match: no link, no rank
   return (
     <div className={`nw-fact ${large ? 'is-large' : ''}`}>
       <dt>{label}</dt>
@@ -36,7 +39,13 @@ function Fact({ label, rows = [], text, large = false, extra = null, note = '' }
         )}
         {extra}
         {note && <div className="muted">{note}</div>}
+        {present(shown) && unmatched && (
+          <div className="muted nw-fact-src" data-role="unmatched-source">
+            <Two t={PH_TEXT.unmatched} />
+          </div>
+        )}
         {present(shown) &&
+          !unmatched &&
           (sources.length > 0 ? (
             <ul className="plain-list nw-fact-src">
               {sources.map((r) => (
@@ -78,8 +87,8 @@ function Two({ t }) {
 
 const TEXT_REF = 'Reference'
 
-function ClimateReference({ cref, cv, sitePh = null }) {
-  const c = buildClimate(cref, cv, sitePh)
+function ClimateReference({ cref, cv, sitePh = null, phRef = null }) {
+  const c = buildClimate(cref, cv, sitePh, phRef)
   return (
     <section className="nw-card-sec nw-climate" aria-label={c.title.en} data-section="climate-reference">
       <h3>
@@ -267,7 +276,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
               <Fact label="Temperature" rows={[F.temp_min_c, F.temp_max_c]} text={range('temp_min_c', 'temp_max_c', '°C')} />
               <Fact label="Steepest slope" rows={[F.max_slope_pct]} text={one('max_slope_pct', '%')} />
               <Fact label="Soil types" rows={[F.soil_raw]} />
-              <Fact label="Soil pH" rows={[F.ph_min, F.ph_max]} text={range('ph_min', 'ph_max', '')} />
+              <PhEvidence reference={d.ph_reference ?? null} />
               <Fact label="Shade tolerance" rows={[F.shade_tol]} />
               <Fact label="Drought tolerance" rows={[F.drought_tol]} />
               <Fact label="Waterlogging tolerance" rows={[F.waterlog_tol]} />
@@ -276,7 +285,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
               <Fact label="Dry-season tolerance" rows={[F.dry_season_raw]} />
             </Section>
 
-            <ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} />
+            <ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} phRef={d.ph_reference ?? null} />
 
             <Section title="The tree">
               <Fact label="Mature height" rows={[F.mature_height_m]} text={one('mature_height_m', 'm')} />

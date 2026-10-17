@@ -146,3 +146,17 @@ def test_verification_sheet_ph_rows():
     assert narra["source"].startswith("http") and "hindi pa pirmado" in narra["source_note"] and narra["source_rank"] == "3"
     rain = [r for k, r in rows.items() if k.endswith("rain_min_mm") and "hindi tugma" in r["source_note"]]
     assert rain and all(r["source"] == "" for r in rain)
+
+
+def test_frontend_source_wiring():
+    """No JSX runner here, so the wiring is pinned in the source: the none branch has no SourceLink, the card uses PhEvidence, the plan result uses PlanPh, no 'verified' claim."""
+    src = ROOT / "frontend" / "src" / "new"
+    ph = (src / "PhEvidence.jsx").read_text(encoding="utf-8")
+    none_branch = ph.split("row.none ? (")[1].split(") : (")[0]
+    assert "SourceLink" not in none_branch and "ph-none-help" in none_branch
+    assert "<SourceLink" in ph.split(") : (")[1] and "ph-conflict" in ph and "ph-tag" in ph and "PhMeasureTool" in ph
+    card = (src / "SpeciesCard.jsx").read_text(encoding="utf-8")
+    assert "<PhEvidence reference=" in card and "unmatched_source" in card and "F.ph_min" not in card
+    assert "<PlanPh " in (src / "PlanResult.jsx").read_text(encoding="utf-8")
+    tool = ph.split("export function PhMeasureTool")[1].split("export default")[0]
+    assert "fetch(" not in tool and "localStorage" not in tool and "apiGet" not in tool and "apiPost" not in tool
