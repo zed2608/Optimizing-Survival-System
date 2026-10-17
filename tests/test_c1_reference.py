@@ -271,4 +271,4 @@ def test_the_node_tests_of_the_section_pass():
     import shutil
     r = subprocess.run([shutil.which("node"), "--test", "src/new/climateRef.test.mjs"], cwd=ROOT / "frontend", capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
     assert r.returncode == 0, r.stdout[-1500:]
-    assert "# pass 9" in r.stdout and "# fail 0" in r.stdout
+    assert "# pass 10" in r.stdout and "# fail 0" in r.stdout
