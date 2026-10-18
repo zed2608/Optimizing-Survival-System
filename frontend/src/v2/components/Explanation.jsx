@@ -25,7 +25,7 @@ function siteInput(term, point) {
   if (!point) return null
   if (term === 'elevation') return point.elev_m == null ? null : `${point.elev_m} m above sea level`
   if (term === 'slope') return point.slope_pct == null ? null : `${Number(point.slope_pct).toFixed(1)} % (from 100 m cells${point.slope_method === 'partial' ? ', one direction only, may be under-estimated' : ''})`
-  if (term === 'soil') return point.soil_texture_legacy ? `${point.soil_texture_legacy} (soil map not yet verified)` : null
+  if (term === 'soil') return point.soil_texture_legacy ? `${point.soil_texture_legacy} (soil map not verified)` : null
   return null
 }
 

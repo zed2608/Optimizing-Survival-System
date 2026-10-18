@@ -135,8 +135,8 @@ LIMITS = [
     "Scores are not valid outside the mapped municipality of San Mateo, Rizal.",
     "{PLANTING} planting squares + {OTHER} other squares = {TOTAL} map squares.",
     "{UNZONED_LIMIT}",
-    "Field checks (verified plantable / not plantable / needs recheck) carry a name only: there is no login yet, and anyone with access to the dashboard can add one.",
-    "While the field-check switch is on, points whose latest check is 'not plantable' are left out of rankings and plans; 'verified plantable' only adds a badge and never changes a score.",
+    "Field checks (marked plantable by an observer / not plantable / needs recheck) carry a name only (the mark of one person): there is no login, they are not an expert check, and anyone with access to the dashboard can add one.",
+    "While the field-check switch is on, points whose latest check is 'not plantable' are left out of rankings and plans; 'marked plantable by an observer' only adds a badge and never changes a score.",
 ]
 FIELD_LIMITS = LIMITS[-2:]
 

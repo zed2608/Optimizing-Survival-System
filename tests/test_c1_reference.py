@@ -261,7 +261,7 @@ def test_the_card_section_is_wired_and_has_the_agreed_words():
     card = (ROOT / "frontend" / "src" / "new" / "SpeciesCard.jsx").read_text(encoding="utf-8")
     assert "<ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} phRef={d.ph_reference ?? null} />" in card and "buildClimate" in card and "PROVISIONAL" in card
     js = (ROOT / "frontend" / "src" / "new" / "climateRef.js").read_text(encoding="utf-8")
-    for must in ("Klima at lupa (reference lang)", "Pasok", "Mababa sa saklaw na nakalista (hindi pa verified)", "Lampas sa saklaw na nakalista (hindi pa verified)", "Walang datos pa",
+    for must in ("Klima at lupa (reference lang)", "Pasok", "Mababa sa saklaw na nakalista (hindi pa pirmado)", "Lampas sa saklaw na nakalista (hindi pa pirmado)", "Walang datos pa",
                  "Hindi ito bahagi ng score. Pinakamalapit na istasyon ang gamit, hindi San Mateo mismo."):
         assert must in js, must
     assert not re.search(r"\b\d{3,}\.\d\b", js)                                                                                  # no number is typed in the code (2574.4 comes from the file)

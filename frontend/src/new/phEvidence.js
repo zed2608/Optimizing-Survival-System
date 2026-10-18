@@ -20,7 +20,7 @@ export const PH_TEXT = {
   },
   group: { en: 'The source is about the whole group or genus, not this exact species', fil: 'Para sa buong grupo o genus ang sanggunian, hindi eksaktong species' },
   noVerdict: { en: 'No verdict: this species has no confirmed pH range.', fil: 'Walang hatol: walang nakumpirmang pH range ang species na ito.' },
-  outsideOptimal: { en: 'Outside the best range (not yet verified)', fil: 'Labas sa pinakamainam na saklaw (hindi pa verified)' },
+  outsideOptimal: { en: 'Outside the best range (not yet verified)', fil: 'Labas sa pinakamainam na saklaw (hindi pa pirmado)' },
   unmatched: { en: 'Draft range; the source could not be found or does not match', fil: 'Paunang saklaw; hindi makita o hindi tugma sa sanggunian' },
   // the "Sukat sa lugar" tool
   toolTitle: { en: 'Measure on site', fil: 'Sukat sa lugar' },

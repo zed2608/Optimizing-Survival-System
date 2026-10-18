@@ -45,7 +45,7 @@ COLUMNS = ["square_id", "ph_mean_0_30", "ph_q05_0_30", "ph_q95_0_30", "source", 
 NODATA = 0                                                                          # what the service answers where it has no data
 D_FACTOR = 10                                                                       # the service's own scale factor for pH ("mapped_units": "pH*10")
 BUFFER_DEG = 0.02
-ATTRIBUTION = "pH: SoilGrids 2.0 (ISRIC), CC BY 4.0 [VERIFY]"      # [VERIFY]: the service metadata names no licence; see data/reference/soilgrids_license_evidence.txt (stage C2b)
+ATTRIBUTION = "pH: SoilGrids 2.0 (ISRIC), CC BY 4.0 [licence to be confirmed]"      # [licence to be confirmed]: the service metadata names no licence; see data/reference/soilgrids_license_evidence.txt (stage C2b)
 
 
 class SoilGridsError(RuntimeError):

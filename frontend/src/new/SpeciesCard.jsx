@@ -117,8 +117,8 @@ function ClimateReference({ cref, cv, sitePh = null, phRef = null }) {
               {r.scope && <div className="muted" data-role="ph-scope"><Two t={r.scope} /></div>}
               {r.attribution && (
                 <div className="muted nw-ph-credit" data-role="ph-credit">
-                  {r.attribution.replace(' [VERIFY]', '')}
-                  {r.attribution.includes('[VERIFY]') && <> <span className="nw-draft" title="The licence is not stated by the service; the team has to confirm it">VERIFY</span></>}
+                  {r.attribution.replace(' [licence to be confirmed]', '')}
+                  {r.attribution.includes('[licence to be confirmed]') && <> <span className="nw-draft" title="The licence is not stated by the service; the team has to confirm it">licence to be confirmed<span className="nw-fil">kukumpirmahin pa ang lisensya</span></span></>}
                 </div>
               )}
               {r.source && (

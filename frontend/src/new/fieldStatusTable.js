@@ -17,7 +17,7 @@ export const FIELD_TABLE = {
       "shape": "check"
     },
     "verified": {
-      "label": "Plantable (verified)",
+      "label": "Marked plantable (observer)",
       "color": "#16a34a",
       "icon": "ring",
       "shape": "ring"

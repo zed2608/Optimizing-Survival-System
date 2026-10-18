@@ -44,7 +44,7 @@ export default function AnalyticsPanel({ includeUnzoned = true }) {
         extra={
           f && (
             <ul className="nw-counter-list">
-              <li><Icon name="ring" /> Verified plantable: <strong>{n(f.by_status.verified_plantable)}</strong></li>
+              <li><Icon name="ring" /> Marked plantable by an observer: <strong>{n(f.by_status.verified_plantable)}</strong></li>
               <li><Icon name="close" /> Not plantable: <strong>{n(f.by_status.not_plantable)}</strong></li>
               <li><Icon name="triangle" /> Needs recheck: <strong>{n(f.by_status.needs_recheck)}</strong></li>
               <li><Icon name="warn" /> Disputed: <strong>{n(f.disputed_points)}</strong></li>

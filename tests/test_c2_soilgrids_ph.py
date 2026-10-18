@@ -126,7 +126,7 @@ def test_compare_interval_rule_every_case():
 
 
 def test_the_licence_evidence_file_is_kept_and_the_credit_says_verify():
-    assert "[VERIFY]" in sg.ATTRIBUTION and sg.ATTRIBUTION.startswith("pH: SoilGrids 2.0 (ISRIC), CC BY 4.0")
+    assert "[licence to be confirmed]" in sg.ATTRIBUTION and sg.ATTRIBUTION.startswith("pH: SoilGrids 2.0 (ISRIC), CC BY 4.0")
     ev = (ROOT / "data" / "reference" / "soilgrids_license_evidence.txt").read_text(encoding="utf-8")
     assert "AccessConstraints" in ev and "CC-BY 4.0" in ev and "data-policy" in ev
 

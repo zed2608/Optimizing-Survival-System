@@ -729,7 +729,7 @@ export default function AppNew() {
           summary={PURPOSE_SHORT[purpose]}
           open={openStep === 'purpose'}
           onToggle={() => toggleStep('purpose')}
-          help="Urban greening: shade, safe roots, low upkeep. Tree planting: conservation and livelihood. Watershed: holding soil on slopes and by waterways."
+          help="Urban greening: shade, lower root-damage risk, low upkeep. Tree planting: conservation and livelihood. Watershed: holding soil on slopes and by waterways."
         >
           <PurposePicker value={purpose} onChange={setPurpose} />
           <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('window')}>
