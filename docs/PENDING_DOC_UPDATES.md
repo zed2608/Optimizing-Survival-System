@@ -260,3 +260,5 @@ Applied in the code (not in the guide): the "Marked plantable by an observer" la
 
 ### Evidence file correction (species 15, 27, 30)
 The pH evidence builder now reads the EcoCrop line from the note column too and treats "can tolerate" as a tolerance. Counts of the earlier note above become: verdict kinds tolerance 23, listed 3, optimal only 3; sources FAO EcoCrop 20, ICRAF 4, DA/PCAARRD 4, Useful Tropical Plants 1; one conflict (Lemon). Guyabano: tolerated 4.5-8, best 5.5-6.5 (EcoCrop; ICRAF 5.5-6.5 in the alternatives); Papaya: tolerated 4.5-8, best 5.5-7 (EcoCrop; ICRAF "pH 6-7 ideal" in the alternatives); Banana - Latundan: tolerated 4.5-7.5 (DA manual). Over 45 species x 8,088 squares: inside 42,718, uncertain 172,984, outside 0, outside the best range 0, no estimate 18,850, no confirmed range 129,408.
+
+### Update: the six deferred tutorial edits (above) were applied in `tutorialContent.js` (commit "tutorial: ...") and `docs/USER_GUIDE.md` was regenerated with `node scripts/build_user_guide.mjs` (only that file changed). They are no longer pending.

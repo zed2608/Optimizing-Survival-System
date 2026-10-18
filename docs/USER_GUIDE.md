@@ -186,9 +186,9 @@ System Analytics shows simple counts: how many map squares there are, how many f
 
 **23. Data and limits** (the map screen)
 
-Most of the data is Provisional. The zoning rules come from the MPDC form signed on 7 October 2026. The planting-month notes, the nursery list and the warnings come from the MAO interview. The species data is not yet signed off by the licensed agriculturist.
+Most of the data is Provisional. The zoning rules come from answers written on a form by the MPDC (provisional). The planting-month notes, the nursery list and the warnings come from the MAO interview. The species data is not yet signed off by the licensed agriculturist.
 
-*Watch for:* Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.
+*Watch for:* Distance to creeks and rivers is used as a soft wetness factor (50 metres), but MENRO has not answered the waterways question, so this layer is not checked. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.
 
 ### Finish
 
@@ -216,7 +216,7 @@ They show the overall match. Green is Good (55% or more). Orange is Moderate (35
 
 **What are site match, purpose fit and overall match?**
 
-Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers. Site suitability is predicted by a Random Forest trained on the expert rules. Hard limits (zone, elevation, steep slope) always apply first.
+Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers. Site suitability is predicted by a Random Forest trained on the expert rules. These are saved scores; the model is not run in the app, and it is not an independent measurement of survival. Hard limits (zone, elevation, steep slope) always apply first.
 
 **How do I show the zoning colours?**
 
@@ -278,7 +278,7 @@ Choose “I have species” when you already know what you want to plant and nee
 
 **What are the three purposes?**
 
-Urban greening is for shade, safe roots and low upkeep in town. Tree planting is for conservation and livelihood. Watershed is for holding soil on slopes and by waterways. The purpose changes how species are scored.
+Urban greening is for shade, lower root-damage risk and low upkeep in town. Tree planting is for conservation and livelihood. Watershed is for holding soil on slopes and by waterways. The purpose changes how species are scored.
 
 **Why are some species missing from the list?**
 
@@ -388,7 +388,7 @@ Two ways. In the dashboard, click the block, type your name once, press Planted 
 
 **What do the field-check colours and symbols mean?**
 
-Planted is green with a check. Plantable (verified) is a green ring. Needs recheck is amber with a question mark. Not plantable is a red cross. Not plantable because of water is a blue cross. Not plantable because it is paved, built or rock is a gray cross. The colour is always shown with a symbol and words.
+Planted is green with a check. Marked plantable by an observer is a green ring: the mark of one person who typed a name; it is not an expert check and it never changes a score. Needs recheck is amber with a question mark. Not plantable is a red cross. Not plantable because of water is a blue cross. Not plantable because it is paved, built or rock is a gray cross. The colour is always shown with a symbol and words.
 
 **What are the reasons for Not plantable?**
 
@@ -428,7 +428,7 @@ It marks information that comes from an interview, a form or our own rules and h
 
 **Which data is signed off?**
 
-The zoning rules come from the MPDC form signed on 7 October 2026, and the warnings and notes come from the MAO interview, but they are still provisional. The species data (release v1.0-review) has not been signed off by the licensed agriculturist. Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank.
+The zoning rules come from answers written on a form by the MPDC (provisional), and the warnings and notes come from the MAO interview, but they are still provisional. The species data (release v1.0-review) has not been signed off by the licensed agriculturist. Distance to creeks and rivers is used as a soft wetness factor (50 metres), but MENRO has not answered the waterways question, so this layer is not checked.
 
 **Does the system decide where to plant?**
 
