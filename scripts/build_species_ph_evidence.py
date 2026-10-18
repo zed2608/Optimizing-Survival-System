@@ -70,7 +70,7 @@ def nums(text):
 
 def kind_of_quote(q):
     """tolerance | optimal | listed, from the words of the quote (when in doubt: listed)."""
-    if re.search(r"toleran|good yield|yield had been reported|can grow", q, re.I):
+    if re.search(r"toler(ate|ates|ating|ance|ant)|good yield|yield had been reported|can grow", q, re.I):
         return "tolerance"
     if re.search(r"prefer|optimal|optimum|ideal|most suitable", q, re.I):
         return "optimal"
@@ -83,6 +83,10 @@ def parse_ecocrop(quote):
     assert t[0] == "Soil PH" and len(t) == 5, quote
     v = [None if x in ("-", "") else float(x) for x in t[1:]]
     return (v[0], v[1]), (v[2], v[3])
+
+
+ECO_LINE = re.compile(r"Soil PH\|\|[\d.\-]+\|\|[\d.\-]+\|\|[\d.\-]+\|\|[\d.\-]+")
+ECO_URL = re.compile(r"EcoCrop \((https://ecocrop[^)\s]+)\)")
 
 
 def build(cc_dir, out_dir):
@@ -114,9 +118,13 @@ def build(cc_dir, out_dir):
         eco = None
         if sid in p2.index:
             r = p2.loc[sid]
-            if r.source_kind == "ecocrop":
-                eco = (parse_ecocrop(r.exact_quote), r.source_url_used, r.exact_quote, str(r.note))
-            elif r.source_kind in ("primary_page", "icraf_pdf", "other_reputable") and pd.notna(r.found_min) and pd.notna(r.found_max):
+            # rule (a): an EcoCrop line "Soil PH||a||b||c||d" is read from exact_quote AND from the note column, whatever the source_kind of the row is
+            hit = ECO_LINE.search(str(r.exact_quote)) or ECO_LINE.search(str(r.note))
+            if hit:
+                url = r.source_url_used if r.source_kind == "ecocrop" else (ECO_URL.search(str(r.note)) or [None, None])[1]
+                assert url and "ecocrop" in url, f"species {sid}: an EcoCrop line without an EcoCrop address"
+                eco = (parse_ecocrop(hit.group(0)), url, hit.group(0), str(r.note))
+            if r.source_kind != "ecocrop" and r.source_kind in ("primary_page", "icraf_pdf", "other_reputable") and pd.notna(r.found_min) and pd.notna(r.found_max):
                 q = str(r.exact_quote)
                 cands.append((float(r.found_min), float(r.found_max), kind_of_quote(q), r.source_url_used, q, r.source_kind))
         r1 = p1.loc[sid]
@@ -142,7 +150,7 @@ def build(cc_dir, out_dir):
             cands = cands[1:]
         # alternatives: every other species-specific numeric range (never the primary one) + the manual Lemon exception
         for c in cands:
-            if (c[3], c[4]) != (primary["url"], primary["quote"]):
+            if (c[3], c[4]) != (primary["url"], primary["quote"]) and (c[0], c[1], c[3], c[4]) not in alts:
                 alts.append((c[0], c[1], c[3], c[4]))
         if sid == 43:
             # MANUAL EXCEPTION (Lemon): EcoCrop stays the primary; the PFAF sentences go to alt_sources and the conflict is flagged.
@@ -162,7 +170,10 @@ def build(cc_dir, out_dir):
         name, skind, rank = primary["name_kind"]
         conflict = "yes" if sid == 43 else "no"
         for a, b, _u, _q in alts:
-            if abs(a - vmin) > CONFLICT_PH or abs(b - vmax) > CONFLICT_PH:
+            # an alternative is compared with the range of the SAME kind (an optimal range with the optimal one, a tolerated range with the tolerated one); Lemon's two PFAF lines are told apart by hand
+            akind = "optimal" if _q.startswith("PFAF: Prefers") else "tolerance" if _q.startswith("PFAF: Tolerates") else kind_of_quote(_q)
+            ref_lo, ref_hi = (omin, omax) if (akind == "optimal" and omin is not None) else (vmin, vmax)
+            if abs(a - ref_lo) > CONFLICT_PH or abs(b - ref_hi) > CONFLICT_PH:
                 conflict = "yes"
         base.update(tol_min=tmin if tmin is not None else "", tol_max=tmax if tmin is not None else "", opt_min=omin if omin is not None else "", opt_max=omax if omin is not None else "",
                     listed_min=lmin if lmin is not None else "", listed_max=lmax if lmin is not None else "", verdict_min=vmin, verdict_max=vmax, verdict_kind=vk, source_name=name, source_url=primary["url"],
