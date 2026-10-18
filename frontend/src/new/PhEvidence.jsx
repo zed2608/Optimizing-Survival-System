@@ -83,9 +83,11 @@ export default function PhEvidence({ reference }) {
               {row.lines.map((l) => (
                 <li key={l.key} data-ph-line={l.key}>
                   <strong>
-                    <Two t={l.label} />
+                    {l.label.en}: {l.range}
                   </strong>
-                  : {l.range}
+                  <span className="nw-fil">
+                    {l.label.fil}: {l.range}
+                  </span>
                 </li>
               ))}
             </ul>

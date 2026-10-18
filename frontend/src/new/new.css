@@ -978,3 +978,6 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
 .nw-ph-tool-bad { color: #991b1b; margin-top: 4px; }
 .nw-ph-plan li { margin: 2px 0; }
 .nw-ph-summary { font-weight: 600; }
+
+/* the Filipino line under the English one in the pH components (same look as under .nw-climate and .nw-plink) */
+.nw-fact[data-row="ph-evidence"] .nw-fil, .nw-ph-tool .nw-fil, [data-section="plan-ph"] .nw-fil, [data-role="unmatched-source"] .nw-fil { display: block; font-size: 12px; font-weight: 400; opacity: 0.8; }
