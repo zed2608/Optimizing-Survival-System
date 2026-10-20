@@ -1979,9 +1979,36 @@ SQUARE_HALF_M = 50.0           # half the side of a grid square (the squares are
 METRES_PER_DEGREE = 111320.0   # about, for the small box of a square; only used when a drawn area holds no square centre
 
 
+AREA_COVER_MIN = 0.5           # PROVISIONAL (UX round 2, A3): a square also counts when the drawn area covers at least this share of it, even if its centre is outside
+
+
+def square_boxes(lon, lat):
+    """The 100 m square of every centre, as a box in lon/lat (the grid is about UTM aligned: this is a close approximation for a square this small)."""
+    import shapely
+    dlat = SQUARE_HALF_M / METRES_PER_DEGREE
+    dlon = SQUARE_HALF_M / (METRES_PER_DEGREE * np.cos(np.radians(lat)))
+    return shapely.box(lon - dlon, lat - dlat, lon + dlon, lat + dlat)
+
+
+def select_squares(g, lon, lat):
+    """(selected, mode, centres, touched, covered): Rule 1: a square counts when its CENTRE lies inside the area OR the area covers at least AREA_COVER_MIN of the square. Rule 2 (only when rule 1
+    selects nothing: an area smaller than half a square): every square the area touches. mode = 'centres' (rule 1) or 'touching' (rule 2). S, P and W of a square do not depend on the rule."""
+    import shapely
+    centres = shapely.contains_xy(g, lon, lat)
+    boxes = square_boxes(lon, lat)
+    touched = shapely.intersects(g, boxes)
+    covered = np.zeros(len(lon), dtype=bool)
+    near = np.where(touched & ~centres)[0]
+    if len(near):
+        covered[near] = shapely.area(shapely.intersection(g, boxes[near])) / shapely.area(boxes[near]) >= AREA_COVER_MIN
+    rule1 = centres | covered
+    if rule1.any() or not len(lon):
+        return rule1, "centres", centres, touched, covered
+    return touched, "touching", centres, touched, covered
+
+
 def polygon_mask(sites, polygon, max_vertices, with_mode=False):
-    """Which squares a drawn area selects. Rule 1: the squares whose CENTRE lies inside the polygon. Rule 2 (UX fix 5): only when no centre is inside (an area smaller than a square, or between two
-    centres), the squares that the polygon touches (square and polygon intersect). Nothing else changes: S, P and W of a square are the same whichever rule picked it.
+    """Which squares a drawn area selects (see select_squares): centre inside or at least half covered; if none, the squares it touches.
     with_mode=True returns (mask, 'centres' | 'touching')."""
     import shapely
     from shapely.geometry import shape
@@ -1995,12 +2022,7 @@ def polygon_mask(sites, polygon, max_vertices, with_mode=False):
                                  "(closed rings, no self-intersections)")
     if len(shapely.get_coordinates(g)) > max_vertices:
         raise HTTPException(422, f"polygon has too many vertices (limit {max_vertices})")
-    lon, lat = sites.lon.to_numpy(), sites.lat.to_numpy()
-    m, mode = shapely.contains_xy(g, lon, lat), "centres"
-    if not m.any() and len(lon):
-        dlat = SQUARE_HALF_M / METRES_PER_DEGREE
-        dlon = SQUARE_HALF_M / (METRES_PER_DEGREE * np.cos(np.radians(lat)))
-        m, mode = shapely.intersects(g, shapely.box(lon - dlon, lat - dlat, lon + dlon, lat + dlat)), "touching"
+    m, mode, _c, _t, _v = select_squares(g, sites.lon.to_numpy(), sites.lat.to_numpy())
     return (m, mode) if with_mode else m
 
 
@@ -3084,6 +3106,79 @@ class AreaRankRequest(BaseModel):
     zone: Optional[str] = Field(None, description="zone_desc, e.g. 'Forest Zone'")
     limit: int = Field(10, ge=1, le=45)
     n_saplings: int = Field(API_CFG["area_mix_saplings"], ge=1, le=API_CFG["plan_max_saplings"], description="saplings the suggested mix is worked out for")
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Square diagnostic of an area (UX round 2, A3): why an area has fewer suitable squares than it looks like on the map. Counts only; nothing is scored or changed.
+# ---------------------------------------------------------------------------------------------------------------------
+class AreaDiagnosticRequest(BaseModel):
+    polygon: Optional[dict] = Field(None, description="GeoJSON Polygon / MultiPolygon (or a Feature holding one), lon/lat")
+    barangay: Optional[str] = None
+    zone: Optional[str] = None
+
+
+def area_diagnostic(d, req):
+    """How the squares of an area divide. touched = squares the area touches (square and area intersect); centres_inside = squares whose centre is inside (the first selection rule); planting = touched squares
+    that are scored in this view; not_planting = the rest, by reason (outside the zoning map, a named non-planting zone); left_out_by_field_check = planting squares marked not plantable (when that switch is on);
+    suitable = planting squares where at least one species has S >= 0.50; low_match = planting squares where none has. `selected` and `rule_used` say what POST /rank/area would use."""
+    import shapely
+    from shapely.geometry import shape
+    ap, ctx = d.all_points, d.ctx
+    lon, lat = ap.lon.to_numpy(), ap.lat.to_numpy()
+    given = [k for k in ("polygon", "barangay", "zone") if getattr(req, k) is not None]
+    if len(given) != 1:
+        raise HTTPException(422, "Give exactly one area: polygon (GeoJSON), barangay (name) or zone (name)" + (f"; got {', '.join(given)}" if given else "; got none"))
+    kind = given[0]
+    if kind == "polygon":
+        geom = req.polygon.get("geometry") if req.polygon.get("type") == "Feature" else req.polygon
+        try:
+            g = shape(geom)
+        except Exception:
+            g = None
+        if g is None or g.geom_type not in ("Polygon", "MultiPolygon") or g.is_empty or not g.is_valid or g.area <= 0:
+            raise HTTPException(422, "polygon must be a valid, non-empty GeoJSON Polygon or MultiPolygon with lon/lat coordinates (closed rings, no self-intersections)")
+        _sel, _mode, centres, touched, covered = select_squares(g, lon, lat)
+    elif kind == "barangay":
+        b = find_barangay(d, req.barangay)
+        if b is None:
+            raise HTTPException(400, f"Unknown barangay '{req.barangay}'.")
+        centres = d.allpt_barangay == b
+        touched = centres
+    else:
+        want = req.zone.strip().lower()
+        centres = ap.zone_desc.fillna("").astype(str).str.strip().str.lower().to_numpy() == want
+        if not centres.any():
+            raise HTTPException(400, f"Unknown zone '{req.zone}'.")
+        touched = centres
+    scored = pd.Index(ctx.sites.point_id.astype(int))
+    pid = ap.point_id.astype(int).to_numpy()
+    is_scored = np.isin(pid, scored.to_numpy())
+    plant = touched & is_scored
+    non = touched & ~is_scored
+    reasons = {}
+    for z in ap.zone_desc[non].tolist():
+        code = "outside_zoning" if pd.isna(z) else d.cfg["context_zone_reasons"].get(str(z), "other")
+        reasons[code] = reasons.get(code, 0) + 1
+    rows = scored.get_indexer(pd.Index(pid[plant]))
+    ex = d.ex_mask[rows] if len(rows) else np.zeros(0, dtype=bool)
+    ok_any = (ctx.S[rows] >= mt.CFG["s_min"]).any(axis=1) if len(rows) else np.zeros(0, dtype=bool)
+    suitable = int((ok_any & ~ex).sum())
+    covered_extra = covered if kind == "polygon" else np.zeros(len(lon), dtype=bool)
+    sel_rule1 = int(((centres | covered_extra) & is_scored).sum())
+    sel_centres = sel_rule1
+    return {"kind": kind, "touched": int(touched.sum()), "centres_inside": int(centres.sum()), "covered_half_or_more_without_centre": int((covered_extra & ~centres).sum()),
+            "touched_without_centre": int((touched & ~centres).sum()),
+            "planting": int(plant.sum()), "not_planting": {"total": int(non.sum()), "by_reason": reasons, "labels": {k: CONTEXT_REASONS[k] for k in reasons}},
+            "left_out_by_field_check": int(ex.sum()), "suitable": suitable, "low_match": int((~ok_any & ~ex).sum()),
+            "selected": sel_centres if sel_centres > 0 or kind != "polygon" else int(plant.sum()), "rule_used": "centres" if (sel_centres > 0 or kind != "polygon") else "touching",
+            "rule": f"A square counts when its centre is inside the area or the area covers at least {int(AREA_COVER_MIN * 100)}% of it; if no square qualifies, every square the area touches.",
+            "unzoned_squares_are_planting": bool(d.zoning_on), "note": "Counts of 100 m squares. Display only: no score, rank or plan reads them."}
+
+
+@app.post("/area/diagnostic")
+def area_diagnostic_endpoint(req: AreaDiagnosticRequest, d=Depends(HD)):
+    """The square diagnostic of one area (see area_diagnostic)."""
+    return area_diagnostic(d, req)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

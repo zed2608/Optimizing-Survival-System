@@ -82,3 +82,39 @@ def test_area_species_list_carries_a_ph_verdict_and_changes_no_score(client):
     # the ranking itself is the same as the scores say: rank order = descending species_score (nothing re-sorted by pH)
     scores = [x["species_score"] for x in r["ranking"]]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_a_square_covered_half_or_more_counts_even_when_its_centre_is_outside(client):
+    """UX round 2 A3: the rule is 'centre inside OR the area covers >= 50% of the square'. A ring-shaped area (a hole around the centre) covers most of the square but not its centre."""
+    d = client.app.state.data
+    a = d.ctx.sites.iloc[len(d.ctx.sites) // 2]
+    lat, lon = float(a.lat), float(a.lon)
+    outer = square(lon, lat, 40.0)["coordinates"][0]
+    hole = square(lon, lat, 8.0)["coordinates"][0]
+    ring = {"type": "Polygon", "coordinates": [outer, hole[::-1]]}
+    m, mode = api_v2.polygon_mask(d.ctx.sites, ring, 5000, with_mode=True)
+    assert mode == "centres" and m.sum() == 1 and d.ctx.sites.point_id[m].iloc[0] == a.point_id    # selected by coverage (about 94%), not by the centre
+    # an area covering less than half of a square and not its centre does not qualify by rule 1; with nothing else it falls back to 'touching'
+    sliver = square(lon + 40.0 / (M_DEG * math.cos(math.radians(lat))), lat, 15.0)                   # 25-55 m east of the centre: covers about 10% of the square
+    m2, mode2 = api_v2.polygon_mask(d.ctx.sites, sliver, 5000, with_mode=True)
+    assert mode2 == "touching"
+
+
+def test_area_diagnostic_counts_add_up(client):
+    d = client.app.state.data
+    sites = d.ctx.sites
+    a = sites.iloc[len(sites) // 2]
+    big = square(float(a.lon), float(a.lat), 320.0)
+    j = client.post("/area/diagnostic", json={"polygon": big}).json()
+    assert j["touched"] >= j["centres_inside"] >= 1
+    assert j["planting"] + j["not_planting"]["total"] == j["touched"]
+    assert j["suitable"] + j["low_match"] + j["left_out_by_field_check"] == j["planting"]
+    assert sum(j["not_planting"]["by_reason"].values()) == j["not_planting"]["total"]
+    assert j["rule_used"] == "centres" and j["selected"] <= j["planting"]
+    r = client.post("/rank/area", json={"purpose": "urban", "polygon": big}).json()
+    assert r["area"]["legal_points"] <= j["planting"]                       # the ranking uses planting squares not left out by a field check
+    far = client.post("/area/diagnostic", json={"polygon": square(120.0, 10.0, 30.0)}).json()
+    assert far["touched"] == 0 and far["planting"] == 0 and far["selected"] == 0
+    b = client.post("/area/diagnostic", json={"barangay": "Santa Ana"}).json()
+    assert b["kind"] == "barangay" and b["touched"] == b["centres_inside"] and b["planting"] + b["not_planting"]["total"] == b["touched"]
+    assert client.post("/area/diagnostic", json={"barangay": "Santa Ana", "zone": "Forest Zone"}).status_code == 422
