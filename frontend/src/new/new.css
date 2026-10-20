@@ -985,3 +985,14 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
 /* UX fix 1: the open list of a select that uses .nw-input (the trait filter) had white text on the browser's white list in a light theme. Same colours as .nw-select, set for the closed box and every option. */
 select.nw-input { background: rgba(15, 23, 42, 0.9); color: #f8fafc; color-scheme: dark; }
 select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #f8fafc; }
+
+/* UX 7: the search box and the notices on the map never cover the results panel (right card). The panel stays where it is; the search and the notices use only the free part of the map.
+   Narrow screens: the panel starts below the search box instead of under it. */
+@media (min-width: 1001px) {
+  .nw-root.panel-open .nw-toasts.v2.v2-embedded { left: calc((100vw - 464px) / 2); width: max(240px, min(460px, calc(100vw - 464px - 48px))); }
+  .nw-root.panel-open.sidebar-open .nw-toasts.v2.v2-embedded { left: calc((545px + 100vw - 464px) / 2); width: max(240px, min(460px, calc(100vw - 545px - 464px - 48px))); }
+}
+@media (max-width: 1100px) { .nw-root.panel-open .nw-right { margin-top: 62px; } }
+@media (max-width: 1000px) { .nw-root.panel-open .nw-right { margin-top: 114px; } }
+/* where there is no free part of the map left of the panel, the notices go under the panel (the panel shows the same season notice itself) */
+@media (max-width: 1180px) { .nw-root.panel-open .nw-toasts.v2.v2-embedded { z-index: 990; } }
