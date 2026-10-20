@@ -1063,3 +1063,13 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 @media (max-width: 480px) { .nw-stepper li:not(.is-current) .nw-steptitle { display: none; } .nw-stepper li.is-current .nw-steptitle { white-space: normal; font-size: 10px; } }
 .nw-flownav { margin-top: 10px; }
 .nw-flowlist { margin: 0 0 8px; padding-left: 18px; }
+
+/* UX round 4: on a narrow screen the sidebar covers the map, so the mark tool offers to open the map and keeps a small bar (count, undo, clear, finish) over it */
+.nw-openmap { display: none; margin-bottom: 8px; }
+@media (max-width: 800px) { .nw-openmap { display: inline-flex; min-height: 44px; } }
+.nw-markbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 72px; z-index: 1200; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; max-width: calc(100vw - 24px); padding: 8px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.94); color: #f8fafc; font-size: 13px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); }
+.nw-markbar .nw-btn { min-height: 44px; }
+.nw-markbar { left: 12px; right: 12px; transform: none; max-width: none; }
+.nw-markbar > span { flex: 1 0 100%; text-align: center; }
+.nw-markbar .nw-btn { flex: 1 1 0; padding-left: 6px; padding-right: 6px; }
+@media (min-width: 801px) { .nw-markbar { left: 50%; right: auto; transform: translateX(-50%); } .nw-markbar > span { flex: 0 0 auto; } .nw-markbar .nw-btn { flex: 0 0 auto; } }

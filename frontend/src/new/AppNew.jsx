@@ -312,9 +312,11 @@ export default function AppNew() {
         setNotice('Naka-lock ang minarkahang lugar. Pindutin ang “Burahin lahat” para magmarka ng bago.')
         return
       }
-      const first = draft.length === 0
+      // the right card stays closed while marking, so that it never covers the map; the first click also keeps the spot, and "Tingnan ang species sa puntong ito" opens its panel
+      if (draft.length === 0) setSpot(columns && index >= 0 ? { lat: columns.lat[index], lon: columns.lon[index], pointId: columns.point_id[index] } : { lat, lon })
       setDraft((d) => [...d, [lat, lon]])
-      if (!first) return
+      setNotice('')
+      return
     }
     if (mode === 'area' && tool === 'barangay') {
       const f = featureAt(barangayFeatures, lon, lat)
@@ -418,6 +420,9 @@ export default function AppNew() {
     if (mode === 'species') {
       setMarkArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
       setNotice('')
+      setPanelTab('main')
+      setHidden(false)
+      setSidebarOpen(true) // the summary is in the sidebar: bring it back on a narrow screen
     } else chooseArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
     setFitTarget({ bbox: geometryBbox(polygonFromVertices(draft)) })
     setDraft([])
@@ -429,6 +434,7 @@ export default function AppNew() {
   }
   const goSub = (n) => {
     setSpeciesSub(n)
+    if (n === 3) setHidden(true)
     if (n !== 3) setDraft([]) // a half-drawn shape is dropped when the person leaves the step; a finished one is kept
     setNotice('')
   }
@@ -810,6 +816,20 @@ export default function AppNew() {
       )}
 
       {/* SIDEBAR (look copied from the earlier dashboard) */}
+      {markActive && !sidebarOpen && (
+        <div className="nw-markbar" role="group" aria-label="Markahan sa mapa" data-role="mark-bar">
+          <span data-role="mark-bar-count">Puntos: {draft.length}</span>
+          <button type="button" className="nw-btn nw-btn-small" disabled={draft.length === 0} onClick={() => setDraft((d) => d.slice(0, -1))}>
+            Alisin ang huli
+          </button>
+          <button type="button" className="nw-btn nw-btn-small" disabled={draft.length === 0} onClick={clearMark}>
+            Burahin
+          </button>
+          <button type="button" className="nw-btn nw-btn-go nw-btn-small" disabled={draft.length < 3} onClick={finishDraw} data-role="mark-bar-finish">
+            Tapusin ang area
+          </button>
+        </div>
+      )}
       <button type="button" className="nw-toggle" onClick={() => setSidebarOpen((o) => !o)} aria-expanded={sidebarOpen} aria-controls="nw-sidebar">
         <Icon name={sidebarOpen ? 'left' : 'right'} /> {sidebarOpen ? 'Hide Control Panel' : 'Open Control Panel'}
       </button>
@@ -910,6 +930,8 @@ export default function AppNew() {
                 onFinishMark={finishDraw}
                 onUndoMark={() => setDraft((d) => d.slice(0, -1))}
                 onClearMark={clearMark}
+                onShowPoint={() => { setPanelTab('point'); setHidden(false) }}
+                onOpenMap={() => setSidebarOpen(false)}
                 notice={notice}
                 selNames={selNames}
                 seasonNotice={fewSpecies ? seasonNotice(false) : null}

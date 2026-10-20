@@ -58,7 +58,7 @@ function Nav({ steps, sub, setSub, nextLabel, onNext }) {
 export default function SpeciesFlow({
   sub, setSub, species, selIds, setSelIds, onlySeason, onInfo, purpose, query, how, setHow, mainId, setMain, combine, setCombine, includeUnzoned, setIncludeUnzoned,
   where, onWhere, barangays, zones, onGoPlan, seasonNotice = null, planAreaLabel = '', planCreated = false,
-  markCount = 0, markArea = null, markSummary = [], onFinishMark, onUndoMark, onClearMark, notice = '', selNames = [],
+  markCount = 0, markArea = null, markSummary = [], onFinishMark, onUndoMark, onClearMark, onShowPoint, onOpenMap, notice = '', selNames = [],
 }) {
   const whereLabel = where.kind === 'barangay' ? (barangays.find((b) => b.properties.name === where.name)?.properties.display_name ?? where.name) : where.name
   const steps = flowSteps({ selNames, where, whereLabel, planAreaLabel, planCreated })
@@ -154,6 +154,14 @@ export default function SpeciesFlow({
                 Mga puntos na minarkahan: <strong>{markCount}</strong>
                 {markCount >= 3 ? ' · puwede mo nang tapusin ang area' : markCount === 2 ? ' · kailangan pa ng isa para maging area' : ''}
               </p>
+              <button type="button" className="nw-btn nw-btn-small nw-openmap" onClick={onOpenMap} data-role="mark-open-map">
+                Buksan ang mapa para magmarka
+              </button>
+              {markCount === 1 && (
+                <button type="button" className="nw-btn nw-btn-small" onClick={onShowPoint} data-role="mark-show-point">
+                  Tingnan ang species sa puntong ito
+                </button>
+              )}
               <div className="nw-row">
                 <button type="button" className="nw-btn nw-btn-go" disabled={markCount < 3} onClick={onFinishMark} data-role="mark-finish" title={markCount < 3 ? 'Kailangan ng hindi bababa sa tatlong puntos' : undefined}>
                   Tapusin ang area
