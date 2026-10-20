@@ -3167,7 +3167,18 @@ def area_diagnostic(d, req):
     covered_extra = covered if kind == "polygon" else np.zeros(len(lon), dtype=bool)
     sel_rule1 = int(((centres | covered_extra) & is_scored).sum())
     sel_centres = sel_rule1
-    return {"kind": kind, "touched": int(touched.sum()), "centres_inside": int(centres.sum()), "covered_half_or_more_without_centre": int((covered_extra & ~centres).sum()),
+    counted_n = sel_centres if sel_centres > 0 or kind != "polygon" else int(plant.sum())
+    squares = None
+    if kind == "polygon":
+        # the squares to draw on the map: counted = the ones the selection rule uses; partial = planting squares the area only touches (less than AREA_COVER_MIN of them, centre outside): not counted
+        use = (centres | covered_extra) if sel_centres > 0 else touched
+        counted = plant & use
+        partial = plant & ~use
+        cap = 3000
+        squares = {"counted": [[round(float(x), 6), round(float(y), 6)] for x, y in zip(lon[counted][:cap], lat[counted][:cap])],
+                   "partial": [[round(float(x), 6), round(float(y), 6)] for x, y in zip(lon[partial][:cap], lat[partial][:cap])],
+                   "half_size_m": SQUARE_HALF_M, "min_cover_share": AREA_COVER_MIN}
+    return {"kind": kind, "counted_squares": counted_n, "partial_squares": int(len(squares["partial"])) if squares else 0, "squares": squares, "touched": int(touched.sum()), "centres_inside": int(centres.sum()), "covered_half_or_more_without_centre": int((covered_extra & ~centres).sum()),
             "touched_without_centre": int((touched & ~centres).sum()),
             "planting": int(plant.sum()), "not_planting": {"total": int(non.sum()), "by_reason": reasons, "labels": {k: CONTEXT_REASONS[k] for k in reasons}},
             "left_out_by_field_check": int(ex.sum()), "suitable": suitable, "low_match": int((~ok_any & ~ex).sum()),

@@ -135,3 +135,22 @@ def test_rank_point_carries_the_site_ph_estimate_and_changes_nothing_else(client
         b = none.iloc[0]
         k = client.get("/rank", params={"purpose": "urban", "lat": float(b.lat), "lon": float(b.lon)}).json()
         assert k["point"]["site_ph"] is None                                           # never filled in
+
+
+def test_area_diagnostic_lists_counted_and_partial_squares_for_the_map(client):
+    d = client.app.state.data
+    a = d.ctx.sites.iloc[len(d.ctx.sites) // 2]
+    # a rectangle that holds one centre and only slivers of its neighbours: the neighbours are 'partial' (not counted)
+    lat, lon = float(a.lat), float(a.lon)
+    big = square(lon, lat, 60.0)
+    j = client.post("/area/diagnostic", json={"polygon": big}).json()
+    s = j["squares"]
+    assert s and j["counted_squares"] == len(s["counted"]) == j["selected"] and j["partial_squares"] == len(s["partial"])
+    assert j["counted_squares"] >= 1 and j["partial_squares"] >= 1                      # the centre square counts; the squares only touched at the edge do not
+    assert not ({tuple(x) for x in s["counted"]} & {tuple(x) for x in s["partial"]})
+    assert s["min_cover_share"] == api_v2.AREA_COVER_MIN == 0.5 and s["half_size_m"] == 50.0
+    # an area smaller than half a square: the rule falls back to 'touching': every touched planting square is counted, none is partial
+    tiny = client.post("/area/diagnostic", json={"polygon": square(lon + 40.0 / (M_DEG * math.cos(math.radians(lat))), lat, 15.0)}).json()
+    assert tiny["rule_used"] == "touching" and tiny["squares"]["partial"] == [] and tiny["counted_squares"] >= 1
+    # barangay and zone areas carry no square list
+    assert client.post("/area/diagnostic", json={"barangay": "Santa Ana"}).json()["squares"] is None

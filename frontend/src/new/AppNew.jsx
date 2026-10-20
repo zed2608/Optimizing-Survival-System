@@ -636,6 +636,7 @@ export default function AppNew() {
           spot={spot}
           onPick={onPick}
           onContext={onContext}
+          areaSquares={mode === 'area' && area?.kind === 'polygon' && diag.status === 'ok' ? diag.data.squares ?? null : null}
           meta={meta}
           goTarget={goTarget}
           fitTarget={fitTarget}
@@ -682,6 +683,13 @@ export default function AppNew() {
           </div>
           <div className="nw-legend-sub">{legendSub}</div>
           <ColorLegend />
+          {mode === 'area' && area?.kind === 'polygon' && diag.status === 'ok' && diag.data.squares && (
+            <div className="nw-legend-area" data-role="legend-area-squares">
+              <span className="nw-legend-sq is-counted" aria-hidden="true" /> Iginuhit na lugar: parisukat na binilang
+              <br />
+              <span className="nw-legend-sq is-partial" aria-hidden="true" /> bahagya lang natatamaan (mas mababa sa kalahati): hindi binilang
+            </div>
+          )}
           {noneSuitable && (
             <div className="nw-legend-warn" role="status">
               {allRemoved ? 'No chosen species can be planted in your dates.' : `No point is suitable for this selection${combine === 'all' && selIds.length > 1 ? ': try “Suits at least one”' : ''}.`}

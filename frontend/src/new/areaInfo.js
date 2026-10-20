@@ -106,8 +106,9 @@ export function diagnosticText(diag) {
   if (diag.left_out_by_field_check) parts.push(`${diag.left_out_by_field_check} inalis dahil sa field check na hindi matataniman`)
   const what = diag.kind === 'polygon' ? 'natatamaan ng iginuhit' : diag.kind === 'zone' ? 'nasa zone' : 'nasa barangay'
   let text = `${diag.touched} parisukat ang ${what}: ${parts.join(', ')}.`
-  if (diag.kind === 'polygon' && diag.selected < diag.planting - diag.left_out_by_field_check) {
-    text += ` Sa ranking, ${diag.selected} lang ang binibilang (nasa loob ang gitna o sakop ang kalahati o higit pa ng parisukat); ang iba ay gilid lang ng iginuhit.`
+  if (diag.kind === 'polygon' && diag.squares) {
+    text += ` ${diag.counted_squares} parisukat ang binilang.`
+    if (diag.partial_squares > 0) text += ` ${diag.partial_squares} ang bahagya lang natatamaan (mas mababa sa kalahati) kaya hindi isinama.`
   }
   return text
 }
