@@ -15,7 +15,7 @@ import LocationCard from './LocationCard.jsx'
 import RowDetails from './RowDetails.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
-import VerifyBar from './VerifyBar.jsx'
+import FieldStatusLine from './FieldStatusLine.jsx'
 import ViableSuggestion from './ViableSuggestion.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import WhyNone from './WhyNone.jsx'
@@ -67,8 +67,8 @@ function VerdictCard({ ranking, leftOut, preferId = null }) {
 
 // The point panel: 1 where this is (header card), 2 the field check card, 3 (goal "I have species") your chosen species here, 4 the best species as a compact list.
 export default function PointPanel({
-  rank, purpose, win, today, barangay, searched, pointId, fieldApi, observer, onObserver, onSaved, viable, onFindViable, onGo, seasonNote, onInfo,
-  view, onView, chosen, selIds, combine, onlySeason, planBlock = null,
+  rank, purpose, win, today, barangay, searched, pointId, fieldApi, viable, onFindViable, onGo, seasonNote, onInfo,
+  view, onView, chosen, selIds, combine, onlySeason, planBlock = null, onOpenFieldMenu = () => {},
 }) {
   const [show, setShow] = useState(5)
   const full = view === 'full'
@@ -124,17 +124,7 @@ export default function PointPanel({
           <BlockLayout item={planBlock.item} kind={planBlock.kind} />
         </section>
       )}
-      {pointId ? (
-        <VerifyBar
-          key={`${pointId}|${planBlock?.planId ?? ''}`}
-          pointId={pointId}
-          api={fieldApi}
-          observer={observer}
-          onObserver={onObserver}
-          onSaved={onSaved}
-          block={planBlock ? { planId: planBlock.planId, trees: planBlock.item.trees_planned, ref: planBlock.item.block_ref } : null}
-        />
-      ) : null}
+      {pointId ? <FieldStatusLine api={fieldApi} onOpen={onOpenFieldMenu} /> : null}
       {chosen && selIds.length > 0 && <ChosenHere api={chosen} selIds={selIds} combine={combine} onlySeason={onlySeason} full={full} point={point} onInfo={onInfo} />}
 
       {rank.data.limiting_factors && <WhyNone lf={rank.data.limiting_factors} ground={point.ground_cover} />}

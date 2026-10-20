@@ -999,3 +999,10 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 
 /* UX 9: one colour, one meaning. Score colours are for the squares; field-check marks are violet shapes. */
 .nw-fieldkey-title { font-size: 11px; font-weight: 600; color: #94a3b8; margin-top: 6px; }
+
+/* UX 13: the field-check menu of the map */
+.nw-fmenu-backdrop { position: fixed; inset: 0; z-index: 1190; background: transparent; }
+.nw-fmenu { position: fixed; z-index: 1200; max-height: min(80vh, 560px); overflow-y: auto; background: var(--nw-card-bg, #f8fafc); color: #0f172a; border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); border: 1px solid rgba(15, 23, 42, 0.2); }
+.nw-fmenu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; width: auto; border-radius: 12px 12px 0 0; max-height: 75vh; }
+.nw-fmenu-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; font-size: 13px; border-bottom: 1px solid rgba(15, 23, 42, 0.12); }
+.nw-fmenu .nw-pcard { margin: 0; border: 0; box-shadow: none; }

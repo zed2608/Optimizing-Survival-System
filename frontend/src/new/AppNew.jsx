@@ -16,6 +16,7 @@ import AreasPanel from './AreasPanel.jsx'
 import { decodeFieldCode, STATUS_LABEL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
 import { continueState, describeArea } from './areaInfo.js'
+import FieldMenu from './FieldMenu.jsx'
 import { PURPOSE_SHORT } from './labelsNew.js'
 import MoreMenu from './MoreMenu.jsx'
 import MapViewMenu from './MapViewMenu.jsx'
@@ -89,6 +90,7 @@ export default function AppNew() {
   const [draft, setDraft] = useState([]) // mode 2: corners of the shape being drawn, [lat, lon]
   const [notice, setNotice] = useState('')
   const [spot, setSpot] = useState(null) // the clicked point {lat, lon}
+  const [fieldMenu, setFieldMenu] = useState(null) // the field-check menu of the map {x, y} (null coordinates = centred), or null
   const [viableFor, setViableFor] = useState(null)
   const [goTarget, setGoTarget] = useState(null)
   const [fitTarget, setFitTarget] = useState(null)
@@ -289,6 +291,7 @@ export default function AppNew() {
   const planHere = (kind, row) => setPlanPrefill({ purpose, speciesIds: selIds, speciesNames: selNames, combine, area: { kind, name: row.display_name, key: row.name } })
 
   const onPick = ({ index, context = -1, plan = -1, lat, lon }) => {
+    setFieldMenu(null)
     if (mode === 'area' && tool === 'draw') {
       setDraft((d) => [...d, [lat, lon]])
       return
@@ -315,6 +318,13 @@ export default function AppNew() {
     setPanelTab('point')
     setHidden(false)
     setNotice('')
+  }
+  // Right-click (or long press) on the map: select that square like a click, then open the field-check menu there. Not while drawing an area, and only for planting squares and planned blocks.
+  const onContext = (pick) => {
+    if (mode === 'area' && tool === 'draw') return
+    onPick(pick)
+    if (pick.index >= 0 || pick.plan >= 0) setFieldMenu({ x: pick.x, y: pick.y })
+    else setNotice(pick.context >= 0 ? 'Hindi planting zone ang parisukat na ito, kaya walang field check.' : 'Walang parisukat sa puntong iyon.')
   }
   const goTo = (lat, lon) => {
     setSpot({ lat, lon })
@@ -569,6 +579,7 @@ export default function AppNew() {
           selected={selected}
           spot={spot}
           onPick={onPick}
+          onContext={onContext}
           meta={meta}
           goTarget={goTarget}
           fitTarget={fitTarget}
@@ -878,6 +889,23 @@ export default function AppNew() {
           Show results
         </button>
       )}
+      {fieldMenu && pointId && (
+        <FieldMenu
+          x={fieldMenu.x}
+          y={fieldMenu.y}
+          pointId={pointId}
+          title={`Field check · Puntos ${pointId}${pointBarangay ? ' · ' + pointBarangay : ''}`}
+          api={fieldPoint}
+          observer={observer}
+          onObserver={setObserver}
+          onSaved={() => {
+            bumpField()
+            if (pointId) setSessionMarks((s) => new Set(s).add(pointId))
+          }}
+          block={planBlock ? { planId: planBlock.planId, trees: planBlock.item.trees_planned, ref: planBlock.item.block_ref } : null}
+          onClose={() => setFieldMenu(null)}
+        />
+      )}
       {showPanel && (
         <RightPanel
           title={activeTab === 'plan' ? 'Planting plan' : activeTab === 'point' ? (isContext ? 'Not a planting zone' : 'Species for this point') : mode === 'species' ? 'Areas for the selected species' : `Species for ${areaLabel}`}
@@ -917,12 +945,6 @@ export default function AppNew() {
                   searched={spot.searched}
                   pointId={pointId}
                   fieldApi={fieldPoint}
-                  observer={observer}
-                  onObserver={setObserver}
-                  onSaved={() => {
-                    bumpField()
-                    if (pointId) setSessionMarks((s) => new Set(s).add(pointId))
-                  }}
                   viable={viable}
                   onFindViable={() => setViableFor(spotQuery)}
                   onGo={goTo}
@@ -935,6 +957,7 @@ export default function AppNew() {
                   combine={combine}
                   onlySeason={onlySeason}
                   planBlock={planBlock}
+                  onOpenFieldMenu={() => setFieldMenu({ x: null, y: null })}
                 />
               )}
             </div>

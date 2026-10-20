@@ -62,7 +62,7 @@ const BASE_LAYERS = {
   street: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' },
 }
 
-export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, meta, goTarget, fitTarget, highlight, draft, drawing, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false, zoning = null, zoningOn = false }) {
+export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, onContext, meta, goTarget, fitTarget, highlight, draft, drawing, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false, zoning = null, zoningOn = false }) {
   const base = BASE_LAYERS[baseLayer] ?? BASE_LAYERS.satellite
   return (
     <MapContainer
@@ -85,7 +85,7 @@ export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, sel
       <BoundaryLayers boundaries={boundaries} />
       <HighlightLayer geometry={highlight} />
       <DrawLayer vertices={draft} />
-      <GridLayer columns={grid} clear={clearGrid} labeler={labeler} selected={selected} spot={spot} onPick={onPick} meta={meta} field={field} contextCols={contextCols} contextVisible={contextVisible} contextLabeler={contextLabeler} safeArea={safeArea} planItems={planItems} planVisible={planVisible} planLabeler={planLabeler} detailed={detailed} ground={ground} groundOn={groundOn} />
+      <GridLayer columns={grid} clear={clearGrid} labeler={labeler} selected={selected} spot={spot} onPick={onPick} onContext={onContext} meta={meta} field={field} contextCols={contextCols} contextVisible={contextVisible} contextLabeler={contextLabeler} safeArea={safeArea} planItems={planItems} planVisible={planVisible} planLabeler={planLabeler} detailed={detailed} ground={ground} groundOn={groundOn} />
     </MapContainer>
   )
 }

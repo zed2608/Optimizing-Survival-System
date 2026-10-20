@@ -6,7 +6,7 @@ import { createGridLayer } from './gridLayer.js'
 //   columns   the `columns` of GET /grid (null while loading: the old points stay until new ones arrive, unless `clear` is set)
 //   labeler   (index) -> lines of text for the hover tooltip
 //   selected  index of the selected point (or -1), spot = {lat, lon} of the last click (or null)
-export default function GridLayer({ columns, clear, labeler, selected, spot, onPick, meta, field, contextCols, contextVisible, contextLabeler, safeArea, planItems, planVisible, planLabeler, detailed = false, ground = null, groundOn = false }) {
+export default function GridLayer({ columns, clear, labeler, selected, spot, onPick, onContext, meta, field, contextCols, contextVisible, contextLabeler, safeArea, planItems, planVisible, planLabeler, detailed = false, ground = null, groundOn = false }) {
   const map = useMap()
   const layerRef = useRef(null)
 
@@ -60,8 +60,8 @@ export default function GridLayer({ columns, clear, labeler, selected, spot, onP
     layerRef.current?.setContextLabeler(contextLabeler)
   }, [contextLabeler])
   useEffect(() => {
-    layerRef.current?.setHandlers({ onPick })
-  }, [onPick])
+    layerRef.current?.setHandlers({ onPick, onContext })
+  }, [onPick, onContext])
   useEffect(() => {
     layerRef.current?.setSelected(selected)
   }, [selected, columns])
