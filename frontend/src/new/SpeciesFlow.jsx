@@ -1,42 +1,76 @@
 import Segmented from './Segmented.jsx'
 import SpeciesChooser from './SpeciesChooser.jsx'
 import UnzonedToggle from './UnzonedToggle.jsx'
+import Icon from './Icon.jsx'
+import { canGoNext, canJump, flowSteps } from './flowState.js'
 
-// Goal "I have species", step 4 as a short walk (UX round 2, C): one question per screen, a step indicator, one list at a time.
-//   1 Piliin ang species    2 Saan hahanapin (buong San Mateo, isang barangay o isang zone)    3 Mga pinakaangkop na lugar (the right card)    4 Gumawa ng plano (the Plan step)
-// Everything that existed is kept: the same choices, the same API calls (GET /grid, /areas/rank), the same filters (now behind the "Salain" button of the list).
-const FLOW_STEPS = ['Piliin ang species', 'Saan hahanapin', 'Mga pinakaangkop na lugar', 'Gumawa ng plano']
+// Goal "I have species", step 4 as a real stepper (UX round 4):
+//   1 Piliin ang species   2 Saan hahanapin (filter: buong San Mateo, barangay, zone)   3 Markahan sa mapa (one point, or an area)   4 Gumawa ng plano
+// The stepper shows the current step, a check and a short summary on finished steps, and a finished step can be clicked to go back. Next stays off until the step is complete, with the reason in words.
+// The choices live in AppNew, so they persist when the person goes back and forth.
 
-function StepIndicator({ sub }) {
+function Stepper({ steps, sub, setSub }) {
   return (
-    <ol className="nw-flowsteps" aria-label="Mga hakbang" data-role="flow-steps">
-      {FLOW_STEPS.map((t, i) => (
-        <li key={t} className={i + 1 === sub ? 'is-current' : i + 1 < sub ? 'is-done' : ''} aria-current={i + 1 === sub ? 'step' : undefined}>
-          <span className="nw-flowno">{i + 1}</span> {t}
-        </li>
-      ))}
+    <ol className="nw-stepper" aria-label={`Hakbang ${sub} ng 4`} data-role="flow-steps">
+      {steps.map((st) => {
+        const current = st.n === sub
+        const reachable = canJump(steps, st.n)
+        const cls = current ? 'is-current' : st.done && st.n < sub ? 'is-done' : ''
+        return (
+          <li key={st.n} className={cls} aria-current={current ? 'step' : undefined}>
+            <button type="button" className="nw-stepbtn" disabled={!reachable || current} onClick={() => setSub(st.n)} data-step={st.n} aria-label={`Hakbang ${st.n}: ${st.title}${st.summary ? `. ${st.summary}` : ''}`}>
+              <span className="nw-flowno">{st.done && !current ? <Icon name="check" /> : st.n}</span>
+              <span className="nw-steptext">
+                <span className="nw-steptitle">{st.title}</span>
+                {st.done && !current && st.summary && <span className="nw-stepsum">{st.summary}</span>}
+              </span>
+            </button>
+          </li>
+        )
+      })}
     </ol>
+  )
+}
+
+function Nav({ steps, sub, setSub, nextLabel, onNext }) {
+  const g = sub < 4 ? canGoNext(steps, sub) : { ok: true, reason: '' }
+  return (
+    <div className="nw-flownav" data-role="flow-nav">
+      <div className="nw-row">
+        {sub > 1 && (
+          <button type="button" className="nw-btn nw-btn-small" onClick={() => setSub(sub - 1)} data-role="flow-back">
+            Balik
+          </button>
+        )}
+        <button type="button" className="nw-btn nw-btn-go" disabled={!g.ok} aria-describedby={g.ok ? undefined : 'nw-flow-why'} onClick={onNext ?? (() => setSub(sub + 1))} data-role="flow-next">
+          {nextLabel}
+        </button>
+      </div>
+      {!g.ok && (
+        <p className="nw-hint" id="nw-flow-why" data-role="flow-why">
+          {g.reason}
+        </p>
+      )}
+    </div>
   )
 }
 
 export default function SpeciesFlow({
   sub, setSub, species, selIds, setSelIds, onlySeason, onInfo, purpose, query, how, setHow, mainId, setMain, combine, setCombine, includeUnzoned, setIncludeUnzoned,
-  where, onWhere, barangays, zones, onGoPlan, seasonNotice = null,
+  where, onWhere, barangays, zones, onGoPlan, seasonNotice = null, planAreaLabel = '', planCreated = false,
+  markCount = 0, markArea = null, markSummary = [], onFinishMark, onUndoMark, onClearMark, notice = '', selNames = [],
 }) {
-  const nothing = selIds.length === 0
+  const whereLabel = where.kind === 'barangay' ? (barangays.find((b) => b.properties.name === where.name)?.properties.display_name ?? where.name) : where.name
+  const steps = flowSteps({ selNames, where, whereLabel, planAreaLabel, planCreated })
   return (
     <div data-role="species-flow" data-sub={sub}>
-      <StepIndicator sub={sub} />
+      <Stepper steps={steps} sub={sub} setSub={setSub} />
       {sub === 1 && (
         <div>
           <h4 className="nw-flowtitle">Hakbang 1: Piliin ang species</h4>
           {seasonNotice}
           <SpeciesChooser species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={onInfo} purpose={purpose} area={null} query={query} how={how} onHow={setHow} mainId={mainId} onMain={setMain} />
-          {how && (
-            <button type="button" className="nw-btn nw-btn-go nw-btn-wide" disabled={nothing} onClick={() => setSub(2)} title={nothing ? 'Pumili muna ng species' : undefined}>
-              {nothing ? 'Pumili muna ng species' : `Susunod: Saan hahanapin (${selIds.length} napili)`}
-            </button>
-          )}
+          {how && <Nav steps={steps} sub={1} setSub={setSub} nextLabel={`Susunod: Saan hahanapin${selIds.length ? ` (${selIds.length} napili)` : ''}`} />}
         </div>
       )}
       {sub === 2 && (
@@ -101,32 +135,72 @@ export default function SpeciesFlow({
             />
           )}
           <UnzonedToggle value={includeUnzoned} onChange={setIncludeUnzoned} />
-          <div className="nw-row">
-            <button type="button" className="nw-btn nw-btn-small" onClick={() => setSub(1)}>
-              Balik
-            </button>
-            <button type="button" className="nw-btn nw-btn-go" onClick={() => setSub(3)} disabled={where.kind !== 'all' && !where.name} title={where.kind !== 'all' && !where.name ? 'Pumili muna ng lugar' : undefined}>
-              Susunod: Tingnan ang mga lugar
-            </button>
-          </div>
+          <Nav steps={steps} sub={2} setSub={setSub} nextLabel="Susunod: Markahan sa mapa" />
         </div>
       )}
       {sub === 3 && (
-        <div>
-          <h4 className="nw-flowtitle">Hakbang 3: Mga pinakaangkop na lugar</h4>
+        <div data-role="mark-tool">
+          <h4 className="nw-flowtitle">Hakbang 3: Markahan sa mapa</h4>
           <p className="nw-plain" data-role="flow-where">
-            Species: <strong>{selIds.length}</strong> · Lugar: <strong>{where.kind === 'all' ? 'Buong San Mateo' : where.name}</strong>
+            Species: <strong>{selIds.length}</strong> · Hahanapin sa: <strong>{where.kind === 'all' ? 'Buong San Mateo' : whereLabel}</strong>
             {selIds.length > 1 ? ` · ${combine === 'all' ? 'Suits all' : 'Suits at least one'}` : ''}
           </p>
-          <p className="nw-hint">Nasa kanang card ang mga barangay at zone na pinakaangkop, at kulay ng mapa ang tugma ng bawat parisukat.</p>
-          <div className="nw-row">
-            <button type="button" className="nw-btn nw-btn-small" onClick={() => setSub(2)}>
-              Balik
-            </button>
-            <button type="button" className="nw-btn nw-btn-go" onClick={onGoPlan}>
-              Susunod: Gumawa ng plano
-            </button>
-          </div>
+          {!markArea ? (
+            <>
+              <p className="nw-hint" data-role="mark-help">
+                Mag-click sa mapa. Isang click = isang puntos (lalabas ang species para roon). Tatlo o higit pang click, tapos “Tapusin ang area” = isang area na pagtatamnan.
+              </p>
+              <p className="nw-plain" data-role="mark-count">
+                Mga puntos na minarkahan: <strong>{markCount}</strong>
+                {markCount >= 3 ? ' · puwede mo nang tapusin ang area' : markCount === 2 ? ' · kailangan pa ng isa para maging area' : ''}
+              </p>
+              <div className="nw-row">
+                <button type="button" className="nw-btn nw-btn-go" disabled={markCount < 3} onClick={onFinishMark} data-role="mark-finish" title={markCount < 3 ? 'Kailangan ng hindi bababa sa tatlong puntos' : undefined}>
+                  Tapusin ang area
+                </button>
+                <button type="button" className="nw-btn nw-btn-small" disabled={markCount === 0} onClick={onUndoMark} data-role="mark-undo">
+                  Alisin ang huling puntos
+                </button>
+                <button type="button" className="nw-btn nw-btn-small" disabled={markCount === 0} onClick={onClearMark} data-role="mark-clear">
+                  Burahin lahat
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="nw-areasum" data-role="area-summary">
+              <p className="nw-plain">
+                <strong>Naka-lock ang minarkahang area.</strong>
+              </p>
+              {markSummary.map((t) => (
+                <p key={t} className="nw-plain">
+                  {t}
+                </p>
+              ))}
+              <button type="button" className="nw-btn nw-btn-small" onClick={onClearMark} data-role="mark-clear">
+                Burahin lahat
+              </button>
+            </div>
+          )}
+          {notice && (
+            <p className="nw-hint nw-warn" role="status">
+              {notice}
+            </p>
+          )}
+          <p className="nw-hint">Nasa kanang card ang mga barangay at zone na pinakaangkop; kulay ng mapa ang tugma ng bawat parisukat.</p>
+          <Nav steps={steps} sub={3} setSub={setSub} nextLabel="Susunod: Gumawa ng plano" />
+        </div>
+      )}
+      {sub === 4 && (
+        <div data-role="flow-plan">
+          <h4 className="nw-flowtitle">Hakbang 4: Gumawa ng plano</h4>
+          <ul className="nw-plain nw-flowlist">
+            {steps.slice(0, 3).map((st) => (
+              <li key={st.n}>
+                {st.title}: <strong>{st.summary || '—'}</strong>
+              </li>
+            ))}
+          </ul>
+          <Nav steps={steps} sub={4} setSub={setSub} nextLabel={planCreated ? 'Buksan ang Plano' : 'Gumawa ng plano'} onNext={onGoPlan} />
         </div>
       )}
     </div>

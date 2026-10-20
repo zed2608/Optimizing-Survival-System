@@ -1045,3 +1045,21 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 .nw-funnel[aria-expanded="true"] { color: #6ee7b7; background: rgba(110, 231, 183, 0.12); }
 .nw-funnel:focus-visible { outline: 2px solid #6ee7b7; outline-offset: -2px; }
 .nw-funnel-badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #10b981; color: #052e22; font-size: 11px; font-weight: 600; line-height: 16px; text-align: center; box-sizing: border-box; }
+
+/* UX round 4: the stepper of the goal "I have species" (current step, check + summary on finished steps, click a finished step to go back; narrow screens show only the current title) */
+.nw-stepper { list-style: none; margin: 0 0 10px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.nw-stepper li { min-width: 0; }
+.nw-stepbtn { width: 100%; min-height: 44px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; background: transparent; border: 0; border-radius: 8px; color: #94a3b8; font-size: 11px; cursor: pointer; text-align: center; }
+.nw-stepbtn:disabled { cursor: default; }
+.nw-stepbtn:not(:disabled):hover { background: rgba(255, 255, 255, 0.06); }
+.nw-stepbtn:focus-visible { outline: 2px solid #6ee7b7; outline-offset: -2px; }
+.nw-stepper li.is-current .nw-stepbtn { color: #f8fafc; font-weight: 600; background: rgba(16, 185, 129, 0.14); }
+.nw-stepper li.is-done .nw-stepbtn { color: #6ee7b7; }
+.nw-stepper .nw-flowno svg { width: 12px; height: 12px; }
+.nw-stepper li.is-done .nw-flowno { background: #10b981; color: #052e22; }
+.nw-steptext { display: flex; flex-direction: column; min-width: 0; width: 100%; }
+.nw-steptitle, .nw-stepsum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nw-stepsum { font-size: 10px; opacity: 0.85; }
+@media (max-width: 480px) { .nw-stepper li:not(.is-current) .nw-steptitle { display: none; } .nw-stepper li.is-current .nw-steptitle { white-space: normal; font-size: 10px; } }
+.nw-flownav { margin-top: 10px; }
+.nw-flowlist { margin: 0 0 8px; padding-left: 18px; }

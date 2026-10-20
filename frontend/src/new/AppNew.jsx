@@ -15,7 +15,7 @@ import AreaResultPanel from './AreaResultPanel.jsx'
 import AreasPanel from './AreasPanel.jsx'
 import { decodeFieldCode, STATUS_LABEL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
-import { continueState, describeArea, diagnosticText } from './areaInfo.js'
+import { continueState, describeArea, diagnosticText, geometryHectares, haText } from './areaInfo.js'
 import FieldMenu from './FieldMenu.jsx'
 import { menuLines } from './pointMenu.js'
 import { PURPOSE_SHORT } from './labelsNew.js'
@@ -88,6 +88,7 @@ export default function AppNew() {
   const [tool, setTool] = useState('point') // mode 2: 'point' | 'barangay' | 'draw'
   const [area, setArea] = useState(null) // mode 2: {kind:'barangay'|'zone', name} | {kind:'polygon', geometry}
   const [draft, setDraft] = useState([]) // mode 2: corners of the shape being drawn, [lat, lon]
+  const [markArea, setMarkArea] = useState(null) // goal "I have species", step 3 "Markahan sa mapa": the finished shape {kind:'polygon', geometry} (UX round 4)
   const [notice, setNotice] = useState('')
   const [spot, setSpot] = useState(null) // the clicked point {lat, lon}
   const [fieldMenu, setFieldMenu] = useState(null) // the menu of a square {x, y, pick, pointId, square: {lat, lon, pointId}, click: {lat, lon}} (x null = centred), or null
@@ -237,12 +238,13 @@ export default function AppNew() {
     )
   const noneSuitable = useMemo(() => !!columns && selection && columns.W.every((w) => w === 0), [columns, selection])
 
+  const markActive = mode === 'species' && speciesSub === 3 && !markArea
   const highlight = useMemo(() => {
-    const spec = mode === 'area' ? area : rowActive
+    const spec = mode === 'area' ? area : markArea || rowActive
     if (!spec) return null
     if (spec.kind === 'polygon') return spec.geometry
     return (spec.kind === 'barangay' ? barangayFeatures : zoneFeatures).find((f) => f.properties.name === spec.name)?.geometry ?? null
-  }, [mode, area, rowActive, barangayFeatures, zoneFeatures])
+  }, [mode, area, markArea, rowActive, barangayFeatures, zoneFeatures])
 
   // hover text: barangay and score of the point under the mouse
   const labeler = useMemo(() => {
@@ -304,6 +306,16 @@ export default function AppNew() {
       setDraft((d) => [...d, [lat, lon]])
       return
     }
+    if (mode === 'species' && speciesSub === 3) {
+      // Markahan sa mapa: one click is a point (the point panel opens); three or more clicks and "Tapusin" make an area
+      if (markArea) {
+        setNotice('Naka-lock ang minarkahang lugar. Pindutin ang “Burahin lahat” para magmarka ng bago.')
+        return
+      }
+      const first = draft.length === 0
+      setDraft((d) => [...d, [lat, lon]])
+      if (!first) return
+    }
     if (mode === 'area' && tool === 'barangay') {
       const f = featureAt(barangayFeatures, lon, lat)
       if (f) chooseArea({ kind: 'barangay', name: f.properties.name })
@@ -330,7 +342,7 @@ export default function AppNew() {
   // Right-click (or long press) on the map: ONLY a menu opens (where this is, "Tingnan ang species dito", the field check). The right card does not open and nothing is selected: that is what a left click does.
   // Not while drawing an area, and only for planting squares and planned blocks.
   const onContext = (pick) => {
-    if (mode === 'area' && tool === 'draw') return
+    if ((mode === 'area' && tool === 'draw') || (markActive && draft.length > 0)) return
     let sq = null
     if (pick.plan >= 0 && planResult) {
       const it = planResult.plan[pick.plan]
@@ -403,9 +415,22 @@ export default function AppNew() {
   }
   const finishDraw = () => {
     if (draft.length < 3) return
-    chooseArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
+    if (mode === 'species') {
+      setMarkArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
+      setNotice('')
+    } else chooseArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
     setFitTarget({ bbox: geometryBbox(polygonFromVertices(draft)) })
     setDraft([])
+  }
+  const clearMark = () => {
+    setDraft([])
+    setMarkArea(null)
+    setNotice('')
+  }
+  const goSub = (n) => {
+    setSpeciesSub(n)
+    if (n !== 3) setDraft([]) // a half-drawn shape is dropped when the person leaves the step; a finished one is kept
+    setNotice('')
   }
   const changeMode = (m) => {
     setMode(m)
@@ -414,6 +439,7 @@ export default function AppNew() {
     setHidden(false)
     setTool('point')
     setDraft([])
+    setMarkArea(null)
     setNotice('')
   }
   const toggleStep = (id) => setOpenStep((o) => (o === id ? '' : id))
@@ -430,7 +456,10 @@ export default function AppNew() {
   const chooser = (forArea) => (
     <SpeciesChooser species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} purpose={purpose} area={forArea} query={sq} how={speciesHow} onHow={setSpeciesHow} mainId={mainSpecies} onMain={setMainSpecies} />
   )
-  const diagArea = mode === 'area' ? area : planPrefill ? { kind: planPrefill.area.kind, name: planPrefill.area.key } : null
+  // goal "I have species": the area the plan will use = the shape marked on the map, else the area chosen with "Plan here", else the barangay or zone of "Saan hahanapin"
+  const whereArea = where.kind !== 'all' && where.name ? { kind: where.kind, name: where.name } : null
+  const speciesArea = markArea || (planPrefill ? { kind: planPrefill.area.kind, name: planPrefill.area.key } : whereArea)
+  const diagArea = mode === 'area' ? area : speciesArea
   const diag = usePost(`/area/diagnostic?${uz}`, !diagArea ? null : diagArea.kind === 'barangay' ? { barangay: diagArea.name } : diagArea.kind === 'zone' ? { zone: diagArea.name } : { polygon: diagArea.geometry })
   const areaSplit = diag.status === 'ok' ? diagnosticText(diag.data) : null
   const areaSummary = useMemo(
@@ -459,7 +488,7 @@ export default function AppNew() {
   const cs = countsSummary(countRows.map((r) => r.id), counts)
   const nValid = countsMode ? cs.valid : /^\d+$/.test(String(nSaplings).trim()) && nNum >= 1 && nNum <= 2000
   const planTotal = countsMode ? cs.total : nNum
-  const planArea = mode === 'area' ? area : planPrefill ? { kind: planPrefill.area.kind, name: planPrefill.area.key } : null
+  const planArea = mode === 'area' ? area : speciesArea
   const planAreaBody = !planArea ? null : planArea.kind === 'barangay' ? { barangay: planArea.name } : planArea.kind === 'zone' ? { zone: planArea.name } : { polygon: planArea.geometry }
   const planAreaLabel = !planArea ? '' : planArea.kind === 'polygon' ? 'The drawn area' : (featureOf(planArea.kind, planArea.name)?.properties.display_name ?? planArea.name)
   const planSpeciesOk = !countsMode || selIds.length > 0
@@ -636,13 +665,13 @@ export default function AppNew() {
           spot={spot}
           onPick={onPick}
           onContext={onContext}
-          areaSquares={mode === 'area' && area?.kind === 'polygon' && diag.status === 'ok' ? diag.data.squares ?? null : null}
+          areaSquares={(mode === 'area' ? area : markArea)?.kind === 'polygon' && diag.status === 'ok' ? diag.data.squares ?? null : null}
           meta={meta}
           goTarget={goTarget}
           fitTarget={fitTarget}
           highlight={highlight}
           draft={draft}
-          drawing={mode === 'area' && tool === 'draw'}
+          drawing={(mode === 'area' && tool === 'draw') || markActive}
           field={fieldForMap}
           baseLayer={baseLayer}
           contextCols={contextCols}
@@ -852,7 +881,7 @@ export default function AppNew() {
             <>
               <SpeciesFlow
                 sub={speciesSub}
-                setSub={setSpeciesSub}
+                setSub={goSub}
                 species={species}
                 selIds={selIds}
                 setSelIds={setSelIds}
@@ -873,6 +902,16 @@ export default function AppNew() {
                 barangays={barangayFeatures}
                 zones={zoneFeatures}
                 onGoPlan={() => setOpenStep('plan')}
+                planAreaLabel={planArea ? (markArea ? 'Iginuhit na area' : planAreaLabel) : ''}
+                planCreated={!!planResult}
+                markCount={draft.length}
+                markArea={markArea}
+                markSummary={markArea ? [`Sukat: ${haText(geometryHectares(markArea.geometry))}`, areaSplit].filter(Boolean) : []}
+                onFinishMark={finishDraw}
+                onUndoMark={() => setDraft((d) => d.slice(0, -1))}
+                onClearMark={clearMark}
+                notice={notice}
+                selNames={selNames}
                 seasonNotice={fewSpecies ? seasonNotice(false) : null}
               />
             </>
