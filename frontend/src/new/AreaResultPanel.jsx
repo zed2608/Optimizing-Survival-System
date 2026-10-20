@@ -81,6 +81,11 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
             <Icon name="close" /> {r.area.not_plantable_points} point{r.area.not_plantable_points === 1 ? ' is' : 's are'} marked <strong>not plantable</strong> in the field and left out of this ranking.
           </p>
         )}
+        {r.area.selection === 'touching' && (
+          <p className="muted" data-role="area-touching">
+            Mas maliit ang iginuhit na lugar kaysa sa isang square (walang gitna ng square sa loob), kaya ginamit ang mga square na tinatamaan nito. Hindi nagbabago ang score ng square.
+          </p>
+        )}
         {r.area.not_plantable_points === 0 && <p className="muted">No point of this area is marked not plantable in the field.</p>}
 
         {sb && r.ranking.length === 0 && sb.removed > 0 && (

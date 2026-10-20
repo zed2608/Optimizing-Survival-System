@@ -5,7 +5,7 @@ const TOOLS = [
 ]
 
 // Mode 2: the ways to choose an area: click a point, click a barangay, pick one from a list, or draw a polygon.
-export default function AreaChooser({ tool, onTool, barangays, zones, area, onArea, draftCount, onFinish, onUndo, onClearDraft }) {
+export default function AreaChooser({ tool, onTool, barangays, zones, area, onArea, draftCount, onFinish, onUndo, onClearDraft, summary = [], blocked = '' }) {
   const barangayValue = area?.kind === 'barangay' ? area.name : ''
   const zoneValue = area?.kind === 'zone' ? area.name : ''
   return (
@@ -26,7 +26,11 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
       {tool === 'draw' && (
         <div className="nw-drawbox">
           <p className="nw-hint" role="status">
-            {draftCount === 0 ? 'Click the map to place the first corner.' : `${draftCount} corner${draftCount === 1 ? '' : 's'} placed${draftCount < 3 ? ' (at least 3 are needed)' : ''}.`}
+            {draftCount === 0
+              ? area?.kind === 'polygon'
+                ? 'Tapos na ang iginuhit na lugar (nasa ibaba ang buod). Para gumuhit ng bago, i-click ang mapa at sundan ng Finish area.'
+                : 'I-click ang mapa para ilagay ang unang sulok.'
+              : `${draftCount} sulok ang nailagay${draftCount < 3 ? ' (kailangan ng hindi bababa sa 3)' : ''}.`}
           </p>
           <div className="nw-row">
             <button type="button" className="nw-btn nw-btn-small nw-btn-go" onClick={onFinish} disabled={draftCount < 3}>
@@ -42,39 +46,55 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
         </div>
       )}
 
-      <label className="nw-label" htmlFor="nw-barangay">
-        Or pick a barangay
-      </label>
-      <select id="nw-barangay" className="nw-select" value={barangayValue} onChange={(e) => e.target.value && onArea({ kind: 'barangay', name: e.target.value })}>
-        <option value="">Choose a barangay…</option>
-        {barangays.map((b) => (
-          <option key={b.properties.name} value={b.properties.name}>
-            {b.properties.display_name}
-          </option>
-        ))}
-      </select>
-      <label className="nw-label nw-label-gap" htmlFor="nw-zone">
-        Or pick a zone
-      </label>
-      <select id="nw-zone" className="nw-select" value={zoneValue} onChange={(e) => e.target.value && onArea({ kind: 'zone', name: e.target.value })}>
-        <option value="">Choose a zone…</option>
-        {zones.map((z) => (
-          <option key={z.properties.name} value={z.properties.name}>
-            {z.properties.name}
-          </option>
-        ))}
-      </select>
-      {(barangays.length === 0 || zones.length === 0) && <p className="nw-hint">The barangay and zone lists load from the planning service.</p>}
+      {tool === 'barangay' && (
+        <>
+          <label className="nw-label" htmlFor="nw-barangay">
+            Or pick a barangay
+          </label>
+          <select id="nw-barangay" className="nw-select" value={barangayValue} onChange={(e) => e.target.value && onArea({ kind: 'barangay', name: e.target.value })}>
+            <option value="">Choose a barangay…</option>
+            {barangays.map((b) => (
+              <option key={b.properties.name} value={b.properties.name}>
+                {b.properties.display_name}
+              </option>
+            ))}
+          </select>
+          <label className="nw-label nw-label-gap" htmlFor="nw-zone">
+            Or pick a zone
+          </label>
+          <select id="nw-zone" className="nw-select" value={zoneValue} onChange={(e) => e.target.value && onArea({ kind: 'zone', name: e.target.value })}>
+            <option value="">Choose a zone…</option>
+            {zones.map((z) => (
+              <option key={z.properties.name} value={z.properties.name}>
+                {z.properties.name}
+              </option>
+            ))}
+          </select>
+          {(barangays.length === 0 || zones.length === 0) && <p className="nw-hint">Ang listahan ng barangay at zone ay galing sa planning service.</p>}
+          </>
+      )}
 
-      {area && (
-        <div className="nw-current">
-          <span>
-            Area: <strong>{area.kind === 'polygon' ? 'Drawn area' : area.kind === 'zone' ? area.name : (barangays.find((b) => b.properties.name === area.name)?.properties.display_name ?? area.name)}</strong>
-          </span>
-          <button type="button" className="nw-btn nw-btn-small" onClick={() => onArea(null)}>
-            Clear area
-          </button>
+      {summary.length > 0 && (
+        <div className="nw-current nw-areasummary" data-role="area-summary">
+          <dl className="nw-summary-list">
+            {summary.map((r) => (
+              <div key={r.label}>
+                <dt>{r.label}</dt>
+                <dd>{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+          {area && (
+            <button type="button" className="nw-btn nw-btn-small" onClick={() => onArea(null)}>
+              Clear area
+            </button>
+          )}
         </div>
+      )}
+      {blocked && (
+        <p className="nw-hint nw-warn" role="alert" data-role="area-blocked">
+          {blocked}
+        </p>
       )}
     </div>
   )

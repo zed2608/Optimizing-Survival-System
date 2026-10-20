@@ -15,6 +15,7 @@ import AreaResultPanel from './AreaResultPanel.jsx'
 import AreasPanel from './AreasPanel.jsx'
 import { decodeFieldCode, STATUS_LABEL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
+import { continueState, describeArea } from './areaInfo.js'
 import { PURPOSE_SHORT } from './labelsNew.js'
 import MoreMenu from './MoreMenu.jsx'
 import MapViewMenu from './MapViewMenu.jsx'
@@ -382,6 +383,12 @@ export default function AppNew() {
   }
 
   const hasMain = mode === 'species' ? selection : !!area
+  // UX 2-5: what the Area step says about the choice, and whether Continue may be pressed (an area with no planting square blocks it)
+  const cont = continueState({ mode, area, areaRank })
+  const areaSummary = useMemo(
+    () => (mode !== 'area' ? [] : describeArea({ tool, area, spot, barangayFeatures, zoneFeatures, squares: areaRank.status === 'ok' ? areaRank.data.area.legal_points : null, selection: areaRank.status === 'ok' ? areaRank.data.area.selection ?? null : null })),
+    [mode, tool, area, spot, barangayFeatures, zoneFeatures, areaRank.status, areaRank.data],
+  )
   const hasPoint = !!spot
   const hasPlanTab = !!planResult
   const avail = { plan: hasPlanTab, main: hasMain, point: hasPoint }
@@ -518,6 +525,7 @@ export default function AppNew() {
     setHidden(false)
   }
   const planFromRow = (kind, row) => {
+    selectRow(kind, row) // UX 6: the outline is highlighted and the map zooms to the area, as when its name is clicked
     planHere(kind, row)
     setSidebarOpen(true)
     setOpenStep('plan')
@@ -797,6 +805,8 @@ export default function AppNew() {
                 onFinish={finishDraw}
                 onUndo={() => setDraft((d) => d.slice(0, -1))}
                 onClearDraft={() => setDraft([])}
+                summary={areaSummary}
+                blocked={cont.ok ? '' : cont.reason}
               />
               {notice && (
                 <p className="nw-hint nw-warn" role="status">
@@ -816,7 +826,7 @@ export default function AppNew() {
               </button>
             </div>
           )}
-          <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('plan')}>
+          <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('plan')} disabled={!cont.ok} aria-disabled={!cont.ok} title={cont.ok ? undefined : cont.reason}>
             Continue
           </button>
         </SidebarStep>
