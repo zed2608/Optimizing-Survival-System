@@ -2,8 +2,8 @@ import Icon from './Icon.jsx'
 
 export function HelpButton({ onClick }) {
   return (
-    <button type="button" className="nw-btn nw-helpbtn" onClick={onClick} aria-haspopup="dialog">
-      <Icon name="question" /> Help
+    <button type="button" className="nw-btn nw-helpbtn" onClick={onClick} aria-haspopup="dialog" aria-label="Help">
+      <Icon name="question" /> <span className="nw-helptext">Help</span>
     </button>
   )
 }

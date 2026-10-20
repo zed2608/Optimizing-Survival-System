@@ -17,6 +17,8 @@ import SeasonBadge from './SeasonBadge.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
 import FieldStatusLine from './FieldStatusLine.jsx'
 import PhSiteCard from './PhSiteCard.jsx'
+import { areaPhText } from './phEvidence.js'
+import { useLang } from './i18n.js'
 import ViableSuggestion from './ViableSuggestion.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import WhyNone from './WhyNone.jsx'
@@ -24,6 +26,8 @@ import WhyNone from './WhyNone.jsx'
 // One species of the compact list: rank, name (opens the species card), score chip, short season badge, and ONE "Details" disclosure
 // (open from the start in the Full view).
 function ResultRow({ item, point, onInfo, full }) {
+  const lang = useLang()
+  const phText = areaPhText(item.ph_verdict, lang)
   return (
     <li className={`nw-prow level-${wLevel(item.W, item.eligible)}`}>
       <div className="nw-prow-main">
@@ -37,6 +41,11 @@ function ResultRow({ item, point, onInfo, full }) {
         {full ? <ScoreChip w={item.W} eligible={item.eligible} /> : <MatchChip w={item.W} eligible={item.eligible} />}
         <SeasonBadge season={item.season} strip={false} best={false} />
       </div>
+      {phText && (
+        <p className="nw-prow-ph muted" data-role="row-ph" data-verdict={item.ph_verdict}>
+          {phText}
+        </p>
+      )}
       {item.eligible && item.flags?.includes('slope_graded') && (
         <p className="nw-prow-caution" data-caution="slope">
           <Icon name="mountain" size={14} /> {SLOPE_CAUTION}
@@ -111,9 +120,8 @@ export default function PointPanel({
   return (
     <div className="nw-ppanel">
       <ViewSwitch value={view} onChange={onView} />
+      <LocationCard afterTitle={<PhSiteCard ph={point.site_ph ?? null} scope="square" speciesIds={ranking.filter((r) => r.eligible).map((r) => r.species_id)} />} full={full} zoneCondition={point.zone_condition ?? ''} soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
       <VerdictCard ranking={ranking} leftOut={leftOut} preferId={planBlock ? planBlock.item.species_id : null} />
-      <LocationCard full={full} zoneCondition={point.zone_condition ?? ''} soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
-      <PhSiteCard ph={point.site_ph ?? null} scope="square" speciesIds={ranking.filter((r) => r.eligible).map((r) => r.species_id)} />
       {planBlock && (
         <section className="nw-pcard nw-blockcard" aria-label="Planting block">
           <div className="nw-pcard-head">

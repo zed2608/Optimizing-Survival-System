@@ -1781,9 +1781,11 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
     if drop:                                                          # season_filter=only: out-of-season species are not ranked
         items = [t for t in items if t[4] not in drop]
     out, ids = [], set()
+    site_ph = square_ph(d, int(pt.point_id))                          # display only: the pH estimate of this square and each species' verdict against it (no score or order reads it)
     for rnk, (el, w, s, k, sid, conf, bd) in enumerate(items[:limit], 1):
         terms = {t: {"value": v["value"], "weight": v["weight"], "sources": [source(d, x) for x in v["src"]]} for t, v in bd.get("terms", {}).items()}
         out.append({"rank": rnk, "species_id": sid, "common_name": d.ctx.species.common_name.iloc[k], "S": round(s, 4), "P": round(float(P[k]), 4),
+                    "ph_verdict": species_ph_verdict(site_ph, sid),
                     "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []) + gflags + sr.rehab_flags(pt.zone_desc, sid, d.food_ids) + ([sr.HABAGAT_FLAG] if hab_on else []),
                     "site_breakdown": {"gate_failed": bd.get("gate_failed", []), "terms": terms},
                     **rf_block(d, bd),
@@ -1800,7 +1802,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                           "zoning_note": ((f"{pt.zone_desc}: confirm with the LGU before planting" if isinstance(pt.zone_desc, str) else UNZONED_NOTE)
                                           if unconf else "Inside a legal planting zone")} if d.zoning_on else {}),
                       **soil_facts(pt),
-                      "site_ph": square_ph(d, int(pt.point_id)),
+                      "site_ph": site_ph,
                       **({"zone_condition": py(pt.zone_condition)} if "zone_condition" in d.all_points and isinstance(pt.zone_condition, str) and pt.zone_condition else {}),
                       **({"rehab_site": {"zone": py(pt.zone_desc), "warning": sr.REHAB_WARNING, "applies_to": "food-bearing species", "source": sr.REHAB_SOURCE}} if sr.rehab_zone(py(pt.zone_desc)) else {}),
                       **({"habagat": d.hab} if hab_on else {}),
@@ -3178,13 +3180,15 @@ def area_diagnostic(d, req):
         squares = {"counted": [[round(float(x), 6), round(float(y), 6)] for x, y in zip(lon[counted][:cap], lat[counted][:cap])],
                    "partial": [[round(float(x), 6), round(float(y), 6)] for x, y in zip(lon[partial][:cap], lat[partial][:cap])],
                    "half_size_m": SQUARE_HALF_M, "min_cover_share": AREA_COVER_MIN}
+    ph_mask = counted if kind == "polygon" else plant                 # the squares that are counted (a polygon) or all planting squares (a barangay or zone)
+    ph = area_ph(d, pid[ph_mask])                                      # display only: SoilGrids estimate over those squares (median of the means, Q0.05, Q0.95); None when none has a value
     return {"kind": kind, "counted_squares": counted_n, "partial_squares": int(len(squares["partial"])) if squares else 0, "squares": squares, "touched": int(touched.sum()), "centres_inside": int(centres.sum()), "covered_half_or_more_without_centre": int((covered_extra & ~centres).sum()),
             "touched_without_centre": int((touched & ~centres).sum()),
             "planting": int(plant.sum()), "not_planting": {"total": int(non.sum()), "by_reason": reasons, "labels": {k: CONTEXT_REASONS[k] for k in reasons}},
             "left_out_by_field_check": int(ex.sum()), "suitable": suitable, "low_match": int((~ok_any & ~ex).sum()),
             "selected": sel_centres if sel_centres > 0 or kind != "polygon" else int(plant.sum()), "rule_used": "centres" if (sel_centres > 0 or kind != "polygon") else "touching",
             "rule": f"A square counts when its centre is inside the area or the area covers at least {int(AREA_COVER_MIN * 100)}% of it; if no square qualifies, every square the area touches.",
-            "unzoned_squares_are_planting": bool(d.zoning_on), "note": "Counts of 100 m squares. Display only: no score, rank or plan reads them."}
+            "ph": ph, "unzoned_squares_are_planting": bool(d.zoning_on), "note": "Counts of 100 m squares. Display only: no score, rank or plan reads them."}
 
 
 @app.post("/area/diagnostic")

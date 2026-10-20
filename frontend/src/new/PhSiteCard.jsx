@@ -22,9 +22,10 @@ export default function PhSiteCard({ ph, scope = 'square', speciesIds = [] }) {
         {sitePhText(ph, scope, lang)}
       </p>
       <p className="muted">{t('ph.notScored')}</p>
-      <div className="nw-ph-tool" data-role="ph-site-tool">
-        <label htmlFor={id}>
-          <strong>{t('ph.tool')}</strong>
+      <details className="nw-ph-tool" data-role="ph-site-tool">
+        <summary data-role="ph-tool-link">{t('ph.tool')}</summary>
+        <label htmlFor={id} className="sr-only">
+          {t('ph.toolLabel')}
         </label>
         <div className="nw-ph-tool-row">
           <input id={id} type="text" inputMode="decimal" autoComplete="off" value={text} onChange={(e) => setText(e.target.value)} placeholder="6.5" aria-label={t('ph.toolLabel')} />
@@ -48,7 +49,7 @@ export default function PhSiteCard({ ph, scope = 'square', speciesIds = [] }) {
             {phFitText(phFitCounts(value, speciesIds, all), lang)}
           </div>
         )}
-      </div>
+      </details>
     </section>
   )
 }

@@ -1080,3 +1080,16 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 .nw-lang-btn.is-active { background: #10b981; color: #052e22; font-weight: 600; }
 .nw-lang-btn:focus-visible { outline: 2px solid #6ee7b7; outline-offset: -2px; }
 @media (max-width: 800px) { .nw-lang-btn { padding: 0 6px; font-size: 11px; } }
+
+/* UX round 5 (A): the soil pH card sits under the barangay name; the measured-pH tool is one link that opens it; each species row carries its pH verdict (display only) */
+.nw-phsite { padding-top: 8px; padding-bottom: 8px; }
+.nw-phsite .nw-plain { margin: 4px 0; }
+.nw-ph-tool > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: #6ee7b7; font-weight: 600; }
+.nw-prow-ph { margin: 2px 0 0 28px; font-size: 12px; }
+
+.nw-lang-short { display: none; }
+@media (max-width: 800px) { .nw-lang-full { display: none; } .nw-lang-short { display: inline; } .nw-lang-btn { min-width: 44px; padding: 0 6px; } }
+.nw-loc > .nw-phsite { margin: 6px 0; background: rgba(16, 185, 129, 0.08); border: 0; box-shadow: none; }
+@media (max-width: 480px) { .nw-helptext { display: none; } .nw-helpbtn { min-width: 44px; padding: 0 10px; } }
+.nw-ph-tool > summary { color: #047857; }
+@media (max-width: 480px) { .nw-lang-btn { min-width: 36px; padding: 0 4px; } .nw-tab { padding-left: 8px; padding-right: 8px; gap: 4px; } .nw-topright { gap: 4px; } .nw-brand { padding: 0 8px; } }

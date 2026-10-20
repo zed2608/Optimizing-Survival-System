@@ -7,7 +7,7 @@ import { conditionText, needsPermission } from './zoneColors.js'
 
 // The header of the point panel (and of the grey-square panel): where exactly this is, one short line each.
 //   barangay (large) / coordinates, elevation, slope / zoning, soil, ground cover. UX round 4: the zone name, grid number, planting window, date and distance from the click moved to the right-click menu (pointMenu.js).
-export default function LocationCard({ full = true, zoneCondition = '', barangay, zone, lat, lon, elev, slope, searched, zoning = null, ground = null, soil = null, children }) {
+export default function LocationCard({ full = true, zoneCondition = '', barangay, zone, lat, lon, elev, slope, searched, zoning = null, ground = null, soil = null, afterTitle = null, children }) {
   const coords = [`${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`]
   if (elev !== null && elev !== undefined) coords.push(`${elev} m elevation`)
   if (slope !== null && slope !== undefined) coords.push(`slope ${Number(slope).toFixed(0)} %`)
@@ -15,6 +15,7 @@ export default function LocationCard({ full = true, zoneCondition = '', barangay
     <section className="nw-pcard nw-loc" aria-label="Where this is">
       {searched && <div className="nw-loc-searched">Searched: {searched}</div>}
       <h2 className="nw-loc-title">{barangay || 'Outside the barangay outlines'}</h2>
+      {afterTitle}
       {zoneCondition && (
         <div className="nw-loc-line nw-zonecond" role="note">
           <Icon name="info" size={14} /> Zone condition: {conditionText(zoneCondition)}. <ProvisionalTag /> <AskHelp id="needs-permission" />

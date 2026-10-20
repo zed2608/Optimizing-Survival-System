@@ -17,6 +17,7 @@ import { decodeFieldCode, STATUS_LABEL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
 import { continueState, describeArea, diagnosticText, geometryHectares, haText } from './areaInfo.js'
 import { LANGS, setLang, tr, useLang } from './i18n.js'
+import { sitePhText } from './phEvidence.js'
 import FieldMenu from './FieldMenu.jsx'
 import { menuLines } from './pointMenu.js'
 import { PURPOSE_SHORT } from './labelsNew.js'
@@ -783,7 +784,8 @@ export default function AppNew() {
           <div className="nw-lang" role="group" aria-label={tr('lang.label', {}, lang)} data-role="lang-toggle">
             {LANGS.map((l) => (
               <button key={l} type="button" className={`nw-lang-btn ${lang === l ? 'is-active' : ''}`} aria-pressed={lang === l} lang={l === 'tl' ? 'fil' : 'en'} onClick={() => setLang(l)} data-lang={l}>
-                {tr(`lang.${l}`, {}, l)}
+                <span className="nw-lang-full">{tr(`lang.${l}`, {}, l)}</span>
+                <span className="nw-lang-short">{l === 'tl' ? 'TL' : 'EN'}</span>
               </button>
             ))}
           </div>
@@ -935,7 +937,7 @@ export default function AppNew() {
                 planCreated={!!planResult}
                 markCount={draft.length}
                 markArea={markArea}
-                markSummary={markArea ? [tr('mark.size', { ha: haText(geometryHectares(markArea.geometry), lang) }, lang), areaSplit].filter(Boolean) : []}
+                markSummary={markArea ? [tr('mark.size', { ha: haText(geometryHectares(markArea.geometry), lang) }, lang), areaSplit, diag.status === 'ok' ? sitePhText(diag.data.ph ?? null, 'area', lang) : null].filter(Boolean) : []}
                 onFinishMark={finishDraw}
                 onUndoMark={() => setDraft((d) => d.slice(0, -1))}
                 onClearMark={clearMark}

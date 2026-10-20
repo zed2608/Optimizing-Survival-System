@@ -126,7 +126,7 @@ export const MESSAGES = {
     // pH card
     'ph.title': 'Soil pH',
     'ph.notScored': 'It is not part of the score or the order.',
-    'ph.tool': 'Measure on site',
+    'ph.tool': 'Measure on site (Sukat sa lugar)',
     'ph.toolLabel': 'pH you measured (3.0 to 10.0)',
     'ph.toolNote': 'Use a pH test kit or meter on the spot. This is not saved.',
     'ph.toolReset': 'Clear',
@@ -134,7 +134,7 @@ export const MESSAGES = {
     'ph.vsInside': 'Your measurement is inside the model’s estimate.',
     'ph.vsOutside': 'Your measurement is outside the model’s estimate. Use the measurement taken on the spot; the model is only an estimate.',
     'ph.none.area': 'There is no pH estimate for this area (the model has too little data).',
-    'ph.none.square': 'There is no pH estimate for this place (the model has too little data).',
+    'ph.none.square': 'No pH estimate for this square (the model has too little data there).',
     'ph.head.area': 'Estimated soil pH of the area: middle {mean} (range {lo}–{hi})',
     'ph.head.square': 'Estimated soil pH here: {mean} (range {lo}–{hi})',
     'ph.from': ', from {n} of {total} squares that have data',
