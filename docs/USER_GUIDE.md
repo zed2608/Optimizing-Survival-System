@@ -148,7 +148,7 @@ The team walks to the START point of a block. They plant the numbered trees row 
 
 **18. Field checks** (the map screen)
 
-To make a field check, right-click a square on the map (on a phone, press and hold it): a menu opens where the team records what it saw. The point panel shows the latest mark. Every status has a colour and a symbol: Planted (green check), Marked plantable by an observer (green ring), Needs recheck (amber question mark) and Not plantable (red cross). A blue cross means water. A gray cross means paved, building or rock.
+To make a field check, right-click a square on the map (on a phone, press and hold it): a menu opens where the team records what it saw. The point panel shows the latest mark. Every status is one violet mark, and the shape tells them apart: Planted (check), Marked plantable by an observer (ring), Needs recheck (question mark) and Not plantable (cross). The reason (water, paved, building, rock) is written next to the mark, not shown by a colour.
 
 *Watch for:* You type your name once. A saved check is never edited. A change is a new check, and clearing a Not plantable mark needs a note.
 
@@ -392,7 +392,7 @@ Two ways. In the dashboard, right-click the block (press and hold on a phone), t
 
 **What do the field-check colours and symbols mean?**
 
-Planted is green with a check. Marked plantable by an observer is a green ring: the mark of one person who typed a name; it is not an expert check and it never changes a score. Needs recheck is amber with a question mark. Not plantable is a red cross. Not plantable because of water is a blue cross. Not plantable because it is paved, built or rock is a gray cross. The colour is always shown with a symbol and words.
+Every field-check mark is the same violet; only the shape differs. Planted is a check. Marked plantable by an observer is a ring: the mark of one person who typed a name; it is not an expert check and it never changes a score. Needs recheck is a question mark. Not plantable is a cross; the reason (water, paved, built or rock) is written in words next to it. The shape is always shown with words.
 
 **What are the reasons for Not plantable?**
 
