@@ -80,3 +80,24 @@ test('the honest wording about pH exists in both languages: an estimate, not mea
   assert.ok(!/verified|\bsafe\b|correct|guarantee|ligtas|tama/i.test(en + tl + areaPhText('inside', 'en') + areaPhText('inside', 'tl')))
   assert.match(phFitText({ inside: 2, outside: 1, none: 3, total: 6 }, 'en'), /^Of the 6 species in the list: 2 have this pH inside their range/)
 })
+
+import { phExplain, phLineText } from './phEvidence.js'
+
+test('Phase 0 B/C: the one-line soil pH and the chip explanation say the numbers, in both languages', () => {
+  const site = { mean: 5.7, q05: 4.1, q95: 7.5 }
+  assert.equal(phLineText(site, 'square', 'en'), 'Soil pH (estimated): 5.7, range 4.1–7.5 (SoilGrids, 250 m; not measured in San Mateo)')
+  assert.match(phLineText(site, 'square', 'tl'), /^pH ng lupa \(tantiya\): 5\.7, saklaw 4\.1–7\.5 \(SoilGrids, 250 m; hindi sinukat sa San Mateo\)$/)
+  assert.equal(phLineText(null, 'square', 'en'), 'No pH estimate for this square (the model has too little data there).')
+  const r = { min: 5, max: 7.5 }
+  assert.equal(phExplain('uncertain', site, r, 'en'), 'The estimate 5.7 is inside the species range 5–7.5, but the model’s uncertainty (4.1–7.5) reaches below it. Display only: it is not part of the score or the order.')
+  assert.match(phExplain('uncertain', { mean: 8, q05: 4, q95: 9.5 }, r, 'en'), /outside the species range 5–7.5, and the model’s uncertainty \(4–9.5\) reaches both below and above/)
+  assert.match(phExplain('inside', { mean: 6, q05: 5.2, q95: 7 }, r, 'en'), /lie inside the species range 5–7.5/)
+  assert.match(phExplain('outside', { mean: 4, q05: 3.5, q95: 4.5 }, r, 'en'), /lies outside the species range/)
+  assert.match(phExplain('no_value', null, r, 'en'), /No pH estimate for this square/)
+  assert.match(phExplain('no_range', site, null, 'en'), /has no pH range for this species/)
+  for (const v of ['inside', 'outside', 'outside_optimal', 'uncertain', 'no_value', 'no_range']) for (const l of ['en', 'tl']) {
+    const t = phExplain(v, site, r, l)
+    assert.ok(t.length > 20 && !/[{}]/.test(t) && !/verified|\bsafe\b|guarantee/i.test(t), `${v} ${l}`)
+  }
+  assert.match(phExplain('uncertain', site, r, 'tl'), /umaabot sa ibaba nito ang duda ng modelo \(4\.1–7\.5\)/)
+})

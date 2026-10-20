@@ -169,3 +169,25 @@ export function phFitCounts(value, speciesIds, all) {
 export function phFitText(c, lang = getLang()) {
   return tr('ph.fit', { total: c.total, inside: c.inside, outside: c.outside, none: c.none }, lang)
 }
+
+// The one-line soil pH of a place or an area, for the "Land details" and the area result: "Soil pH (estimated): 5.7, range 4.1–7.5 (SoilGrids, 250 m; not measured in San Mateo)". Display only.
+export function phLineText(ph, scope = 'square', lang = getLang()) {
+  if (!ph) return tr(scope === 'area' ? 'ph.none.area' : 'ph.none.square', {}, lang)
+  return tr(scope === 'area' ? 'ph.line.area' : 'ph.line.square', { mean: f1(ph.mean), lo: f1(ph.q05), hi: f1(ph.q95) }, lang)
+}
+
+// What a species pH chip means, with the numbers. site = {mean, q05, q95} (the estimate of the square or area) or null; range = {min, max} of the species (project species dataset) or null.
+// verdict = the code the service sent (inside | outside | outside_optimal | uncertain | no_value | no_range | no_confirmed_range). Display only.
+export function phExplain(verdict, site, range, lang = getLang()) {
+  const t = (k, p) => tr(k, p, lang)
+  const tail = ` ${t('ph.explain.tail')}`
+  if (verdict === 'no_value' || !site) return t('ph.explain.no_value') + tail
+  if (verdict === 'no_range' || verdict === 'no_confirmed_range' || !range) return t('ph.explain.no_range') + tail
+  const p = { mean: f1(site.mean), lo: f1(site.q05), hi: f1(site.q95), smin: f1(range.min), smax: f1(range.max) }
+  if (verdict === 'inside' || verdict === 'outside' || verdict === 'outside_optimal') return t(`ph.explain.${verdict}`, p) + tail
+  const inside = site.mean >= range.min && site.mean <= range.max
+  const below = site.q05 < range.min
+  const above = site.q95 > range.max
+  const side = below && above ? 'both' : below ? 'below' : 'above'
+  return t(`ph.explain.uncertain.${side}`, { ...p, where: t(inside ? 'ph.explain.where.in' : 'ph.explain.where.out'), conn: t(inside ? 'ph.explain.conn.in' : 'ph.explain.conn.out') }) + tail
+}

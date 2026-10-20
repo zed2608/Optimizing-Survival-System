@@ -17,17 +17,15 @@ import SeasonBadge from './SeasonBadge.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
 import FieldStatusLine from './FieldStatusLine.jsx'
 import PhSiteCard from './PhSiteCard.jsx'
-import { areaPhText } from './phEvidence.js'
-import { useLang } from './i18n.js'
+import PhChip from './PhChip.jsx'
+import { useApi } from '../v2/useApi.js'
 import ViableSuggestion from './ViableSuggestion.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import WhyNone from './WhyNone.jsx'
 
 // One species of the compact list: rank, name (opens the species card), score chip, short season badge, and ONE "Details" disclosure
 // (open from the start in the Full view).
-function ResultRow({ item, point, onInfo, full }) {
-  const lang = useLang()
-  const phText = areaPhText(item.ph_verdict, lang)
+function ResultRow({ item, point, onInfo, full, ranges }) {
   return (
     <li className={`nw-prow level-${wLevel(item.W, item.eligible)}`}>
       <div className="nw-prow-main">
@@ -41,11 +39,7 @@ function ResultRow({ item, point, onInfo, full }) {
         {full ? <ScoreChip w={item.W} eligible={item.eligible} /> : <MatchChip w={item.W} eligible={item.eligible} />}
         <SeasonBadge season={item.season} strip={false} best={false} />
       </div>
-      {phText && (
-        <p className="nw-prow-ph muted" data-role="row-ph" data-verdict={item.ph_verdict}>
-          {phText}
-        </p>
-      )}
+      <PhChip verdict={item.ph_verdict} speciesId={item.species_id} site={point.site_ph ?? null} ranges={ranges} />
       {item.eligible && item.flags?.includes('slope_graded') && (
         <p className="nw-prow-caution" data-caution="slope">
           <Icon name="mountain" size={14} /> {SLOPE_CAUTION}
@@ -77,11 +71,13 @@ function VerdictCard({ ranking, leftOut, preferId = null }) {
 
 // The point panel: 1 where this is (header card), 2 the field check card, 3 (goal "I have species") your chosen species here, 4 the best species as a compact list.
 export default function PointPanel({
-  rank, purpose, win, today, barangay, searched, pointId, fieldApi, viable, onFindViable, onGo, seasonNote, onInfo,
+  rank, purpose, barangay, searched, pointId, fieldApi, viable, onFindViable, onGo, seasonNote, onInfo,
   view, onView, chosen, selIds, combine, onlySeason, planBlock = null, onOpenFieldMenu = () => {},
 }) {
   const [show, setShow] = useState(5)
   const full = view === 'full'
+  const phApi = useApi('/species-ph-reference')
+  const phRanges = phApi.status === 'ok' && phApi.data?.available ? phApi.data.species : null
 
   if (rank.status === 'idle') {
     return (
@@ -120,7 +116,7 @@ export default function PointPanel({
   return (
     <div className="nw-ppanel">
       <ViewSwitch value={view} onChange={onView} />
-      <LocationCard afterTitle={<PhSiteCard ph={point.site_ph ?? null} scope="square" speciesIds={ranking.filter((r) => r.eligible).map((r) => r.species_id)} />} full={full} zoneCondition={point.zone_condition ?? ''} soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
+      <LocationCard phLine={<PhSiteCard ph={point.site_ph ?? null} scope="square" speciesIds={ranking.filter((r) => r.eligible).map((r) => r.species_id)} />} full={full} zoneCondition={point.zone_condition ?? ''} soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} searched={searched} />
       <VerdictCard ranking={ranking} leftOut={leftOut} preferId={planBlock ? planBlock.item.species_id : null} />
       {planBlock && (
         <section className="nw-pcard nw-blockcard" aria-label="Planting block">
@@ -165,7 +161,7 @@ export default function PointPanel({
         )}
         <ol className={`nw-plist ${leftOut ? 'is-greyed' : ''}`} aria-label={`Best species for ${purposeLabel(purpose)}`}>
           {shown.map((item) => (
-            <ResultRow key={`${item.species_id}|${full}`} item={item} point={point} onInfo={onInfo} full={full} />
+            <ResultRow key={`${item.species_id}|${full}`} item={item} point={point} onInfo={onInfo} full={full} ranges={phRanges} />
           ))}
         </ol>
         {ranking.length > 5 && (
