@@ -3086,6 +3086,27 @@ class AreaRankRequest(BaseModel):
     n_saplings: int = Field(API_CFG["area_mix_saplings"], ge=1, le=API_CFG["plan_max_saplings"], description="saplings the suggested mix is worked out for")
 
 
+def area_ph(d, point_ids):
+    """The SoilGrids pH of an area for the display of the species list: the middle (median) of the squares' means, Q0.05 and Q0.95 over the squares that have a value (a model estimate, not measured).
+    None when the file is missing or no square of the area has a value. Never read by a score or a ranking."""
+    rows = [d.soil_ph[int(p)] for p in point_ids if int(p) in d.soil_ph and d.soil_ph[int(p)]["mean"] is not None and d.soil_ph[int(p)]["q05"] is not None and d.soil_ph[int(p)]["q95"] is not None]
+    if not rows:
+        return None
+    med = sgph._median
+    return {"n_squares": len(rows), "n_total": int(len(point_ids)), "mean": round(med([r["mean"] for r in rows]), 2), "q05": round(med([r["q05"] for r in rows]), 2), "q95": round(med([r["q95"] for r in rows]), 2),
+            "source": sgph.ATTRIBUTION, "note": "Model estimate (SoilGrids 2.0, 250 m), not measured in San Mateo. Display only: not part of the score."}
+
+
+def species_ph_verdict(ph, species_id):
+    """The pH verdict of one species for an area (the codes of soilgrids_ph.compare_interval); 'no_confirmed_range' when the species has none, 'no_value' when the area has no estimate."""
+    lo, hi, kind = spe.verdict_range(species_id)
+    if kind == "none":
+        return "no_confirmed_range"
+    if ph is None:
+        return "no_value"
+    return sgph.compare_interval(ph["q05"], ph["q95"], lo, hi, kind)
+
+
 @app.post("/rank/area")
 def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
     """Species ranked for a whole area (a barangay, a zone or a drawn polygon) plus the suggested mix with shares from the palette code."""
@@ -3113,6 +3134,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
     if drop:                                                           # season_filter=only: out-of-season species are not ranked (the scores are untouched)
         suitable = suitable[~suitable.species_id.isin(drop)]
     conf = area_mean_confidence(d, ctx.sites.point_id.to_numpy()[idx])
+    ph_area = area_ph(d, ctx.sites.point_id.to_numpy()[idx])           # display only: SoilGrids pH of the area against each species' reference range; no score or rank reads it
     rows, ids = [], set()
     for rnk, r in enumerate(suitable.head(req.limit).itertuples(index=False), 1):
         sid = int(r.species_id)
@@ -3129,7 +3151,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
                      "share_of_area_suitable": round(float(r.eligible_share), 4), "P": round(float(P[k]), 4),
                      "p_confidence": py(d.ps_by_key[(sid, req.purpose)].confidence) if py(d.ps_by_key[(sid, req.purpose)].confidence) is not None else miss,
                      "mean_site_confidence": round(float(mc), 4) if mc is not None else miss, "flags": flags,
-                     "source_ids": {"site_score": s_ids, "purpose_score": p_ids}})
+                     "source_ids": {"site_score": s_ids, "purpose_score": p_ids}, "ph_verdict": species_ph_verdict(ph_area, sid)})
     keep_k = [k for k, sid_ in enumerate(ctx.species.species_id.astype(int)) if sid_ not in drop]
     if not keep_k or suitable.empty:
         pal_res = {"species_id": [], "common_name": [], "share": [], "quota": [], "score": [], "needs_both_sexes": [], "common_months": [], "dioecious_rejected": [],
@@ -3149,7 +3171,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
             r_["season"] = season_object(d.species_months[d.species_idx[r_["species_id"]]], season)
         if mix and not [m for m in season.months if m in pal_res["common_months"]]:
             pal_res["warnings"] = list(pal_res["warnings"]) + ["season: the species of this mix do not share a planting month inside the window"]
-    out = {"purpose": req.purpose, "area": {**info, "legal_points": int(len(idx)), "points_with_a_suitable_species": any_suitable},
+    out = {"purpose": req.purpose, "area": {**info, "legal_points": int(len(idx)), "points_with_a_suitable_species": any_suitable, "ph": ph_area},
             "species_total": int(len(ctx.species)), "species_with_suitable_points": int(len(suitable)), "returned": len(rows), "ranking": rows,
             "mix": {"n_saplings": req.n_saplings, "species": mix, "common_planting_months": pal_res["common_months"], "warnings": pal_res["warnings"],
                     "dioecious_left_out": pal_res["dioecious_rejected"],

@@ -118,3 +118,24 @@ export function planPhSummary(speciesIds, all) {
     },
   }
 }
+
+// The pH verdict of one species for an AREA (from POST /rank/area: ph_verdict), one short line for the species list. Display only: it never changes a score or the order.
+const AREA_PH = {
+  inside: 'pH: nasa saklaw (ayon sa modelo)',
+  outside: 'pH: labas sa saklaw',
+  outside_optimal: 'pH: labas sa pinakamainam na saklaw',
+  uncertain: 'pH: hindi tiyak',
+  no_value: 'pH: walang estimate sa lugar na ito',
+  no_confirmed_range: 'pH: walang nakumpirmang range ang species',
+  no_range: 'pH: walang nakumpirmang range ang species',
+}
+export function areaPhText(code) {
+  return AREA_PH[code] ?? null
+}
+
+// One line about the area's own pH estimate (r.area.ph of POST /rank/area), or null when there is none.
+export function areaPhSummary(ph) {
+  if (!ph) return 'Walang pH estimate para sa lugar na ito (kulang ang datos ng modelo).'
+  const f = (v) => String(Math.round(Number(v) * 10) / 10)
+  return `pH ng lugar: mga ${f(ph.mean)} (posibleng ${f(ph.q05)}–${f(ph.q95)}). Estimate ng modelo (SoilGrids), hindi sinukat sa San Mateo. Hindi ito kasama sa score o sa pagkakasunod-sunod.`
+}

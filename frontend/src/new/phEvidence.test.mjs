@@ -64,3 +64,13 @@ test('wording never claims verification', () => {
   for (const w of ['kinumpirma', 'ligtas', ' tama', 'safe']) assert.ok(!blob.includes(w), w)
   assert.ok(!/(?<!not yet |hindi pa )verified/.test(blob))
 })
+
+import { areaPhSummary, areaPhText } from './phEvidence.js'
+
+test('area pH lines: a text for every verdict code the service sends, and the area summary', () => {
+  for (const c of ['inside', 'outside', 'outside_optimal', 'uncertain', 'no_value', 'no_confirmed_range', 'no_range']) assert.match(areaPhText(c), /^pH: /)
+  assert.equal(areaPhText('nonsense'), null)
+  assert.match(areaPhSummary({ mean: 5.75, q05: 4.25, q95: 7.5 }), /mga 5\.8 \(posibleng 4\.3–7\.5\).*hindi sinukat/)
+  assert.match(areaPhSummary(null), /Walang pH estimate/)
+  assert.ok(!/verified|ligtas|tama/i.test(areaPhText('inside') + areaPhSummary(null)))
+})

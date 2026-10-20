@@ -10,6 +10,7 @@ import ColorLegend from '../v2/components/ColorLegend.jsx'
 import HelpTip from './HelpTip.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
+import { areaPhSummary, areaPhText } from './phEvidence.js'
 import SeasonBadge from './SeasonBadge.jsx'
 import SeasonNotice from './SeasonNotice.jsx'
 import SourceGroup from './SourceGroup.jsx'
@@ -86,6 +87,9 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
             Mas maliit ang iginuhit na lugar kaysa sa isang square (walang gitna ng square sa loob), kaya ginamit ang mga square na tinatamaan nito. Hindi nagbabago ang score ng square.
           </p>
         )}
+        <p className="muted" data-role="area-ph-summary">
+          {areaPhSummary(r.area.ph)}
+        </p>
         {r.area.not_plantable_points === 0 && <p className="muted">No point of this area is marked not plantable in the field.</p>}
 
         {sb && r.ranking.length === 0 && sb.removed > 0 && (
@@ -145,6 +149,11 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
                 {full ? <ScoreChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average score W where suitable" /> : <MatchChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average match where suitable" />}
                 <SeasonBadge season={s.season} strip={false} best={false} />
               </div>
+              {areaPhText(s.ph_verdict) && (
+                <div className="muted nw-areaph" data-role="area-ph" data-verdict={s.ph_verdict}>
+                  {areaPhText(s.ph_verdict)}
+                </div>
+              )}
               <details className="nw-pdetails" open={full || undefined}>
                 <summary>
                   Details<span className="sr-only"> for {s.common_name}</span>

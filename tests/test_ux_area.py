@@ -63,3 +63,22 @@ def test_area_that_touches_no_square_is_still_refused_with_the_plain_message(cli
     assert r.status_code == 400 and "no legal-zone grid points" in r.json()["detail"]
     p = client.post("/plan-event/preview", json={"purpose": "urban", "n_saplings": 10, "polygon": far})
     assert p.status_code in (200, 400)
+
+
+def test_area_species_list_carries_a_ph_verdict_and_changes_no_score(client):
+    d = client.app.state.data
+    sites = d.ctx.sites
+    have = sites[[bool(d.soil_ph.get(int(p), {}).get("mean")) for p in sites.point_id]]            # a square that has a SoilGrids value (650 squares have none)
+    a = have.iloc[len(have) // 2]
+    big = square(float(a.lon), float(a.lat), 400.0)
+    r = client.post("/rank/area", json={"purpose": "urban", "polygon": big, "limit": 45}).json()
+    ph = r["area"]["ph"]
+    assert ph and ph["n_squares"] > 0 and ph["q05"] <= ph["q95"] and "not measured" in ph["note"]
+    allowed = {"inside", "outside", "outside_optimal", "uncertain", "no_value", "no_confirmed_range", "no_range"}
+    assert r["ranking"] and all(x["ph_verdict"] in allowed for x in r["ranking"])
+    none_ids = {3, 4, 8, 9, 10, 11, 21, 23, 32, 33, 34, 35, 37, 40, 42, 44}         # no confirmed pH range (evidence file)
+    assert all(x["ph_verdict"] == "no_confirmed_range" for x in r["ranking"] if x["species_id"] in none_ids)
+    assert any(x["ph_verdict"] != "no_confirmed_range" for x in r["ranking"])
+    # the ranking itself is the same as the scores say: rank order = descending species_score (nothing re-sorted by pH)
+    scores = [x["species_score"] for x in r["ranking"]]
+    assert scores == sorted(scores, reverse=True)
