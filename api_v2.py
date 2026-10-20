@@ -3086,6 +3086,59 @@ class AreaRankRequest(BaseModel):
     n_saplings: int = Field(API_CFG["area_mix_saplings"], ge=1, le=API_CFG["plan_max_saplings"], description="saplings the suggested mix is worked out for")
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Companion species (UX 12). A suggestion that comes ONLY from the land: species whose suitable squares (S >= 0.50) cover at least COMPANION_CFG["min_overlap_share"] of the squares where the main
+# species is suitable, inside the chosen area (or the whole municipality). It says nothing about roots, canopy, shade or any ecological fit. PROVISIONAL settings; no score is changed.
+# ---------------------------------------------------------------------------------------------------------------------
+COMPANION_CFG = {"min_overlap_share": 0.5, "limit": 12}
+COMPANION_NOTE = "Batay lang ito sa parehong angkop na lugar. Hindi pa kasama ang laki ng canopy, ugat o lilim."
+
+
+class CompanionRequest(BaseModel):
+    species_id: int
+    purpose: Purpose
+    polygon: Optional[dict] = Field(None, description="GeoJSON Polygon / MultiPolygon (or a Feature holding one), lon/lat")
+    barangay: Optional[str] = None
+    zone: Optional[str] = None
+
+
+@app.post("/companions")
+def companions(req: CompanionRequest, q_season=Depends(season_q), d=Depends(HD)):
+    """Species that are suitable on the same squares as a main species (see COMPANION_CFG). Same-genus species are left out (they would share the genus limit of a mix). Display only."""
+    ctx = d.ctx
+    k_main = d.species_idx.get(req.species_id)
+    if k_main is None:
+        raise HTTPException(404, f"species_id {req.species_id} not found")
+    given = [k for k in ("polygon", "barangay", "zone") if getattr(req, k) is not None]
+    if given:
+        mask, info = resolve_area(d, req)
+    else:
+        mask, info = np.ones(len(ctx.sites), dtype=bool), {"type": "municipality", "name": "San Mateo", "display_name": "Buong bayan ng San Mateo"}
+    mask = mask & ~d.ex_mask
+    idx = np.where(mask)[0]
+    elig = ctx.S[idx] >= mt.CFG["s_min"]
+    e_main = elig[:, k_main]
+    n_main = int(e_main.sum())
+    if n_main == 0:
+        raise HTTPException(400, f"{ctx.species.common_name.iloc[k_main]} is not suitable (S >= 0.50) on any square of this area, so there is nothing to suggest.")
+    drop = set(season_drop_ids(d, q_season))
+    genus_main = str(ctx.species.genus.iloc[k_main])
+    rows = []
+    for k in range(len(ctx.species)):
+        sid = int(ctx.species.species_id.iloc[k])
+        if k == k_main or sid in drop or str(ctx.species.genus.iloc[k]) == genus_main:
+            continue
+        shared = int((e_main & elig[:, k]).sum())
+        share = shared / n_main
+        if share >= COMPANION_CFG["min_overlap_share"]:
+            rows.append({"species_id": sid, "common_name": str(ctx.species.common_name.iloc[k]), "genus": str(ctx.species.genus.iloc[k]), "shared_squares": shared, "share_of_main_squares": round(share, 4)})
+    rows.sort(key=lambda r: (-r["share_of_main_squares"], r["common_name"]))
+    return {"main": {"species_id": req.species_id, "common_name": str(ctx.species.common_name.iloc[k_main]), "genus": genus_main, "suitable_squares": n_main},
+            "area": {**info, "squares": int(len(idx))}, "companions": rows[:COMPANION_CFG["limit"]], "n_companions": len(rows),
+            "rule": f"Species whose suitable squares cover at least {int(COMPANION_CFG['min_overlap_share'] * 100)}% of the squares where {ctx.species.common_name.iloc[k_main]} is suitable; same genus left out.",
+            "note": COMPANION_NOTE, "provisional": True, "scored": False}
+
+
 def area_ph(d, point_ids):
     """The SoilGrids pH of an area for the display of the species list: the middle (median) of the squares' means, Q0.05 and Q0.95 over the squares that have a value (a model estimate, not measured).
     None when the file is missing or no square of the area has a value. Never read by a score or a ranking."""
