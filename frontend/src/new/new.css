@@ -981,3 +981,7 @@ a.nw-btn-big { background: var(--nw-tint, #eef2f6); color: #0f172a; border: 1px 
 
 /* the Filipino line under the English one in the pH components (same look as under .nw-climate and .nw-plink) */
 .nw-fact[data-row="ph-evidence"] .nw-fil, .nw-ph-tool .nw-fil, [data-section="plan-ph"] .nw-fil, [data-role="unmatched-source"] .nw-fil { display: block; font-size: 12px; font-weight: 400; opacity: 0.8; }
+
+/* UX fix 1: the open list of a select that uses .nw-input (the trait filter) had white text on the browser's white list in a light theme. Same colours as .nw-select, set for the closed box and every option. */
+select.nw-input { background: rgba(15, 23, 42, 0.9); color: #f8fafc; color-scheme: dark; }
+select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #f8fafc; }
