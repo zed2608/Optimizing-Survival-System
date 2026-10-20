@@ -856,7 +856,7 @@ export default function AppNew() {
               includeUnzoned={includeUnzoned}
             />
           ) : (
-            <AnalyticsPanel includeUnzoned={includeUnzoned} />
+            <AnalyticsPanel />
           )}
         </section>
       )}

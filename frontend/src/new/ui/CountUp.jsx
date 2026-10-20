@@ -20,5 +20,6 @@ export default function CountUp({ value, ms = 600 }) {
     frame.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame.current)
   }, [n, plain, reduce, ms, value])
-  return <span data-count-to={plain ? n : undefined}>{plain && !reduce ? shown : value}</span>
+  const text = plain && !reduce ? shown : value
+  return <span data-count-to={plain ? n : undefined}>{typeof text === 'number' && Number.isInteger(text) ? text.toLocaleString('en-US') : text}</span>
 }

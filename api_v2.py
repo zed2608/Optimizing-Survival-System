@@ -30,6 +30,7 @@ from scipy.spatial import cKDTree
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "pipeline"))
 import advisory as adv  # noqa: E402
+import analytics as an  # noqa: E402  (System Analytics: counts of what exists, nothing forecast)
 import advice as sva  # noqa: E402  (ways to improve survival: advice only, no score is touched)
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
@@ -3428,6 +3429,144 @@ def field_check_add(req: FieldCheckIn, d=Depends(D)):
                        "Saved. This does not change any score." if req.status == "verified_plantable" else
                        f"Saved: {req.trees_planted} trees planted in this block (plan {req.plan_id})." if req.status == "planted" else "Saved."),
             "limits": FIELD_LIMITS[:1]}
+
+
+@app.get("/analytics/summary")
+def analytics_summary(barangay: Optional[str] = Query(None, description="only this barangay"), species_id: Optional[int] = Query(None, description="only this species"),
+                      date_from: Optional[str] = Query(None, alias="from", description="YYYY-MM-DD: activity from this day"), date_to: Optional[str] = Query(None, alias="to", description="YYYY-MM-DD: activity up to this day"),
+                      d=Depends(D)):
+    """Read-only counts for the System Analytics tab. Everything is counted from data that already exists (the saved scores, the SoilGrids estimates, the saved plans and field checks); nothing is forecast
+    (forecasting needs survival records, which do not exist yet) and no score, rank or plan reads any of it. The barangay and species filters narrow the suitability and pH charts and the planned-versus-planted
+    tables; the dates narrow the activity by week (field checks carry no species, so the species filter does not apply to them)."""
+    ctx = d.ctx
+    n_sites, n_sp = ctx.S.shape
+    b_idx = None
+    if barangay:
+        b_idx = find_barangay(d, barangay)
+        if b_idx is None:
+            raise HTTPException(400, f"Unknown barangay '{barangay}'.")
+    k_sel = None
+    if species_id is not None:
+        k_sel = d.species_idx.get(species_id)
+        if k_sel is None:
+            raise HTTPException(404, f"species_id {species_id} not found")
+    d_from, d_to = an.parse_day(date_from), an.parse_day(date_to)
+    if d_from is False or d_to is False:
+        raise HTTPException(422, "from and to must be dates written YYYY-MM-DD.")
+    if d_from and d_to and d_to < d_from:
+        raise HTTPException(422, "The end date is before the start date.")
+
+    def in_range(iso):
+        day = str(iso)[:10]
+        return not ((d_from and day < d_from.isoformat()) or (d_to and day > d_to.isoformat()))
+
+    rows = np.ones(n_sites, dtype=bool) if b_idx is None else (d.point_barangay == b_idx)
+    cols = list(range(n_sp)) if k_sel is None else [k_sel]
+    S = ctx.S[np.ix_(np.where(rows)[0], cols)]
+    ok = S >= mt.CFG["s_min"]
+    names = ctx.species.common_name.tolist()
+    ids = ctx.species.species_id.astype(int).tolist()
+    # --- suitability
+    per_species = [{"species_id": ids[k], "name": names[k], "suitable_squares": int((ctx.S[rows, k] >= mt.CFG["s_min"]).sum())} for k in cols]
+    per_barangay = []
+    for b, (nm, disp) in enumerate(zip(d.barangay_names, d.barangay_display)):
+        m = d.point_barangay == b
+        sub = ctx.S[m][:, cols] if m.any() else np.zeros((0, len(cols)))
+        per_barangay.append({"barangay": nm, "display_name": disp, "squares": int(m.sum()), "suitable_squares": int((sub >= mt.CFG["s_min"]).any(axis=1).sum()) if len(sub) else 0})
+    # --- pH (display only)
+    pts = ctx.sites.point_id.astype(int).to_numpy()[rows]
+
+    def ph_of(key):
+        return np.array([d.soil_ph[p][key] if p in d.soil_ph and d.soil_ph[p][key] is not None else np.nan for p in pts], dtype=float)
+
+    q05, q95, mean = ph_of("q05"), ph_of("q95"), ph_of("mean")
+    vtot = {}
+    for k in cols:
+        lo, hi, _kind = spe.working_range(ids[k])
+        for code_, n in an.verdict_counts(q05, q95, lo, hi).items():
+            vtot[code_] = vtot.get(code_, 0) + n
+    # --- land
+    ap = d.all_points
+    am = np.ones(len(ap), dtype=bool) if b_idx is None else (d.allpt_barangay == b_idx)
+    zone = ap.zone_desc[am]
+    zones = zone.fillna("(outside the zoning map)").astype(str).value_counts()
+    no_soil = int(ap["soil_texture_lgu"][am].isna().sum()) if "soil_texture_lgu" in ap.columns else None
+    zstat = ap.zoning_status[am].value_counts().to_dict() if "zoning_status" in ap.columns else {}
+    # --- saved plans and field checks
+    week = {}
+    n_plans, trees_planned_total = 0, 0
+    pv_b, pv_s = {}, {}
+    root = plans_dir(d)
+    files = sorted(root.glob("plan_*_summary.json"), reverse=True)[:100] if root.is_dir() else []
+    for sj in files:
+        plan_id = sj.name[:-len("_summary.json")]
+        if not valid_plan_id(plan_id) or not (root / f"{plan_id}.csv").is_file():
+            continue
+        try:
+            summ = json.loads(sj.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            continue
+        m_ = re.search(r"_(\d{8})_(\d{6})", plan_id)
+        when = datetime.strptime(m_.group(1) + m_.group(2), "%Y%m%d%H%M%S").isoformat() if m_ else datetime.fromtimestamp(sj.stat().st_mtime).isoformat(timespec="seconds")
+        if not in_range(when):
+            continue
+        placed = int(summ.get("saplings_placed") or 0)
+        n_plans += 1
+        trees_planned_total += placed
+        w = an.week_start(when)
+        e = week.setdefault(w, {"week": w, "plans": 0, "trees_planned": 0, "field_checks": 0})
+        e["plans"] += 1
+        e["trees_planned"] += placed
+        try:
+            plan_df, _ = load_plan(d, plan_id)
+            if not fv.is_blocks_plan(plan_df):
+                continue
+            for blk in block_progress(d, plan_id, plan_df):
+                bn = barangay_display_of(d, blk["point_id"]) or "(outside the barangay outlines)"
+                if b_idx is not None and bn != d.barangay_display[b_idx]:
+                    continue
+                if species_id is not None and blk["species_id"] != species_id:
+                    continue
+                for tbl, key in ((pv_b, bn), (pv_s, blk["species"])):
+                    t = tbl.setdefault(key, {"name": key, "planned": 0, "planted": 0})
+                    t["planned"] += blk["trees_planned"]
+                    t["planted"] += blk["trees_planted"]
+        except (HTTPException, OSError, ValueError, KeyError):
+            continue
+    by_status, n_events = {}, 0
+    try:
+        con = sqlite3.connect(f"file:{d.field_db}?mode=ro", uri=True)
+        try:
+            ev = con.execute("SELECT created_at, status, point_id FROM field_checks").fetchall()
+        finally:
+            con.close()
+    except sqlite3.Error:
+        ev = []
+    for created, status, pid in ev:
+        if not in_range(created):
+            continue
+        if b_idx is not None and barangay_display_of(d, pid) != d.barangay_display[b_idx]:
+            continue
+        n_events += 1
+        by_status[status] = by_status.get(status, 0) + 1
+        w = an.week_start(created)
+        e = week.setdefault(w, {"week": w, "plans": 0, "trees_planned": 0, "field_checks": 0})
+        e["field_checks"] += 1
+    cur = fv.summary(d.field_current, lambda pid: barangay_display_of(d, pid))
+    return {
+        "filters": {"barangay": None if b_idx is None else d.barangay_names[b_idx], "species_id": species_id, "from": d_from.isoformat() if d_from else None, "to": d_to.isoformat() if d_to else None},
+        "kpi": {"squares_scored": int(rows.sum()), "species": len(cols), "suitable_squares": int(ok.any(axis=1).sum()), "plans": n_plans, "trees_planned": trees_planned_total,
+                "field_checks_current": cur["by_status"], "field_check_events": n_events, "field_check_events_by_status": by_status},
+        "suitability": {"histogram": an.histogram(S.ravel(), an.S_EDGES, zero_separate=True), "threshold": mt.CFG["s_min"], "per_species": sorted(per_species, key=lambda x: -x["suitable_squares"]), "per_barangay": per_barangay,
+                        "note": "S is the site suitability after the Random Forest (or the rules). A pair with S = 0 failed a hard limit."},
+        "ph": {"histogram": an.histogram(mean, an.PH_EDGES), "squares_with_estimate": int((~np.isnan(mean)).sum()), "squares_without_estimate": int(np.isnan(mean).sum()), "verdicts": vtot,
+               "note": "SoilGrids estimate (250 m), not measured in San Mateo; species ranges from the project species dataset. Display only: no score reads it."},
+        "land": {"zones": [{"zone": k, "squares": int(v)} for k, v in zones.items()], "outside_zoning_map": int(zone.isna().sum()), "zoning_status": {str(k): int(v) for k, v in zstat.items()}, "no_soil_data": no_soil, "total_squares": int(am.sum())},
+        "activity": {"by_week": [week[k] for k in sorted(k for k in week if k)], "note": "Counted from the saved plans (newest 100) and the saved field checks (events)."},
+        "planned_vs_planted": {"by_barangay": sorted(pv_b.values(), key=lambda x: -x["planned"]), "by_species": sorted(pv_s.values(), key=lambda x: -x["planned"]),
+                               "note": "Trees planned in blocks plans against the trees field teams marked planted (latest event of each block)."},
+        "forecast_note": "No forecast is shown: forecasting needs survival records, which do not exist yet.",
+    }
 
 
 @app.get("/field-checks/summary")
