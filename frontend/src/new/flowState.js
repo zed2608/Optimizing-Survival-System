@@ -1,30 +1,26 @@
-// The four steps of the goal "I have species": what each one needs before "Next", and the short summary of a finished step (UX round 4). Pure (tested in flowState.test.mjs). Filipino first.
-export const STEP_TITLES = ['Piliin ang species', 'Saan hahanapin', 'Markahan sa mapa', 'Gumawa ng plano']
+// The four steps of the goal "I have species": what each one needs before "Next", and the short summary of a finished step (UX round 4). Pure (tested in flowState.test.mjs). English or Taglish (the last argument, default the page language).
+import { getLang, tr } from './i18n.js'
 
-const short = (names) => (names.length <= 2 ? names.join(', ') : `${names.slice(0, 2).join(', ')} at ${names.length - 2} pa`)
+export const stepTitle = (n, lang = getLang()) => tr(`flow.step${n}`, {}, lang)
 
 // ctx = { selNames: [names of the chosen species], where: {kind: all|barangay|zone, name}, whereLabel, planAreaLabel (text of the area the plan will use, '' when none), planCreated }
-export function flowSteps(ctx) {
+export function flowSteps(ctx, lang = getLang()) {
+  const t = (k, p) => tr(k, p, lang)
+  const short = (names) => (names.length <= 2 ? names.join(', ') : t('flow.sum.more', { names: names.slice(0, 2).join(', '), n: names.length - 2 }))
   const speciesDone = ctx.selNames.length > 0
   const whereDone = ctx.where.kind === 'all' || !!ctx.where.name
   const areaDone = !!ctx.planAreaLabel
   return [
-    { n: 1, title: STEP_TITLES[0], done: speciesDone, summary: speciesDone ? short(ctx.selNames) : '', requirement: speciesDone ? '' : 'Pumili muna ng kahit isang species.' },
+    { n: 1, title: t('flow.step1'), done: speciesDone, summary: speciesDone ? short(ctx.selNames) : '', requirement: speciesDone ? '' : t('flow.req.species') },
     {
       n: 2,
-      title: STEP_TITLES[1],
+      title: t('flow.step2'),
       done: whereDone,
-      summary: whereDone ? (ctx.where.kind === 'all' ? 'Buong San Mateo' : ctx.whereLabel || ctx.where.name) : '',
-      requirement: whereDone ? '' : ctx.where.kind === 'barangay' ? 'Pumili ng barangay, o piliin ang Buong San Mateo.' : 'Pumili ng zone, o piliin ang Buong San Mateo.',
+      summary: whereDone ? (ctx.where.kind === 'all' ? t('flow.sum.all') : ctx.whereLabel || ctx.where.name) : '',
+      requirement: whereDone ? '' : ctx.where.kind === 'barangay' ? t('flow.req.barangay') : t('flow.req.zone'),
     },
-    {
-      n: 3,
-      title: STEP_TITLES[2],
-      done: areaDone,
-      summary: areaDone ? ctx.planAreaLabel : '',
-      requirement: areaDone ? '' : 'Pumili ng lugar para sa plano: markahan ito sa mapa (isang puntos o tatlo o higit pa para sa area), o pumili ng barangay o zone sa Hakbang 2.',
-    },
-    { n: 4, title: STEP_TITLES[3], done: !!ctx.planCreated, summary: ctx.planCreated ? 'Nagawa na ang plano' : '', requirement: '' },
+    { n: 3, title: t('flow.step3'), done: areaDone, summary: areaDone ? ctx.planAreaLabel : '', requirement: areaDone ? '' : t('flow.req.area') },
+    { n: 4, title: t('flow.step4'), done: !!ctx.planCreated, summary: ctx.planCreated ? t('flow.sum.created') : '', requirement: '' },
   ]
 }
 

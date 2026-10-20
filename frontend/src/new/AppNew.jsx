@@ -16,6 +16,7 @@ import AreasPanel from './AreasPanel.jsx'
 import { decodeFieldCode, STATUS_LABEL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
 import { continueState, describeArea, diagnosticText, geometryHectares, haText } from './areaInfo.js'
+import { LANGS, setLang, tr, useLang } from './i18n.js'
 import FieldMenu from './FieldMenu.jsx'
 import { menuLines } from './pointMenu.js'
 import { PURPOSE_SHORT } from './labelsNew.js'
@@ -85,6 +86,7 @@ export default function AppNew() {
   const [combine, setCombine] = useState('all') // mode 1: 'all' | 'any'
   const [rowActive, setRowActive] = useState(null) // mode 1: the clicked table row {kind, name}
   const [planPrefill, setPlanPrefill] = useState(null)
+  const lang = useLang()
   const [tool, setTool] = useState('point') // mode 2: 'point' | 'barangay' | 'draw'
   const [area, setArea] = useState(null) // mode 2: {kind:'barangay'|'zone', name} | {kind:'polygon', geometry}
   const [draft, setDraft] = useState([]) // mode 2: corners of the shape being drawn, [lat, lon]
@@ -309,7 +311,7 @@ export default function AppNew() {
     if (mode === 'species' && speciesSub === 3) {
       // Markahan sa mapa: one click is a point (the point panel opens); three or more clicks and "Tapusin" make an area
       if (markArea) {
-        setNotice('Naka-lock ang minarkahang lugar. Pindutin ang “Burahin lahat” para magmarka ng bago.')
+        setNotice(tr('mark.lockNotice', {}, lang))
         return
       }
       // the right card stays closed while marking, so that it never covers the map; the first click also keeps the spot, and "Tingnan ang species sa puntong ito" opens its panel
@@ -354,7 +356,7 @@ export default function AppNew() {
     }
     if (!sq) {
       setFieldMenu(null)
-      setNotice(pick.context >= 0 ? 'Hindi planting zone ang parisukat na ito, kaya walang field check.' : 'Walang parisukat sa puntong iyon.')
+      setNotice(pick.context >= 0 ? tr('notice.notPlanting', {}, lang) : tr('notice.noSquare', {}, lang))
       return
     }
     setFieldMenu({ x: pick.x, y: pick.y, pick, pointId: sq.pointId, square: sq, click: { lat: pick.lat, lon: pick.lon } })
@@ -457,7 +459,7 @@ export default function AppNew() {
 
   const hasMain = mode === 'species' ? selection : !!area
   // UX 2-5: what the Area step says about the choice, and whether Continue may be pressed (an area with no planting square blocks it)
-  const cont = continueState({ mode, area, areaRank })
+  const cont = continueState({ mode, area, areaRank, lang })
   // UX 12: one species or many (a main species and the species that can go with it on the same land)
   const chooser = (forArea) => (
     <SpeciesChooser species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} purpose={purpose} area={forArea} query={sq} how={speciesHow} onHow={setSpeciesHow} mainId={mainSpecies} onMain={setMainSpecies} />
@@ -467,10 +469,10 @@ export default function AppNew() {
   const speciesArea = markArea || (planPrefill ? { kind: planPrefill.area.kind, name: planPrefill.area.key } : whereArea)
   const diagArea = mode === 'area' ? area : speciesArea
   const diag = usePost(`/area/diagnostic?${uz}`, !diagArea ? null : diagArea.kind === 'barangay' ? { barangay: diagArea.name } : diagArea.kind === 'zone' ? { zone: diagArea.name } : { polygon: diagArea.geometry })
-  const areaSplit = diag.status === 'ok' ? diagnosticText(diag.data) : null
+  const areaSplit = diag.status === 'ok' ? diagnosticText(diag.data, lang) : null
   const areaSummary = useMemo(
-    () => (mode !== 'area' ? [] : describeArea({ tool, area, spot, barangayFeatures, zoneFeatures, squares: areaRank.status === 'ok' ? areaRank.data.area.legal_points : null, selection: areaRank.status === 'ok' ? areaRank.data.area.selection ?? null : null, split: areaSplit, ph: areaRank.status === 'ok' ? areaRank.data.area.ph ?? null : null })),
-    [mode, tool, area, spot, barangayFeatures, zoneFeatures, areaRank.status, areaRank.data, areaSplit],
+    () => (mode !== 'area' ? [] : describeArea({ tool, area, spot, barangayFeatures, zoneFeatures, squares: areaRank.status === 'ok' ? areaRank.data.area.legal_points : null, selection: areaRank.status === 'ok' ? areaRank.data.area.selection ?? null : null, split: areaSplit, ph: areaRank.status === 'ok' ? areaRank.data.area.ph ?? null : null, lang })),
+    [mode, tool, area, spot, barangayFeatures, zoneFeatures, areaRank.status, areaRank.data, areaSplit, lang],
   )
   const hasPoint = !!spot
   const hasPlanTab = !!planResult
@@ -718,11 +720,11 @@ export default function AppNew() {
           </div>
           <div className="nw-legend-sub">{legendSub}</div>
           <ColorLegend />
-          {mode === 'area' && area?.kind === 'polygon' && diag.status === 'ok' && diag.data.squares && (
+          {(mode === 'area' ? area : markArea)?.kind === 'polygon' && diag.status === 'ok' && diag.data.squares && (
             <div className="nw-legend-area" data-role="legend-area-squares">
-              <span className="nw-legend-sq is-counted" aria-hidden="true" /> Iginuhit na lugar: parisukat na binilang
+              <span className="nw-legend-sq is-counted" aria-hidden="true" /> {tr('sq.counted', {}, lang)}
               <br />
-              <span className="nw-legend-sq is-partial" aria-hidden="true" /> bahagya lang natatamaan (mas mababa sa kalahati): hindi binilang
+              <span className="nw-legend-sq is-partial" aria-hidden="true" /> {tr('sq.partial', {}, lang)}
             </div>
           )}
           {noneSuitable && (
@@ -745,7 +747,7 @@ export default function AppNew() {
               )}
             </div>
           )}
-          <div className="nw-legend-note">Bawat parisukat ay isang 100 m × 100 m na lugar sa planting zone. Ang kulay ay ang tugma ng lugar sa species; ang mga marka ng field check ay hugis lang.</div>
+          <div className="nw-legend-note">{tr('sq.note', {}, lang)}</div>
         </div>
       ) : (
         <button type="button" className="nw-legend-btn" aria-expanded="false" onClick={() => setLegendOpen(true)}>
@@ -778,6 +780,13 @@ export default function AppNew() {
           ))}
         </div>
         <div className="nw-topright">
+          <div className="nw-lang" role="group" aria-label={tr('lang.label', {}, lang)} data-role="lang-toggle">
+            {LANGS.map((l) => (
+              <button key={l} type="button" className={`nw-lang-btn ${lang === l ? 'is-active' : ''}`} aria-pressed={lang === l} lang={l === 'tl' ? 'fil' : 'en'} onClick={() => setLang(l)} data-lang={l}>
+                {tr(`lang.${l}`, {}, l)}
+              </button>
+            ))}
+          </div>
           <HelpButton onClick={() => help.openHelp()} />
           <div className="nw-pill" role="status">
             <span className={`nw-dot nw-dot-${apiState}`} aria-hidden="true" />
@@ -817,16 +826,16 @@ export default function AppNew() {
 
       {/* SIDEBAR (look copied from the earlier dashboard) */}
       {markActive && !sidebarOpen && (
-        <div className="nw-markbar" role="group" aria-label="Markahan sa mapa" data-role="mark-bar">
-          <span data-role="mark-bar-count">Puntos: {draft.length}</span>
+        <div className="nw-markbar" role="group" aria-label={tr('mark.bar.group', {}, lang)} data-role="mark-bar">
+          <span data-role="mark-bar-count">{tr('mark.bar.count', { n: draft.length }, lang)}</span>
           <button type="button" className="nw-btn nw-btn-small" disabled={draft.length === 0} onClick={() => setDraft((d) => d.slice(0, -1))}>
-            Alisin ang huli
+            {tr('mark.bar.undo', {}, lang)}
           </button>
           <button type="button" className="nw-btn nw-btn-small" disabled={draft.length === 0} onClick={clearMark}>
-            Burahin
+            {tr('mark.bar.clear', {}, lang)}
           </button>
           <button type="button" className="nw-btn nw-btn-go nw-btn-small" disabled={draft.length < 3} onClick={finishDraw} data-role="mark-bar-finish">
-            Tapusin ang area
+            {tr('mark.finish', {}, lang)}
           </button>
         </div>
       )}
@@ -922,11 +931,11 @@ export default function AppNew() {
                 barangays={barangayFeatures}
                 zones={zoneFeatures}
                 onGoPlan={() => setOpenStep('plan')}
-                planAreaLabel={planArea ? (markArea ? 'Iginuhit na area' : planAreaLabel) : ''}
+                planAreaLabel={planArea ? (markArea ? tr('flow.areaDrawn', {}, lang) : planAreaLabel) : ''}
                 planCreated={!!planResult}
                 markCount={draft.length}
                 markArea={markArea}
-                markSummary={markArea ? [`Sukat: ${haText(geometryHectares(markArea.geometry))}`, areaSplit].filter(Boolean) : []}
+                markSummary={markArea ? [tr('mark.size', { ha: haText(geometryHectares(markArea.geometry), lang) }, lang), areaSplit].filter(Boolean) : []}
                 onFinishMark={finishDraw}
                 onUndoMark={() => setDraft((d) => d.slice(0, -1))}
                 onClearMark={clearMark}

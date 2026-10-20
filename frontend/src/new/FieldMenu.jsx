@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react'
 import Icon from './Icon.jsx'
 import VerifyBar from './VerifyBar.jsx'
+import { tr, useLang } from './i18n.js'
 
 // The field-check menu of the map (UX 13): opens where the person right-clicked (or long-pressed on a phone) a planting square, or from the "Open field check" button of the point panel.
 // It holds the same VerifyBar as before (same buttons, same saving, same words); only its place changed. On a narrow screen it is a sheet at the bottom.
 const WIDTH = 340
 
 export default function FieldMenu({ x, y, pointId, title, lines = [], api, observer, onObserver, onSaved, block, onSeeSpecies, onClose }) {
+  const lang = useLang()
   const openedAt = useRef(0) // the click that a long press leaves behind must not close the menu that it just opened
   useEffect(() => {
     openedAt.current = Date.now()
@@ -41,7 +43,7 @@ export default function FieldMenu({ x, y, pointId, title, lines = [], api, obser
         </div>
         <div className="nw-fmenu-actions">
           <button type="button" className="nw-btn nw-btn-small nw-btn-go" onClick={onSeeSpecies} data-role="see-species">
-            <Icon name="tree" size={14} /> Tingnan ang species dito
+            <Icon name="tree" size={14} /> {tr('menu.seeSpecies', {}, lang)}
           </button>
         </div>
         <VerifyBar key={`${pointId}|${block?.planId ?? ''}`} pointId={pointId} api={api} observer={observer} onObserver={onObserver} onSaved={onSaved} block={block} />

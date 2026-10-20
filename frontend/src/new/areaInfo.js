@@ -1,5 +1,6 @@
-// What the "Area" step says about the chosen point, barangay, zone or drawn shape, and when "Continue" may be pressed. Pure functions (tested in areaInfo.test.mjs). Filipino first.
+// What the "Area" step says about the chosen point, barangay, zone or drawn shape, and when "Continue" may be pressed. Pure functions (tested in areaInfo.test.mjs). English or Taglish through the last argument / `lang` (default: the page language).
 import { geometryContains } from './geo.js'
+import { getLang, tr } from './i18n.js'
 
 const M_PER_DEG = 111320 // about; enough for a size in hectares
 
@@ -22,7 +23,11 @@ export function geometryHectares(geometry) {
 }
 
 const hasArea = (n) => (n >= 10 ? Math.round(n) : Math.round(n * 10) / 10)
-export const haText = (ha) => (ha < 0.1 ? 'mas mababa sa 0,1 ektarya' : `${String(hasArea(ha)).replace('.', ',')} ektarya`)
+export function haText(ha, lang = getLang()) {
+  if (ha < 0.1) return tr('ha.tiny', {}, lang)
+  const v = String(hasArea(ha))
+  return tr('ha.value', { ha: lang === 'tl' ? v.replace('.', ',') : v }, lang)
+}
 
 // The barangays a drawn shape reaches, judged from its corners and its middle (not an exact overlay). features = barangay features with display_name.
 export function barangaysOfShape(geometry, features) {
@@ -38,77 +43,80 @@ export function barangaysOfShape(geometry, features) {
   return found
 }
 
-const TYPE = { barangay: 'barangay', zone: 'zone (uri ng lupa sa zoning map)', polygon: 'iginuhit na lugar', point: 'isang puntos' }
-
 // lines of the summary: [{label, value}] for the chosen point (tool 'point'), barangay, zone or drawn shape.
-// ctx = { tool, area, spot, geometry, barangayFeatures, zoneFeatures, squares } ; squares = the number of planting squares the service found in the area (or null)
-export function describeArea({ tool, area, spot, barangayFeatures = [], zoneFeatures = [], squares = null, selection = null, split = null, ph = null }) {
+// ctx = { tool, area, spot, geometry, barangayFeatures, zoneFeatures, squares, lang } ; squares = the number of planting squares the service found in the area (or null)
+export function describeArea({ tool, area, spot, barangayFeatures = [], zoneFeatures = [], squares = null, selection = null, split = null, ph = null, lang = getLang() }) {
+  const t = (k, p) => tr(k, p, lang)
   const rows = []
+  const r1 = (v) => Math.round(v * 10) / 10
   if (area) {
     if (area.kind === 'barangay') {
       const f = barangayFeatures.find((b) => b.properties.name === area.name)
-      rows.push({ label: 'Paraan', value: tool === 'barangay' ? 'Barangay (pinili sa mapa o sa listahan)' : 'Barangay' })
-      rows.push({ label: 'Pangalan', value: f?.properties.display_name ?? area.name })
-      rows.push({ label: 'Uri', value: TYPE.barangay })
+      rows.push({ label: t('area.method'), value: tool === 'barangay' ? t('area.m.barangayPicked') : t('area.m.barangay') })
+      rows.push({ label: t('area.name'), value: f?.properties.display_name ?? area.name })
+      rows.push({ label: t('area.type'), value: t('area.type.barangay') })
     } else if (area.kind === 'zone') {
-      rows.push({ label: 'Paraan', value: 'Zone (pinili sa listahan)' })
-      rows.push({ label: 'Pangalan', value: area.name })
-      rows.push({ label: 'Uri', value: TYPE.zone })
+      rows.push({ label: t('area.method'), value: t('area.m.zone') })
+      rows.push({ label: t('area.name'), value: area.name })
+      rows.push({ label: t('area.type'), value: t('area.type.zone') })
     } else {
       const ha = geometryHectares(area.geometry)
       const bs = barangaysOfShape(area.geometry, barangayFeatures)
-      rows.push({ label: 'Paraan', value: 'Iginuhit sa mapa' })
-      rows.push({ label: 'Pangalan', value: 'Iginuhit na lugar' })
-      if (bs.length) rows.push({ label: bs.length > 1 ? 'Mga barangay' : 'Barangay', value: `${bs.join(', ')} (batay sa mga sulok at gitna)` })
-      rows.push({ label: 'Uri', value: TYPE.polygon })
-      rows.push({ label: 'Laki ng iginuhit', value: ha < 0.1 ? haText(ha) : `mga ${haText(ha)}` })
+      rows.push({ label: t('area.method'), value: t('area.m.drawn') })
+      rows.push({ label: t('area.name'), value: t('area.n.drawn') })
+      if (bs.length) rows.push({ label: bs.length > 1 ? t('area.barangays') : t('area.barangay'), value: t('area.fromCorners', { names: bs.join(', ') }) })
+      rows.push({ label: t('area.type'), value: t('area.type.polygon') })
+      rows.push({ label: t('area.size'), value: ha < 0.1 ? haText(ha, lang) : t('ha.about', { text: haText(ha, lang) }) })
     }
-    if (squares != null) rows.push({ label: 'Mga planting square', value: `${squares} (bawat isa ay mga 1 ektarya)` })
-    if (split) rows.push({ label: 'Hati ng mga parisukat', value: split })
-    if (ph) rows.push({ label: 'Tantiyang pH', value: `gitna ${Math.round(ph.mean * 10) / 10} (saklaw ${Math.round(ph.q05 * 10) / 10}–${Math.round(ph.q95 * 10) / 10}), SoilGrids, tantiya lang` })
-    if (selection === 'touching') rows.push({ label: 'Paalala', value: 'Mas maliit ito sa isang square, kaya ginamit ang mga square na tinatamaan ng lugar.' })
+    if (squares != null) rows.push({ label: t('area.squares'), value: t('area.squaresValue', { n: squares }) })
+    if (split) rows.push({ label: t('area.split'), value: split })
+    if (ph) rows.push({ label: t('area.ph'), value: t('area.phValue', { mean: r1(ph.mean), lo: r1(ph.q05), hi: r1(ph.q95) }) })
+    if (selection === 'touching') rows.push({ label: t('area.note'), value: t('area.small') })
     return rows
   }
   if (tool === 'point' && spot) {
     const b = barangayFeatures.find((f) => geometryContains(f.geometry, spot.lon, spot.lat))
     const z = zoneFeatures.find((f) => geometryContains(f.geometry, spot.lon, spot.lat))
-    rows.push({ label: 'Paraan', value: 'Isang puntos (pinili sa mapa)' })
-    rows.push({ label: 'Barangay', value: b?.properties.display_name ?? 'Wala sa mapa ng barangay' })
-    rows.push({ label: 'Zone', value: z?.properties.name ?? 'Wala sa zoning map (Forest Reserve ayon sa CLUP)' })
-    rows.push({ label: 'Uri', value: TYPE.point })
+    rows.push({ label: t('area.method'), value: t('area.m.point') })
+    rows.push({ label: t('area.barangay'), value: b?.properties.display_name ?? t('area.noBarangay') })
+    rows.push({ label: t('area.zone'), value: z?.properties.name ?? t('area.noZone') })
+    rows.push({ label: t('area.type'), value: t('area.type.point') })
   }
   return rows
 }
 
 // May the person go on to the next step? mode 'area': a chosen area that holds at least one planting square. areaRank = { status, error: { status, message } } of POST /rank/area.
-export function continueState({ mode, area, areaRank }) {
+export function continueState({ mode, area, areaRank, lang = getLang() }) {
   if (mode !== 'area') return { ok: true, reason: '' }
-  if (!area) return { ok: false, reason: 'Pumili muna ng lugar: pindutin ang isang barangay, pumili sa listahan, o gumuhit sa mapa.' }
+  if (!area) return { ok: false, reason: tr('cont.pick', {}, lang) }
   const e = areaRank?.status === 'error' ? areaRank.error : null
   if (e && e.status === 400 && String(e.message).includes('no legal-zone grid points')) {
-    return { ok: false, reason: 'Walang planting square sa lugar na ito. Iguhit ito sa ibabaw ng mga may kulay na parisukat, o pumili ng barangay o zone.' }
+    return { ok: false, reason: tr('cont.none', {}, lang) }
   }
-  if (areaRank?.status === 'loading') return { ok: false, reason: 'Sinusuri ang lugar…' }
+  if (areaRank?.status === 'loading') return { ok: false, reason: tr('cont.loading', {}, lang) }
   return { ok: true, reason: '' }
 }
 
-// UX round 2 (A3): the split of the squares of an area, in simple Filipino. diag = the answer of POST /area/diagnostic. Example: "5 parisukat ang natatamaan: 2 angkop, 1 mababa ang tugma, 2 hindi planting zone (sementeryo)."
-const REASON_FIL = { outside_zoning: 'labas ng zoning map', special_reserved: 'Special Reserved', industrial: 'industrial', commercial: 'commercial', quarry: 'quarry', landfill: 'landfill', cemetery: 'sementeryo', other: 'ibang zone' }
-export function diagnosticText(diag) {
+// UX round 2 (A3): the split of the squares of an area in plain words (English or Taglish). diag = the answer of POST /area/diagnostic.
+// Example (English): "5 squares touched by the drawn area: 2 suitable, 1 with a low match, 2 not a planting zone (cemetery)."
+export function diagnosticText(diag, lang = getLang()) {
   if (!diag || !diag.touched) return null
+  const t = (k, p) => tr(k, p, lang)
   const parts = []
-  if (diag.suitable) parts.push(`${diag.suitable} angkop`)
-  if (diag.low_match) parts.push(`${diag.low_match} mababa ang tugma`)
+  if (diag.suitable) parts.push(t('diag.suitable', { n: diag.suitable }))
+  if (diag.low_match) parts.push(t('diag.low', { n: diag.low_match }))
   if (diag.not_planting.total) {
-    const why = Object.entries(diag.not_planting.by_reason).map(([k, n]) => `${REASON_FIL[k] ?? k}${Object.keys(diag.not_planting.by_reason).length > 1 ? ` ${n}` : ''}`).join(', ')
-    parts.push(`${diag.not_planting.total} hindi planting zone (${why})`)
+    const entries = Object.entries(diag.not_planting.by_reason)
+    const word = (k) => (t(`diag.reason.${k}`) === `diag.reason.${k}` ? k : t(`diag.reason.${k}`))
+    const why = entries.map(([k, n]) => `${word(k)}${entries.length > 1 ? ` ${n}` : ''}`).join(', ')
+    parts.push(t('diag.notPlanting', { n: diag.not_planting.total, why }))
   }
-  if (diag.left_out_by_field_check) parts.push(`${diag.left_out_by_field_check} inalis dahil sa field check na hindi matataniman`)
-  const what = diag.kind === 'polygon' ? 'natatamaan ng iginuhit' : diag.kind === 'zone' ? 'nasa zone' : 'nasa barangay'
-  let text = `${diag.touched} parisukat ang ${what}: ${parts.join(', ')}.`
+  if (diag.left_out_by_field_check) parts.push(t('diag.leftOut', { n: diag.left_out_by_field_check }))
+  const what = t(diag.kind === 'polygon' ? 'diag.what.polygon' : diag.kind === 'zone' ? 'diag.what.zone' : 'diag.what.barangay')
+  let text = t('diag.touched', { n: diag.touched, what, parts: parts.join(', ') })
   if (diag.kind === 'polygon' && diag.squares) {
-    text += ` ${diag.counted_squares} parisukat ang binilang.`
-    if (diag.partial_squares > 0) text += ` ${diag.partial_squares} ang bahagya lang natatamaan (mas mababa sa kalahati) kaya hindi isinama.`
+    text += ` ${t('diag.counted', { n: diag.counted_squares })}`
+    if (diag.partial_squares > 0) text += ` ${t('diag.partial', { n: diag.partial_squares })}`
   }
   return text
 }

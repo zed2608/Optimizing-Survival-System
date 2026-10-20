@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { compareMeasured, parsePhInput, phRowFromRef, planPhLine, planPhSummary, PH_TEXT } from './phEvidence.js'
+import { setLang } from './i18n.js'
+setLang('tl') // these tests pin the Taglish words; the English ones are in i18n.test.mjs
 
 const REF = { status: 'sourced', verdict_kind: 'tolerance', verdict_min: 5, verdict_max: 7.5, tol_min: 5, tol_max: 7.5, opt_min: 5.5, opt_max: 6.5, listed_min: null, listed_max: null, source_url: 'https://x.org/a', source_rank: 3, source_name: 'FAO EcoCrop', conflict: false, scope: 'species' }
 const OPT_ONLY = { status: 'sourced', verdict_kind: 'optimal_only', verdict_min: 5, verdict_max: 6.5, tol_min: null, tol_max: null, opt_min: 5, opt_max: 6.5, listed_min: null, listed_max: null, source_url: 'https://x.org/b', source_rank: 1, conflict: false, scope: 'genus_or_group' }

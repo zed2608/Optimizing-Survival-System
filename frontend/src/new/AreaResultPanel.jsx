@@ -11,6 +11,7 @@ import HelpTip from './HelpTip.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
 import { areaPhText } from './phEvidence.js'
+import { useLang } from './i18n.js'
 import PhSiteCard from './PhSiteCard.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 import SeasonNotice from './SeasonNotice.jsx'
@@ -40,6 +41,7 @@ function MissingOr({ v, f }) {
 
 // Mode 2: ranked species for a whole area, plus the suggested mix (shares from the palette code, with its caps).
 export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDates, onInfo, view = 'compact', onView = () => {} }) {
+  const lang = useLang()
   const [show, setShow] = useState(5)
   const full = view === 'full'
   if (api.status === 'loading') return <div className="v2 v2-embedded"><div className="panel-body"><Loading what={`Ranking species for ${areaLabel}`} /></div></div>
@@ -148,9 +150,9 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
                 {full ? <ScoreChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average score W where suitable" /> : <MatchChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average match where suitable" />}
                 <SeasonBadge season={s.season} strip={false} best={false} />
               </div>
-              {areaPhText(s.ph_verdict) && (
+              {areaPhText(s.ph_verdict, lang) && (
                 <div className="muted nw-areaph" data-role="area-ph" data-verdict={s.ph_verdict}>
-                  {areaPhText(s.ph_verdict)}
+                  {areaPhText(s.ph_verdict, lang)}
                 </div>
               )}
               <details className="nw-pdetails" open={full || undefined}>

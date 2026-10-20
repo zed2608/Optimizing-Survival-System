@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { barangaysOfShape, continueState, describeArea, geometryHectares, haText, polygonHectares } from './areaInfo.js'
 import { polygonFromVertices } from './geo.js'
+import { setLang } from './i18n.js'
+setLang('tl') // these tests pin the Taglish words; the English ones are in i18n.test.mjs
 
 const LAT = 14.69
 const D = 100 / 111320 // 100 m in degrees of latitude

@@ -1073,3 +1073,10 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 .nw-markbar > span { flex: 1 0 100%; text-align: center; }
 .nw-markbar .nw-btn { flex: 1 1 0; padding-left: 6px; padding-right: 6px; }
 @media (min-width: 801px) { .nw-markbar { left: 50%; right: auto; transform: translateX(-50%); } .nw-markbar > span { flex: 0 0 auto; } .nw-markbar .nw-btn { flex: 0 0 auto; } }
+
+/* UX round 4 (Phase 2): the English / Taglish switch in the header */
+.nw-lang { display: inline-flex; border-radius: 8px; background: rgba(255, 255, 255, 0.08); padding: 2px; }
+.nw-lang-btn { min-height: 44px; min-width: 44px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #cbd5e1; font-size: 12px; cursor: pointer; }
+.nw-lang-btn.is-active { background: #10b981; color: #052e22; font-weight: 600; }
+.nw-lang-btn:focus-visible { outline: 2px solid #6ee7b7; outline-offset: -2px; }
+@media (max-width: 800px) { .nw-lang-btn { padding: 0 6px; font-size: 11px; } }

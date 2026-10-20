@@ -1,13 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { STEP_TITLES, canGoNext, canJump, flowSteps } from './flowState.js'
+import { canGoNext, canJump, flowSteps } from './flowState.js'
+import { setLang } from './i18n.js'
+setLang('tl') // these tests pin the Taglish words; the English ones are in i18n.test.mjs
 
 const base = { selNames: [], where: { kind: 'all', name: '' }, whereLabel: '', planAreaLabel: '', planCreated: false }
 
 test('four steps with their titles', () => {
   const s = flowSteps(base)
   assert.equal(s.length, 4)
-  assert.deepEqual(s.map((x) => x.title), STEP_TITLES)
+  assert.deepEqual(s.map((x) => x.title), ['Piliin ang species', 'Saan hahanapin', 'Markahan sa mapa', 'Gumawa ng plano'])
 })
 
 test('step 1 needs a species; the reason is plain words; the summary names them', () => {

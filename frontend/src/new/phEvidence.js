@@ -1,3 +1,5 @@
+import { getLang, tr } from './i18n.js'
+
 // Soil pH reference of a species, from the evidence file (GET /species/{id} -> ph_reference, GET /species-ph-reference). Pure functions, tested in phEvidence.test.mjs.
 // DISPLAY ONLY: not part of any score. The ranges are "from a source, not yet signed by the agriculturist"; this file never says verified / correct / safe.
 // Nothing is typed here as a pH number: every range comes from the service.
@@ -120,33 +122,25 @@ export function planPhSummary(speciesIds, all) {
 }
 
 // The pH verdict of one species for an AREA (from POST /rank/area: ph_verdict), one short line for the species list. Display only: it never changes a score or the order.
-const AREA_PH = {
-  inside: 'pH: nasa saklaw (ayon sa modelo)',
-  outside: 'pH: labas sa saklaw',
-  outside_optimal: 'pH: labas sa pinakamainam na saklaw',
-  uncertain: 'pH: hindi tiyak',
-  no_value: 'pH: walang estimate sa lugar na ito',
-  no_confirmed_range: 'pH: walang nakumpirmang range ang species',
-  no_range: 'pH: walang nakumpirmang range ang species',
-}
-export function areaPhText(code) {
-  return AREA_PH[code] ?? null
+const AREA_PH_CODES = ['inside', 'outside', 'outside_optimal', 'uncertain', 'no_value', 'no_confirmed_range', 'no_range']
+export function areaPhText(code, lang = getLang()) {
+  return AREA_PH_CODES.includes(code) ? tr(`ph.v.${code}`, {}, lang) : null
 }
 
-// One line about the area's own pH estimate (r.area.ph of POST /rank/area), or null when there is none.
-export function areaPhSummary(ph) {
-  if (!ph) return 'Walang pH estimate para sa lugar na ito (kulang ang datos ng modelo).'
-  const f = (v) => String(Math.round(Number(v) * 10) / 10)
-  return `pH ng lugar: mga ${f(ph.mean)} (posibleng ${f(ph.q05)}–${f(ph.q95)}). Estimate ng modelo (SoilGrids), hindi sinukat sa San Mateo. Hindi ito kasama sa score o sa pagkakasunod-sunod.`
+const f1 = (v) => String(Math.round(Number(v) * 10) / 10)
+
+// One line about the area's own pH estimate (r.area.ph of POST /rank/area), or a "no estimate" line when there is none.
+export function areaPhSummary(ph, lang = getLang()) {
+  if (!ph) return tr('ph.areaSummaryNone', {}, lang)
+  return tr('ph.areaSummary', { mean: f1(ph.mean), lo: f1(ph.q05), hi: f1(ph.q95) }, lang)
 }
 
-// "Tantiyang pH ng lupa dito": the SoilGrids estimate of a square or of an area (display only; a model estimate, never called a measurement).
-export function sitePhText(ph, scope = 'square') {
-  if (!ph) return scope === 'area' ? 'Walang pH estimate para sa area na ito (kulang ang datos ng modelo).' : 'Walang pH estimate para sa lugar na ito (kulang ang datos ng modelo).'
-  const f = (v) => String(Math.round(Number(v) * 10) / 10)
-  const head = scope === 'area' ? `Tantiyang pH ng lupa sa area: gitna ${f(ph.mean)} (saklaw ${f(ph.q05)}–${f(ph.q95)})` : `Tantiyang pH ng lupa dito: ${f(ph.mean)} (saklaw ${f(ph.q05)}–${f(ph.q95)})`
-  const n = scope === 'area' && ph.n_squares != null ? `, mula sa ${ph.n_squares} sa ${ph.n_total} parisukat na may datos` : ''
-  return `${head}${n}. SoilGrids, 250 m, tantiya lang ng modelo; hindi sinukat sa San Mateo.`
+// The SoilGrids estimate of a square or of an area (display only; a model estimate, never called a measurement).
+export function sitePhText(ph, scope = 'square', lang = getLang()) {
+  if (!ph) return tr(scope === 'area' ? 'ph.none.area' : 'ph.none.square', {}, lang)
+  const head = tr(scope === 'area' ? 'ph.head.area' : 'ph.head.square', { mean: f1(ph.mean), lo: f1(ph.q05), hi: f1(ph.q95) }, lang)
+  const from = scope === 'area' && ph.n_squares != null ? tr('ph.from', { n: ph.n_squares, total: ph.n_total }, lang) : ''
+  return `${head}${from}${tr('ph.tail', {}, lang)}`
 }
 
 // What a pH measured on the spot means for a list of species: how many have it inside their range (tolerated, best or listed), outside, or have no confirmed range. all = GET /species-ph-reference .species
@@ -163,6 +157,6 @@ export function phFitCounts(value, speciesIds, all) {
   return out
 }
 
-export function phFitText(c) {
-  return `Sa ${c.total} species sa listahan: ${c.inside} ang nasa saklaw ng pH (mula sa sanggunian), ${c.outside} ang labas sa saklaw, ${c.none} ang walang nakumpirmang range.`
+export function phFitText(c, lang = getLang()) {
+  return tr('ph.fit', { total: c.total, inside: c.inside, outside: c.outside, none: c.none }, lang)
 }
