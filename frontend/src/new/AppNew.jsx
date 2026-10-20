@@ -635,7 +635,7 @@ export default function AppNew() {
               )}
             </div>
           )}
-          <div className="nw-legend-note">Each dot is a 100 m grid cell in a planting zone. Blue-ringed dot = the chosen point.</div>
+          <div className="nw-legend-note">Bawat parisukat ay isang 100 m × 100 m na lugar sa planting zone. Ang kulay ay ang tugma ng lugar sa species; ang mga marka ng field check ay hugis lang.</div>
         </div>
       ) : (
         <button type="button" className="nw-legend-btn" aria-expanded="false" onClick={() => setLegendOpen(true)}>

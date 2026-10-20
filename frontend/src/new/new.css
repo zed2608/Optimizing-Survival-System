@@ -996,3 +996,6 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 @media (max-width: 1000px) { .nw-root.panel-open .nw-right { margin-top: 114px; } }
 /* where there is no free part of the map left of the panel, the notices go under the panel (the panel shows the same season notice itself) */
 @media (max-width: 1180px) { .nw-root.panel-open .nw-toasts.v2.v2-embedded { z-index: 990; } }
+
+/* UX 9: one colour, one meaning. Score colours are for the squares; field-check marks are violet shapes. */
+.nw-fieldkey-title { font-size: 11px; font-weight: 600; color: #94a3b8; margin-top: 6px; }
