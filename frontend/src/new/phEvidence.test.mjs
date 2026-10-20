@@ -37,12 +37,12 @@ test('phRowFromRef: with a range, no range, conflict, group', () => {
   const a = phRowFromRef(REF)
   assert.equal(a.none, false)
   assert.deepEqual(a.lines.map((l) => [l.key, l.range]), [['tolerance', '5–7.5'], ['optimal', '5.5–6.5']])
-  assert.equal(a.tag.fil, 'mula sa sanggunian; hindi pa pirmado ng agriculturist')
+  assert.equal(a.tag.fil, 'Dataset ng proyekto') // Phase 0 D
   assert.equal(a.source.rank, 3)
   const b = phRowFromRef(NONE)
   assert.equal(b.none, true)
   assert.equal(b.source, null)
-  assert.equal(b.text.fil, 'Walang nakumpirmang pH range')
+  assert.equal(b.text.fil, 'Walang available na pH range')
   assert.equal(phRowFromRef(null).none, true)
   assert.equal(phRowFromRef(LISTED).conflict, true)
   assert.equal(phRowFromRef(OPT_ONLY).group, true)
@@ -50,13 +50,13 @@ test('phRowFromRef: with a range, no range, conflict, group', () => {
 })
 
 test('plan lines and the summary', () => {
-  assert.equal(planPhLine(REF).text.fil, 'pH: 5–7.5 (sanggunian) · sukatin sa lugar')
-  assert.equal(planPhLine(NONE).text.fil, 'pH: walang nakumpirmang range')
+  assert.equal(planPhLine(REF).text.fil, 'pH: 5–7.5 (dataset ng proyekto) · sukatin sa lugar')
+  assert.equal(planPhLine(NONE).text.fil, 'pH: walang available na range')
   const all = { 1: REF, 2: NONE, 3: NONE }
   const s = planPhSummary([1, 2, 3, 3], all)
   assert.equal(s.count, 2)
   assert.equal(s.total, 3)
-  assert.equal(s.text.fil, '2 sa 3 na species sa planong ito ay walang nakumpirmang pH range')
+  assert.equal(s.text.fil, '2 sa 3 na species sa planong ito ay walang available na pH range')
   assert.equal(planPhSummary([1], all), null)
   assert.equal(planPhSummary([], all), null)
 })
@@ -92,4 +92,15 @@ test('what a measured pH means for the listed species', () => {
   assert.deepEqual(phFitCounts(9, [1, 2, 3], all), { inside: 0, outside: 2, none: 1, total: 3 })
   assert.deepEqual(phFitCounts(6, [9], all), { inside: 0, outside: 0, none: 1, total: 1 })
   assert.match(phFitText({ inside: 2, outside: 1, none: 3, total: 6 }), /^Sa 6 species sa listahan: 2 ang nasa saklaw/)
+})
+
+test('Phase 0 D: a dataset reference gives the one working range, the label with the references, and the other published range only as a note', () => {
+  const ds = { status: 'sourced', verdict_kind: 'listed', verdict_min: 5, verdict_max: 7.5, listed_min: 5, listed_max: 7.5, source_kind: 'dataset', source_name: 'PROSEA / StuartXChange', source_url: 'https://a.example/x, https://b.example/y',
+    authority_listed: 'PROSEA / StuartXChange', other_published: { min: 5.5, max: 6.5, kind: 'optimal_only', source_name: 'Source X', source_url: 'https://c.example' } }
+  const r = phRowFromRef(ds)
+  assert.equal(r.summary.en, 'Species pH range: 5–7.5 (Project species dataset; references: PROSEA / StuartXChange)')
+  assert.equal(r.other.text.en, 'Other published range: 5.5–6.5 (Source X)')
+  assert.deepEqual(r.lines.map((l) => l.key), ['listed'])
+  assert.ok(!JSON.stringify(r.summary).toLowerCase().includes('verified'))
+  assert.equal(phRowFromRef({ ...ds, other_published: null }).other, null)
 })

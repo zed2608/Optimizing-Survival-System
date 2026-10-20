@@ -108,6 +108,7 @@ def test_api_species_detail_uses_the_evidence():
     with TestClient(api_v2.app) as c:
         a = c.get("/species/1").json()
         assert a["ph_reference"]["status"] == "sourced" and a["ph_reference"]["source_url"].startswith("http")
+        assert a["ph_reference"]["source_label"] == "Project species dataset"          # Phase 0 D: the working range is the project species dataset
         assert not [f for f in a["fields"] if f["field_name"] in ("ph_min", "ph_max")]
         assert "ph_min" not in a["clean_values"] and "ph_max" not in a["clean_values"]
         for f in a["fields"]:
@@ -115,9 +116,10 @@ def test_api_species_detail_uses_the_evidence():
                 assert f["source_url"] is None and f["source_rank"] is None
         assert any(f.get("unmatched_source") for f in a["fields"] if f["field_name"].startswith("rain"))
         b = c.get("/species/10").json()
-        assert b["ph_reference"]["status"] == "none"
+        # Phase 0 D: species 10 had NO range in the evidence file (status none); the project species dataset has one for all 45, so the card has a range and no "no confirmed range" state
+        assert b["ph_reference"]["status"] == "sourced" and b["ph_reference"]["verdict_kind"] == "listed"
         s = b["site_ph"]
-        assert s.get("verdict") in (None, "no_confirmed_range") and s["scored"] is False
+        assert s.get("verdict") in (None, "inside", "outside", "uncertain") and s["scored"] is False
         allp = c.get("/species-ph-reference").json()
         assert allp["available"] and len(allp["species"]) == 45
 
@@ -130,7 +132,7 @@ def test_docker_copies_the_evidence_files():
 
     class fnmatch:
         fnmatch = staticmethod(fnmatch_fn)
-    needed = ["data/reference/soilgrids_ph.csv", "data/reference/species_ph_evidence.csv", "data/reference/species_climate_agreement.csv"]
+    needed = ["data/reference/soilgrids_ph.csv", "data/reference/species_ph_evidence.csv", "data/reference/species_climate_agreement.csv", "data/reference/species_ph_dataset.csv"]
     for f in needed:
         assert f.split("/")[-1] in d, f + " is not copied by the Dockerfile"
         assert (ROOT / f).is_file()

@@ -76,8 +76,9 @@ def test_area_species_list_carries_a_ph_verdict_and_changes_no_score(client):
     assert ph and ph["n_squares"] > 0 and ph["q05"] <= ph["q95"] and "not measured" in ph["note"]
     allowed = {"inside", "outside", "outside_optimal", "uncertain", "no_value", "no_confirmed_range", "no_range"}
     assert r["ranking"] and all(x["ph_verdict"] in allowed for x in r["ranking"])
-    none_ids = {3, 4, 8, 9, 10, 11, 21, 23, 32, 33, 34, 35, 37, 40, 42, 44}         # no confirmed pH range (evidence file)
-    assert all(x["ph_verdict"] == "no_confirmed_range" for x in r["ranking"] if x["species_id"] in none_ids)
+    # Phase 0 D: the 16 species that had no range in the evidence file now have one in the project species dataset, so nothing says "no confirmed range"; they get a normal verdict
+    none_ids = {3, 4, 8, 9, 10, 11, 21, 23, 32, 33, 34, 35, 37, 40, 42, 44}
+    assert all(x["ph_verdict"] in ("inside", "outside", "uncertain") for x in r["ranking"] if x["species_id"] in none_ids)
     assert any(x["ph_verdict"] != "no_confirmed_range" for x in r["ranking"])
     # the ranking itself is the same as the scores say: rank order = descending species_score (nothing re-sorted by pH)
     scores = [x["species_score"] for x in r["ranking"]]

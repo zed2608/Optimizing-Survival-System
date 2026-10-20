@@ -1,27 +1,29 @@
 import { getLang, tr } from './i18n.js'
 
-// Soil pH reference of a species, from the evidence file (GET /species/{id} -> ph_reference, GET /species-ph-reference). Pure functions, tested in phEvidence.test.mjs.
-// DISPLAY ONLY: not part of any score. The ranges are "from a source, not yet signed by the agriculturist"; this file never says verified / correct / safe.
+// Soil pH range of a species, from the project species dataset (GET /species/{id} -> ph_reference, GET /species-ph-reference). Pure functions, tested in phEvidence.test.mjs.
+// DISPLAY ONLY: not part of any score. The range is labelled "Project species dataset" with the references the dataset lists; this file never says verified / correct / safe.
 // Nothing is typed here as a pH number: every range comes from the service.
 
 export const PH_TEXT = {
   tolerance: { en: 'Tolerated', fil: 'Matitiis' },
   optimal: { en: 'Best', fil: 'Pinakamainam' },
   listed: { en: 'Listed', fil: 'Nakalista' },
+  range: { en: 'Species pH range', fil: 'pH range ng species' },
+  datasetLabel: { en: 'Project species dataset', fil: 'Dataset ng proyekto' },
   kind: {
     tolerance: { en: 'Range the tree tolerates (the source also gives a best range where shown)', fil: 'Saklaw na matitiis ng puno' },
     listed: { en: 'Range listed by the source (it does not say if tolerated or best)', fil: 'Saklaw na nakalista sa sanggunian (hindi sinabi kung matitiis o pinakamainam)' },
     optimal_only: { en: 'Best range only (the source gives no tolerated range)', fil: 'Pinakamainam na saklaw lang ang nakalista' },
   },
-  tag: { en: 'from a source, not yet signed by the agriculturist', fil: 'mula sa sanggunian; hindi pa pirmado ng agriculturist' },
+  tag: { en: 'Project species dataset', fil: 'Dataset ng proyekto' },
   conflict: { en: 'Sources disagree; check with the agriculturist', fil: 'May magkaibang sanggunian; tingnan sa agriculturist' },
-  none: { en: 'No confirmed pH range', fil: 'Walang nakumpirmang pH range' },
+  none: { en: 'pH range not available', fil: 'Walang available na pH range' },
   noneHelp: {
-    en: 'Ask the agriculturist or MAO before using it on land with doubtful pH.',
-    fil: 'Itanong sa agriculturist/MAO bago gamitin sa lugar na may kaduda-dudang pH.',
+    en: 'The project species dataset has no pH range for this species.',
+    fil: 'Walang pH range ang dataset ng proyekto para sa species na ito.',
   },
   group: { en: 'The source is about the whole group or genus, not this exact species', fil: 'Para sa buong grupo o genus ang sanggunian, hindi eksaktong species' },
-  noVerdict: { en: 'No verdict: this species has no confirmed pH range.', fil: 'Walang hatol: walang nakumpirmang pH range ang species na ito.' },
+  noVerdict: { en: 'No verdict: no pH range is available for this species.', fil: 'Walang hatol: walang available na pH range ang species na ito.' },
   outsideOptimal: { en: 'Outside the best range (not yet verified)', fil: 'Labas sa pinakamainam na saklaw (hindi pa pirmado)' },
   unmatched: { en: 'Draft range; the source could not be found or does not match', fil: 'Paunang saklaw; hindi makita o hindi tugma sa sanggunian' },
   // the "Sukat sa lugar" tool
@@ -36,10 +38,11 @@ export const PH_TEXT = {
     listed: { en: 'Inside the listed range', fil: 'Nasa saklaw na nakalista' },
     outside: { en: 'Outside the range', fil: 'Labas sa saklaw' },
     outsideOptimal: { en: 'Outside the best range', fil: 'Labas sa pinakamainam na saklaw' },
-    none: { en: 'No confirmed pH range', fil: 'Walang nakumpirmang pH range' },
+    none: { en: 'pH range not available', fil: 'Walang available na pH range' },
   },
   // plan result
-  planNone: { en: 'pH: no confirmed range', fil: 'pH: walang nakumpirmang range' },
+  planNone: { en: 'pH: range not available', fil: 'pH: walang available na range' },
+  other: { en: 'Other published range', fil: 'Ibang nailathalang range' },
 }
 
 const n = (v) => (v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null)
@@ -56,8 +59,14 @@ export function phRowFromRef(ref) {
   const lst = pair(ref.listed_min, ref.listed_max)
   if (tol) lines.push({ key: 'tolerance', label: PH_TEXT.tolerance, range: tol })
   if (opt) lines.push({ key: 'optimal', label: PH_TEXT.optimal, range: opt })
-  if (lst) lines.push({ key: 'listed', label: PH_TEXT.listed, range: lst })
+  if (lst) lines.push({ key: 'listed', label: ref.source_kind === 'dataset' ? PH_TEXT.range : PH_TEXT.listed, range: lst })
+  const dataset = ref.source_kind === 'dataset'
+  const auth = ref.authority_listed ?? ref.source_name ?? ''
+  const oth = ref.other_published ? pair(ref.other_published.min, ref.other_published.max) : null
   return {
+    dataset,
+    summary: dataset && lst ? { en: `Species pH range: ${lst} (${PH_TEXT.datasetLabel.en}; references: ${auth})`, fil: `pH range ng species: ${lst} (${PH_TEXT.datasetLabel.fil}; sanggunian: ${auth})` } : null,
+    other: oth ? { text: { en: `${PH_TEXT.other.en}: ${oth} (${ref.other_published.source_name ?? '-'})`, fil: `${PH_TEXT.other.fil}: ${oth} (${ref.other_published.source_name ?? '-'})` }, url: ref.other_published.source_url ?? null } : null,
     none: false,
     lines,
     kind: PH_TEXT.kind[ref.verdict_kind] ?? null,
@@ -101,10 +110,10 @@ export const COMPARE_TEXT = {
 export function planPhLine(ref) {
   if (!ref || ref.status !== 'sourced') return { code: 'none', text: PH_TEXT.planNone }
   const range = pair(ref.verdict_min, ref.verdict_max)
-  return { code: 'range', text: { en: `pH: ${range} (source) · measure on site`, fil: `pH: ${range} (sanggunian) · sukatin sa lugar` } }
+  return { code: 'range', text: { en: `pH: ${range} (project species dataset) · measure on site`, fil: `pH: ${range} (dataset ng proyekto) · sukatin sa lugar` } }
 }
 
-// "N of M species in this plan have no confirmed pH range" (Filipino with the English line). Null when every species has one.
+// "N of M species in this plan have no pH range available" (Filipino with the English line). Null when every species has one (all 45 have one in the project species dataset).
 export function planPhSummary(speciesIds, all) {
   const ids = [...new Set(speciesIds ?? [])]
   if (!ids.length) return null
@@ -115,8 +124,8 @@ export function planPhSummary(speciesIds, all) {
     total: ids.length,
     ids: none,
     text: {
-      en: `${none.length} of ${ids.length} species in this plan have no confirmed pH range`,
-      fil: `${none.length} sa ${ids.length} na species sa planong ito ay walang nakumpirmang pH range`,
+      en: `${none.length} of ${ids.length} species in this plan have no pH range available`,
+      fil: `${none.length} sa ${ids.length} na species sa planong ito ay walang available na pH range`,
     },
   }
 }

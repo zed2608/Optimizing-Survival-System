@@ -96,7 +96,7 @@ test('site pH: the line, the range, "not yet verified", inside / outside, the cr
   assert.equal(r.reference.fil, 'Tinatayang pH: 5.8 (posibleng 4.6\u20137.2)')
   assert.equal(r.reference.en, 'Estimated pH: 5.8 (possibly 4.6\u20137.2)')
   assert.equal(r.statusWords.fil, 'Estimate lang, hindi sinukat sa San Mateo')
-  assert.equal(r.speciesTag.fil, 'range hindi pa pirmado')
+  assert.equal(r.speciesTag.fil, 'Dataset ng proyekto') // Phase 0 D: the range comes from the project species dataset
   assert.equal(r.verdictCode, 'inside')
   assert.equal(r.verdict.fil, 'Nasa saklaw (ayon sa modelo)')
   const out = row(buildClimate(cref('fits', 1200, 3000), CV, { ...SITE, verdict: 'outside' }), 'ph')
@@ -143,11 +143,11 @@ test('phRef: sourced range shown from the evidence file; none -> "no verdict"; o
   const cvOld = { ...CV, ph_min: 1, ph_max: 2 }
   const r = row(buildClimate(cref('fits', 1200, 3000), cvOld, SITE, PH_REF), 'ph')
   assert.equal(r.species.en, '5 to 7.5')
-  assert.equal(r.speciesTag.fil, 'range hindi pa pirmado')
+  assert.equal(r.speciesTag.fil, 'Dataset ng proyekto') // Phase 0 D: the range comes from the project species dataset
   const none = row(buildClimate(cref('fits', 1200, 3000), CV, SITE, { status: 'none' }), 'ph')
-  assert.equal(none.species.fil, 'Walang nakumpirmang pH range')
+  assert.equal(none.species.fil, 'Walang available na pH range')
   assert.equal(none.verdictCode, 'no_confirmed_range')
-  assert.equal(none.verdict.fil, 'Walang hatol: walang nakumpirmang pH range ang species na ito.')
+  assert.equal(none.verdict.fil, 'Walang hatol: walang available na pH range ang species na ito.')
   assert.equal(none.speciesTag, null)
   const nofile = row(buildClimate(cref('fits', 1200, 3000), CV, null, null), 'ph')
   assert.equal(nofile.verdictCode, 'no_confirmed_range')

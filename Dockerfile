@@ -26,6 +26,7 @@ COPY fieldpack/ fieldpack/
 COPY data/processed/ data/processed/
 COPY data/config/ data/config/
 COPY data/reference/soilgrids_ph.csv data/reference/
+COPY data/reference/species_ph_dataset.csv data/reference/
 COPY data/reference/species_ph_evidence.csv data/reference/species_climate_agreement.csv data/reference/site_checklist.csv data/reference/
 COPY data/BRGY_BOUNDARY.* data/LandUses.* data/
 COPY frontend/src/new/fieldStatus.json frontend/src/new/fieldStatus.json

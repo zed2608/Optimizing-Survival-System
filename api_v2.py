@@ -1531,9 +1531,9 @@ CLIMATE_UNMATCHED = "Paunang saklaw; hindi makita o hindi tugma sa sanggunian"
 @app.get("/species-ph-reference")
 def species_ph_reference():
     """pH reference of every species, compact (the plan result lists it per species). Display only; from the evidence file; a missing file gives an empty list."""
-    t = spe.load()
-    return {"available": t is not None, "provisional": True, "tag": spe.TAG, "none_text": spe.NONE_TEXT,
-            "species": {str(i): spe.reference(i) for i in sorted(t)} if t else {}}
+    t = spe._dataset(str(spe.DATASET))
+    return {"available": t is not None, "provisional": True, "tag": spe.DATASET_LABEL, "none_text": "pH range not available",
+            "species": {str(i): spe.dataset_reference(i) for i in sorted(t)} if t else {}}
 
 
 @app.get("/species/{species_id}")
@@ -1556,7 +1556,7 @@ def species_detail(species_id: int, point_id: Optional[int] = Query(None, descri
         if par and not spe.climate_match(species_id, par):
             f.update(source_url=None, source_rank=None, rank_basis=None, unmatched_source=True)
         fields.append(f)
-    vmin, vmax, vkind = spe.verdict_range(species_id)
+    vmin, vmax, vkind = spe.working_range(species_id)
     return {**sx, "species_id": species_id, "common_name": row.common_name, "scientific_name": row.scientific_name,
             "confidence": {"share_of_cells_with_rank1_or_2_source": py(row.confidence_r12), "cells_cited": py(row.n_cells_cited),
                            "cells_rank1_or_2": py(row.n_cells_rank12)},
@@ -1572,7 +1572,7 @@ def species_detail(species_id: int, point_id: Optional[int] = Query(None, descri
                          for r in d.nursery_rows.get(species_id, [])] if d.nursery_table_present else None),
             "interview_notes": d.interview_notes.get(species_id, []),
             "climate_reference": cref.for_species(d.climate_ref, row),
-            "ph_reference": spe.reference(species_id),
+            "ph_reference": spe.dataset_reference(species_id),
             "climate_sources": {par: (spe.climate_match(species_id, par) or {"unmatched_source": True, "text": CLIMATE_UNMATCHED}) for par in ("rain", "temp")},
             "site_ph": sgph.site_answer(d.soil_ph, point_id, vmin, vmax, vkind),
             "purpose_scores": {p: purpose_breakdown(d, species_id, p) for p in mt.PURPOSES}}
@@ -3272,9 +3272,9 @@ def area_ph(d, point_ids):
 
 def species_ph_verdict(ph, species_id):
     """The pH verdict of one species for an area (the codes of soilgrids_ph.compare_interval); 'no_confirmed_range' when the species has none, 'no_value' when the area has no estimate."""
-    lo, hi, kind = spe.verdict_range(species_id)
+    lo, hi, kind = spe.working_range(species_id)
     if kind == "none":
-        return "no_confirmed_range"
+        return "no_range"
     if ph is None:
         return "no_value"
     return sgph.compare_interval(ph["q05"], ph["q95"], lo, hi, kind)

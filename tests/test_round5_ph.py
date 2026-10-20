@@ -37,7 +37,8 @@ def test_square_with_an_estimate_shows_it_and_each_species_has_a_verdict(client)
     assert "not measured in San Mateo" in out["point"]["site_ph"]["note"]
     verdicts = {it["ph_verdict"] for it in out["ranking"]}
     assert verdicts <= CODES and "no_value" not in verdicts
-    assert sum(1 for it in out["ranking"] if it["ph_verdict"] == "no_confirmed_range") == 16
+    # Phase 0 D: every species has a range in the project species dataset, so no row says "no confirmed range" any more (before: 16 species)
+    assert sum(1 for it in out["ranking"] if it["ph_verdict"] in ("no_confirmed_range", "no_range")) == 0
 
 
 def test_square_without_an_estimate_says_so_and_nothing_is_invented(client):
@@ -46,7 +47,7 @@ def test_square_without_an_estimate_says_so_and_nothing_is_invented(client):
     assert pid is not None
     out = rank(client, pid)
     assert out["point"]["site_ph"] is None
-    assert {it["ph_verdict"] for it in out["ranking"]} <= {"no_value", "no_confirmed_range"}
+    assert {it["ph_verdict"] for it in out["ranking"]} == {"no_value"}
 
 
 def test_the_verdict_never_changes_the_order_or_the_scores(client):

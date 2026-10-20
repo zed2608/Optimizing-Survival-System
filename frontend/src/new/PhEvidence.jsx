@@ -2,6 +2,8 @@ import { useId, useState } from 'react'
 import SourceLink from '../v2/components/SourceLink.jsx'
 import { COMPARE_TEXT, PH_TEXT, compareMeasured, parsePhInput, phRowFromRef } from './phEvidence.js'
 
+const firstUrl = (s) => (typeof s === 'string' ? (s.match(/https?:\/\/[^\s,]+/) ?? [null])[0] : null)
+
 function Two({ t }) {
   return (
     <>
@@ -79,7 +81,17 @@ export default function PhEvidence({ reference }) {
           </>
         ) : (
           <>
-            <ul className="plain-list nw-ph-lines">
+            {row.summary && (
+              <p className="nw-plain" data-role="ph-summary">
+                <Two t={row.summary} />
+              </p>
+            )}
+            {row.other && (
+              <p className="muted" data-role="ph-other">
+                <Two t={row.other.text} />
+              </p>
+            )}
+            <ul className="plain-list nw-ph-lines" hidden={!!row.summary}>
               {row.lines.map((l) => (
                 <li key={l.key} data-ph-line={l.key}>
                   <strong>
@@ -110,7 +122,7 @@ export default function PhEvidence({ reference }) {
               </div>
             )}
             <div className="nw-fact-src" data-role="ph-source">
-              <SourceLink source={{ url: row.source.url, rank: row.source.rank }} />
+              {row.dataset ? firstUrl(row.source.url) && <a href={firstUrl(row.source.url)} target="_blank" rel="noopener noreferrer">{row.source.name ?? firstUrl(row.source.url)}</a> : <SourceLink source={{ url: row.source.url, rank: row.source.rank }} />}
             </div>
           </>
         )}
