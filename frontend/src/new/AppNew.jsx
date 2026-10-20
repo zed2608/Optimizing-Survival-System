@@ -24,7 +24,6 @@ import PlanLegend from './PlanLegend.jsx'
 import PlanResult from './PlanResult.jsx'
 import PlanStep from './PlanStep.jsx'
 import { countText, countsSummary } from './counts.js'
-import PairsWith from './PairsWith.jsx'
 import FieldLegend from './FieldLegend.jsx'
 import ZoningLegend from './ZoningLegend.jsx'
 import { HelpBanner, HelpButton } from './HelpCenter.jsx'
@@ -56,7 +55,7 @@ import SearchBar from './SearchBar.jsx'
 import { FEW_SPECIES, formatDay, formatRange, monthsText, seasonQuery, windowMonths } from './season.js'
 import SeasonNotice from './SeasonNotice.jsx'
 import SidebarStep from './SidebarStep.jsx'
-import SpeciesMultiPicker from './SpeciesMultiPicker.jsx'
+import SpeciesChooser from './SpeciesChooser.jsx'
 import { useObserver } from './useObserver.js'
 import { usePost } from './usePost.js'
 import { useIncludeUnzoned, useLegendOpen, useMapDetail, useViewMode } from './useViewMode.js'
@@ -104,6 +103,8 @@ export default function AppNew() {
   const [campaignUnit, setCampaignUnit] = useState('')
   const [nSaplings, setNSaplings] = useState('100')
   const [counts, setCounts] = useState({}) // trees per chosen species (a species not edited yet has the default)
+  const [speciesHow, setSpeciesHow] = useState('') // UX 12: '' (not asked yet) | 'one' | 'many'
+  const [mainSpecies, setMainSpecies] = useState(null) // UX 12: the main species when the person chose many
   const [ownSpecies, setOwnSpecies] = useState(false) // goal "I have an area": the user chose their own species and counts
   const [focusIds, setFocusIds] = useState(() => new Set()) // planned squares to circle on the map ("Show these on the map")
   const help = useHelpState()
@@ -395,6 +396,10 @@ export default function AppNew() {
   const hasMain = mode === 'species' ? selection : !!area
   // UX 2-5: what the Area step says about the choice, and whether Continue may be pressed (an area with no planting square blocks it)
   const cont = continueState({ mode, area, areaRank })
+  // UX 12: one species or many (a main species and the species that can go with it on the same land)
+  const chooser = (forArea) => (
+    <SpeciesChooser species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} purpose={purpose} area={forArea} query={sq} how={speciesHow} onHow={setSpeciesHow} mainId={mainSpecies} onMain={setMainSpecies} />
+  )
   const areaSummary = useMemo(
     () => (mode !== 'area' ? [] : describeArea({ tool, area, spot, barangayFeatures, zoneFeatures, squares: areaRank.status === 'ok' ? areaRank.data.area.legal_points : null, selection: areaRank.status === 'ok' ? areaRank.data.area.selection ?? null : null })),
     [mode, tool, area, spot, barangayFeatures, zoneFeatures, areaRank.status, areaRank.data],
@@ -794,10 +799,7 @@ export default function AppNew() {
           {mode === 'species' ? (
             <>
               {fewSpecies && seasonNotice(false)}
-              <SpeciesMultiPicker species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} />
-              {selIds.length > 0 && selIds.length <= 5 && (
-                <PairsWith speciesId={selIds[selIds.length - 1]} chosen={selIds} query={seasonQuery(win.applied, false)} onAdd={(ids) => setSelIds((cur) => [...cur, ...ids.filter((i) => !cur.includes(i))])} />
-              )}
+              {chooser(null)}
               <Segmented
                 name="combine"
                 label="Place counts when"
@@ -876,7 +878,7 @@ export default function AppNew() {
             ownSpecies={ownSpecies && mode === 'area'}
             onOwnSpecies={() => setOwnSpecies(true)}
             onAutoMix={() => setOwnSpecies(false)}
-            picker={<SpeciesMultiPicker species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} />}
+            picker={chooser(area)}
             windowText={`${formatRange(win.applied.start, win.applied.end)} · ${onlySeason ? 'only species for your dates' : 'all species'}`}
             preview={preview}
             reason={planReason}
