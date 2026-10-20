@@ -15,8 +15,9 @@ import AreaResultPanel from './AreaResultPanel.jsx'
 import AreasPanel from './AreasPanel.jsx'
 import { decodeFieldCode, STATUS_LABEL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
-import { continueState, describeArea } from './areaInfo.js'
+import { continueState, describeArea, diagnosticText } from './areaInfo.js'
 import FieldMenu from './FieldMenu.jsx'
+import { menuLines } from './pointMenu.js'
 import { PURPOSE_SHORT } from './labelsNew.js'
 import MoreMenu from './MoreMenu.jsx'
 import MapViewMenu from './MapViewMenu.jsx'
@@ -89,7 +90,7 @@ export default function AppNew() {
   const [draft, setDraft] = useState([]) // mode 2: corners of the shape being drawn, [lat, lon]
   const [notice, setNotice] = useState('')
   const [spot, setSpot] = useState(null) // the clicked point {lat, lon}
-  const [fieldMenu, setFieldMenu] = useState(null) // the field-check menu of the map {x, y} (null coordinates = centred), or null
+  const [fieldMenu, setFieldMenu] = useState(null) // the menu of a square {x, y, pick, pointId, square: {lat, lon, pointId}, click: {lat, lon}} (x null = centred), or null
   const [viableFor, setViableFor] = useState(null)
   const [goTarget, setGoTarget] = useState(null)
   const [fitTarget, setFitTarget] = useState(null)
@@ -294,6 +295,10 @@ export default function AppNew() {
   const onPick = ({ index, context = -1, plan = -1, lat, lon }) => {
     setFieldMenu(null)
     if (mode === 'area' && tool === 'draw') {
+      if (area?.kind === 'polygon') {
+        setNotice('Naka-lock ang iginuhit na lugar. Pindutin ang “Start again” o “Clear area” para gumuhit ng bago.') // UX round 2 (A2)
+        return
+      }
       setDraft((d) => [...d, [lat, lon]])
       return
     }
@@ -320,12 +325,23 @@ export default function AppNew() {
     setHidden(false)
     setNotice('')
   }
-  // Right-click (or long press) on the map: select that square like a click, then open the field-check menu there. Not while drawing an area, and only for planting squares and planned blocks.
+  // Right-click (or long press) on the map: ONLY a menu opens (where this is, "Tingnan ang species dito", the field check). The right card does not open and nothing is selected: that is what a left click does.
+  // Not while drawing an area, and only for planting squares and planned blocks.
   const onContext = (pick) => {
     if (mode === 'area' && tool === 'draw') return
-    onPick(pick)
-    if (pick.index >= 0 || pick.plan >= 0) setFieldMenu({ x: pick.x, y: pick.y })
-    else setNotice(pick.context >= 0 ? 'Hindi planting zone ang parisukat na ito, kaya walang field check.' : 'Walang parisukat sa puntong iyon.')
+    let sq = null
+    if (pick.plan >= 0 && planResult) {
+      const it = planResult.plan[pick.plan]
+      sq = { lat: it.lat, lon: it.lon, pointId: it.point_id }
+    } else if (pick.index >= 0 && columns) {
+      sq = { lat: columns.lat[pick.index], lon: columns.lon[pick.index], pointId: columns.point_id[pick.index] }
+    }
+    if (!sq) {
+      setFieldMenu(null)
+      setNotice(pick.context >= 0 ? 'Hindi planting zone ang parisukat na ito, kaya walang field check.' : 'Walang parisukat sa puntong iyon.')
+      return
+    }
+    setFieldMenu({ x: pick.x, y: pick.y, pick, pointId: sq.pointId, square: sq, click: { lat: pick.lat, lon: pick.lon } })
   }
   const goTo = (lat, lon) => {
     setSpot({ lat, lon })
@@ -400,9 +416,12 @@ export default function AppNew() {
   const chooser = (forArea) => (
     <SpeciesChooser species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} purpose={purpose} area={forArea} query={sq} how={speciesHow} onHow={setSpeciesHow} mainId={mainSpecies} onMain={setMainSpecies} />
   )
+  const diagArea = mode === 'area' ? area : planPrefill ? { kind: planPrefill.area.kind, name: planPrefill.area.key } : null
+  const diag = usePost(`/area/diagnostic?${uz}`, !diagArea ? null : diagArea.kind === 'barangay' ? { barangay: diagArea.name } : diagArea.kind === 'zone' ? { zone: diagArea.name } : { polygon: diagArea.geometry })
+  const areaSplit = diag.status === 'ok' ? diagnosticText(diag.data) : null
   const areaSummary = useMemo(
-    () => (mode !== 'area' ? [] : describeArea({ tool, area, spot, barangayFeatures, zoneFeatures, squares: areaRank.status === 'ok' ? areaRank.data.area.legal_points : null, selection: areaRank.status === 'ok' ? areaRank.data.area.selection ?? null : null })),
-    [mode, tool, area, spot, barangayFeatures, zoneFeatures, areaRank.status, areaRank.data],
+    () => (mode !== 'area' ? [] : describeArea({ tool, area, spot, barangayFeatures, zoneFeatures, squares: areaRank.status === 'ok' ? areaRank.data.area.legal_points : null, selection: areaRank.status === 'ok' ? areaRank.data.area.selection ?? null : null, split: areaSplit, ph: areaRank.status === 'ok' ? areaRank.data.area.ph ?? null : null })),
+    [mode, tool, area, spot, barangayFeatures, zoneFeatures, areaRank.status, areaRank.data, areaSplit],
   )
   const hasPoint = !!spot
   const hasPlanTab = !!planResult
@@ -512,6 +531,17 @@ export default function AppNew() {
     const item = planResult.plan.find((x) => x.point_id === pointId)
     return item ? { item, kind: planSpecies.get(item.species_id)?.kind ?? 0, planId: planResult.plan_id } : null
   }, [planResult, pointId, planSpecies])
+  // the field-check menu of a right-click: its own field-check data, its own lines and its own plan block (the point panel keeps its own)
+  const menuField = useApi(fieldMenu ? `/field-checks/${fieldMenu.pointId}?${fc}` : null)
+  const menuInfo = useMemo(
+    () => (fieldMenu ? menuLines({ square: fieldMenu.square, click: fieldMenu.click, barangayFeatures, zoneFeatures, win: win.applied, today: win.today }) : { title: '', lines: [] }),
+    [fieldMenu, barangayFeatures, zoneFeatures, win.applied, win.today],
+  )
+  const menuBlock = useMemo(() => {
+    if (!fieldMenu || !planResult || planResult.layout_mode !== 'blocks') return null
+    const item = planResult.plan.find((x) => x.point_id === fieldMenu.pointId)
+    return item ? { planId: planResult.plan_id, trees: item.trees_planned, ref: item.block_ref } : null
+  }, [fieldMenu, planResult])
   const nPlanUnconfirmed = useMemo(() => (planItems ? planItems.filter((x) => x.unconfirmed).length : 0), [planItems])
   const planLabeler = useMemo(
     () =>
@@ -869,6 +899,7 @@ export default function AppNew() {
             onN={setNSaplings}
             nValid={nValid}
             areaLabel={planAreaLabel}
+            areaSplit={areaSplit}
             modeLabel={countsMode ? `Your species (${selIds.length})` : 'Mix chosen automatically'}
             countsMode={countsMode}
             countRows={countRows}
@@ -898,20 +929,26 @@ export default function AppNew() {
           Show results
         </button>
       )}
-      {fieldMenu && pointId && (
+      {fieldMenu && (
         <FieldMenu
           x={fieldMenu.x}
           y={fieldMenu.y}
-          pointId={pointId}
-          title={`Field check · Puntos ${pointId}${pointBarangay ? ' · ' + pointBarangay : ''}`}
-          api={fieldPoint}
+          pointId={fieldMenu.pointId}
+          title={menuInfo.title}
+          lines={menuInfo.lines}
+          api={menuField}
           observer={observer}
           onObserver={setObserver}
           onSaved={() => {
             bumpField()
-            if (pointId) setSessionMarks((s) => new Set(s).add(pointId))
+            setSessionMarks((s) => new Set(s).add(fieldMenu.pointId))
           }}
-          block={planBlock ? { planId: planBlock.planId, trees: planBlock.item.trees_planned, ref: planBlock.item.block_ref } : null}
+          block={menuBlock}
+          onSeeSpecies={() => {
+            const pick = fieldMenu.pick
+            setFieldMenu(null)
+            onPick(pick)
+          }}
           onClose={() => setFieldMenu(null)}
         />
       )}
@@ -966,7 +1003,7 @@ export default function AppNew() {
                   combine={combine}
                   onlySeason={onlySeason}
                   planBlock={planBlock}
-                  onOpenFieldMenu={() => setFieldMenu({ x: null, y: null })}
+                  onOpenFieldMenu={() => spot && pointId && setFieldMenu({ x: null, y: null, pick: { index: -1, context: -1, plan: -1, lat: spot.lat, lon: spot.lon, pointId }, pointId, square: { lat: spot.lat, lon: spot.lon, pointId }, click: { lat: spot.lat, lon: spot.lon } })}
                 />
               )}
             </div>

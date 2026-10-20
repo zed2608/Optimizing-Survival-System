@@ -6,7 +6,7 @@ import VerifyBar from './VerifyBar.jsx'
 // It holds the same VerifyBar as before (same buttons, same saving, same words); only its place changed. On a narrow screen it is a sheet at the bottom.
 const WIDTH = 340
 
-export default function FieldMenu({ x, y, pointId, title, api, observer, onObserver, onSaved, block, onClose }) {
+export default function FieldMenu({ x, y, pointId, title, lines = [], api, observer, onObserver, onSaved, block, onSeeSpecies, onClose }) {
   const openedAt = useRef(0) // the click that a long press leaves behind must not close the menu that it just opened
   useEffect(() => {
     openedAt.current = Date.now()
@@ -32,6 +32,16 @@ export default function FieldMenu({ x, y, pointId, title, api, observer, onObser
           <strong>{title}</strong>
           <button type="button" className="nw-btn nw-btn-small" onClick={onClose}>
             <Icon name="close" /> Close<span className="sr-only"> (Escape)</span>
+          </button>
+        </div>
+        <div className="nw-fmenu-where" data-role="menu-where">
+          {lines.map((l) => (
+            <div key={l}>{l}</div>
+          ))}
+        </div>
+        <div className="nw-fmenu-actions">
+          <button type="button" className="nw-btn nw-btn-small nw-btn-go" onClick={onSeeSpecies} data-role="see-species">
+            <Icon name="tree" size={14} /> Tingnan ang species dito
           </button>
         </div>
         <VerifyBar key={`${pointId}|${block?.planId ?? ''}`} pointId={pointId} api={api} observer={observer} onObserver={onObserver} onSaved={onSaved} block={block} />

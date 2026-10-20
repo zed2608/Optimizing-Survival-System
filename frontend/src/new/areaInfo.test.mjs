@@ -53,3 +53,14 @@ test('continueState: no area, an empty area and a loading check keep Continue of
   assert.equal(continueState({ mode: 'area', area: { kind: 'barangay', name: 'A' }, areaRank: { status: 'ok' } }).ok, true)
   assert.equal(continueState({ mode: 'area', area: { kind: 'barangay', name: 'A' }, areaRank: { status: 'error', error: { status: 500, message: 'x' } } }).ok, true)
 })
+
+import { diagnosticText } from './areaInfo.js'
+
+test('diagnosticText: the split in simple Filipino, with the reasons and the ranking note', () => {
+  const d = { kind: 'polygon', touched: 5, centres_inside: 2, planting: 3, not_planting: { total: 2, by_reason: { cemetery: 2 } }, left_out_by_field_check: 0, suitable: 2, low_match: 1, selected: 2 }
+  assert.equal(diagnosticText(d), '5 parisukat ang natatamaan ng iginuhit: 2 angkop, 1 mababa ang tugma, 2 hindi planting zone (sementeryo). Sa ranking, 2 lang ang binibilang (nasa loob ang gitna o sakop ang kalahati o higit pa ng parisukat); ang iba ay gilid lang ng iginuhit.')
+  const b = { kind: 'barangay', touched: 60, planting: 60, not_planting: { total: 0, by_reason: {} }, left_out_by_field_check: 1, suitable: 55, low_match: 4, selected: 60 }
+  assert.equal(diagnosticText(b), '60 parisukat ang nasa barangay: 55 angkop, 4 mababa ang tugma, 1 inalis dahil sa field check na hindi matataniman.')
+  assert.equal(diagnosticText(null), null)
+  assert.equal(diagnosticText({ touched: 0 }), null)
+})

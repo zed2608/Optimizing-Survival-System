@@ -10,7 +10,8 @@ import ColorLegend from '../v2/components/ColorLegend.jsx'
 import HelpTip from './HelpTip.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
-import { areaPhSummary, areaPhText } from './phEvidence.js'
+import { areaPhText } from './phEvidence.js'
+import PhSiteCard from './PhSiteCard.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 import SeasonNotice from './SeasonNotice.jsx'
 import SourceGroup from './SourceGroup.jsx'
@@ -87,9 +88,7 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
             Mas maliit ang iginuhit na lugar kaysa sa isang square (walang gitna ng square sa loob), kaya ginamit ang mga square na tinatamaan nito. Hindi nagbabago ang score ng square.
           </p>
         )}
-        <p className="muted" data-role="area-ph-summary">
-          {areaPhSummary(r.area.ph)}
-        </p>
+        <PhSiteCard ph={r.area.ph ?? null} scope="area" speciesIds={r.ranking.map((x) => x.species_id)} />
         {r.area.not_plantable_points === 0 && <p className="muted">No point of this area is marked not plantable in the field.</p>}
 
         {sb && r.ranking.length === 0 && sb.removed > 0 && (

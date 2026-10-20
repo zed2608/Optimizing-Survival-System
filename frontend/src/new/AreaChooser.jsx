@@ -6,6 +6,7 @@ const TOOLS = [
 
 // Mode 2: the ways to choose an area: click a point, click a barangay, pick one from a list, or draw a polygon.
 export default function AreaChooser({ tool, onTool, barangays, zones, area, onArea, draftCount, onFinish, onUndo, onClearDraft, summary = [], blocked = '' }) {
+  const locked = area?.kind === 'polygon' && tool === 'draw' // UX round 2 (A2): a finished drawn area is locked until "Clear area" or "Start again"
   const barangayValue = area?.kind === 'barangay' ? area.name : ''
   const zoneValue = area?.kind === 'zone' ? area.name : ''
   return (
@@ -26,20 +27,20 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
       {tool === 'draw' && (
         <div className="nw-drawbox">
           <p className="nw-hint" role="status">
-            {draftCount === 0
-              ? area?.kind === 'polygon'
-                ? 'Tapos na ang iginuhit na lugar (nasa ibaba ang buod). Para gumuhit ng bago, i-click ang mapa at sundan ng Finish area.'
-                : 'I-click ang mapa para ilagay ang unang sulok.'
+            {locked
+              ? 'Naka-lock ang iginuhit na lugar (nasa ibaba ang buod). Para gumuhit ng bago, pindutin ang “Start again” o “Clear area”.'
+              : draftCount === 0
+              ? 'I-click ang mapa para ilagay ang unang sulok.'
               : `${draftCount} sulok ang nailagay${draftCount < 3 ? ' (kailangan ng hindi bababa sa 3)' : ''}.`}
           </p>
           <div className="nw-row">
-            <button type="button" className="nw-btn nw-btn-small nw-btn-go" onClick={onFinish} disabled={draftCount < 3}>
+            <button type="button" className="nw-btn nw-btn-small nw-btn-go" onClick={onFinish} disabled={locked || draftCount < 3}>
               Finish area
             </button>
-            <button type="button" className="nw-btn nw-btn-small" onClick={onUndo} disabled={draftCount === 0}>
+            <button type="button" className="nw-btn nw-btn-small" onClick={onUndo} disabled={locked || draftCount === 0}>
               Undo last corner
             </button>
-            <button type="button" className="nw-btn nw-btn-small" onClick={onClearDraft} disabled={draftCount === 0}>
+            <button type="button" className="nw-btn nw-btn-small" onClick={() => { if (locked) onArea(null); onClearDraft() }} disabled={!locked && draftCount === 0}>
               Start again
             </button>
           </div>

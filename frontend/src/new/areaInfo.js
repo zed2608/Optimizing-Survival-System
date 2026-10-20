@@ -42,7 +42,7 @@ const TYPE = { barangay: 'barangay', zone: 'zone (uri ng lupa sa zoning map)', p
 
 // lines of the summary: [{label, value}] for the chosen point (tool 'point'), barangay, zone or drawn shape.
 // ctx = { tool, area, spot, geometry, barangayFeatures, zoneFeatures, squares } ; squares = the number of planting squares the service found in the area (or null)
-export function describeArea({ tool, area, spot, barangayFeatures = [], zoneFeatures = [], squares = null, selection = null }) {
+export function describeArea({ tool, area, spot, barangayFeatures = [], zoneFeatures = [], squares = null, selection = null, split = null, ph = null }) {
   const rows = []
   if (area) {
     if (area.kind === 'barangay') {
@@ -64,6 +64,8 @@ export function describeArea({ tool, area, spot, barangayFeatures = [], zoneFeat
       rows.push({ label: 'Laki ng iginuhit', value: ha < 0.1 ? haText(ha) : `mga ${haText(ha)}` })
     }
     if (squares != null) rows.push({ label: 'Mga planting square', value: `${squares} (bawat isa ay mga 1 ektarya)` })
+    if (split) rows.push({ label: 'Hati ng mga parisukat', value: split })
+    if (ph) rows.push({ label: 'Tantiyang pH', value: `gitna ${Math.round(ph.mean * 10) / 10} (saklaw ${Math.round(ph.q05 * 10) / 10}–${Math.round(ph.q95 * 10) / 10}), SoilGrids, tantiya lang` })
     if (selection === 'touching') rows.push({ label: 'Paalala', value: 'Mas maliit ito sa isang square, kaya ginamit ang mga square na tinatamaan ng lugar.' })
     return rows
   }
@@ -88,4 +90,24 @@ export function continueState({ mode, area, areaRank }) {
   }
   if (areaRank?.status === 'loading') return { ok: false, reason: 'Sinusuri ang lugar…' }
   return { ok: true, reason: '' }
+}
+
+// UX round 2 (A3): the split of the squares of an area, in simple Filipino. diag = the answer of POST /area/diagnostic. Example: "5 parisukat ang natatamaan: 2 angkop, 1 mababa ang tugma, 2 hindi planting zone (sementeryo)."
+const REASON_FIL = { outside_zoning: 'labas ng zoning map', special_reserved: 'Special Reserved', industrial: 'industrial', commercial: 'commercial', quarry: 'quarry', landfill: 'landfill', cemetery: 'sementeryo', other: 'ibang zone' }
+export function diagnosticText(diag) {
+  if (!diag || !diag.touched) return null
+  const parts = []
+  if (diag.suitable) parts.push(`${diag.suitable} angkop`)
+  if (diag.low_match) parts.push(`${diag.low_match} mababa ang tugma`)
+  if (diag.not_planting.total) {
+    const why = Object.entries(diag.not_planting.by_reason).map(([k, n]) => `${REASON_FIL[k] ?? k}${Object.keys(diag.not_planting.by_reason).length > 1 ? ` ${n}` : ''}`).join(', ')
+    parts.push(`${diag.not_planting.total} hindi planting zone (${why})`)
+  }
+  if (diag.left_out_by_field_check) parts.push(`${diag.left_out_by_field_check} inalis dahil sa field check na hindi matataniman`)
+  const what = diag.kind === 'polygon' ? 'natatamaan ng iginuhit' : diag.kind === 'zone' ? 'nasa zone' : 'nasa barangay'
+  let text = `${diag.touched} parisukat ang ${what}: ${parts.join(', ')}.`
+  if (diag.kind === 'polygon' && diag.selected < diag.planting - diag.left_out_by_field_check) {
+    text += ` Sa ranking, ${diag.selected} lang ang binibilang (nasa loob ang gitna o sakop ang kalahati o higit pa ng parisukat); ang iba ay gilid lang ng iginuhit.`
+  }
+  return text
 }

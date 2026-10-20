@@ -139,3 +139,30 @@ export function areaPhSummary(ph) {
   const f = (v) => String(Math.round(Number(v) * 10) / 10)
   return `pH ng lugar: mga ${f(ph.mean)} (posibleng ${f(ph.q05)}–${f(ph.q95)}). Estimate ng modelo (SoilGrids), hindi sinukat sa San Mateo. Hindi ito kasama sa score o sa pagkakasunod-sunod.`
 }
+
+// "Tantiyang pH ng lupa dito": the SoilGrids estimate of a square or of an area (display only; a model estimate, never called a measurement).
+export function sitePhText(ph, scope = 'square') {
+  if (!ph) return scope === 'area' ? 'Walang pH estimate para sa area na ito (kulang ang datos ng modelo).' : 'Walang pH estimate para sa lugar na ito (kulang ang datos ng modelo).'
+  const f = (v) => String(Math.round(Number(v) * 10) / 10)
+  const head = scope === 'area' ? `Tantiyang pH ng lupa sa area: gitna ${f(ph.mean)} (saklaw ${f(ph.q05)}–${f(ph.q95)})` : `Tantiyang pH ng lupa dito: ${f(ph.mean)} (saklaw ${f(ph.q05)}–${f(ph.q95)})`
+  const n = scope === 'area' && ph.n_squares != null ? `, mula sa ${ph.n_squares} sa ${ph.n_total} parisukat na may datos` : ''
+  return `${head}${n}. SoilGrids, 250 m, tantiya lang ng modelo; hindi sinukat sa San Mateo.`
+}
+
+// What a pH measured on the spot means for a list of species: how many have it inside their range (tolerated, best or listed), outside, or have no confirmed range. all = GET /species-ph-reference .species
+export function phFitCounts(value, speciesIds, all) {
+  const out = { inside: 0, outside: 0, none: 0, total: 0 }
+  for (const id of new Set(speciesIds ?? [])) {
+    out.total++
+    const ref = all?.[String(id)]
+    const c = compareMeasured(value, ref)
+    if (!ref || ref.status !== 'sourced') out.none++
+    else if (c === 'outside' || c === 'outside_optimal') out.outside++
+    else out.inside++
+  }
+  return out
+}
+
+export function phFitText(c) {
+  return `Sa ${c.total} species sa listahan: ${c.inside} ang nasa saklaw ng pH (mula sa sanggunian), ${c.outside} ang labas sa saklaw, ${c.none} ang walang nakumpirmang range.`
+}

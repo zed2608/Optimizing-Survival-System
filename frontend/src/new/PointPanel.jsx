@@ -16,6 +16,7 @@ import RowDetails from './RowDetails.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
 import FieldStatusLine from './FieldStatusLine.jsx'
+import PhSiteCard from './PhSiteCard.jsx'
 import ViableSuggestion from './ViableSuggestion.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import WhyNone from './WhyNone.jsx'
@@ -112,6 +113,7 @@ export default function PointPanel({
       <ViewSwitch value={view} onChange={onView} />
       <VerdictCard ranking={ranking} leftOut={leftOut} preferId={planBlock ? planBlock.item.species_id : null} />
       <LocationCard full={full} zoneCondition={point.zone_condition ?? ''} soil={point.soil ?? null} ground={point.ground_cover} zoning={point.zoning_status ?? (point.zone ? 'confirmed' : null)} barangay={barangay} zone={point.zone} pointId={point.point_id} lat={point.lat} lon={point.lon} elev={point.elev_m} slope={point.slope_pct} win={win} today={today} distance={point.distance_m} searched={searched} />
+      <PhSiteCard ph={point.site_ph ?? null} scope="square" speciesIds={ranking.filter((r) => r.eligible).map((r) => r.species_id)} />
       {planBlock && (
         <section className="nw-pcard nw-blockcard" aria-label="Planting block">
           <div className="nw-pcard-head">

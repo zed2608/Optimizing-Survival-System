@@ -8,7 +8,7 @@ const PRESETS = [50, 100, 300, 500]
 // Step 5 "Plan": campaign name, assigned unit, the trees (one number for the automatic mix, or one row per chosen species), a compact summary of what the plan will use,
 // the capacity message, and the one primary button.
 export default function PlanStep({
-  name, onName, unit, onUnit, n, onN, nValid, areaLabel, modeLabel, windowText, preview, reason, onCreate, creating, createError, result, onAnother, seasonNoticeProps,
+  name, onName, unit, onUnit, n, onN, nValid, areaLabel, areaSplit = null, modeLabel, windowText, preview, reason, onCreate, creating, createError, result, onAnother, seasonNoticeProps,
   countsMode = false, countRows = [], counts = {}, onCount, areaMode = false, ownSpecies = false, onOwnSpecies, onAutoMix, picker = null,
 }) {
   const p = preview.status === 'ok' ? preview.data : null
@@ -86,6 +86,11 @@ export default function PlanStep({
           <dd>
             {areaLabel || 'Not chosen'}
             {p ? ` · ${p.area.suitable_squares} suitable squares available` : ''}
+            {areaSplit && (
+              <span className="nw-sub" data-role="plan-area-split">
+                {areaSplit}
+              </span>
+            )}
           </dd>
         </div>
         <div>

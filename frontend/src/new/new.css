@@ -1019,3 +1019,5 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
   .nw-root.panel-open.sidebar-open .nw-right { margin-top: 118px; }
   .nw-root.panel-open.sidebar-open .nw-toasts.v2.v2-embedded { top: 250px; }
 }
+.nw-fmenu-where { padding: 8px 12px; font-size: 12px; color: #334155; border-bottom: 1px solid rgba(15, 23, 42, 0.12); }
+.nw-fmenu-actions { padding: 8px 12px; border-bottom: 1px solid rgba(15, 23, 42, 0.12); }

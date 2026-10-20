@@ -74,3 +74,20 @@ test('area pH lines: a text for every verdict code the service sends, and the ar
   assert.match(areaPhSummary(null), /Walang pH estimate/)
   assert.ok(!/verified|ligtas|tama/i.test(areaPhText('inside') + areaPhSummary(null)))
 })
+
+import { phFitCounts, phFitText, sitePhText } from './phEvidence.js'
+
+test('site pH text: an estimate, never a measurement; the area version names how many squares', () => {
+  assert.equal(sitePhText({ mean: 5.75, q05: 4.25, q95: 7.5 }), 'Tantiyang pH ng lupa dito: 5.8 (saklaw 4.3–7.5). SoilGrids, 250 m, tantiya lang ng modelo; hindi sinukat sa San Mateo.')
+  assert.match(sitePhText({ mean: 5.7, q05: 4.3, q95: 7.5, n_squares: 5, n_total: 6 }, 'area'), /^Tantiyang pH ng lupa sa area: gitna 5\.7 \(saklaw 4\.3–7\.5\), mula sa 5 sa 6 parisukat na may datos\./)
+  assert.match(sitePhText(null), /^Walang pH estimate/)
+  assert.ok(!/sinukat ito|sinukat namin|measured here/i.test(sitePhText({ mean: 5, q05: 4, q95: 6 })))
+})
+
+test('what a measured pH means for the listed species', () => {
+  const all = { 1: REF, 2: NONE, 3: LISTED }
+  assert.deepEqual(phFitCounts(6, [1, 2, 3, 3], all), { inside: 2, outside: 0, none: 1, total: 3 })
+  assert.deepEqual(phFitCounts(9, [1, 2, 3], all), { inside: 0, outside: 2, none: 1, total: 3 })
+  assert.deepEqual(phFitCounts(6, [9], all), { inside: 0, outside: 0, none: 1, total: 1 })
+  assert.match(phFitText({ inside: 2, outside: 1, none: 3, total: 6 }), /^Sa 6 species sa listahan: 2 ang nasa saklaw/)
+})
