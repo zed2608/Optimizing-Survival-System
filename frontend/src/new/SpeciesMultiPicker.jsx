@@ -11,6 +11,7 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
   const [query, setQuery] = useState('')
   const [tag, setTag] = useState('') // trait filter (species_purpose_tags: provisional; a filter only, it never changes a score)
   const [nurseryOnly, setNurseryOnly] = useState(false) // only species that are in the LGU nursery list
+  const [showFilters, setShowFilters] = useState(false) // UX round 2: the filters are behind one button "Salain"
   if (species.status === 'loading') return <div className="v2 v2-embedded"><Loading what="Loading the species list" /></div>
   if (species.status === 'error') return <div className="v2 v2-embedded"><ErrorBox error={species.error} onRetry={species.retry} title="Could not load the species list" brief /></div>
   if (species.status !== 'ok') return null
@@ -29,6 +30,12 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
         Search species
       </label>
       <input id="nw-species-search" type="search" className="nw-input" placeholder="Search species" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="nw-row">
+        <button type="button" className="nw-btn nw-btn-small" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)} data-role="filter-toggle">
+          Salain{(tag ? 1 : 0) + (nurseryOnly ? 1 : 0) > 0 ? ` (${(tag ? 1 : 0) + (nurseryOnly ? 1 : 0)})` : ''}
+        </button>
+      </div>
+      {showFilters && (
       <div className="nw-pfilter">
         <label className="nw-label nw-pfilter-label" htmlFor="nw-purpose-filter">
           Salain ayon sa katangian (Filter by trait) <ProvisionalTag />
@@ -48,6 +55,7 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
         </label>
         <div className="muted nw-pfilter-note">Stock quantities unknown</div>
       </div>
+      )}
       <div className="nw-row">
         {!single && (
           <button type="button" className="nw-btn nw-btn-small" onClick={() => onChange([...new Set([...selected, ...shown.map((s) => s.species_id)])])}>

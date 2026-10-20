@@ -46,7 +46,6 @@ import CampaignLogs from './CampaignLogs.jsx'
 import PlantingWindow from './PlantingWindow.jsx'
 import PointPanel from './PointPanel.jsx'
 import ContextPanel from './ContextPanel.jsx'
-import Segmented from './Segmented.jsx'
 import SpeciesCard from './SpeciesCard.jsx'
 import MapNew from './MapNew.jsx'
 import ModeSwitch from './ModeSwitch.jsx'
@@ -57,6 +56,7 @@ import { FEW_SPECIES, formatDay, formatRange, monthsText, seasonQuery, windowMon
 import SeasonNotice from './SeasonNotice.jsx'
 import SidebarStep from './SidebarStep.jsx'
 import SpeciesChooser from './SpeciesChooser.jsx'
+import SpeciesFlow from './SpeciesFlow.jsx'
 import { useObserver } from './useObserver.js'
 import { usePost } from './usePost.js'
 import { useIncludeUnzoned, useLegendOpen, useMapDetail, useViewMode } from './useViewMode.js'
@@ -104,6 +104,8 @@ export default function AppNew() {
   const [campaignUnit, setCampaignUnit] = useState('')
   const [nSaplings, setNSaplings] = useState('100')
   const [counts, setCounts] = useState({}) // trees per chosen species (a species not edited yet has the default)
+  const [speciesSub, setSpeciesSub] = useState(1) // goal "I have species", step 4: 1 species, 2 where to look, 3 the best areas (right card)
+  const [where, setWhere] = useState({ kind: 'all', name: '' }) // "Saan hahanapin": the whole municipality, one barangay or one zone
   const [speciesHow, setSpeciesHow] = useState('') // UX 12: '' (not asked yet) | 'one' | 'many'
   const [mainSpecies, setMainSpecies] = useState(null) // UX 12: the main species when the person chose many
   const [ownSpecies, setOwnSpecies] = useState(false) // goal "I have an area": the user chose their own species and counts
@@ -342,6 +344,18 @@ export default function AppNew() {
       return
     }
     setFieldMenu({ x: pick.x, y: pick.y, pick, pointId: sq.pointId, square: sq, click: { lat: pick.lat, lon: pick.lon } })
+  }
+  const chooseWhere = (w) => {
+    setWhere(w)
+    if (w.kind === 'all' || !w.name) {
+      setRowActive(null)
+      return
+    }
+    const f = featureOf(w.kind, w.name)
+    if (f) {
+      setRowActive({ kind: w.kind, name: w.name })
+      setFitTarget({ bbox: f.properties.bbox })
+    }
   }
   const goTo = (lat, lon) => {
     setSpot({ lat, lon })
@@ -610,7 +624,7 @@ export default function AppNew() {
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
     <PublicNotice health={healthData} />
     <ScoreSourceNotice health={healthData} />
-    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
+    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
@@ -828,18 +842,30 @@ export default function AppNew() {
         >
           {mode === 'species' ? (
             <>
-              {fewSpecies && seasonNotice(false)}
-              {chooser(null)}
-              <Segmented
-                name="combine"
-                label="Place counts when"
-                help="“Suits all”: every chosen species can grow there, and the score is the lowest of theirs. “Suits at least one”: one is enough, and the score is the highest."
-                value={combine}
-                options={[
-                  { value: 'all', label: 'Suits all' },
-                  { value: 'any', label: 'Suits at least one' },
-                ]}
-                onChange={setCombine}
+              <SpeciesFlow
+                sub={speciesSub}
+                setSub={setSpeciesSub}
+                species={species}
+                selIds={selIds}
+                setSelIds={setSelIds}
+                onlySeason={onlySeason}
+                onInfo={setCardId}
+                purpose={purpose}
+                query={sq}
+                how={speciesHow}
+                setHow={setSpeciesHow}
+                mainId={mainSpecies}
+                setMain={setMainSpecies}
+                combine={combine}
+                setCombine={setCombine}
+                includeUnzoned={includeUnzoned}
+                setIncludeUnzoned={setIncludeUnzoned}
+                where={where}
+                onWhere={chooseWhere}
+                barangays={barangayFeatures}
+                zones={zoneFeatures}
+                onGoPlan={() => setOpenStep('plan')}
+                seasonNotice={fewSpecies ? seasonNotice(false) : null}
               />
             </>
           ) : (
@@ -865,7 +891,7 @@ export default function AppNew() {
               )}
             </>
           )}
-          <UnzonedToggle value={includeUnzoned} onChange={setIncludeUnzoned} />
+          {mode === 'area' && <UnzonedToggle value={includeUnzoned} onChange={setIncludeUnzoned} />}
           {planPrefill && (
             <div className="nw-prefill">
               <span>
@@ -876,9 +902,11 @@ export default function AppNew() {
               </button>
             </div>
           )}
+          {(mode === 'area' || planPrefill) && (
           <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('plan')} disabled={!cont.ok} aria-disabled={!cont.ok} title={cont.ok ? undefined : cont.reason}>
             Continue
           </button>
+          )}
         </SidebarStep>
         <SidebarStep
           n={5}
@@ -1009,6 +1037,7 @@ export default function AppNew() {
             </div>
           ) : mode === 'species' ? (
             <AreasPanel
+              focus={speciesSub >= 3 ? where : null}
               speciesNames={selNames}
               combine={combine}
               onCombine={setCombine}
