@@ -40,7 +40,7 @@ function describe(it, locate) {
     case 'species':
       return { group: 'species', icon: 'tree', label: it.common_name, sub: it.scientific_name ? `Species · ${it.scientific_name}` : 'Species' }
     case 'grid_point':
-      return { group: 'point', icon: 'dot', label: `Grid point ${it.point_id}`, sub: `Grid point · ${it.barangay_display || 'Outside the barangay outlines'} · ${it.legal_zone ? it.zone || 'planting zone' : 'not a planting zone'}` }
+      return { group: 'point', icon: 'dot', label: `Puntos ${it.point_id}`, sub: `Puntos sa mapa · ${it.barangay_display || 'Outside the barangay outlines'} · ${it.legal_zone ? it.zone || 'planting zone' : 'not a planting zone'}` }
     case 'plan_point':
       return { group: 'point', icon: 'pin', label: `${it.point_ref} · ${it.species}`, sub: `Plan point · ${it.barangay_display || 'barangay unknown'} · ${it.plan_id}` }
     case 'place':
@@ -294,7 +294,7 @@ export default function SearchBar({ onChoose, note, onDismissNote, locate, inclu
             <div className="nw-search-msg">
               <strong>No results for “{trimmed}”.</strong>
               <br />
-              Try a barangay (Santa Ana, Sto Niño), a species (Narra), coordinates (14.69, 121.12 or 296799 1625091), a grid point number (832) or a plan point (DUH-012).
+              Try a barangay (Santa Ana, Sto Niño), a species (Narra), coordinates (14.69, 121.12 or 296799 1625091), isang numero ng puntos (832) or a plan point (DUH-012).
             </div>
           )}
         </div>

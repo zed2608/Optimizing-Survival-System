@@ -21,10 +21,10 @@ const MARKER = -1
 function friendly(error) {
   const m = error.message
   if (error.status === 400 && m.includes('no legal-zone grid points')) {
-    return { title: 'Nothing to rank in this area', text: 'The area has no planting-zone grid points. Draw it over the coloured dots, or pick a barangay or zone from the lists.' }
+    return { title: 'Walang mapag-ranggo sa lugar na ito', text: 'Walang planting square sa lugar na ito. Iguhit ito sa ibabaw ng mga may kulay na parisukat, o pumili ng barangay o zone.' }
   }
   if (error.status === 400 && m.includes('No species has eligible points')) {
-    return { title: 'No suitable species in this area', text: 'No species can grow here for this purpose (S stays below 0.50 everywhere). Try another area or another purpose.' }
+    return { title: 'Walang angkop na species sa lugar na ito', text: 'Walang species na angkop dito para sa layuning ito (mababa ang tugma ng lugar sa lahat ng species). Subukan ang ibang lugar o ibang layunin.' }
   }
   if (error.status === 422 && m.toLowerCase().includes('polygon')) {
     return { title: 'That shape cannot be used', text: 'The drawn area must have at least 3 corners and its edges must not cross each other. Press “Start again” and redraw it.' }

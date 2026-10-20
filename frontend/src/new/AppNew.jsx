@@ -343,7 +343,7 @@ export default function AppNew() {
     const rankable = it.type === 'grid_point' && (it.legal_zone || it.zoning_status === 'unconfirmed')
     const pointId = it.type === 'plan_point' || rankable ? it.point_id : undefined
     const searched =
-      it.type === 'coords' ? `coordinates ${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}` : it.type === 'grid_point' ? `grid point ${it.point_id}` : it.type === 'plan_point' ? `${it.point_ref} (${it.species})` : (it.name || it.display_name)
+      it.type === 'coords' ? `coordinates ${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}` : it.type === 'grid_point' ? `puntos ${it.point_id}` : it.type === 'plan_point' ? `${it.point_ref} (${it.species})` : (it.name || it.display_name)
     const ci = it.type === 'grid_point' && !rankable && contextCols ? contextCols.point_id.indexOf(it.point_id) : -1
     setSpot({ lat: it.lat, lon: it.lon, searched, ...(it.type === 'plan_point' ? { planned: true } : {}), ...(ci >= 0 ? { context: ci } : pointId ? { pointId } : {}) })
     setGoTarget({ lat: it.lat, lon: it.lon })
@@ -351,9 +351,9 @@ export default function AppNew() {
     setHidden(false)
     setNotice('')
     if (it.type === 'plan_point') {
-      setSearchNote({ title: `${it.point_ref} · ${it.species}`, lines: [`Plan ${it.plan_id}`, `Grid point ${it.point_id}${it.barangay_display ? ' · ' + it.barangay_display : ''}`] })
+      setSearchNote({ title: `${it.point_ref} · ${it.species}`, lines: [`Plan ${it.plan_id}`, `Puntos ${it.point_id}${it.barangay_display ? ' · ' + it.barangay_display : ''}`] })
     } else if (it.type === 'grid_point') {
-      setSearchNote({ title: `Grid point ${it.point_id}`, lines: [it.note ?? `${it.barangay_display || 'Outside the barangay outlines'} · ${it.zone}`] })
+      setSearchNote({ title: `Puntos ${it.point_id}`, lines: [it.note ?? `${it.barangay_display || 'Outside the barangay outlines'} · ${it.zone}`] })
     } else if (it.type === 'place') {
       setSearchNote({ title: it.name || it.display_name, lines: [it.display_name], attribution: it.attribution })
     } else {
@@ -419,7 +419,7 @@ export default function AppNew() {
     : !planSpeciesOk
     ? 'Choose species first'
     : campaignName.trim() === ''
-    ? 'Name the campaign'
+    ? 'Lagyan ng pangalan ang plano'
     : win.error
     ? 'Fix the planting dates'
     : !nValid
@@ -597,8 +597,8 @@ export default function AppNew() {
 
       {/* messages over the map */}
       <div className="nw-toasts v2 v2-embedded">
-        {grid.status === 'loading' && <Loading what="Loading the grid points" />}
-        {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title="Could not load the grid points" />}
+        {grid.status === 'loading' && <Loading what="Kinukuha ang mga puntos sa mapa" />}
+        {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title="Hindi makuha ang mga puntos sa mapa" />}
         {fewSpecies && seasonNotice(true)}
         {boundaries.status === 'error' && !boundaries.error.network && <ErrorBox error={boundaries.error} onRetry={boundaries.retry} title="Could not load the outlines" brief />}
       </div>
