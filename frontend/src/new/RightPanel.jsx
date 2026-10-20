@@ -22,6 +22,11 @@ export default function RightPanel({ title, subtitle, tabs, activeTab, onTab, on
           ))}
         </div>
       )}
+      {tabs.length > 1 && tabs.find((t) => t.id === activeTab)?.hint && (
+        <p className="nw-right-hint" data-role="tab-hint">
+          {tabs.find((t) => t.id === activeTab).hint}
+        </p>
+      )}
       <div className="nw-right-body" aria-live="polite">
         {children}
       </div>

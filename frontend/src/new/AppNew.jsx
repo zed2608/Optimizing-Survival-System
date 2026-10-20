@@ -404,7 +404,14 @@ export default function AppNew() {
   const avail = { plan: hasPlanTab, main: hasMain, point: hasPoint }
   const activeTab = avail[panelTab] ? panelTab : (['plan', 'main', 'point'].find((k) => avail[k]) ?? 'point')
   const showPanel = (hasMain || hasPoint || hasPlanTab) && !hidden
-  const tabs = [...(hasPlanTab ? [{ id: 'plan', label: 'Plan' }] : []), ...(hasMain ? [{ id: 'main', label: mode === 'species' ? 'Areas' : 'Area species' }] : []), ...(hasPoint ? [{ id: 'point', label: 'This point' }] : [])]
+  // UX 14: two different lists, two clear names, one sentence each (they are never merged)
+  const tabs = [
+    ...(hasPlanTab ? [{ id: 'plan', label: 'Plan', hint: 'Ang planong ginawa mo: mga block, species at progress.' }] : []),
+    ...(hasMain
+      ? [{ id: 'main', label: mode === 'species' ? 'Mga lugar na angkop' : 'Para sa buong area', hint: mode === 'species' ? 'Mga barangay at zone na angkop sa mga species na pinili mo.' : 'Species na angkop sa BUONG napiling lugar (lahat ng parisukat nito).' }]
+      : []),
+    ...(hasPoint ? [{ id: 'point', label: 'Para sa puntong ito', hint: 'Species para sa ISANG puntos na pinili mo sa mapa; nandito rin ang field check nito.' }] : []),
+  ]
   const areaLabel = !area ? '' : area.kind === 'polygon' ? 'the drawn area' : (featureOf(area.kind, area.name)?.properties.display_name ?? area.name)
 
   // ---- step 5 "Plan"

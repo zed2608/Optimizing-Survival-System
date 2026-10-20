@@ -1006,3 +1006,6 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 .nw-fmenu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; width: auto; border-radius: 12px 12px 0 0; max-height: 75vh; }
 .nw-fmenu-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; font-size: 13px; border-bottom: 1px solid rgba(15, 23, 42, 0.12); }
 .nw-fmenu .nw-pcard { margin: 0; border: 0; box-shadow: none; }
+
+/* UX 14 */
+.nw-right-hint { margin: 0; padding: 8px 16px; font-size: 12px; color: #cbd5e1; background: rgba(15, 23, 42, 0.5); }
