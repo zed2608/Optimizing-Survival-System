@@ -22,7 +22,7 @@ export function geometryHectares(geometry) {
 }
 
 const hasArea = (n) => (n >= 10 ? Math.round(n) : Math.round(n * 10) / 10)
-export const haText = (ha) => `${String(hasArea(ha)).replace('.', ',')} ektarya`
+export const haText = (ha) => (ha < 0.1 ? 'mas mababa sa 0,1 ektarya' : `${String(hasArea(ha)).replace('.', ',')} ektarya`)
 
 // The barangays a drawn shape reaches, judged from its corners and its middle (not an exact overlay). features = barangay features with display_name.
 export function barangaysOfShape(geometry, features) {
@@ -61,7 +61,7 @@ export function describeArea({ tool, area, spot, barangayFeatures = [], zoneFeat
       rows.push({ label: 'Pangalan', value: 'Iginuhit na lugar' })
       if (bs.length) rows.push({ label: bs.length > 1 ? 'Mga barangay' : 'Barangay', value: `${bs.join(', ')} (batay sa mga sulok at gitna)` })
       rows.push({ label: 'Uri', value: TYPE.polygon })
-      rows.push({ label: 'Laki ng iginuhit', value: `mga ${haText(ha)}` })
+      rows.push({ label: 'Laki ng iginuhit', value: ha < 0.1 ? haText(ha) : `mga ${haText(ha)}` })
     }
     if (squares != null) rows.push({ label: 'Mga planting square', value: `${squares} (bawat isa ay mga 1 ektarya)` })
     if (selection === 'touching') rows.push({ label: 'Paalala', value: 'Mas maliit ito sa isang square, kaya ginamit ang mga square na tinatamaan ng lugar.' })

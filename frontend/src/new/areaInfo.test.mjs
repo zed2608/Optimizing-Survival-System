@@ -16,6 +16,8 @@ test('polygonHectares: a 100 m square is about 1 hectare, fewer than 3 corners i
   assert.equal(polygonHectares([[1, 1], [1, 2]]), 0)
   assert.equal(haText(1.04), '1 ektarya'.replace('1 ', '1 '))
   assert.equal(haText(12.34), '12 ektarya')
+  assert.equal(haText(0.04), 'mas mababa sa 0,1 ektarya')
+  assert.equal(haText(0.8), '0,8 ektarya')
 })
 
 test('barangaysOfShape: judged from the corners and the middle', () => {
