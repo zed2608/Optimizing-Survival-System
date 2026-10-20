@@ -9,7 +9,7 @@ export default function SourceGroup({ title, ids, map }) {
     <div>
       <h4>{title}</h4>
       {unique.length === 0 ? (
-        <span className="unavailable">Data Unavailable</span>
+        <span className="unavailable">Data Unavailable: walang nakasulat na sanggunian para dito sa dataset</span>
       ) : (
         <ul className="plain-list">
           {unique.map((s) => (

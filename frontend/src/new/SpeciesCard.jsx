@@ -56,7 +56,7 @@ function Fact({ label, rows = [], text, large = false, extra = null, note = '' }
             </ul>
           ) : (
             <div className="muted nw-fact-src">
-              Source: <span className="unavailable">Data Unavailable</span>
+              Source: <span className="unavailable">Data Unavailable (walang nakasulat na sanggunian)</span>
             </div>
           ))}
       </dd>
