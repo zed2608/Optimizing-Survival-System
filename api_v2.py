@@ -628,12 +628,12 @@ def resolve_area(d, req):
         if z is None:
             raise HTTPException(400, f"Unknown zone '{req.zone}'. Zones: {', '.join(d.zone_names)}")
         return d.point_zone == z, {"type": "zone", "name": d.zone_names[z], "display_name": d.zone_names[z], "bbox": d.zone_bbox[z]}
-    mask = polygon_mask(sites, req.polygon, d.cfg["polygon_max_vertices"])
+    mask, how = polygon_mask(sites, req.polygon, d.cfg["polygon_max_vertices"], with_mode=True)
     if not mask.any():
         raise HTTPException(400, "The area contains no legal-zone grid points (it may lie outside San Mateo or only cover non-planting zones).")
     nd = d.cfg["coord_decimals"]
     sel = sites[mask]
-    return mask, {"type": "polygon", "name": "Drawn area", "display_name": "Drawn area",
+    return mask, {"type": "polygon", "name": "Drawn area", "display_name": "Drawn area", "selection": how,
                   "bbox": [round(float(sel.lon.min()), nd), round(float(sel.lat.min()), nd), round(float(sel.lon.max()), nd), round(float(sel.lat.max()), nd)]}
 
 
@@ -1975,7 +1975,14 @@ class PlanRequest(BaseModel):
         return self
 
 
-def polygon_mask(sites, polygon, max_vertices):
+SQUARE_HALF_M = 50.0           # half the side of a grid square (the squares are 100 m)
+METRES_PER_DEGREE = 111320.0   # about, for the small box of a square; only used when a drawn area holds no square centre
+
+
+def polygon_mask(sites, polygon, max_vertices, with_mode=False):
+    """Which squares a drawn area selects. Rule 1: the squares whose CENTRE lies inside the polygon. Rule 2 (UX fix 5): only when no centre is inside (an area smaller than a square, or between two
+    centres), the squares that the polygon touches (square and polygon intersect). Nothing else changes: S, P and W of a square are the same whichever rule picked it.
+    with_mode=True returns (mask, 'centres' | 'touching')."""
     import shapely
     from shapely.geometry import shape
     geom = polygon.get("geometry") if polygon.get("type") == "Feature" else polygon
@@ -1988,7 +1995,13 @@ def polygon_mask(sites, polygon, max_vertices):
                                  "(closed rings, no self-intersections)")
     if len(shapely.get_coordinates(g)) > max_vertices:
         raise HTTPException(422, f"polygon has too many vertices (limit {max_vertices})")
-    return shapely.contains_xy(g, sites.lon.to_numpy(), sites.lat.to_numpy())
+    lon, lat = sites.lon.to_numpy(), sites.lat.to_numpy()
+    m, mode = shapely.contains_xy(g, lon, lat), "centres"
+    if not m.any() and len(lon):
+        dlat = SQUARE_HALF_M / METRES_PER_DEGREE
+        dlon = SQUARE_HALF_M / (METRES_PER_DEGREE * np.cos(np.radians(lat)))
+        m, mode = shapely.intersects(g, shapely.box(lon - dlon, lat - dlat, lon + dlon, lat + dlat)), "touching"
+    return (m, mode) if with_mode else m
 
 
 def campaign_info(s):
