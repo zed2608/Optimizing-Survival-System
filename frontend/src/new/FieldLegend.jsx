@@ -5,11 +5,14 @@ import { FIELD_ORDER, fieldColor, fieldIcon, fieldLabel } from './fieldStatus.js
 export default function FieldLegend() {
   return (
     <div className="nw-fieldkey-box">
-      <div className="nw-fieldkey-title">Mga marka ng field check: ang HUGIS ang nagsasabi ng uri (check, singsing, tandang pananong, krus). Hindi ito ang kulay ng score ng parisukat.</div>
+      <div className="nw-fieldkey-title">Mga marka ng field check: iisang kulay (violet); ang HUGIS ang nagsasabi ng uri (check, singsing, tandang pananong, krus). Hindi ito ang kulay ng score ng parisukat.</div>
     <ul className="nw-fieldkey" aria-label="Field check symbols">
       {FIELD_ORDER.map((k) => (
-        <li key={k} style={{ color: fieldColor(k) }}>
-          <Icon name={fieldIcon(k)} /> <span className="nw-fieldkey-text">{fieldLabel(k)}</span>
+        <li key={k}>
+          <span className="nw-fieldmark" style={{ color: fieldColor(k) }}>
+            <Icon name={fieldIcon(k)} />
+          </span>{' '}
+          <span className="nw-fieldkey-text">{fieldLabel(k)}</span>
         </li>
       ))}
     </ul>

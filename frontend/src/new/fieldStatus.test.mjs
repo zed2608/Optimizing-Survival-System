@@ -23,15 +23,21 @@ test('field status classes: the colours and icons of the request', () => {
   assert.equal(fieldIcon('hard'), 'close')
   const hex = (c) => /^#[0-9a-f]{6}$/i.test(c)
   assert.ok(FIELD_ORDER.every((k) => hex(fieldColor(k))))
-  assert.equal(new Set(FIELD_ORDER.map(fieldColor)).size, 6)                                  // six different colours
-  // green for planted and verified, amber for recheck, red for not plantable, blue for water, gray for paved / building / rock
+  // UX round 5 (C), user-approved: ONE violet for every mark; the shape is the only difference. (Before: six colours - green, green, amber, red, blue, gray.)
+  assert.equal(new Set(FIELD_ORDER.map(fieldColor)).size, 1)
   const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
-  const [pr, pg] = rgb(fieldColor('planted'))
-  assert.ok(pg > pr)
-  assert.ok(rgb(fieldColor('not_plantable'))[0] > 200 && rgb(fieldColor('not_plantable'))[1] < 80)
-  assert.ok(rgb(fieldColor('water'))[2] > 200)
-  const [gr, gg, gb] = rgb(fieldColor('hard'))
-  assert.ok(Math.abs(gr - gg) < 12 && Math.abs(gg - gb) < 12)
+  const [vr, vg, vb] = rgb(fieldColor('planted'))
+  assert.ok(vb > vg && vr > vg && vb > 200, 'a violet: blue and red above green')
+  assert.equal(new Set(['planted', 'verified', 'recheck', 'not_plantable'].map(fieldIcon)).size, 4, 'the four statuses differ by shape: check, ring, question mark, cross')
+  assert.deepEqual(['planted', 'verified', 'recheck', 'not_plantable', 'water', 'hard'].map((k) => FIELD_CLASSES[k].shape), ['check', 'ring', 'question', 'cross', 'cross', 'cross'])
+  // the violet must stay away from the colours that mean something else: score colours (green, orange, red, grey), counted squares (cyan) and the dashed grey
+  const dist = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]))
+  for (const other of ['#22c55e', '#f59e0b', '#ef4444', '#9ca3af', '#22d3ee', '#e5e7eb']) assert.ok(dist(fieldColor('planted'), other) > 90, other)
+  // contrast of the violet against white (light panels) and against the dark panel: both at least 3 for a symbol
+  const lum = (c) => { const [r, g, b] = rgb(c).map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05) }
+  assert.ok(ratio(fieldColor('planted'), '#ffffff') >= 3, 'on a light panel (a symbol; the words next to it are dark)')
+  assert.ok(ratio(fieldColor('planted'), '#1f2937') >= 3, 'on a dark panel')
   assert.ok(Object.values(FIELD_CLASSES).every((c) => c.label.length > 3))
 })
 

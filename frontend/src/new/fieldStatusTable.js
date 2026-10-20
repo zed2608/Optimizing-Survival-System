@@ -1,6 +1,6 @@
 // The data of fieldStatus.json as a module (the browser build and node read this file; the JSON is read by Python; fieldStatus.test.mjs checks that the two are the same).
 export const FIELD_TABLE = {
-  "note": "ONE source for the colours and icons of the field-check statuses. Read by frontend/src/new/fieldStatus.js (map, legend, panels, progress tab) and by pipeline/field_status.py (API classes and the field map PDF). Colour is never the only signal: every class has an icon and words.",
+  "note": "ONE source for the colours and icons of the field-check statuses. Read by frontend/src/new/fieldStatus.js (map, legend, panels, progress tab) and by pipeline/field_status.py (API classes and the field map PDF). UX round 5 (C): ONE violet for every field-check mark; the SHAPE is the only difference between statuses (check, ring, question mark, cross). Paved, building, rock and water crosses keep their own words, not their own colour.",
   "order": [
     "planted",
     "verified",
@@ -12,37 +12,37 @@ export const FIELD_TABLE = {
   "classes": {
     "planted": {
       "label": "Planted",
-      "color": "#15803d",
+      "color": "#8b5cf6",
       "icon": "check",
       "shape": "check"
     },
     "verified": {
       "label": "Marked plantable (observer)",
-      "color": "#16a34a",
+      "color": "#8b5cf6",
       "icon": "ring",
       "shape": "ring"
     },
     "recheck": {
       "label": "Needs recheck",
-      "color": "#d97706",
+      "color": "#8b5cf6",
       "icon": "question",
       "shape": "question"
     },
     "not_plantable": {
       "label": "Not plantable",
-      "color": "#dc2626",
+      "color": "#8b5cf6",
       "icon": "close",
       "shape": "cross"
     },
     "water": {
       "label": "Not plantable: water",
-      "color": "#2563eb",
+      "color": "#8b5cf6",
       "icon": "close",
       "shape": "cross"
     },
     "hard": {
       "label": "Not plantable: paved, building or rock",
-      "color": "#707070",
+      "color": "#8b5cf6",
       "icon": "close",
       "shape": "cross"
     }

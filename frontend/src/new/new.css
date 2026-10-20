@@ -236,9 +236,9 @@
 .fc-wrap { border-top: 2px solid var(--line); margin-top: 6px; }
 .fc h3 { margin: 4px 0 8px; }
 .fc-status { border: 1px solid var(--line); border-left-width: 8px; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; background: #fff; }
-.fc-verified_plantable { border-left-color: #2e7d32; }
-.fc-not_plantable { border-left-color: #7f1d1d; background: #fdf2f2; }
-.fc-needs_recheck { border-left-color: #b45309; background: #fff8e1; }
+.fc-verified_plantable { border-left-color: #8b5cf6; }
+.fc-not_plantable { border-left-color: #8b5cf6; background: #f5f0ff; }
+.fc-needs_recheck { border-left-color: #8b5cf6; background: #f5f0ff; }
 .fc-warn { color: #8a4b00; font-weight: 600; margin-top: 4px; }
 .fc-label { display: block; font-size: 0.78rem; font-weight: 600; margin: 8px 0 2px; }
 .fc-input { width: 100%; padding: 6px 8px; font: inherit; border: 1px solid #8d949c; border-radius: 8px; }
@@ -384,9 +384,9 @@
 .fc-big { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
 .fc-bigbtn { min-height: 52px; font: inherit; font-size: 1rem; font-weight: 600; border: 2px solid #4a5560; background: #fff; color: #1b1f23; border-radius: 8px; cursor: pointer; padding: 8px; text-align: center; }
 .fc-bigbtn:disabled { opacity: 0.55; cursor: wait; }
-.fc-b-verified_plantable { border-color: #2e7d32; background: #eaf6ea; }
-.fc-b-not_plantable, .fc-b-other { border-color: #7f1d1d; background: #fdf2f2; }
-.fc-b-needs_recheck { border-color: #b45309; background: #fff8e1; grid-column: span 2; }
+.fc-b-verified_plantable { border-color: #8b5cf6; background: #f5f0ff; }
+.fc-b-not_plantable, .fc-b-other { border-color: #8b5cf6; background: #f5f0ff; }
+.fc-b-needs_recheck { border-color: #8b5cf6; background: #f5f0ff; grid-column: span 2; }
 .fc-other { border-top: 1px dashed var(--line); padding-top: 8px; }
 .fc-notebox summary { cursor: pointer; color: var(--brand); }
 .fc-link { background: none; border: 0; color: var(--brand); text-decoration: underline; font: inherit; font-weight: 600; cursor: pointer; padding: 4px 0; display: block; }
@@ -402,9 +402,9 @@
 .nw-pcard h3 { margin: 0; font-size: 0.95rem; }
 .nw-pcard-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin-bottom: 8px; }
 .nw-chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid #8d99a6; background: #eef1f4; color: #2b333b; white-space: nowrap; }
-.nw-chip.fc-verified_plantable { border-color: #2e7d32; background: #e6f4e7; color: #1b5e20; }
-.nw-chip.fc-not_plantable { border-color: #b71c1c; background: #fdecec; color: #8e1b1b; }
-.nw-chip.fc-needs_recheck { border-color: #b45309; background: #fff3d6; color: #7a4a00; }
+.nw-chip.fc-verified_plantable { border-color: #8b5cf6; background: #f1ebff; color: #4c1d95; }
+.nw-chip.fc-not_plantable { border-color: #8b5cf6; background: #f1ebff; color: #4c1d95; }
+.nw-chip.fc-needs_recheck { border-color: #8b5cf6; background: #f1ebff; color: #4c1d95; }
 .nw-loc { padding: 12px 16px; }
 .nw-loc-searched { display: inline-block; font-size: 12px; font-weight: 600; color: #0b3a73; background: #e8f0fb; border: 1px solid #9bb8de; border-radius: 999px; padding: 2px 8px; margin-bottom: 8px; }
 .nw-loc-title { margin: 0 0 4px; font-size: 1.5rem; line-height: 1.15; }
@@ -625,7 +625,7 @@
 .nw-prow { border: 0; border-left: 4px solid #9e9e9e; border-radius: var(--nw-radius); background: #f6f8fa; }
 .nw-prow.level-good { border-left-color: #2e7d32; } .nw-prow.level-moderate { border-left-color: #e65100; } .nw-prow.level-poor { border-left-color: #c62828; }
 .nw-chip { border: 0; font-weight: 600; background: #e6eaef; }
-.nw-chip.fc-verified_plantable { background: #e0f2e3; } .nw-chip.fc-not_plantable { background: #fbe4e4; } .nw-chip.fc-needs_recheck { background: #fdf0d2; }
+.nw-chip.fc-verified_plantable, .nw-chip.fc-not_plantable, .nw-chip.fc-needs_recheck { background: #f1ebff; }
 .nw-chip-unz { border: 0; background: #fdf0d2; }
 .nw-plan-kpis { gap: 8px; }
 .fc-bigbtn { border-width: 1px; border-radius: var(--nw-radius); font-size: 14px; display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px; }
@@ -670,8 +670,8 @@
 
 /* ---- round 10a: planting blocks, layout diagram, progress, top-up ------------------------------------------------------------------------------ */
 .nw-estimate { margin: 6px 0 8px; padding: 8px 10px; border-radius: var(--nw-radius); background: rgba(16, 185, 129, 0.14); color: #a7f3d0; font-size: 12px; font-weight: 600; }
-.fc-b-planted { border-color: #2e7d32; background: #eaf6ea; }
-.fc-planted { background: #eaf6ea; color: #1b5e20; border-color: #2e7d32; }
+.fc-b-planted { border-color: #8b5cf6; background: #f5f0ff; }
+.fc-planted { background: #f1ebff; color: #4c1d95; border-color: #8b5cf6; }
 .fc-count { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; }
 .fc-count-input { width: 96px; }
 .nw-blocklayout { margin: 8px 0 0; }
@@ -1094,3 +1094,8 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 .nw-ph-tool > summary { color: #047857; }
 @media (max-width: 480px) { .nw-lang-btn { min-width: 36px; padding: 0 4px; } .nw-tab { padding-left: 8px; padding-right: 8px; gap: 4px; } .nw-topright { gap: 4px; } .nw-brand { padding: 0 8px; } }
 @media (max-width: 800px) { .nw-sidebar { padding-bottom: 88px; } } /* UX round 5 (B): the Hide Control Panel button no longer covers the last button of a step */
+
+/* UX round 5 (C): one violet for every field-check mark (the shape tells the status apart); text next to a mark stays in the normal text colour, so it keeps its contrast on light and dark panels */
+.nw-fieldmark { display: inline-flex; vertical-align: middle; }
+.nw-fieldkey li, .nw-pcounts li { color: inherit; }
+.nw-fchip { color: #4c1d95 !important; }

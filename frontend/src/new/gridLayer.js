@@ -770,11 +770,11 @@ const GridCanvasLayer = L.Layer.extend({
       const cname = (this._field.cls && this._field.cls[k]) || ({ 1: 'verified', 2: 'not_plantable', 3: 'recheck' })[status]
       const spec = FIELD_CLASSES[cname] ?? FIELD_CLASSES.not_plantable
       const col = spec.color
-      if (spec.shape === 'ring') {                                   // plantable (verified): a green ring
+      if (spec.shape === 'ring') {                                   // plantable (verified): a ring
         const ring = () => ctx.arc(x, y, R, 0, TWO_PI)
         halo(5, '#ffffff', ring)
         halo(2.5, col, ring)
-      } else if (spec.shape === 'check') {                           // planted: a green disc with a white check
+      } else if (spec.shape === 'check') {                           // planted: a violet disc with a white check
         ctx.beginPath()
         ctx.arc(x, y, R, 0, TWO_PI)
         ctx.fillStyle = col
@@ -785,7 +785,7 @@ const GridCanvasLayer = L.Layer.extend({
           ctx.lineTo(x - R * 0.1, y + R * 0.4)
           ctx.lineTo(x + R * 0.55, y - R * 0.4)
         })
-      } else if (spec.shape === 'question') {                        // needs recheck: an amber disc with a white question mark
+      } else if (spec.shape === 'question') {                        // needs recheck: a violet disc with a white question mark
         ctx.beginPath()
         ctx.arc(x, y, R, 0, TWO_PI)
         ctx.fillStyle = col
