@@ -90,7 +90,7 @@ The species card and the plan result have a section called Ways to improve survi
 
 **11. Filter the species list** (the map screen)
 
-In “I have species”, the button Salain above the species list opens the filters: a Purpose filter, such as fruit-bearing or timber, and an Available in LGU nursery tick box that keeps only the species on the nursery list.
+In “I have species”, the funnel icon at the right end of the species search box (with a number when filters are on) opens the filters: a Purpose filter, such as fruit-bearing or timber, and an Available in LGU nursery tick box that keeps only the species on the nursery list.
 
 *Watch for:* The nursery list does not say how many seedlings are ready. Stock quantities are unknown.
 
@@ -100,7 +100,7 @@ In “I have species”, the button Salain above the species list opens the filt
 
 **12. Planning an event: five steps** (the map screen)
 
-The left panel has five steps: Goal, Purpose, Planting window, Species or Area, and Plan. Work down them in order. Each closed step shows a one-line summary of your choice. In “I have species”, step 4 is a short walk of its own: Piliin ang species, Saan hahanapin, Mga pinakaangkop na lugar, then Gumawa ng plano.
+The left panel has five steps: Goal, Purpose, Planting window, Species or Area, and Plan. Work down them in order. Each closed step shows a one-line summary of your choice. In “I have species”, step 4 is a short walk of its own with a stepper (1 of 4): Choose species, Where to look, Mark on the map (one click is a point; three or more clicks and Finish area make an area), then Create plan. Next stays off until the step is done, and it says why. A finished step can be clicked to go back.
 
 *Watch for:* Each species has its own best months. Set your dates in step 3, or press “Jump to the next planting season”.
 
