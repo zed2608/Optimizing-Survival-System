@@ -1,3 +1,4 @@
+import CountUp from './ui/CountUp.jsx'
 import { useMemo, useState } from 'react'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
@@ -97,23 +98,23 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
         <p className="nw-plan-sentence">{planSentence(result)}</p>
         <div className="nw-bignums" role="group" aria-label="The plan in three numbers">
           <div className="nw-bignum">
-            <strong>{s.saplings_placed}</strong>
+            <strong><CountUp value={s.saplings_placed} /></strong>
             <span>Trees{s.saplings_placed < s.n_saplings_requested ? ` (of ${s.n_saplings_requested})` : ''}</span>
           </div>
           {blocks && lay ? (
             <>
               <div className="nw-bignum">
-                <strong>{lay.blocks}</strong>
+                <strong><CountUp value={lay.blocks} /></strong>
                 <span>Blocks</span>
               </div>
               <div className="nw-bignum">
-                <strong>{lay.hectares_used}</strong>
+                <strong><CountUp value={lay.hectares_used} /></strong>
                 <span>Hectares</span>
               </div>
             </>
           ) : (
             <div className="nw-bignum">
-              <strong>{items.length}</strong>
+              <strong><CountUp value={items.length} /></strong>
               <span>Squares</span>
             </div>
           )}

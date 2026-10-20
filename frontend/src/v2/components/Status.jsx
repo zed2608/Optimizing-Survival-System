@@ -1,10 +1,18 @@
 import { API_BASE, START_COMMAND } from '../config.js'
+import Icon from '../../new/Icon.jsx'
 
 export function Loading({ what = 'Loading' }) {
   return (
-    <p className="status loading" role="status">
-      <span className="spinner" aria-hidden="true" /> {what}…
-    </p>
+    <div className="status loading" role="status">
+      <p>
+        <span className="spinner" aria-hidden="true" /> {what}…
+      </p>
+      <span className="cy-skel-lines" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+    </div>
   )
 }
 
@@ -14,6 +22,7 @@ export function ErrorBox({ error, onRetry, title = 'Something went wrong', brief
   if (off && brief) {
     return (
       <div className="status error" role="alert">
+        <Icon name="warn" size={20} />
         <p>
           The planning service is not running. Start it from the project folder with <code>{START_COMMAND}</code>, then press “Try again”.
         </p>
@@ -27,6 +36,7 @@ export function ErrorBox({ error, onRetry, title = 'Something went wrong', brief
   }
   return (
     <div className="status error" role="alert">
+      <Icon name="warn" size={20} />
       <strong>{off ? 'The planning service is not running' : title}</strong>
       <p>{error?.message ?? 'Unknown error.'}</p>
       {off && (

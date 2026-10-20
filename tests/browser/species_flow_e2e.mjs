@@ -8,7 +8,7 @@ const b = await launch({ out: OUT })
 const { ev, sleep } = b
 await b.viewport(w, Number(H))
 await b.open(`${BASE}/#/new`); await sleep(2500)
-await ev(`localStorage.setItem('nw_help_banner_off','1'); localStorage.setItem('nw_tour_done','1'); localStorage.setItem('nw_legend_open','0'); localStorage.setItem('nw_lang','en')`)
+await ev(`localStorage.setItem('nw_help_banner_off','1'); localStorage.setItem('nw_tour_done','1'); localStorage.setItem('nw_legend_open','0'); localStorage.setItem('nw_lang','en'); localStorage.setItem('nw_welcome_seen','1'); localStorage.setItem('nw_theme','light')`)
 await b.open(`${BASE}/#/new`); await sleep(3000)
 const clickText = (re, sel = 'button') => ev(`(() => { const e = [...document.querySelectorAll(${JSON.stringify(sel)})].find((x) => ${re}.test(x.innerText) && x.getBoundingClientRect().width > 0 && !x.disabled); if (!e) return false; e.click(); return true })()`)
 const must = async (what, ok) => { if (!ok) { await b.shot(`e2e_${KIND}_${W}_FAIL_${what.replace(/\W+/g, '_')}`); throw new Error(`blocked at: ${what}`) } }

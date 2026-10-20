@@ -4,6 +4,10 @@ import './new.css'
 import './canopy.css'
 import { toggleTheme, useTheme } from './theme.js'
 import ToastViewport from './ui/ToastViewport.jsx'
+import { toast } from './ui/toast.js'
+import Splash from './Splash.jsx'
+import Welcome from './Welcome.jsx'
+import { markWelcomeSeen, welcomeSeen } from './welcome.js'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
@@ -92,6 +96,11 @@ export default function AppNew() {
   const [planPrefill, setPlanPrefill] = useState(null)
   const lang = useLang()
   const theme = useTheme()
+  const [welcome, setWelcome] = useState(() => !welcomeSeen())
+  const closeWelcome = () => {
+    markWelcomeSeen()
+    setWelcome(false)
+  }
   const [tool, setTool] = useState('point') // mode 2: 'point' | 'barangay' | 'draw'
   const [area, setArea] = useState(null) // mode 2: {kind:'barangay'|'zone', name} | {kind:'polygon', geometry}
   const [draft, setDraft] = useState([]) // mode 2: corners of the shape being drawn, [lat, lon]
@@ -572,8 +581,10 @@ export default function AppNew() {
     try {
       const r = await apiPost(`/plan-event?${sq}`, { ...planBody, campaign: { name: campaignName.trim(), unit: campaignUnit.trim() } })
       showPlanResult(r)
+      toast('success', tr('toast.planCreated', { name: campaignName.trim() }, lang))
     } catch (e) {
       setCreateError(e.message)
+      toast('error', tr('toast.planFailed', { msg: e.message }, lang))
     } finally {
       setCreating(false)
     }
@@ -799,6 +810,9 @@ export default function AppNew() {
           ))}
         </div>
         <div className="nw-topright">
+          <button type="button" className="nw-iconbtn nw-welcomebtn" onClick={() => setWelcome(true)} data-role="welcome-open" aria-label={tr('welcome.open', {}, lang)} title={tr('welcome.open', {}, lang)}>
+            <Icon name="info" size={18} />
+          </button>
           <button type="button" className="nw-iconbtn" onClick={toggleTheme} data-role="theme-toggle" aria-label={tr(theme === 'dark' ? 'theme.toLight' : 'theme.toDark', {}, lang)} title={tr(theme === 'dark' ? 'theme.toLight' : 'theme.toDark', {}, lang)}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
           </button>
@@ -1071,6 +1085,7 @@ export default function AppNew() {
           onObserver={setObserver}
           onSaved={() => {
             bumpField()
+            toast('success', tr('toast.fieldSaved', {}, lang))
             setSessionMarks((s) => new Set(s).add(fieldMenu.pointId))
           }}
           block={menuBlock}
@@ -1199,6 +1214,8 @@ export default function AppNew() {
         />
       )}
       <ToastViewport />
+      <Splash ready={apiState !== 'wait'} />
+      {welcome && <Welcome onClose={closeWelcome} />}
     </div>
     </HelpContext.Provider>
   )

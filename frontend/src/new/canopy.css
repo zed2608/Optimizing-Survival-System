@@ -308,3 +308,62 @@
   .nw-root .nw-tab { padding-left: 6px; padding-right: 6px; font-size: var(--fs-xs); }
   .nw-root .nw-tab:not(.is-active) { padding-left: 8px; padding-right: 8px; }
 }
+
+/* ---- Phase 4: core flows. Hover lifts, press scale, panel slide-ins; nothing here blocks work --------------------------------------------------------------------- */
+.nw-root .nw-pcard, .nw-root .nw-prow, .nw-root .nw-step { transition: box-shadow var(--t-mid) var(--ease), transform var(--t-mid) var(--ease), background var(--t-fast) var(--ease); }
+.nw-root .nw-prow:hover { transform: translateY(-1px); box-shadow: var(--sh-1); }
+.nw-root .nw-fmenu { animation: cy-rise var(--t-mid) var(--ease); }
+.nw-root .nw-bignums .nw-bignum strong { font-size: var(--fs-2xl); font-variant-numeric: tabular-nums; color: var(--c-primary); }
+:root[data-theme='dark'] .nw-root .nw-bignums .nw-bignum strong { color: var(--c-accent-text); }
+.nw-root .nw-bignum { background: var(--c-surface-2); border-radius: var(--r-md); }
+.nw-root .nw-bignum span { color: var(--c-muted); }
+.nw-root .nw-stepper { gap: var(--sp-1); }
+.nw-root .nw-stepbtn { border-radius: var(--r-md); transition: background var(--t-fast) var(--ease); }
+.nw-root .nw-flowno { transition: background var(--t-mid) var(--ease), transform var(--t-mid) var(--ease); }
+.nw-root .nw-stepper li.is-current .nw-flowno { transform: scale(1.08); }
+.nw-root .nw-fieldkey li { font-size: var(--fs-xs); }
+
+/* ---- Phase 5: splash, welcome ----------------------------------------------------------------------------------------------------------------------------------- */
+.cy-splash { position: fixed; inset: 0; z-index: 4000; display: grid; place-content: center; justify-items: center; gap: 12px; background: var(--c-bg); color: var(--c-text); transition: opacity var(--t-mid) var(--ease); }
+.cy-splash.is-out { opacity: 0; pointer-events: none; }
+.cy-splash svg { overflow: visible; }
+.cy-ring { fill: none; stroke: var(--c-primary); stroke-width: 2; transform-origin: 60px 60px; animation: cy-pulse 1.4s var(--ease) infinite; }
+.cy-ring-2 { animation-delay: 0.15s; stroke: var(--c-accent); } .cy-ring-3 { animation-delay: 0.3s; opacity: 0.6; }
+.cy-sapling, .cy-sapling-w { fill: none; stroke: var(--c-primary); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 160; stroke-dashoffset: 160; animation: cy-grow 0.9s var(--ease) 0.1s forwards; }
+:root[data-theme='dark'] .cy-sapling { stroke: var(--c-accent); }
+.cy-splash-title { font-size: var(--fs-sm); font-weight: 600; color: var(--c-muted); text-align: center; padding: 0 16px; }
+@keyframes cy-pulse { 0% { transform: scale(0.82); opacity: 0.2; } 50% { opacity: 1; } 100% { transform: scale(1.04); opacity: 0.25; } }
+@keyframes cy-grow { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .cy-ring { animation: none; } .cy-sapling, .cy-sapling-w { animation: none; stroke-dashoffset: 0; } }
+.cy-welcome-scrim { position: fixed; inset: 0; z-index: 3500; display: grid; place-items: center; background: var(--c-scrim); padding: 12px; overflow-y: auto; animation: cy-fade var(--t-mid) var(--ease); }
+.cy-welcome { width: min(720px, 100%); max-height: calc(100vh - 24px); overflow-y: auto; background: var(--c-surface); color: var(--c-text); border-radius: var(--r-lg); box-shadow: var(--sh-3); animation: cy-rise var(--t-slow) var(--ease); }
+.cy-ridge { display: block; width: 100%; height: 130px; background: linear-gradient(180deg, color-mix(in srgb, var(--c-accent) 22%, var(--c-surface)) 0%, var(--c-surface) 100%); border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.cy-sun { fill: color-mix(in srgb, #f5b94a 80%, var(--c-surface)); }
+.cy-ridge-3 { fill: color-mix(in srgb, var(--c-primary) 28%, var(--c-surface)); animation: cy-drift 14s ease-in-out infinite alternate; }
+.cy-ridge-2 { fill: color-mix(in srgb, var(--c-primary) 52%, var(--c-surface)); animation: cy-drift 11s ease-in-out infinite alternate-reverse; }
+.cy-ridge-1 { fill: var(--c-primary); }
+.cy-sapling-w { stroke: var(--c-on-primary); stroke-width: 2.5; }
+@keyframes cy-drift { from { transform: translateX(-6px); } to { transform: translateX(6px); } }
+.cy-welcome-body { padding: var(--sp-5); }
+.cy-welcome h2 { margin: 0 0 4px; font-size: var(--fs-xl); }
+.cy-welcome-sub { margin: 0 0 var(--sp-4); color: var(--c-muted); }
+.cy-welcome-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }
+.cy-welcome-card { background: var(--c-surface-2); border-radius: var(--r-md); padding: var(--sp-3); display: grid; gap: 6px; align-content: start; transition: transform var(--t-mid) var(--ease); }
+.cy-welcome-card:hover { transform: translateY(-2px); }
+.cy-welcome-card h3 { margin: 0; font-size: var(--fs-md); }
+.cy-welcome-card p { margin: 0; font-size: var(--fs-sm); line-height: 1.45; color: var(--c-muted); }
+.cy-welcome-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-4); }
+@media (max-width: 640px) { .cy-welcome-cards { grid-template-columns: 1fr; } .cy-welcome-body { padding: var(--sp-4); } }
+@media (max-width: 480px) { .nw-root .nw-welcomebtn { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cy-ridge-3, .cy-ridge-2 { animation: none; } }
+
+/* loading skeletons and friendly error cards (Phase 5) */
+.nw-root .status.loading { background: transparent; color: var(--c-muted); border: 0; }
+.cy-skel-lines { display: grid; gap: 8px; margin-top: 8px; }
+.cy-skel-lines i { display: block; height: 14px; border-radius: var(--r-sm); background: linear-gradient(90deg, var(--c-surface-2) 25%, var(--c-surface-3) 50%, var(--c-surface-2) 75%); background-size: 200% 100%; animation: cy-shimmer 1.4s linear infinite; }
+.cy-skel-lines i:nth-child(2) { width: 82%; } .cy-skel-lines i:nth-child(3) { width: 58%; }
+.nw-root .status.error { display: grid; justify-items: start; gap: 8px; background: var(--c-danger-bg); color: var(--c-text); border: 1px solid color-mix(in srgb, var(--c-danger) 35%, transparent); border-radius: var(--r-md); padding: var(--sp-4); }
+.nw-root .status.error .nw-icon { color: var(--c-danger); }
+.nw-root .status.error p { margin: 0; }
+.nw-root .status.error code { background: var(--c-surface); padding: 2px 6px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { .cy-skel-lines i { animation: none; } }
