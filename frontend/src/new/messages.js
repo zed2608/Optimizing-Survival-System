@@ -4,6 +4,9 @@ export const MESSAGES = {
   en: {
     // header
     'lang.label': 'Language',
+    'theme.toLight': 'Switch to the light theme',
+    'theme.toDark': 'Switch to the dark theme',
+    'toast.close': 'Close message',
     'lang.en': 'English',
     'lang.tl': 'Taglish',
     // stepper of the goal "I have species"
@@ -173,6 +176,9 @@ export const MESSAGES = {
   },
   tl: {
     'lang.label': 'Wika',
+    'theme.toLight': 'Lumipat sa maliwanag na tema',
+    'theme.toDark': 'Lumipat sa madilim na tema',
+    'toast.close': 'Isara ang mensahe',
     'lang.en': 'English',
     'lang.tl': 'Taglish',
     'flow.stepsAria': 'Hakbang {n} ng 4',

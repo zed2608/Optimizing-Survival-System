@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import '../v2/v2.css'
 import './new.css'
+import './canopy.css'
+import { toggleTheme, useTheme } from './theme.js'
+import ToastViewport from './ui/ToastViewport.jsx'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
@@ -88,6 +91,7 @@ export default function AppNew() {
   const [rowActive, setRowActive] = useState(null) // mode 1: the clicked table row {kind, name}
   const [planPrefill, setPlanPrefill] = useState(null)
   const lang = useLang()
+  const theme = useTheme()
   const [tool, setTool] = useState('point') // mode 2: 'point' | 'barangay' | 'draw'
   const [area, setArea] = useState(null) // mode 2: {kind:'barangay'|'zone', name} | {kind:'polygon', geometry}
   const [draft, setDraft] = useState([]) // mode 2: corners of the shape being drawn, [lat, lon]
@@ -790,11 +794,14 @@ export default function AppNew() {
         <div className="nw-tabs" role="tablist" aria-label="Views">
           {TABS.map((t) => (
             <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={`nw-tab ${tab === t.id ? 'is-active' : ''}`} onClick={() => setTab(t.id)}>
-              <Icon name={t.icon} size={18} /> {t.label}
+              <Icon name={t.icon} size={18} /> <span className="nw-tab-label">{t.label}</span>
             </button>
           ))}
         </div>
         <div className="nw-topright">
+          <button type="button" className="nw-iconbtn" onClick={toggleTheme} data-role="theme-toggle" aria-label={tr(theme === 'dark' ? 'theme.toLight' : 'theme.toDark', {}, lang)} title={tr(theme === 'dark' ? 'theme.toLight' : 'theme.toDark', {}, lang)}>
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+          </button>
           <div className="nw-lang" role="group" aria-label={tr('lang.label', {}, lang)} data-role="lang-toggle">
             {LANGS.map((l) => (
               <button key={l} type="button" className={`nw-lang-btn ${lang === l ? 'is-active' : ''}`} aria-pressed={lang === l} lang={l === 'tl' ? 'fil' : 'en'} onClick={() => setLang(l)} data-lang={l}>
@@ -1191,6 +1198,7 @@ export default function AppNew() {
           }}
         />
       )}
+      <ToastViewport />
     </div>
     </HelpContext.Provider>
   )
