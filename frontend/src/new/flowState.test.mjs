@@ -38,7 +38,7 @@ test('step 2: the whole municipality is enough; a barangay or zone needs a name'
 test('step 3 needs an area for the plan; the summary says which; step 4 follows only when 1 to 3 are done', () => {
   const s = flowSteps({ ...base, selNames: ['Narra'] })
   assert.equal(s[2].done, false)
-  assert.match(s[2].requirement, /markahan/)
+  assert.match(s[2].requirement, /magmarka/)
   assert.equal(canGoNext(s, 3).ok, false)
   const d = flowSteps({ ...base, selNames: ['Narra'], planAreaLabel: 'Iginuhit na area' })
   assert.equal(d[2].summary, 'Iginuhit na area')

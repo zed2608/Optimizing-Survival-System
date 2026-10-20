@@ -56,7 +56,7 @@ test('the English words of the walk, the area summary and the squares text', () 
   assert.equal(s[0].summary, 'Narra, Duhat and 1 more')
   assert.equal(s[1].requirement, 'Choose a barangay, or choose Whole San Mateo.')
   assert.match(s[2].requirement, /three or more points/)
-  assert.ok(!/one point/.test(s[2].requirement), 'a single point cannot be a plan area, so the reason must not say it can')
+  assert.match(s[2].requirement, /Plan on this one square/, 'one point only works through the button that turns it into the one square')
   const d = { kind: 'polygon', touched: 5, not_planting: { total: 2, by_reason: { cemetery: 2 } }, left_out_by_field_check: 0, suitable: 2, low_match: 1, counted_squares: 2, partial_squares: 1, squares: { counted: [], partial: [] } }
   assert.equal(diagnosticText(d, 'en'), '5 squares touched by the drawn area: 2 suitable, 1 with a low match, 2 not a planting zone (cemetery). 2 squares were counted. 1 only partly touched (less than half), so they were not included.')
   assert.equal(haText(0.04, 'en'), 'less than 0.1 hectare')

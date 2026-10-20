@@ -1093,3 +1093,4 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 @media (max-width: 480px) { .nw-helptext { display: none; } .nw-helpbtn { min-width: 44px; padding: 0 10px; } }
 .nw-ph-tool > summary { color: #047857; }
 @media (max-width: 480px) { .nw-lang-btn { min-width: 36px; padding: 0 4px; } .nw-tab { padding-left: 8px; padding-right: 8px; gap: 4px; } .nw-topright { gap: 4px; } .nw-brand { padding: 0 8px; } }
+@media (max-width: 800px) { .nw-sidebar { padding-bottom: 88px; } } /* UX round 5 (B): the Hide Control Panel button no longer covers the last button of a step */

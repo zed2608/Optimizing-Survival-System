@@ -60,7 +60,7 @@ function Nav({ steps, sub, setSub, nextLabel, onNext, lang }) {
 export default function SpeciesFlow({
   sub, setSub, species, selIds, setSelIds, onlySeason, onInfo, purpose, query, how, setHow, mainId, setMain, combine, setCombine, includeUnzoned, setIncludeUnzoned,
   where, onWhere, barangays, zones, onGoPlan, seasonNotice = null, planAreaLabel = '', planCreated = false,
-  markCount = 0, markArea = null, markSummary = [], onFinishMark, onUndoMark, onClearMark, onShowPoint, onOpenMap, notice = '', selNames = [],
+  markCount = 0, markArea = null, markSummary = [], onFinishMark, onUsePoint, onUndoMark, onClearMark, onShowPoint, onOpenMap, notice = '', selNames = [],
 }) {
   const lang = useLang()
   const t = (k, p) => tr(k, p, lang)
@@ -158,9 +158,14 @@ export default function SpeciesFlow({
                 {t('mark.openMap')}
               </button>
               {markCount === 1 && (
-                <button type="button" className="nw-btn nw-btn-small" onClick={onShowPoint} data-role="mark-show-point">
-                  {t('mark.showPoint')}
-                </button>
+                <div className="nw-row">
+                  <button type="button" className="nw-btn nw-btn-small" onClick={onShowPoint} data-role="mark-show-point">
+                    {t('mark.showPoint')}
+                  </button>
+                  <button type="button" className="nw-btn nw-btn-go nw-btn-small" onClick={onUsePoint} data-role="mark-use-point">
+                    {t('mark.usePoint')}
+                  </button>
+                </div>
               )}
               <div className="nw-row">
                 <button type="button" className="nw-btn nw-btn-go" disabled={markCount < 3} onClick={onFinishMark} data-role="mark-finish" title={markCount < 3 ? t('mark.finishNeed') : undefined}>

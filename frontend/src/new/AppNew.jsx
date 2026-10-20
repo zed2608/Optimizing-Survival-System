@@ -430,6 +430,20 @@ export default function AppNew() {
     setFitTarget({ bbox: geometryBbox(polygonFromVertices(draft)) })
     setDraft([])
   }
+  // one marked point = a plan on the one 100 m square it stands in (a 100 m box around the centre of the square, or around the click when no square was hit): the service then selects that one square
+  const usePoint = () => {
+    if (draft.length !== 1) return
+    const [lat0, lon0] = spot && spot.pointId !== undefined ? [spot.lat, spot.lon] : draft[0]
+    const dlat = 50 / 111320
+    const dlon = 50 / (111320 * Math.cos((lat0 * Math.PI) / 180))
+    const corners = [[lat0 - dlat, lon0 - dlon], [lat0 - dlat, lon0 + dlon], [lat0 + dlat, lon0 + dlon], [lat0 + dlat, lon0 - dlon]]
+    const geometry = polygonFromVertices(corners)
+    setMarkArea({ kind: 'polygon', single: true, geometry })
+    setFitTarget({ bbox: geometryBbox(geometry) })
+    setDraft([])
+    setNotice('')
+    setSidebarOpen(true)
+  }
   const clearMark = () => {
     setDraft([])
     setMarkArea(null)
@@ -499,7 +513,7 @@ export default function AppNew() {
   const planTotal = countsMode ? cs.total : nNum
   const planArea = mode === 'area' ? area : speciesArea
   const planAreaBody = !planArea ? null : planArea.kind === 'barangay' ? { barangay: planArea.name } : planArea.kind === 'zone' ? { zone: planArea.name } : { polygon: planArea.geometry }
-  const planAreaLabel = !planArea ? '' : planArea.kind === 'polygon' ? 'The drawn area' : (featureOf(planArea.kind, planArea.name)?.properties.display_name ?? planArea.name)
+  const planAreaLabel = !planArea ? '' : planArea.kind === 'polygon' ? (planArea.single ? 'One square' : 'The drawn area') : (featureOf(planArea.kind, planArea.name)?.properties.display_name ?? planArea.name)
   const planSpeciesOk = !countsMode || selIds.length > 0
   const planBody = !planAreaBody
     ? null
@@ -933,12 +947,13 @@ export default function AppNew() {
                 barangays={barangayFeatures}
                 zones={zoneFeatures}
                 onGoPlan={() => setOpenStep('plan')}
-                planAreaLabel={planArea ? (markArea ? tr('flow.areaDrawn', {}, lang) : planAreaLabel) : ''}
+                planAreaLabel={planArea ? (markArea ? tr(markArea.single ? 'flow.areaPoint' : 'flow.areaDrawn', {}, lang) : planAreaLabel) : ''}
                 planCreated={!!planResult}
                 markCount={draft.length}
                 markArea={markArea}
                 markSummary={markArea ? [tr('mark.size', { ha: haText(geometryHectares(markArea.geometry), lang) }, lang), areaSplit, diag.status === 'ok' ? sitePhText(diag.data.ph ?? null, 'area', lang) : null].filter(Boolean) : []}
                 onFinishMark={finishDraw}
+                onUsePoint={usePoint}
                 onUndoMark={() => setDraft((d) => d.slice(0, -1))}
                 onClearMark={clearMark}
                 onShowPoint={() => { setPanelTab('point'); setHidden(false) }}
