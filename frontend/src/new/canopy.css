@@ -401,3 +401,98 @@
   .nw-root .nw-tab:not(.is-active) { padding-left: 12px; padding-right: 12px; min-width: 44px; }
   .nw-root .nw-title { max-width: 190px; }
 }
+
+/* ---- Phase 7: Weather as a weather app ------------------------------------------------------------------------------------------------------------------------ */
+.wx-hero { position: relative; overflow: hidden; border-radius: var(--r-lg); min-height: 220px; color: #fff; box-shadow: var(--sh-2); margin: var(--sp-3) 0; isolation: isolate; }
+.wx-scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.wx-hero::before { content: ''; position: absolute; inset: 0; z-index: -2; }
+.wx-sky-day.wx-cond-clear::before { background: linear-gradient(180deg, #3b8fd9 0%, #8cc8f2 100%); }
+.wx-sky-dawn.wx-cond-clear::before { background: linear-gradient(180deg, #5a6fb0 0%, #f2b27a 100%); }
+.wx-sky-dusk.wx-cond-clear::before { background: linear-gradient(180deg, #3a3f7a 0%, #e48a5a 100%); }
+.wx-sky-night.wx-cond-clear::before { background: linear-gradient(180deg, #0c1636 0%, #263a6e 100%); }
+.wx-sky-day.wx-cond-light::before, .wx-sky-day.wx-cond-none::before { background: linear-gradient(180deg, #6d93b5 0%, #b9cbd8 100%); }
+.wx-sky-day.wx-cond-rainy::before { background: linear-gradient(180deg, #4f6678 0%, #8fa2b0 100%); }
+.wx-sky-day.wx-cond-heavy::before { background: linear-gradient(180deg, #33424f 0%, #6b7c8a 100%); }
+.wx-sky-dawn.wx-cond-light::before, .wx-sky-dawn.wx-cond-rainy::before, .wx-sky-dawn.wx-cond-heavy::before, .wx-sky-dawn.wx-cond-none::before { background: linear-gradient(180deg, #4a5670 0%, #9c8a86 100%); }
+.wx-sky-dusk.wx-cond-light::before, .wx-sky-dusk.wx-cond-rainy::before, .wx-sky-dusk.wx-cond-heavy::before, .wx-sky-dusk.wx-cond-none::before { background: linear-gradient(180deg, #343a57 0%, #8a6e74 100%); }
+.wx-sky-night.wx-cond-light::before, .wx-sky-night.wx-cond-rainy::before, .wx-sky-night.wx-cond-heavy::before, .wx-sky-night.wx-cond-none::before { background: linear-gradient(180deg, #0f1830 0%, #2a3550 100%); }
+.wx-sun-core { fill: #ffd25a; } .wx-ray { stroke: #ffd25a; stroke-width: 3; stroke-linecap: round; }
+.wx-big-sun { transform-box: fill-box; animation: wx-spin 60s linear infinite; }
+.wx-moon { fill: #f3efd6; } .wx-star { fill: #fff; animation: wx-twinkle 2.4s ease-in-out infinite; }
+.wx-cloud { fill: rgba(255, 255, 255, 0.92); }
+.wx-cond-rainy .wx-cloud, .wx-cond-heavy .wx-cloud { fill: rgba(214, 224, 232, 0.9); }
+.wx-sky-night .wx-cloud, .wx-sky-dusk .wx-cloud { fill: rgba(190, 200, 220, 0.85); }
+.wx-cloud-drift { animation: cy-drift 16s ease-in-out infinite alternate; }
+.wx-c2 { animation-duration: 22s; animation-direction: alternate-reverse; }
+.wx-rain { stroke: rgba(200, 225, 245, 0.85); stroke-width: 1.6; stroke-linecap: round; animation: wx-fall 0.9s linear infinite; }
+.wx-hill-back { fill: rgba(20, 70, 45, 0.55); } .wx-hill-front { fill: rgba(14, 50, 32, 0.8); }
+@keyframes wx-fall { from { transform: translateY(-40px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(70px); opacity: 0; } }
+@keyframes wx-spin { to { transform: rotate(360deg); } }
+@keyframes wx-twinkle { 50% { opacity: 0.25; } }
+.wx-hero-body { position: relative; padding: var(--sp-5); display: grid; gap: var(--sp-2); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+.wx-hero-where { font-size: var(--fs-sm); opacity: 0.95; }
+.wx-hero-main { display: flex; align-items: center; gap: var(--sp-4); }
+.wx-hero-word { font-size: var(--fs-2xl); font-weight: 700; line-height: 1.1; }
+.wx-hero-sub { font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
+.wx-hero-advice { display: inline-flex; align-items: center; gap: 6px; width: fit-content; max-width: 100%; padding: 6px 12px; border-radius: var(--r-pill); background: rgba(0, 0, 0, 0.35); font-size: var(--fs-sm); font-weight: 600; }
+.wx-habagat { display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border-radius: var(--r-md); background: rgba(255, 240, 200, 0.92); color: #5b3a00; text-shadow: none; font-size: var(--fs-sm); max-width: 560px; }
+.wx-prov { font-weight: 600; opacity: 0.85; }
+.wx-icon .wx-sun { transform-box: fill-box; transform-origin: center; animation: wx-spin 24s linear infinite; }
+.wx-icon .wx-sun-core { fill: #f2b01e; } .wx-icon .wx-ray { stroke: #f2b01e; stroke-width: 2.4; }
+.wx-icon .wx-cloud { fill: var(--c-surface-3); stroke: var(--c-muted); stroke-width: 1.2; }
+.wx-hero .wx-icon .wx-cloud { fill: rgba(255, 255, 255, 0.95); stroke: none; }
+.wx-icon .wx-drop { stroke: #3d8fd1; stroke-width: 2.2; stroke-linecap: round; animation: wx-fall-s 1s linear infinite; }
+.wx-hero .wx-icon .wx-drop { stroke: #cfe6f7; }
+.wx-icon .wx-unknown { stroke: var(--c-muted); stroke-width: 3; stroke-linecap: round; fill: none; }
+@keyframes wx-fall-s { from { transform: translateY(-4px); opacity: 0; } 40% { opacity: 1; } to { transform: translateY(6px); opacity: 0; } }
+.wx-strip { list-style: none; margin: 0 0 var(--sp-3); padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-2); }
+.wx-day { display: grid; justify-items: center; gap: 4px; text-align: center; padding: var(--sp-3) var(--sp-2); background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md); box-shadow: var(--sh-1); color: var(--c-text); transition: transform var(--t-mid) var(--ease); }
+.wx-day:hover { transform: translateY(-2px); }
+.wx-day-date { font-size: var(--fs-xs); color: var(--c-muted); } .wx-day-date strong { color: var(--c-text); }
+.wx-day-word { font-size: var(--fs-sm); font-weight: 600; }
+.wx-bar { width: 100%; height: 8px; border-radius: 4px; background: var(--c-surface-3); overflow: hidden; }
+.wx-bar span { display: block; height: 100%; background: #2a7fc1; border-radius: 4px; transition: width var(--t-slow) var(--ease); }
+.wx-day-nums { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--c-muted); }
+.wx-day-advice { font-size: var(--fs-xs); line-height: 1.3; }
+.wx-adv-good { border-top: 3px solid var(--c-ok); } .wx-adv-wet { border-top: 3px solid var(--c-warn); } .wx-adv-postpone { border-top: 3px solid var(--c-danger); } .wx-adv-none { border-top: 3px solid var(--c-line); }
+.wx-rules { font-size: var(--fs-xs); line-height: 1.5; margin: 0 0 var(--sp-4); }
+.wx-loading { display: grid; gap: var(--sp-3); margin: var(--sp-3) 0; } .wx-strip-skel { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-2); }
+@media (max-width: 900px) { .wx-strip, .wx-strip-skel { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .wx-rain { opacity: 0.4; animation: none; } .wx-big-sun, .wx-cloud-drift, .wx-star, .wx-icon .wx-sun, .wx-icon .wx-drop { animation: none; } }
+.nw-root .nw-wtitle { color: var(--c-text); }
+.nw-root .nw-wcard.v2.v2-embedded, .nw-root .nw-wcard { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-md); box-shadow: var(--sh-1); }
+.nw-root .nw-wtab .nw-wlabel { color: var(--c-muted); }
+.nw-root .nw-wtab .fc-input { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-sm); min-height: 44px; }
+.nw-root .nw-wtab .nw-segbtn { background: var(--c-surface-2); color: var(--c-text); border: 0; min-height: 44px; }
+.nw-root .nw-wtab .nw-segbtn.is-active { background: var(--c-primary); color: var(--c-on-primary); }
+.nw-root .nw-wnotice { color: var(--c-warn); }
+.nw-root .nw-verdict-good { border-left: 6px solid var(--c-ok); } .nw-root .nw-verdict-care { border-left: 6px solid var(--c-warn); } .nw-root .nw-verdict-avoid { border-left: 6px solid var(--c-danger); }
+.nw-root .notice { background: var(--c-warn-bg); color: var(--c-warn); border: 1px solid color-mix(in srgb, var(--c-warn) 35%, transparent); border-radius: var(--r-md); padding: 8px 12px; }
+
+/* ---- Phase 8: Campaign Logs and Help share the same cards, type, spacing, buttons and empty states (visual only; no text changed) --------------------------------------------- */
+.nw-root .nw-modal .v2.v2-embedded, .nw-root .nw-logs, .nw-root .nw-logbar.v2.v2-embedded { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-md); box-shadow: var(--sh-1); font-family: var(--font); }
+.nw-root .nw-logs.nw-empty { padding: var(--sp-5); }
+.nw-root .nw-logcard.v2.v2-embedded { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md); padding: var(--sp-4); box-shadow: var(--sh-1); transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease); }
+.nw-root .nw-logcard.v2.v2-embedded:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
+.nw-root .nw-logcard-head h3 { color: var(--c-text); }
+.nw-root .nw-logbar .fc-input, .nw-root .fc-input { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-sm); min-height: 44px; font-family: var(--font); }
+.nw-root .fc-link, .nw-root .nw-modal a { color: var(--c-link); }
+.nw-root .fc-bad { color: var(--c-danger); }
+.nw-root .nw-helppage { background: var(--c-bg); color: var(--c-text); font-family: var(--font); }
+.nw-root .nw-helppage-bar { background: var(--c-glass-strong); border-bottom: 1px solid var(--c-line); }
+.nw-root .nw-helppage h1, .nw-root .nw-helppage h2, .nw-root .nw-helppage h3 { color: var(--c-text); }
+.nw-root .nw-helppage-lead, .nw-root .nw-helppage-count, .nw-root .nw-faq-a { color: var(--c-muted); }
+.nw-root .nw-faq-q { color: var(--c-text); min-height: 44px; }
+.nw-root .nw-faqlist > *, .nw-root .nw-glossary > * { border-color: var(--c-line); }
+.nw-root .nw-helppage .nw-input { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); }
+.nw-root .nw-helppage-btns .nw-btn { min-height: 44px; }
+.nw-root .nw-faq, .nw-root .nw-helppage .nw-faq { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md); }
+.nw-root .nw-faq.is-open { border-color: var(--c-primary); }
+.nw-root .nw-faq-q { background: transparent; color: var(--c-text); font-family: var(--font); }
+.nw-root .nw-faq-a, .nw-root .nw-glossary dd { color: var(--c-muted); }
+.nw-root .nw-faqlist h3, .nw-root .nw-glossary h3 { color: var(--c-accent-text); }
+.nw-root .nw-helppage-bar { background: var(--c-surface); color: var(--c-text); }
+.nw-root .nw-helppage .nw-btn { background: var(--c-surface-2); color: var(--c-text); border-color: var(--c-line); }
+.nw-root .nw-helppage .nw-btn-go { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; }
+.nw-root .nw-helppage-bar .nw-btn-ghost { background: transparent; color: var(--c-text); border-color: var(--c-line); }
+.nw-root .nw-helppage .nw-input { background: var(--c-surface); color: var(--c-text); border-color: var(--c-line); }

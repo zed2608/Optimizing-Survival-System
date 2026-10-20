@@ -2915,6 +2915,16 @@ def week_verdict(days, c):
     return {"code": code, "label": WEEK_VERDICTS[code], "reasons": reasons, "thresholds": thresholds}, total
 
 
+def habagat_weather_block(d, week_months):
+    """The Habagat note of the weather view (display only): the months and barangays of the MAO's rule (site_rules.HABAGAT_CFG), the warning sentence, and whether this week touches those months.
+    It restates a rule the system already applies to W of those barangays in a planting window; it adds no forecast."""
+    cfg = sr.HABAGAT_CFG
+    upper = {str(nm).upper(): disp for nm, disp in zip(d.barangay_names, d.barangay_display)}
+    hit = sorted(set(int(m) for m in week_months) & set(cfg["months"]))
+    return {"months": list(cfg["months"]), "month_names": ["Jul", "Aug", "Sep"], "barangays": [upper.get(b.upper(), b.title()) for b in cfg["barangays"]], "active": bool(hit),
+            "warning": sr.HABAGAT_WARNING, "source": cfg["source"], "provisional": True}
+
+
 @app.get("/weather/week")
 def weather_week(purpose: Purpose, lat: Optional[float] = Query(None, ge=-90, le=90, description="default: the centre of San Mateo"),
                  lon: Optional[float] = Query(None, ge=-180, le=180, description="default: the centre of San Mateo"), d=Depends(D)):
@@ -3022,6 +3032,7 @@ def weather_week(purpose: Purpose, lat: Optional[float] = Query(None, ge=-90, le
                         "week_months": [mn[m - 1] for m in season.months]},
             "enso": enso, "thresholds": {"dry_spell_mm": c["dry_spell_mm"], "dry_spell_days": n, "heavy_rain_mm": c["heavy_rain_mm"]},
             "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "forecast_fetched_at": fc["fetched_at"], "network_error": fc["network_error"],
+            "habagat": habagat_weather_block(d, season.months),
             "forecast_source": adv.SOURCE, "disclaimer": adv.DISCLAIMER, "sources": sources_map(d, ids)}
 
 

@@ -8,6 +8,9 @@ import SourceGroup from './SourceGroup.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import { formatDay } from './season.js'
 import { weatherError } from './weatherText.js'
+import WeatherHero, { WeekStrip, WeatherRules } from './WeatherHero.jsx'
+import { EmptyState, Skeleton } from './ui/ui.jsx'
+import { tr, useLang } from './i18n.js'
 
 const VERDICT = {
   good_to_plant: { glyph: 'check', cls: 'good' },
@@ -17,14 +20,6 @@ const VERDICT = {
 }
 const WARN = { heavy_rain: { icon: 'rain', label: 'Heavy rain' }, dry_spell: { icon: 'sun', label: 'Dry spell' }, enso_manual: { icon: 'wave', label: 'El Nino watch' } }
 
-// A day in words, from the rain only: dry under 1 mm, light rain 1 to 10 mm, rainy 10 mm or more, heavy rain above the heavy-rain threshold of the service. A missing value is "No forecast", never a guess.
-function dayWord(mm, heavy) {
-  if (mm === null || mm === undefined) return { icon: 'question', word: 'No forecast' }
-  if (mm > heavy) return { icon: 'rain', word: 'Heavy rain' }
-  if (mm >= 10) return { icon: 'cloud', word: 'Rainy' }
-  if (mm >= 1) return { icon: 'cloud', word: 'Light rain' }
-  return { icon: 'sun', word: 'Dry' }
-}
 const weekday = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short' })
 const num = (v, unit) => (v === null || v === undefined ? <span className="unavailable">Data Unavailable</span> : `${v}${unit}`)
 
@@ -99,6 +94,7 @@ function SpeciesList({ title, help, block, full, sources, onInfo, id }) {
 //   loc: 'centre' | 'point' | 'plan' | 'b:<barangay name>'; planLoc / spot: {lat, lon, label} for the last two.
 export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLoc, barangays, spot, planLoc, onInfo, includeUnzoned }) {
   const full = view === 'full'
+  const lang = useLang()
   const place = useMemo(() => {
     if (loc === 'point' && spot) return { lat: spot.lat, lon: spot.lon, label: 'the last point you clicked' }
     if (loc === 'plan' && planLoc) return planLoc
@@ -149,19 +145,28 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
         <ViewSwitch value={view} onChange={onView} />
       </div>
 
-      {api.status === 'loading' && (
-        <p className="nw-plain nw-wlight" role="status">
-          Loading the forecast…
-        </p>
+      {(api.status === 'loading' || api.status === 'idle') && (
+        <div className="wx-loading" role="status" aria-label={tr('wx.loading', {}, lang)} data-role="wx-loading">
+          <Skeleton height={190} />
+          <div className="wx-strip-skel">
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} height={150} />
+            ))}
+          </div>
+        </div>
       )}
       {api.status === 'error' && (
-        <section className="v2 v2-embedded nw-wcard" role="alert">
-          <h3>{weatherError(api.error).main}</h3>
-          {weatherError(api.error).detail && <p className="nw-plain muted">{weatherError(api.error).detail}</p>}
-          <button type="button" className="btn" onClick={api.retry}>
-            Try again
-          </button>
-        </section>
+        <EmptyState
+          tone="error"
+          icon="cloud"
+          title={weatherError(api.error).main}
+          text={weatherError(api.error).detail}
+          action={
+            <button type="button" className="cy-btn cy-btn-primary" onClick={api.retry}>
+              {tr('wx.error.retry', {}, lang)}
+            </button>
+          }
+        />
       )}
 
       {d && (
@@ -176,25 +181,9 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
             The next {d.week.n_days} days · {place ? place.label : d.location.note}
           </h2>
           {d.week.short_note && <p className="notice">{d.week.short_note}</p>}
-          <ol className="nw-days" aria-label="Daily forecast">
-            {d.week.days.map((x) => {
-              const w = dayWord(x.rain_mm, heavy)
-              return (
-                <li key={x.date} className="nw-day">
-                  <div className="nw-day-date">
-                    {weekday(x.date)} {formatDay(x.date)}
-                  </div>
-                  <div className="nw-day-word">
-                    <Icon name={w.icon} /> {w.word}
-                  </div>
-                  <div>Rain {num(x.rain_mm, ' mm')}</div>
-                  <div>
-                    {x.tmax_c === null || x.tmin_c === null ? <span className="unavailable">Temperature: Data Unavailable</span> : `${Math.round(x.tmin_c)}–${Math.round(x.tmax_c)} °C`}
-                  </div>
-                </li>
-              )
-            })}
-          </ol>
+          <WeatherHero day={d.week.days[0]} heavy={heavy} place={place ? place.label : d.location.note} habagat={d.habagat} />
+          <WeekStrip days={d.week.days} heavy={heavy} weekday={weekday} dayLabel={formatDay} />
+          <WeatherRules heavy={heavy} />
           {d.week.missing_note && <p className="muted nw-wlight">{d.week.missing_note}</p>}
 
           <section className={`v2 v2-embedded nw-wcard nw-verdict nw-verdict-${v.cls}`} aria-label="Week verdict">
