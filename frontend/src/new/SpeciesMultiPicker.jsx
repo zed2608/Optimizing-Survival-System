@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AskHelp from './tutorial/AskHelp.jsx'
+import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
 import { PURPOSE_TAGS } from './purposeTags.js'
@@ -29,10 +30,23 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
       <label className="sr-only" htmlFor="nw-species-search">
         Search species
       </label>
-      <input id="nw-species-search" type="search" className="nw-input" placeholder="Search species" value={query} onChange={(e) => setQuery(e.target.value)} />
-      <div className="nw-row">
-        <button type="button" className="nw-btn nw-btn-small" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)} data-role="filter-toggle">
-          Salain{(tag ? 1 : 0) + (nurseryOnly ? 1 : 0) > 0 ? ` (${(tag ? 1 : 0) + (nurseryOnly ? 1 : 0)})` : ''}
+      <div className="nw-searchfield">
+        <input id="nw-species-search" type="search" className="nw-input" placeholder="Search species" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <button
+          type="button"
+          className="nw-funnel"
+          aria-label="Filter"
+          aria-expanded={showFilters}
+          title={(tag ? 1 : 0) + (nurseryOnly ? 1 : 0) > 0 ? `Filter (${(tag ? 1 : 0) + (nurseryOnly ? 1 : 0)} active)` : 'Filter'}
+          onClick={() => setShowFilters((v) => !v)}
+          data-role="filter-toggle"
+        >
+          <Icon name="funnel" />
+          {(tag ? 1 : 0) + (nurseryOnly ? 1 : 0) > 0 && (
+            <span className="nw-funnel-badge" data-role="filter-badge" aria-hidden="true">
+              {(tag ? 1 : 0) + (nurseryOnly ? 1 : 0)}
+            </span>
+          )}
         </button>
       </div>
       {showFilters && (
