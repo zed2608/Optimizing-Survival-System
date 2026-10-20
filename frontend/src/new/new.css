@@ -1009,3 +1009,13 @@ select.nw-input option, select.nw-input optgroup { background: #0f172a; color: #
 
 /* UX 14 */
 .nw-right-hint { margin: 0; padding: 8px 16px; font-size: 12px; color: #cbd5e1; background: rgba(15, 23, 42, 0.5); }
+/* UX 7 (second part): with the sidebar AND the results panel open, the Map view button sits where the search box was. The search box moves to its own row under the button. */
+@media (min-width: 1240px) {
+  .nw-root.panel-open.sidebar-open .nw-search { top: 126px; width: calc(100vw - 464px - 565px - 12px); }
+  .nw-root.panel-open.sidebar-open .nw-toasts.v2.v2-embedded { top: 250px; }
+}
+@media (min-width: 1001px) and (max-width: 1239px) {
+  .nw-root.panel-open.sidebar-open .nw-search { top: 126px; }
+  .nw-root.panel-open.sidebar-open .nw-right { margin-top: 118px; }
+  .nw-root.panel-open.sidebar-open .nw-toasts.v2.v2-embedded { top: 250px; }
+}
