@@ -33,7 +33,7 @@
   color-scheme: dark;
   --c-bg: #0e1812; --c-surface: #16241c; --c-surface-2: #1d2f24; --c-surface-3: #27402f;
   --c-text: #e9f0ea; --c-muted: #a9b9ad; --c-line: #2c4333;
-  --c-primary: #2a8556; --c-primary-hover: #34996a; --c-on-primary: #ffffff; --c-accent: #8ccf6d; --c-accent-text: #a5dd8a;
+  --c-primary: #2a8556; --c-primary-hover: #1f6f46; --c-on-primary: #ffffff; --c-accent: #8ccf6d; --c-accent-text: #a5dd8a;
   --c-link: #8cc4f0; --c-focus: #8cc4f0;
   --c-warn-bg: #3a2c0f; --c-warn: #f5c36a; --c-danger-bg: #43211e; --c-danger: #ff9d93; --c-ok-bg: #1b3a27; --c-ok: #8fe0a6; --c-info-bg: #1b3045; --c-info: #9ccbf2;
   --c-glass: rgba(22, 36, 28, 0.88); --c-glass-strong: rgba(18, 30, 23, 0.94); --c-scrim: rgba(0, 0, 0, 0.55);
@@ -46,7 +46,7 @@
     color-scheme: dark;
     --c-bg: #0e1812; --c-surface: #16241c; --c-surface-2: #1d2f24; --c-surface-3: #27402f;
     --c-text: #e9f0ea; --c-muted: #a9b9ad; --c-line: #2c4333;
-    --c-primary: #2a8556; --c-primary-hover: #34996a; --c-on-primary: #ffffff; --c-accent: #8ccf6d; --c-accent-text: #a5dd8a;
+    --c-primary: #2a8556; --c-primary-hover: #1f6f46; --c-on-primary: #ffffff; --c-accent: #8ccf6d; --c-accent-text: #a5dd8a;
     --c-link: #8cc4f0; --c-focus: #8cc4f0;
     --c-warn-bg: #3a2c0f; --c-warn: #f5c36a; --c-danger-bg: #43211e; --c-danger: #ff9d93; --c-ok-bg: #1b3a27; --c-ok: #8fe0a6; --c-info-bg: #1b3045; --c-info: #9ccbf2;
     --c-glass: rgba(22, 36, 28, 0.88); --c-glass-strong: rgba(18, 30, 23, 0.94); --c-scrim: rgba(0, 0, 0, 0.55);
@@ -496,3 +496,4 @@
 .nw-root .nw-helppage .nw-btn-go { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; }
 .nw-root .nw-helppage-bar .nw-btn-ghost { background: transparent; color: var(--c-text); border-color: var(--c-line); }
 .nw-root .nw-helppage .nw-input { background: var(--c-surface); color: var(--c-text); border-color: var(--c-line); }
+@media (max-width: 800px) { .nw-root .nw-mapview, .nw-root.panel-open .nw-mapview, .nw-root.sidebar-open .nw-mapview { right: 12px; left: auto; } }
