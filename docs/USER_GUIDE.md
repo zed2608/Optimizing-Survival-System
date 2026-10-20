@@ -60,7 +60,7 @@ Choose “I have species” to find where your species can grow. Choose “I hav
 
 **7. Clicking a point** (the map screen)
 
-Click any square to open its panel. The first card gives a short verdict, such as “Good place for Kamagong: overall match 77%”. Below it are the field check and the list of best species. Choose Detailed at the top for the numbers behind the verdict.
+Click any square to open its panel. The first card gives a short verdict, such as “Good place for Kamagong: overall match 77%”. Below it are the field check status and the list of best species. To make a field check, right-click the square on the map (on a phone, press and hold it). Choose Detailed at the top for the numbers behind the verdict.
 
 *Watch for:* The tour opens an example point for you. Check the card for warnings before you trust a spot.
 
@@ -148,11 +148,11 @@ The team walks to the START point of a block. They plant the numbered trees row 
 
 **18. Field checks** (the map screen)
 
-On a point panel, the field check card records what the team saw. Every status has a colour and a symbol: Planted (green check), Plantable (green ring), Needs recheck (amber question mark) and Not plantable (red cross). A blue cross means water. A gray cross means paved, building or rock.
+To make a field check, right-click a square on the map (on a phone, press and hold it): a menu opens where the team records what it saw. The point panel shows the latest mark. Every status has a colour and a symbol: Planted (green check), Marked plantable by an observer (green ring), Needs recheck (amber question mark) and Not plantable (red cross). A blue cross means water. A gray cross means paved, building or rock.
 
 *Watch for:* You type your name once. A saved check is never edited. A change is a new check, and clearing a Not plantable mark needs a note.
 
-*You see the field check card when you click a point.*
+*You see the latest field check when you click a point; the menu opens with a right-click or a long press.*
 
 **19. Progress and top-up** (the map screen)
 
@@ -330,6 +330,10 @@ No. The advice is only text. The site match, the purpose fit and the overall mat
 
 Some tips come from the MAO interview. Others are general practice. Each tip shows its source. All of it is advice that the agriculturist still has to confirm.
 
+**What is "Puwedeng samahan" when I choose many species?**
+
+You first choose a main species. "Puwedeng samahan" then lists species that are suitable on at least half of the same squares of your area (or of the whole municipality when no area is chosen). It is only about the land. It does not yet consider canopy size, roots or shade.
+
 **What is Works well with?**
 
 A short list of species that can grow together with the main species, from simple starting rules about height, shade, water and roots. A label “Named in sources, check conditions” means the sources name the pair but our rules found that the conditions differ. These rules are provisional.
@@ -384,7 +388,7 @@ Walk to the START point of a block and put in a stake. Plant tree 1 half a spaci
 
 **How do I record that trees were planted?**
 
-Two ways. In the dashboard, click the block, type your name once, press Planted and enter how many trees. Or fill blocks.csv in the field, then press “Import field checks (CSV)” under More, Field checks. Importing the same file twice adds nothing.
+Two ways. In the dashboard, right-click the block (press and hold on a phone), type your name once, press Planted and enter how many trees. Or fill blocks.csv in the field, then press “Import field checks (CSV)” under More, Field checks. Importing the same file twice adds nothing.
 
 **What do the field-check colours and symbols mean?**
 
