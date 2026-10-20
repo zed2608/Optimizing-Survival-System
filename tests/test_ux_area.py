@@ -118,3 +118,20 @@ def test_area_diagnostic_counts_add_up(client):
     b = client.post("/area/diagnostic", json={"barangay": "Santa Ana"}).json()
     assert b["kind"] == "barangay" and b["touched"] == b["centres_inside"] and b["planting"] + b["not_planting"]["total"] == b["touched"]
     assert client.post("/area/diagnostic", json={"barangay": "Santa Ana", "zone": "Forest Zone"}).status_code == 422
+
+
+def test_rank_point_carries_the_site_ph_estimate_and_changes_nothing_else(client):
+    d = client.app.state.data
+    have = d.ctx.sites[[bool(d.soil_ph.get(int(p), {}).get("mean")) for p in d.ctx.sites.point_id]]
+    a = have.iloc[len(have) // 3]
+    j = client.get("/rank", params={"purpose": "urban", "lat": float(a.lat), "lon": float(a.lon), "limit": 45}).json()
+    ph = j["point"]["site_ph"]
+    assert ph and ph["q05"] <= ph["mean"] <= ph["q95"] or ph["q05"] <= ph["q95"]
+    assert "not measured" in ph["note"] and ph["scope"] == "square"
+    r = d.soil_ph[int(a.point_id)]
+    assert (ph["mean"], ph["q05"], ph["q95"]) == (round(r["mean"], 2), round(r["q05"], 2), round(r["q95"], 2))
+    none = d.ctx.sites[[not d.soil_ph.get(int(p), {}).get("mean") for p in d.ctx.sites.point_id]]
+    if len(none):
+        b = none.iloc[0]
+        k = client.get("/rank", params={"purpose": "urban", "lat": float(b.lat), "lon": float(b.lon)}).json()
+        assert k["point"]["site_ph"] is None                                           # never filled in

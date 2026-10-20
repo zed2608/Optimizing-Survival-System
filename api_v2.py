@@ -1800,6 +1800,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                           "zoning_note": ((f"{pt.zone_desc}: confirm with the LGU before planting" if isinstance(pt.zone_desc, str) else UNZONED_NOTE)
                                           if unconf else "Inside a legal planting zone")} if d.zoning_on else {}),
                       **soil_facts(pt),
+                      "site_ph": square_ph(d, int(pt.point_id)),
                       **({"zone_condition": py(pt.zone_condition)} if "zone_condition" in d.all_points and isinstance(pt.zone_condition, str) and pt.zone_condition else {}),
                       **({"rehab_site": {"zone": py(pt.zone_desc), "warning": sr.REHAB_WARNING, "applies_to": "food-bearing species", "source": sr.REHAB_SOURCE}} if sr.rehab_zone(py(pt.zone_desc)) else {}),
                       **({"habagat": d.hab} if hab_on else {}),
@@ -3232,6 +3233,15 @@ def companions(req: CompanionRequest, q_season=Depends(season_q), d=Depends(HD))
             "area": {**info, "squares": int(len(idx))}, "companions": rows[:COMPANION_CFG["limit"]], "n_companions": len(rows),
             "rule": f"Species whose suitable squares cover at least {int(COMPANION_CFG['min_overlap_share'] * 100)}% of the squares where {ctx.species.common_name.iloc[k_main]} is suitable; same genus left out.",
             "note": COMPANION_NOTE, "provisional": True, "scored": False}
+
+
+def square_ph(d, point_id):
+    """The SoilGrids pH under one square (display only; a model estimate at 250 m, not measured). None when the file or the value is missing: nothing is filled in."""
+    r = d.soil_ph.get(int(point_id))
+    if not r or r["mean"] is None or r["q05"] is None or r["q95"] is None:
+        return None
+    return {"mean": round(r["mean"], 2), "q05": round(r["q05"], 2), "q95": round(r["q95"], 2), "source": sgph.ATTRIBUTION, "scope": "square",
+            "note": "Model estimate (SoilGrids 2.0, 250 m cells), not measured in San Mateo. Display only: not part of the score."}
 
 
 def area_ph(d, point_ids):
