@@ -5,9 +5,9 @@ import { setTheme, useTheme } from './theme.js'
 import { setMotionMode, useMotionMode } from './motionPref.js'
 
 // ONE settings menu in the header (UX revamp v2): theme, language, animations, and the links About this project, Help and Take the tour. It replaces the separate info, theme, language and Help buttons.
-function Seg({ label, value, options, onChange }) {
+function Seg({ label, value, options, onChange, tourId }) {
   return (
-    <div className="set-row">
+    <div className="set-row" data-tour={tourId}>
       <span className="set-label">{label}</span>
       <div className="set-seg" role="radiogroup" aria-label={label}>
         {options.map(([v, text, lang]) => (
@@ -45,24 +45,24 @@ export default function SettingsMenu({ onAbout, onHelp, onTour }) {
   }
   return (
     <div className="set-wrap" ref={root}>
-      <button type="button" className="cy-iconbtn set-btn" aria-haspopup="dialog" aria-expanded={open} aria-controls={id} aria-label={t('set.open')} title={t('set.open')} onClick={() => setOpen((v) => !v)} data-role="settings-open">
+      <button type="button" className="cy-iconbtn set-btn" data-tour="h-settings" aria-haspopup="dialog" aria-expanded={open} aria-controls={id} aria-label={t('set.open')} title={t('set.open')} onClick={() => setOpen((v) => !v)} data-role="settings-open">
         <Icon name="sliders" size={20} />
       </button>
       {open && (
         <div className="set-menu" id={id} role="dialog" aria-label={t('set.title')} data-role="settings-menu">
           <div className="set-title">{t('set.title')}</div>
-          <Seg label={t('set.theme')} value={theme} options={[['light', t('set.light')], ['dark', t('set.dark')]]} onChange={setTheme} />
-          <Seg label={t('set.lang')} value={lang} options={LANGS.map((l) => [l, tr(`lang.${l}`, {}, l), l === 'tl' ? 'fil' : 'en'])} onChange={setLang} />
-          <Seg label={t('set.anim')} value={motion} options={[['auto', t('set.auto')], ['on', t('set.on')], ['off', t('set.off')]]} onChange={setMotionMode} />
+          <Seg tourId="set-theme" label={t('set.theme')} value={theme} options={[['light', t('set.light')], ['dark', t('set.dark')]]} onChange={setTheme} />
+          <Seg tourId="set-lang" label={t('set.lang')} value={lang} options={LANGS.map((l) => [l, tr(`lang.${l}`, {}, l), l === 'tl' ? 'fil' : 'en'])} onChange={setLang} />
+          <Seg tourId="set-anim" label={t('set.anim')} value={motion} options={[['auto', t('set.auto')], ['on', t('set.on')], ['off', t('set.off')]]} onChange={setMotionMode} />
           <p className="set-hint">{t('set.animHelp')}</p>
           <div className="set-links">
-            <button type="button" className="set-link" onClick={run(onAbout)} data-role="welcome-open">
+            <button type="button" className="set-link" onClick={run(onAbout)} data-role="welcome-open" data-tour="set-welcome">
               <Icon name="info" size={16} /> {t('set.about')}
             </button>
-            <button type="button" className="set-link" onClick={run(onHelp)} data-role="help-open">
+            <button type="button" className="set-link" onClick={run(onHelp)} data-role="help-open" data-tour="set-help">
               <Icon name="question" size={16} /> {t('set.help')}
             </button>
-            <button type="button" className="set-link" onClick={run(onTour)} data-role="tour-open">
+            <button type="button" className="set-link" onClick={run(onTour)} data-role="tour-open" data-tour="set-tours">
               <Icon name="target" size={16} /> {t('set.tour')}
             </button>
           </div>

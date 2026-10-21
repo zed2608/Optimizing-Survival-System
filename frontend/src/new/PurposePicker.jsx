@@ -23,7 +23,7 @@ export default function PurposePicker({ value, onChange }) {
   return (
     <fieldset className="nw-fieldset">
       <legend className="sr-only">Planting purpose</legend>
-      <div className="nw-purposes">
+      <div className="nw-purposes" data-tour="s-purposes">
         {Object.keys(PURPOSE_SHORT).map((id) => (
           <label key={id} className={`nw-purpose ${value === id ? 'is-selected' : ''}`}>
             <input type="radio" name="nw-purpose" value={id} checked={value === id} onChange={() => onChange(id)} />

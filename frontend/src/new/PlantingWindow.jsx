@@ -18,7 +18,7 @@ export default function PlantingWindow({ win, species }) {
 
   return (
     <div>
-      <div className="nw-dates">
+      <div className="nw-dates" data-tour="s-dates">
         <div>
           <label className="nw-label" htmlFor="nw-start">
             Start
@@ -47,11 +47,11 @@ export default function PlantingWindow({ win, species }) {
           {win.error}
         </p>
       )}
-      <div className="nw-strip-row">
+      <div className="nw-strip-row" data-tour="s-months">
         <MonthStrip ring={months} size="large" label={`Months your dates cover: ${monthsText(months)}.`} />
       </div>
       <p className="nw-hint">Ringed months are covered.</p>
-      <button type="button" className="nw-btn nw-btn-wide" onClick={jump} disabled={!list}>
+      <button type="button" className="nw-btn nw-btn-wide" onClick={jump} disabled={!list} data-tour="s-jump">
         Jump to the next planting season
       </button>
       <p className="nw-hint nw-jumped" role="status">

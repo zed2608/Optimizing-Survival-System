@@ -6,7 +6,7 @@ const GOALS = [
 // Step 1: the goal, as two big buttons (a radio group, so the arrow keys also work).
 export default function ModeSwitch({ value, onChange }) {
   return (
-    <div className="nw-modes" role="radiogroup" aria-label="Your goal">
+    <div className="nw-modes" role="radiogroup" aria-label="Your goal" data-tour="s-modes">
       {GOALS.map((m) => (
         <button
           key={m.id}

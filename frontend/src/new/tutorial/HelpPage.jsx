@@ -82,10 +82,10 @@ export default function HelpPage({ initialFaq, screen, onClose, onTour, onQuickT
         <h2>Help</h2>
         <div className="nw-helppage-btns">
           <button type="button" className="nw-btn nw-btn-go" onClick={onTour}>
-            <Icon name="target" /> Take the tour again
+            <Icon name="target" /> Take the tour of this page
           </button>
           <button type="button" className="nw-btn" onClick={onQuickTour}>
-            Quick tour of this screen
+            All tours
           </button>
           <button type="button" className="nw-btn" onClick={() => window.print()}>
             <Icon name="printer" /> Print this guide
@@ -96,7 +96,7 @@ export default function HelpPage({ initialFaq, screen, onClose, onTour, onQuickT
         </div>
       </div>
       <div className="nw-helppage-body">
-        <p className="nw-helppage-lead">Quick tour of this screen runs only the steps for {SCREENS[screen]?.name ?? 'the screen that is open'}.</p>
+        <p className="nw-helppage-lead">The tour of this page explains {SCREENS[screen]?.name ?? 'the page that is open'}. All tours lists a tour for every page and a short one for every section.</p>
         <label className="nw-label" htmlFor="nw-help-search">
           Search the questions
         </label>

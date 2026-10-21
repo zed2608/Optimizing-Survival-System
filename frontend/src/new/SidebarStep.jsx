@@ -8,7 +8,7 @@ export default function SidebarStep({ n, title, summary, open, onToggle, help, i
   const bodyId = `${uid}-body`
   return (
     <section className={`nw-step ${open ? 'is-open' : ''}`} data-step={stepId}>
-      <div className="nw-step-head">
+      <div className="nw-step-head" data-tour={stepId ? `s-step-${stepId}` : undefined}>
         <button type="button" className="nw-step-toggle" aria-expanded={open} aria-controls={bodyId} onClick={onToggle}>
           <span className="nw-step-n" aria-hidden="true">
             {n}

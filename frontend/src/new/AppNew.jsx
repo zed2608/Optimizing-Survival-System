@@ -44,14 +44,17 @@ import PlanStep from './PlanStep.jsx'
 import { countText, countsSummary } from './counts.js'
 import FieldLegend from './FieldLegend.jsx'
 import ZoningLegend from './ZoningLegend.jsx'
-import GuidedTour from './tutorial/GuidedTour.jsx'
+import ToursMenu from './tours/ToursMenu.jsx'
+import useTourBridge from './tours/useTourBridge.js'
+import { getTour, PAGE_TOUR } from './tours/tourDefs.js'
+import { startTour } from './tours/tourController.js'
+import { EXAMPLE_POINT, EXAMPLE_VERTICES } from './tours/tourExample.js'
 import HelpPage from './tutorial/HelpPage.jsx'
 import ScoreSourceNotice from './ScoreSourceNotice.jsx'
 import PublicNotice from './PublicNotice.jsx'
 import { isSandbox, SANDBOX_NOTICE_HEIGHT, FALLBACK_NOTICE_HEIGHT } from './publicMode.js'
 import { isFallback } from './scoreSource.js'
 import { HelpContext } from './tutorial/helpContext.js'
-import { TOUR_STEPS } from './tutorial/tutorialContent.js'
 import { useHelpState } from './help.js'
 import { matchText } from './plainWords.js'
 import { apiPost } from './apiPost.js'
@@ -164,6 +167,7 @@ export default function AppNew() {
   const [ownSpecies, setOwnSpecies] = useState(false) // goal "I have an area": the user chose their own species and counts
   const [focusIds, setFocusIds] = useState(() => new Set()) // planned squares to circle on the map ("Show these on the map")
   const help = useHelpState()
+  const [toursOpen, setToursOpen] = useState(false)
   const [planResult, setPlanResult] = useState(null) // the last plan created (it is also saved on the server)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
@@ -748,6 +752,46 @@ export default function AppNew() {
       document.removeEventListener('keydown', onKey)
     }
   }, [tab])
+  // ---- the tour engine's handle on this page (R1 W3): navigation and selection only, never a write
+  const runTour = (id, section) => {
+    const t = getTour(id)
+    if (!t) return
+    setToursOpen(false)
+    help.closeHelp()
+    startTour(t, { section })
+  }
+  const startPageTour = () => runTour(PAGE_TOUR[tab] ?? 'global')
+  useTourBridge({
+    page: tab,
+    snapshot: () => ({ tab, openStep, mode, purpose, selIds, combine, speciesSub, speciesHow, mainSpecies, where, tool, area, draft, markArea, spot, sidebarOpen, view, panelTab, hidden, cardId, legendOpen, detailed, start: win.raw.start, end: win.raw.end, helpPage: help.helpPage }),
+    restore: (s) => {
+      setTab(s.tab); setOpenStep(s.openStep); setMode(s.mode); setPurpose(s.purpose); setSelIds(s.selIds); setCombine(s.combine); setSpeciesSub(s.speciesSub); setSpeciesHow(s.speciesHow)
+      setMainSpecies(s.mainSpecies); setWhere(s.where); setTool(s.tool); setArea(s.area); setDraft(s.draft); setMarkArea(s.markArea); setSpot(s.spot); setSidebarOpen(s.sidebarOpen)
+      setView(s.view); setPanelTab(s.panelTab); setHidden(s.hidden); setCardId(s.cardId); setLegendOpen(s.legendOpen); setDetailed(s.detailed); setFieldMenu(null)
+      win.setRange(s.start, s.end)
+    },
+    setPage: (p) => setTab(p),
+    setSidebar: (v) => setSidebarOpen(v),
+    setStep: (id) => setOpenStep(id),
+    setMode: (m) => (m === mode ? undefined : changeMode(m)),
+    setSpeciesSub: (n) => setSpeciesSub(n),
+    setHow: (h) => setSpeciesHow(h),
+    setTool: (t) => changeTool(t),
+    setExampleArea: () => chooseArea({ kind: 'polygon', geometry: polygonFromVertices(EXAMPLE_VERTICES) }),
+    openExamplePoint: () => {
+      setSpot({ lat: EXAMPLE_POINT.lat, lon: EXAMPLE_POINT.lon, pointId: EXAMPLE_POINT.id })
+      setPanelTab('point')
+      setHidden(false)
+    },
+    closePoint: () => setSpot(null),
+    setView: (v) => setView(v),
+    openExampleMenu: () => setFieldMenu({ x: null, y: null, pick: { lat: EXAMPLE_POINT.lat, lon: EXAMPLE_POINT.lon, index: -1, plan: -1, context: -1 }, pointId: EXAMPLE_POINT.id, square: { lat: EXAMPLE_POINT.lat, lon: EXAMPLE_POINT.lon, pointId: EXAMPLE_POINT.id }, click: { lat: EXAMPLE_POINT.lat, lon: EXAMPLE_POINT.lon } }),
+    closeMenu: () => setFieldMenu(null),
+    openSpeciesCard: (id) => setCardId(id),
+    closeSpeciesCard: () => setCardId(null),
+    setLegend: (v) => setLegendOpen(v),
+  })
+
   return (
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
     <PublicNotice health={healthData} />
@@ -865,7 +909,7 @@ export default function AppNew() {
       {/* TOP GLASS NAVIGATION BAR (look copied from the earlier dashboard) */}
       <header className="nw-topbar">
         <div className="nw-brandrow">
-          <div className="nw-brand">
+          <div className="nw-brand" data-tour="h-brand">
             <Icon name="tree" size={18} /> LGU SAN MATEO
           </div>
           <div title="Urban Tree Planting Decision Support System. Municipal Environment and Natural Resources Office (MENRO)">
@@ -873,10 +917,10 @@ export default function AppNew() {
             <div className="nw-subtitle">MENRO · San Mateo, Rizal</div>
           </div>
         </div>
-        <Tabs className="nw-tabs-v2" label="Views" value={tab} onChange={setTab} items={TABS.map((x) => ({ id: x.id, label: x.label, icon: <Icon name={x.icon} size={18} /> }))} />
+        <Tabs tourId="h-tabs" className="nw-tabs-v2" label="Views" value={tab} onChange={setTab} items={TABS.map((x) => ({ id: x.id, label: x.label, icon: <Icon name={x.icon} size={18} /> }))} />
         <div className="nw-topright">
-          <SettingsMenu onAbout={() => setLanding(true)} onHelp={() => help.openHelp()} onTour={() => { setSidebarOpen(true); help.startTour('full') }} />
-          <div className="nw-pill" role="status">
+          <SettingsMenu onAbout={() => setLanding(true)} onHelp={() => help.openHelp()} onTour={() => setToursOpen(true)} />
+          <div className="nw-pill" role="status" data-tour="h-api">
             <span className={`nw-dot nw-dot-${apiState}`} aria-hidden="true" />
             <span>{apiState === 'ok' ? 'API connected' : apiState === 'wait' ? 'Connecting…' : 'API offline'}</span>
           </div>
@@ -944,10 +988,10 @@ export default function AppNew() {
           </button>
         </div>
       )}
-      <button type="button" className="nw-toggle" onClick={() => setSidebarOpen((o) => !o)} aria-expanded={sidebarOpen} aria-controls="nw-sidebar">
+      <button type="button" className="nw-toggle" data-tour="m-collapse" onClick={() => setSidebarOpen((o) => !o)} aria-expanded={sidebarOpen} aria-controls="nw-sidebar">
         <Icon name={sidebarOpen ? 'left' : 'right'} /> {sidebarOpen ? 'Hide Control Panel' : 'Open Control Panel'}
       </button>
-      <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls">
+      <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls" data-tour="s-panel">
         <HintsSwitch />
         <SidebarStep
           n={1}
@@ -1247,24 +1291,14 @@ export default function AppNew() {
           usingRules={usingRules}
           screen={tab}
           onClose={help.closeHelp}
-          onTour={() => {
-            setSidebarOpen(true)
-            help.startTour('full')
-          }}
+          onTour={startPageTour}
           onQuickTour={() => {
-            setSidebarOpen(true)
-            help.startTour('screen')
+            help.closeHelp()
+            setToursOpen(true)
           }}
         />
       )}
-      {help.tour && (
-        <GuidedTour
-          steps={help.tour === 'screen' ? TOUR_STEPS.filter((st) => st.screen === tab) : TOUR_STEPS}
-          onClose={() => {
-            help.endTour()
-          }}
-        />
-      )}
+      {toursOpen && <ToursMenu page={tab} onStart={runTour} onClose={() => setToursOpen(false)} hasPlan />}
       {cardId !== null && (
         <SpeciesCard
           speciesId={cardId}

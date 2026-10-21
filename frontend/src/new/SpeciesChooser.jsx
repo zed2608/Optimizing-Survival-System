@@ -17,7 +17,7 @@ export default function SpeciesChooser({ species, selected, onChange, onlySeason
 
   if (!how) {
     return (
-      <div className="nw-ask" role="group" aria-label={t('sc.ask')}>
+      <div className="nw-ask" role="group" aria-label={t('sc.ask')} data-tour="s-ask">
         <p className="nw-label">{t('sc.ask')}</p>
         <div className="nw-row">
           <button type="button" className="nw-btn nw-btn-go" onClick={() => onHow('one')}>

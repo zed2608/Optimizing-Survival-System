@@ -14,7 +14,7 @@ import { tr, useLang } from './i18n.js'
 function Stepper({ steps, sub, setSub, lang }) {
   const t = (k, p) => tr(k, p, lang)
   return (
-    <ol className="nw-stepper" aria-label={t('flow.stepsAria', { n: sub })} data-role="flow-steps">
+    <ol className="nw-stepper" data-tour="s-flow-steps" aria-label={t('flow.stepsAria', { n: sub })} data-role="flow-steps">
       {steps.map((st) => {
         const current = st.n === sub
         const reachable = canJump(steps, st.n)
@@ -82,7 +82,7 @@ export default function SpeciesFlow({
       {sub === 2 && (
         <div>
           <h4 className="nw-flowtitle">{t('flow.title2')}</h4>
-          <fieldset className="nw-fieldset">
+          <fieldset className="nw-fieldset" data-tour="s-where">
             <legend className="nw-label">{t('flow.where.legend')}</legend>
             <div className="nw-tools">
               {['all', 'barangay', 'zone'].map((k) => (
@@ -141,7 +141,7 @@ export default function SpeciesFlow({
         </div>
       )}
       {sub === 3 && (
-        <div data-role="mark-tool">
+        <div data-role="mark-tool" data-tour="s-mark">
           <h4 className="nw-flowtitle">{t('flow.title3')}</h4>
           <p className="nw-plain" data-role="flow-where">
             {t('flow.summary.species')}: <strong>{selIds.length}</strong> · {t('flow.summary.where')}: <strong>{where.kind === 'all' ? t('flow.sum.all') : whereLabel}</strong>
@@ -205,7 +205,7 @@ export default function SpeciesFlow({
         </div>
       )}
       {sub === 4 && (
-        <div data-role="flow-plan">
+        <div data-role="flow-plan" data-tour="s-flow-plan">
           <h4 className="nw-flowtitle">{t('flow.title4')}</h4>
           <ul className="nw-plain nw-flowlist">
             {steps.slice(0, 3).map((st) => (

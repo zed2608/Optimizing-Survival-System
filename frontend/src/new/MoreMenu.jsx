@@ -5,11 +5,11 @@ import FieldSummary from './FieldSummary.jsx'
 import { CREDITS } from './credits.js'
 import { isSandbox } from './publicMode.js'
 
-function Section({ title, open, onToggle, children }) {
+function Section({ title, open, onToggle, children, tourId }) {
   const id = useId()
   return (
     <div className="nw-more-sec">
-      <button type="button" className="nw-more-item" aria-expanded={open} aria-controls={id} onClick={onToggle}>
+      <button type="button" className="nw-more-item" data-tour={tourId} aria-expanded={open} aria-controls={id} onClick={onToggle}>
         <span>{title}</span>
         <Icon name={open ? 'down' : 'right'} size={14} />
       </button>
@@ -29,14 +29,14 @@ export default function MoreMenu({ health, fieldSummary, observer, onObserver, o
   const [sec, setSec] = useState('')
   const pick = (id) => setSec((s) => (s === id ? '' : id))
   return (
-    <section className="nw-more" aria-label="More">
-      <button type="button" className="nw-more-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)}>
+    <section className="nw-more" aria-label="More" data-tour="s-more">
+      <button type="button" className="nw-more-toggle" data-tour="s-more-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)}>
         <span>More</span>
         <Icon name={open ? 'down' : 'right'} size={14} />
       </button>
       {open && (
         <div id={bodyId} className="nw-more-body">
-          <Section title="Known limits" open={sec === 'limits'} onToggle={() => pick('limits')}>
+          <Section tourId="s-more-limits" title="Known limits" open={sec === 'limits'} onToggle={() => pick('limits')}>
             {health.status === 'ok' ? (
               <ul className="nw-limits-list">
                 {health.data.limits.map((l) => (
@@ -47,7 +47,7 @@ export default function MoreMenu({ health, fieldSummary, observer, onObserver, o
               <p className="nw-hint">{health.status === 'loading' ? 'Loading…' : 'The limits could not be loaded (the planning service is not reachable).'}</p>
             )}
           </Section>
-          <Section title="Data credits" open={sec === 'credits'} onToggle={() => pick('credits')}>
+          <Section tourId="s-more-credits" title="Data credits" open={sec === 'credits'} onToggle={() => pick('credits')}>
             <div className="nw-credits">
               <ul className="nw-credits-list">
                 {CREDITS.map((c) => (
@@ -63,10 +63,10 @@ export default function MoreMenu({ health, fieldSummary, observer, onObserver, o
               )}
             </div>
           </Section>
-          <Section title="Dataset version" open={sec === 'dataset'} onToggle={() => pick('dataset')}>
+          <Section tourId="s-more-dataset" title="Dataset version" open={sec === 'dataset'} onToggle={() => pick('dataset')}>
             <DatasetNote health={health} />
           </Section>
-          <Section title="Field checks" open={sec === 'field'} onToggle={() => pick('field')}>
+          <Section tourId="s-more-field" title="Field checks" open={sec === 'field'} onToggle={() => pick('field')}>
             <FieldSummary summary={fieldSummary} observer={observer} onObserver={onObserver} onChanged={onChanged} />
           </Section>
           {!(health.status === 'ok' && isSandbox(health.data)) && (

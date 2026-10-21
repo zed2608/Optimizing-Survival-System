@@ -14,7 +14,7 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
   const zoneValue = area?.kind === 'zone' ? area.name : ''
   return (
     <div>
-      <fieldset className="nw-fieldset">
+      <fieldset className="nw-fieldset" data-tour="a-how">
         <legend className="nw-label">How to choose the area</legend>
         <div className="nw-tools">
           {TOOLS.map((t) => (
@@ -28,7 +28,7 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
       </fieldset>
 
       {tool === 'draw' && (
-        <div className="nw-drawbox">
+        <div className="nw-drawbox" data-tour="a-draw">
           <p className="nw-hint" role="status">
             {locked
               ? tr('area.drawLocked', {}, lang)
@@ -79,7 +79,7 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
       )}
 
       {summary.length > 0 && (
-        <div className="nw-current nw-areasummary" data-role="area-summary">
+        <div className="nw-current nw-areasummary" data-role="area-summary" data-tour="a-summary">
           <dl className="nw-summary-list">
             {summary.map((r) => (
               <div key={r.label}>
