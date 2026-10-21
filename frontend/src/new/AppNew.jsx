@@ -8,6 +8,9 @@ import { useHints } from './hints.js'
 import { Tabs } from './ui/ui.jsx'
 import ToastViewport from './ui/ToastViewport.jsx'
 import { toast } from './ui/toast.js'
+import { sparkBurst } from './ui/spark.js'
+import { AnimatePresence, motion } from 'motion/react'
+import { motionAllowed } from './motionPref.js'
 import Splash from './Splash.jsx'
 import Landing from './Landing.jsx'
 import { markVisit, shouldShowLanding } from './landing.js'
@@ -595,6 +598,7 @@ export default function AppNew() {
     try {
       const r = await apiPost(`/plan-event?${sq}`, { ...planBody, campaign: { name: campaignName.trim(), unit: campaignUnit.trim() } })
       showPlanResult(r)
+      sparkBurst(document.querySelector('[data-role="create-plan"]'))
       toast('success', tr('toast.planCreated', { name: campaignName.trim() }, lang))
     } catch (e) {
       setCreateError(e.message)
@@ -828,8 +832,9 @@ export default function AppNew() {
           </div>
         </div>
       </header>
+      <AnimatePresence mode="wait">
       {tab !== 'studio' && (
-        <section className="nw-modal" aria-label={TABS.find((t) => t.id === tab).label}>
+        <motion.section key={tab} className="nw-modal" aria-label={TABS.find((x) => x.id === tab).label} initial={motionAllowed() ? { opacity: 0, y: 14 } : false} animate={{ opacity: 1, y: 0 }} exit={motionAllowed() ? { opacity: 0, y: -10 } : { opacity: 0 }} transition={{ duration: motionAllowed() ? 0.25 : 0, ease: [0.2, 0.7, 0.2, 1] }}>
           <div className="nw-modal-head">
             <h2>{tab === 'history' ? 'Campaign Event Logs & History' : tab === 'weather' ? 'Weather this week' : 'System Spatial Analytics'}<AskHelp id={tab === 'weather' ? 'weather' : 'logs-analytics'} /></h2>
             <button type="button" className="nw-btn" onClick={() => setTab('studio')}>
@@ -855,8 +860,9 @@ export default function AppNew() {
           ) : (
             <AnalyticsPanel />
           )}
-        </section>
+        </motion.section>
       )}
+      </AnimatePresence>
 
       {/* SIDEBAR (look copied from the earlier dashboard) */}
       {markActive && !sidebarOpen && (

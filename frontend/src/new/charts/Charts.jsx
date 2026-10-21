@@ -1,4 +1,6 @@
 import { useId, useState } from 'react'
+import { motion } from 'motion/react'
+import { motionAllowed } from '../motionPref.js'
 import { downloadCsv, toCsv } from './csv.js'
 import { PALETTE } from './palette.js'
 import { tr, useLang } from '../i18n.js'
@@ -13,7 +15,14 @@ export function ChartCard({ title, note, children, rows, columns, filename, summ
   const [table, setTable] = useState(false)
   const id = useId()
   return (
-    <section className="cy-card an-chart" aria-label={title}>
+    <motion.section
+      className="cy-card an-chart"
+      aria-label={title}
+      initial={motionAllowed() ? { opacity: 0, y: 26 } : false}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '0px 0px -40px 0px' }}
+      transition={motionAllowed() ? { duration: 0.5, ease: [0.2, 0.7, 0.2, 1] } : { duration: 0 }}
+    >
       <header className="an-chart-head">
         <h3>{title}</h3>
         <div className="an-chart-tools">
@@ -26,7 +35,9 @@ export function ChartCard({ title, note, children, rows, columns, filename, summ
         </div>
       </header>
       {note && <p className="muted an-note">{note}</p>}
-      <div role="img" aria-label={summary ?? title}>{children}</div>
+      <div role="img" aria-label={summary ?? title}>
+        {children}
+      </div>
       {table && (
         <div className="an-table-wrap" id={id}>
           <table className="an-table">
@@ -51,7 +62,7 @@ export function ChartCard({ title, note, children, rows, columns, filename, summ
           </table>
         </div>
       )}
-    </section>
+    </motion.section>
   )
 }
 
@@ -63,7 +74,7 @@ export function VBars({ data, xLabel, yLabel, color = PALETTE.blue, height = 190
   const bw = (W - pad.l - pad.r) / Math.max(1, data.length)
   const y = (v) => pad.t + (height - pad.t - pad.b) * (1 - v / max)
   return (
-    <svg viewBox={`0 0 ${W} ${height}`} className="an-svg" preserveAspectRatio="xMidYMid meet">
+    <svg viewBox={`0 0 ${W} ${height}`} className="an-svg an-vert" preserveAspectRatio="xMidYMid meet">
       {[0, 0.5, 1].map((f) => (
         <g key={f}>
           <line x1={pad.l} x2={W - pad.r} y1={y(max * f)} y2={y(max * f)} className="an-grid" />
@@ -155,7 +166,7 @@ export function GroupBars({ data, series, xLabel, yLabel, height = 200 }) {
   const y = (v) => pad.t + (height - pad.t - pad.b) * (1 - v / max)
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${height}`} className="an-svg" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox={`0 0 ${W} ${height}`} className="an-svg an-vert" preserveAspectRatio="xMidYMid meet">
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
             <line x1={pad.l} x2={W - pad.r} y1={y(max * f)} y2={y(max * f)} className="an-grid" />

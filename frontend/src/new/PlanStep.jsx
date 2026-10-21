@@ -113,7 +113,7 @@ export default function PlanStep({
       )}
       {p && !p.can_create && p.reason === 'no_suitable_squares' && <p className="nw-error">{plainWarning(p.message)}</p>}
 
-      <button type="button" className="nw-btn nw-btn-go nw-btn-wide" disabled={!!reason || creating} onClick={onCreate}>
+      <button type="button" className="nw-btn nw-btn-go nw-btn-wide" disabled={!!reason || creating} onClick={onCreate} data-role="create-plan">
         {creating ? 'Creating…' : 'Create plan'}
       </button>
       {reason && (

@@ -232,8 +232,8 @@
 
 /* ---- reduced motion: decorative motion off ---------------------------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
-  .cy-skeleton { animation: none; }
+  :root:not([data-motion='on']) *, :root:not([data-motion='on']) *::before, :root:not([data-motion='on']) *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+  :root:not([data-motion='on']) .cy-skeleton { animation: none; }
 }
 
 /* ---- second pass: details found on the screenshots -------------------------------------------------------------------------------------- */
@@ -344,7 +344,7 @@
 .cy-splash-title { font-size: var(--fs-sm); font-weight: 600; color: var(--c-muted); text-align: center; padding: 0 16px; }
 @keyframes cy-pulse { 0% { transform: scale(0.82); opacity: 0.2; } 50% { opacity: 1; } 100% { transform: scale(1.04); opacity: 0.25; } }
 @keyframes cy-grow { to { stroke-dashoffset: 0; } }
-@media (prefers-reduced-motion: reduce) { .cy-ring { animation: none; } .cy-sapling, .cy-sapling-w { animation: none; stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .cy-ring { animation: none; } :root:not([data-motion='on']) .cy-sapling, :root:not([data-motion='on']) .cy-sapling-w { animation: none; stroke-dashoffset: 0; } }
 .cy-welcome-scrim { position: fixed; inset: 0; z-index: 3500; display: grid; place-items: center; background: var(--c-scrim); padding: 12px; overflow-y: auto; animation: cy-fade var(--t-mid) var(--ease); }
 .cy-welcome { width: min(720px, 100%); max-height: calc(100vh - 24px); overflow-y: auto; background: var(--c-surface); color: var(--c-text); border-radius: var(--r-lg); box-shadow: var(--sh-3); animation: cy-rise var(--t-slow) var(--ease); }
 .cy-ridge { display: block; width: 100%; height: 130px; background: linear-gradient(180deg, color-mix(in srgb, var(--c-accent) 22%, var(--c-surface)) 0%, var(--c-surface) 100%); border-radius: var(--r-lg) var(--r-lg) 0 0; }
@@ -365,7 +365,7 @@
 .cy-welcome-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-4); }
 @media (max-width: 640px) { .cy-welcome-cards { grid-template-columns: 1fr; } .cy-welcome-body { padding: var(--sp-4); } }
 @media (max-width: 480px) { .nw-root .nw-welcomebtn { display: none; } }
-@media (prefers-reduced-motion: reduce) { .cy-ridge-3, .cy-ridge-2 { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .cy-ridge-3, :root:not([data-motion='on']) .cy-ridge-2 { animation: none; } }
 
 /* loading skeletons and friendly error cards (Phase 5) */
 .nw-root .status.loading { background: transparent; color: var(--c-muted); border: 0; }
@@ -376,7 +376,7 @@
 .nw-root .status.error .nw-icon { color: var(--c-danger); }
 .nw-root .status.error p { margin: 0; }
 .nw-root .status.error code { background: var(--c-surface); padding: 2px 6px; border-radius: 6px; }
-@media (prefers-reduced-motion: reduce) { .cy-skel-lines i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .cy-skel-lines i { animation: none; } }
 
 /* ---- Phase 6: System Analytics ------------------------------------------------------------------------------------------------------------------------------- */
 .nw-root .an-root { display: grid; gap: var(--sp-4); color: var(--c-text); }
@@ -468,7 +468,7 @@
 .wx-rules { font-size: var(--fs-xs); line-height: 1.5; margin: 0 0 var(--sp-4); }
 .wx-loading { display: grid; gap: var(--sp-3); margin: var(--sp-3) 0; } .wx-strip-skel { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-2); }
 @media (max-width: 900px) { .wx-strip, .wx-strip-skel { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); } }
-@media (prefers-reduced-motion: reduce) { .wx-rain { opacity: 0.4; animation: none; } .wx-big-sun, .wx-cloud-drift, .wx-star, .wx-icon .wx-sun, .wx-icon .wx-drop { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .wx-rain { opacity: 0.4; animation: none; } :root:not([data-motion='on']) .wx-big-sun, :root:not([data-motion='on']) .wx-cloud-drift, :root:not([data-motion='on']) .wx-star, :root:not([data-motion='on']) .wx-icon .wx-sun, :root:not([data-motion='on']) .wx-icon .wx-drop { animation: none; } }
 .nw-root .nw-wtitle { color: var(--c-text); }
 .nw-root .nw-wcard.v2.v2-embedded, .nw-root .nw-wcard { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-md); box-shadow: var(--sh-1); }
 .nw-root .nw-wtab .nw-wlabel { color: var(--c-muted); }
@@ -614,7 +614,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .nw-root .nw-step .nw-step-n { position: absolute; left: -35px; top: 10px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--c-line); background: var(--c-surface); color: var(--c-muted); display: grid; place-items: center; font-size: 11px; font-weight: 700; z-index: 1; transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease), transform var(--t-mid) var(--ease); }
 .nw-root .nw-step.is-open .nw-step-n { background: var(--c-surface); border-color: var(--c-primary); color: var(--c-primary); transform: scale(1.12); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-primary) 18%, transparent); }
 .nw-root .nw-step:has(~ .nw-step.is-open) .nw-step-n { background: var(--c-accent); border-color: var(--c-accent); color: transparent; }
-.nw-root .nw-step:has(~ .nw-step.is-open) .nw-step-n::after { content: ''; width: 5px; height: 10px; border: solid #10240f; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); display: block; }
+.nw-root .nw-step:has(~ .nw-step.is-open) .nw-step-n::after { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 10px; margin: -7px 0 0 -2.5px; border: solid #10240f; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .nw-root .nw-step.is-open ~ .nw-step { opacity: 0.62; }
 .nw-root .nw-step.is-open ~ .nw-step:hover, .nw-root .nw-step.is-open ~ .nw-step:focus-within { opacity: 1; }
 /* hints: the small "?" buttons are hidden unless the switch is on */
@@ -670,3 +670,35 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 
 /* English mode shows no Filipino: the second (Filipino) line of the bilingual pairs is shown in Taglish mode only */
 .nw-root.lang-en .nw-fil { display: none; }
+
+/* ======================= DESIGN V2 (Phase 5): motion ======================= */
+.cy-spark { position: fixed; z-index: 5000; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: var(--c-accent); pointer-events: none; animation: cy-spark-fly 0.65s var(--ease) forwards; }
+@keyframes cy-spark-fly { to { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; } }
+.cy-pulse { pointer-events: none; }
+.cy-pulse span { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px; border-radius: 50%; border: 2px solid var(--c-accent); animation: cy-pulse-ring 1.8s ease-out infinite; }
+.cy-pulse span:nth-child(2) { animation-delay: 0.9s; }
+@keyframes cy-pulse-ring { from { transform: scale(0.35); opacity: 0.9; } to { transform: scale(1.5); opacity: 0; } }
+.nw-root .nw-btn-go, .nw-root .cy-btn-primary { transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), box-shadow var(--t-mid) var(--ease); }
+.nw-root .nw-btn-go:hover, .nw-root .cy-btn-primary:hover { box-shadow: 0 6px 16px color-mix(in srgb, var(--c-primary) 35%, transparent); }
+.nw-root .cy-card, .nw-root .nw-pcard, .nw-root .an-kpi, .nw-root .cy-spot { transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease); }
+.nw-root .an-kpi:hover, .nw-root .nw-pcard:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .cy-spark, :root:not([data-motion='on']) .cy-pulse span { animation: none; display: none; } }
+
+/* ======================= DESIGN V2 (Phase 6): analytics as a bento grid ======================= */
+.nw-root .an-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.nw-root .an-kpis .an-kpi:first-child { grid-column: span 2; }
+.nw-root .an-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.nw-root .an-grid > .an-chart { grid-column: span 6; }
+.nw-root .an-grid > .an-chart:nth-child(1) { grid-column: span 7; } .nw-root .an-grid > .an-chart:nth-child(2) { grid-column: span 5; grid-row: span 2; }
+.nw-root .an-grid > .an-chart:nth-child(3) { grid-column: span 7; } .nw-root .an-grid > .an-chart:nth-child(4) { grid-column: span 5; }
+.nw-root .an-grid > .an-chart:nth-child(5) { grid-column: span 7; } .nw-root .an-grid > .an-chart:nth-child(6) { grid-column: span 5; }
+.nw-root .an-grid > .an-chart:nth-child(7) { grid-column: span 7; } .nw-root .an-grid > .an-chart:nth-child(8) { grid-column: span 5; }
+@media (max-width: 1000px) { .nw-root .an-grid > .an-chart, .nw-root .an-grid > .an-chart:nth-child(n) { grid-column: 1 / -1; grid-row: auto; } .nw-root .an-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nw-root .an-kpis .an-kpi:first-child { grid-column: 1 / -1; } }
+.nw-root .an-kpi { background: linear-gradient(160deg, var(--c-surface), color-mix(in srgb, var(--c-accent) 8%, var(--c-surface))); }
+/* weather hero: the date replaces the repeated place line */
+.wx-hero-where { font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px; }
+
+.an-svg rect { transform-box: fill-box; transform-origin: left center; animation: an-grow 0.7s var(--ease) both; }
+.an-svg.an-vert rect { transform-origin: center bottom; animation-name: an-rise; }
+@keyframes an-grow { from { transform: scaleX(0); } } @keyframes an-rise { from { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .an-svg rect { animation: none; } }

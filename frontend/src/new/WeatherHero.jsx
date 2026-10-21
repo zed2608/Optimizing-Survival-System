@@ -30,7 +30,7 @@ export function WxIcon({ kind, size = 40 }) {
 }
 
 // The hero of the week: the sky of the first day, drawn for the real time of day in San Mateo, with rain falling when the forecast says rain.
-export default function WeatherHero({ day, heavy, place, habagat }) {
+export default function WeatherHero({ day, heavy, dateLabel, habagat }) {
   const lang = useLang()
   const t = (k, p) => tr(k, p, lang)
   const id = useId()
@@ -63,7 +63,7 @@ export default function WeatherHero({ day, heavy, place, habagat }) {
         <path d="M0 200V170L80 150 170 172 260 152 360 174 460 156 540 172 600 160V200z" className="wx-hill-front" />
       </svg>
       <div className="wx-hero-body">
-        <div className="wx-hero-where">{place}</div>
+        <div className="wx-hero-where">{dateLabel}</div>
         <div className="wx-hero-main">
           <WxIcon kind={cond} size={56} />
           <div>

@@ -3,6 +3,7 @@ import L from 'leaflet'
 import { MapContainer, TileLayer, useMap, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MAP_BOUNDS, MAP_CENTER } from '../v2/config.js'
+import { motionAllowed } from './motionPref.js'
 import BoundaryLayers from './BoundaryLayers.jsx'
 import DrawLayer from './DrawLayer.jsx'
 import AreaSquaresLayer from './AreaSquaresLayer.jsx'
@@ -48,12 +49,26 @@ function FitTarget({ target }) {
   return null
 }
 
-// "Go to this spot": jump to a place and zoom in (no animation, so the canvas layer never shows a stale frame).
+// "Go to this spot": fly to a place and zoom in (a short smooth flight; a plain jump when motion is off).
 function GoTo({ target }) {
   const map = useMap()
   useEffect(() => {
-    if (target) map.setView([target.lat, target.lon], Math.max(map.getZoom(), 16), { animate: false })
+    if (!target) return
+    const z = Math.max(map.getZoom(), 16)
+    if (motionAllowed()) map.flyTo([target.lat, target.lon], z, { duration: 0.8 })
+    else map.setView([target.lat, target.lon], z, { animate: false })
   }, [target, map])
+  return null
+}
+
+// A soft pulse ring around the selected spot (decoration; the square itself is outlined by the grid layer).
+function PulseRing({ spot }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!spot || !motionAllowed()) return undefined
+    const m = L.marker([spot.lat, spot.lon], { icon: L.divIcon({ className: 'cy-pulse', html: '<span></span><span></span>', iconSize: [0, 0] }), interactive: false, keyboard: false, zIndexOffset: -100 }).addTo(map)
+    return () => m.remove()
+  }, [spot, map])
   return null
 }
 
@@ -81,6 +96,7 @@ export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, sel
       <ZoomControl position="topright" />
       <FitToMunicipality bbox={bbox} />
       <GoTo target={goTarget} />
+      <PulseRing spot={spot} />
       <FitTarget target={fitTarget} />
       <ZoningLayer zoning={zoning} visible={zoningOn} />
       <BoundaryLayers boundaries={boundaries} />

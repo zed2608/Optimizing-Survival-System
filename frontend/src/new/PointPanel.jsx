@@ -17,6 +17,8 @@ import { BEST_MONTHS_NOTE } from './season.js'
 import FieldStatusLine from './FieldStatusLine.jsx'
 import PhSiteCard from './PhSiteCard.jsx'
 import RowIcons from './RowIcons.jsx'
+import { motion } from 'motion/react'
+import { motionAllowed } from './motionPref.js'
 import ScoreBar from './ui/ScoreBar.jsx'
 import { useApi } from '../v2/useApi.js'
 import ViableSuggestion from './ViableSuggestion.jsx'
@@ -27,7 +29,7 @@ import WhyNone from './WhyNone.jsx'
 // (open from the start in the Full view).
 function ResultRow({ item, point, onInfo, full, ranges }) {
   return (
-    <li className={`nw-prow level-${wLevel(item.W, item.eligible)}`}>
+    <motion.li className={`nw-prow level-${wLevel(item.W, item.eligible)}`} initial={motionAllowed() ? { opacity: 0, y: 10 } : false} animate={{ opacity: 1, y: 0 }} transition={motionAllowed() ? { duration: 0.3, delay: Math.min(item.rank - 1, 10) * 0.04 } : { duration: 0 }}>
       <div className="nw-prow-main">
         <span className="rank-no" aria-label={`Rank ${item.rank}`}>
           {item.rank}
@@ -53,7 +55,7 @@ function ResultRow({ item, point, onInfo, full, ranges }) {
         </summary>
         <RowDetails item={item} point={point} full={full} />
       </details>
-    </li>
+    </motion.li>
   )
 }
 

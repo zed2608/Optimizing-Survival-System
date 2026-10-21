@@ -181,7 +181,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
             The next {d.week.n_days} days · {place ? place.label : d.location.note}
           </h2>
           {d.week.short_note && <p className="notice">{d.week.short_note}</p>}
-          <WeatherHero day={d.week.days[0]} heavy={heavy} place={place ? place.label : d.location.note} habagat={d.habagat} />
+          <WeatherHero day={d.week.days[0]} heavy={heavy} dateLabel={`${weekday(d.week.days[0].date)} ${formatDay(d.week.days[0].date)}`} habagat={d.habagat} />
           <WeekStrip days={d.week.days} heavy={heavy} weekday={weekday} dayLabel={formatDay} />
           <WeatherRules heavy={heavy} />
           {d.week.missing_note && <p className="muted nw-wlight">{d.week.missing_note}</p>}

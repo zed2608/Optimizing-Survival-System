@@ -1,9 +1,11 @@
+import { motion } from 'motion/react'
 import Icon from './Icon.jsx'
+import { motionAllowed } from './motionPref.js'
 // The right-hand glass panel. It holds the result of the current mode and, when a point has been clicked, a second tab with the existing
 // ranking and "Why this score?" accordion. The caller passes the content (children) of the active tab.
 export default function RightPanel({ title, subtitle, tabs, activeTab, onTab, onClose, children }) {
   return (
-    <aside className="nw-right" aria-label={title}>
+    <motion.aside className="nw-right" aria-label={title} initial={motionAllowed() ? { opacity: 0, x: 48 } : false} animate={{ opacity: 1, x: 0 }} transition={motionAllowed() ? { type: 'spring', stiffness: 260, damping: 30 } : { duration: 0 }}>
       <div className="nw-right-head">
         <div>
           <h2>{title}</h2>
@@ -30,6 +32,6 @@ export default function RightPanel({ title, subtitle, tabs, activeTab, onTab, on
       <div className="nw-right-body" aria-live="polite">
         {children}
       </div>
-    </aside>
+    </motion.aside>
   )
 }
