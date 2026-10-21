@@ -762,6 +762,22 @@ export default function AppNew() {
     startTour(t, { section })
   }
   const startPageTour = () => runTour(PAGE_TOUR[tab] ?? 'global')
+  // first visit: once the landing is closed, the short tour of the header and the global controls starts by itself, with "Don't show again" (it is remembered in the browser when the tour ends or is skipped)
+  useEffect(() => {
+    if (landing || !firstVisit) return undefined
+    let seen = null
+    try {
+      seen = window.localStorage.getItem('nw_tour_done')
+    } catch {
+      /* storage refused: the tour is simply offered again next time */
+    }
+    if (seen === '1') return undefined
+    const id = setTimeout(() => {
+      const t = getTour('global')
+      if (t) startTour(t, { auto: true })
+    }, 900)
+    return () => clearTimeout(id)
+  }, [landing, firstVisit])
   useTourBridge({
     page: help.helpPage ? 'help' : tab,
     snapshot: () => ({ planResult, tab, openStep, mode, purpose, selIds, combine, speciesSub, speciesHow, mainSpecies, where, tool, area, draft, markArea, spot, sidebarOpen, view, panelTab, hidden, cardId, legendOpen, detailed, start: win.raw.start, end: win.raw.end, helpPage: help.helpPage }),
