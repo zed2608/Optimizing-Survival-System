@@ -1256,6 +1256,144 @@
       h('p', { class: 'note' }, t('planLine', { plan: pack.plan_id, code: pack.check_code, pack: pack.pack_id })),
       h('p', { class: 'note' }, t('builtLine', { date: pack.built_on, tag: pack.dataset.tag, hash: pack.dataset.hash })))
   }
+  // Texts of the soil pH section (kept here, not in strings.js: they are new and not yet part of the Filipino review file). Same two languages.
+  const PH_T = {
+    fil: {
+      phTitle: 'Bago magtanim: sukatin ang pH',
+      phIntro: 'Ang mga pH range sa ibaba ay mula sa sanggunian at hindi pa pirmado ng agriculturist. Sukatin sa mismong lugar.',
+      phNone: 'Walang nakumpirmang pH range',
+      phNoneList: '{n} species ang walang nakumpirmang pH range: {names}. Itanong sa agriculturist/MAO bago magtanim kung kaduda-duda ang pH.',
+      phTol: 'Matitiis',
+      phOpt: 'Pinakamainam',
+      phListed: 'Nakalista',
+      phConflict: 'May magkaibang sanggunian; itanong sa agriculturist',
+      phPickLabel: 'Piliin ang species',
+      phInputLabel: 'pH na nasukat mo (3.0 hanggang 10.0)',
+      phReset: 'I-reset',
+      phBad: 'Maglagay ng numero mula 3.0 hanggang 10.0.',
+      phCmpOptimal: 'Nasa pinakamainam na saklaw',
+      phCmpTolerated: 'Nasa saklaw na matitiis, hindi pinakamainam',
+      phCmpListed: 'Nasa saklaw na nakalista',
+      phCmpOutside: 'Labas sa saklaw',
+      phCmpOutsideOptimal: 'Labas sa pinakamainam na saklaw',
+      phCmpNone: 'Walang nakumpirmang pH range',
+      phNote: 'Gumamit ng pH test kit o meter sa mismong lugar. Hindi ito sine-save.',
+    },
+    en: {
+      phTitle: 'Before planting: measure the soil pH',
+      phIntro: 'Soil pH ranges below come from sources and are not yet signed by the agriculturist. Measure on site.',
+      phNone: 'No confirmed pH range',
+      phNoneList: '{n} species have no confirmed pH range: {names}. Ask the agriculturist or MAO before planting where the pH is doubtful.',
+      phTol: 'Tolerated',
+      phOpt: 'Best',
+      phListed: 'Listed',
+      phConflict: 'Sources disagree; ask the agriculturist',
+      phPickLabel: 'Choose species',
+      phInputLabel: 'pH you measured (3.0 to 10.0)',
+      phReset: 'Clear',
+      phBad: 'Enter a number from 3.0 to 10.0.',
+      phCmpOptimal: 'Inside the best range',
+      phCmpTolerated: 'Inside the tolerated range, not the best',
+      phCmpListed: 'Inside the listed range',
+      phCmpOutside: 'Outside the range',
+      phCmpOutsideOptimal: 'Outside the best range',
+      phCmpNone: 'No confirmed pH range',
+      phNote: 'Use a pH test kit or meter on the spot. This is not saved.',
+    },
+  }
+  const tp = (id, vars) => {
+    let x = (PH_T[lang] || PH_T.fil)[id]
+    for (const k in vars || {}) x = x.split('{' + k + '}').join(String(vars[k]))
+    return x
+  }
+  // "Bago magtanim: sukatin ang pH": the soil pH reference of the species in this plan (text from the plan, no network) and the "Sukat sa lugar" check. Nothing is saved.
+  const phRange = (a, b) => (a != null && b != null ? a + '–' + b : null)
+  function phLine(r) {
+    if (r.status !== 'sourced') return tp('phNone')
+    const bits = [['phTol', phRange(r.tol_min, r.tol_max)], ['phOpt', phRange(r.opt_min, r.opt_max)], ['phListed', phRange(r.listed_min, r.listed_max)]].filter((x) => x[1]).map((x) => tp(x[0]) + ' ' + x[1])
+    return bits.join(' · ') + (r.conflict ? ' · ' + tp('phConflict') : '')
+  }
+  function phSection() {
+    const list = pack.ph || []
+    if (!list.length) return null
+    const none = list.filter((r) => r.status !== 'sourced')
+    const result = h('p', { class: 'note', role: 'status', 'data-role': 'ph-result' })
+    const input = h('input', { id: 'ph-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '6.5', 'aria-label': tp('phInputLabel') })
+    const pick = h('select', { id: 'ph-species', 'aria-label': tp('phPickLabel') }, list.map((r, i) => h('option', { value: String(i) }, r.name)))
+    const update = () => {
+      const typed = input.value.trim() !== ''
+      const v = Core.parsePh(input.value)
+      result.textContent = !typed ? '' : v === null ? tp('phBad') : ({ optimal: tp('phCmpOptimal'), tolerated: tp('phCmpTolerated'), listed: tp('phCmpListed'), outside: tp('phCmpOutside'), outside_optimal: tp('phCmpOutsideOptimal'), none: tp('phCmpNone') })[Core.phCompare(v, list[Number(pick.value)])]
+    }
+    input.addEventListener('input', update)
+    pick.addEventListener('change', update)
+    return h('div', { class: 'phbox', 'data-role': 'ph-section' },
+      h('h2', null, tp('phTitle')),
+      h('p', { class: 'note' }, tp('phIntro')),
+      none.length ? h('p', { class: 'warn', 'data-role': 'ph-none-list' }, tp('phNoneList', { n: none.length, names: none.map((r) => r.name).join(', ') })) : null,
+      h('ul', { class: 'plain' }, list.map((r) => h('li', null, h('strong', null, r.name), ': ', phLine(r)))),
+      h('label', { for: 'ph-species' }, tp('phPickLabel')), pick,
+      h('label', { for: 'ph-input' }, tp('phInputLabel')), input,
+      h('button', { type: 'button', class: 'btn', onclick: () => { input.value = ''; update() } }, tp('phReset')),
+      result,
+      h('p', { class: 'note' }, tp('phNote')))
+  }
+  // "Suriin sa lugar": ten questions the PLANTER answers (Oo / Hindi / Hindi sigurado) with a tip for each answer, its source and quotation. The system checks nothing; the answers stay in this page's memory only
+  // (not saved, not in any field check, plan or CSV). The questions, tips and quotations are in pack.checklist (data/reference/site_checklist.csv); only the frame texts are here (like the pH texts, not in strings.js).
+  const CL_T = {
+    fil: { title: 'Suriin sa lugar', intro: 'Hindi ito sinusuri ng system at hindi bahagi ng score. Para ito sa pagpapasya sa mismong lugar.', source: 'Sanggunian', quote: 'Sipi', scope: 'saklaw', noQuote: 'Walang naberipikang sipi',
+      species: 'Mga species sa plano (shade tolerance at light preference mula sa species table, draft)', cond: 'Kondisyon ng zone sa planong ito (mula sa app)', noCond: 'Walang nakalistang kondisyon ng zone sa planong ito.',
+      counts: '{oo} Oo, {hindi} Hindi, {hs} hindi sigurado', other: ', {n} iba pang sagot', left: ', {n} hindi pa sinasagot', saved: 'Ang mga sagot ay hindi sine-save.', open: 'buksan ang sanggunian' },
+    en: { title: 'Check on site', intro: 'The system does not check this and it is not part of the score. It is for deciding on the spot.', source: 'Source', quote: 'Quotation', scope: 'scope', noQuote: 'No verified quotation',
+      species: 'Species in the plan (shade tolerance and light preference from the species table, draft)', cond: 'Zone conditions in this plan (from the app)', noCond: 'No zone condition is listed for this plan.',
+      counts: '{oo} Yes, {hindi} No, {hs} not sure', other: ', {n} other answers', left: ', {n} not answered', saved: 'The answers are not saved.', open: 'open the source' },
+  }
+  const tc = (id, vars) => {
+    let x = (CL_T[lang] || CL_T.fil)[id]
+    for (const k in vars || {}) x = x.split('{' + k + '}').join(String(vars[k]))
+    return x
+  }
+  const siteAnswers = {}
+  function checklistSection() {
+    const cl = pack.checklist
+    if (!cl || !(cl.items || []).length) return null
+    const summary = h('p', { class: 'note', role: 'status', 'data-role': 'cl-counts' })
+    const refreshCounts = () => {
+      const c = Core.checklistCounts(cl.items, siteAnswers)
+      summary.textContent = tc('counts', { oo: c.oo, hindi: c.hindi, hs: c.hindi_sigurado }) + (c.other ? tc('other', { n: c.other }) : '') + (c.unanswered ? tc('left', { n: c.unanswered }) : '')
+    }
+    const extras = (it) => {
+      const out = []
+      if (it.id === 'C4' && cl.species.length) out.push(h('div', { class: 'note', 'data-role': 'cl-species' }, h('strong', null, tc('species')),
+        h('ul', { class: 'plain' }, cl.species.map((sp) => h('li', null, sp.name + ': ' + [sp.shade_tol ? 'shade ' + sp.shade_tol : '', sp.light_preference].filter(Boolean).join('; '))))))
+      if (it.id === 'C8') out.push(h('div', { class: 'note', 'data-role': 'cl-zone' }, h('strong', null, tc('cond')), cl.zone_conditions.length ? h('ul', { class: 'plain' }, cl.zone_conditions.map((z) => h('li', null, z))) : h('p', null, tc('noCond'))))
+      return out
+    }
+    const build = (it) => {
+      const chosen = siteAnswers[it.id]
+      const t = chosen ? Core.checklistTips(it, chosen, cl.genera) : null
+      const src = it.source || {}
+      const box = h('fieldset', { class: 'clitem', 'data-item': it.id },
+        h('legend', null, it.question),
+        h('p', { class: 'note' }, it.why),
+        h('div', { class: 'actions' }, it.options.map((o) => h('button', { type: 'button', class: 'btn' + (chosen === o.id ? ' good' : ''), 'aria-pressed': String(chosen === o.id), 'data-option': o.id,
+          onclick: () => { siteAnswers[it.id] = o.id; box.replaceWith(build(it)); refreshCounts() } }, o.label))),
+        t ? h('p', { class: 'note', role: 'status', 'data-role': 'cl-tip' }, t.tip) : null,
+        t && t.genusTip ? h('p', { class: 'warn', 'data-role': 'cl-genus-tip' }, t.genusTip) : null,
+        ...extras(it),
+        h('p', { class: 'note', 'data-role': 'cl-source' }, tc('source') + ': ' + src.name + ' (' + tc('scope') + ': ' + src.scope + ')', src.url ? [' ', h('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, tc('open'))] : null),
+        (src.quotes || []).length ? h('blockquote', { class: 'note', 'data-role': 'cl-quote' }, src.quotes.map((q) => h('p', null, q))) : (src.url ? h('p', { class: 'note', 'data-role': 'cl-noquote' }, tc('noQuote')) : null),
+        it.note ? h('p', { class: 'note' }, it.note) : null)
+      return box
+    }
+    refreshCounts()
+    return h('div', { class: 'checklist', 'data-role': 'cl-section' },
+      h('h2', null, tc('title')),
+      h('p', { class: 'note', 'data-role': 'cl-intro' }, tc('intro')),
+      cl.items.map(build),
+      summary,
+      h('p', { class: 'note' }, tc('saved')))
+  }
   function homeScreen() {
     const totals = pack.blocks.reduce((s, b) => {
       const p = Core.progress(b, state)
@@ -1274,6 +1412,8 @@
           h('strong', null, b.ref), h('span', null, b.name), h('small', null, t('blockCard', { n: b.n, done: p.planted + p.skipped })),
           h('div', { class: 'bar', role: 'img', 'aria-label': t('blockCard', { n: b.n, done: p.planted + p.skipped }) }, h('span', { class: 'p', style: `width:${(100 * p.planted) / p.n}%` }), h('span', { class: 's', style: `width:${(100 * p.skipped) / p.n}%` })))
       })),
+      phSection(),
+      checklistSection(),
       h('h2', null, t('resultsTitle')),
       h('p', { class: 'note' }, t('resultsHelp')),
       h('div', { class: 'actions', 'data-tour': 'h-results' }, h('button', { type: 'button', class: 'btn good', onclick: download }, t('btnDownload')), typeof navigator.canShare === 'function' ? h('button', { type: 'button', class: 'btn', onclick: share }, t('btnShare')) : null),

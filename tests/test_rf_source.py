@@ -377,7 +377,7 @@ def test_the_rebuild_script_runs_the_three_steps_in_the_right_order_and_the_read
 
 
 def test_the_help_and_the_guide_carry_the_random_forest_sentence():
-    sentence = "Site suitability is predicted by a Random Forest trained on the expert rules. Hard limits (zone, elevation, steep slope) always apply first."
+    sentence = "Site suitability is predicted by a Random Forest trained on the expert rules. These are saved scores; the model is not run in the app, and it is not an independent measurement of survival. Hard limits (zone, elevation, steep slope) always apply first."
     assert sentence in (ROOT / "frontend" / "src" / "new" / "tutorial" / "tutorialContent.js").read_text(encoding="utf-8")
     assert sentence in (ROOT / "docs" / "USER_GUIDE.md").read_text(encoding="utf-8")
 

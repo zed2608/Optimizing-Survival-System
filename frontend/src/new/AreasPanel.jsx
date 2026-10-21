@@ -10,11 +10,11 @@ import { matchText } from './plainWords.js'
 
 const MARKER = -1 // the API's documented "no value" marker
 
-function AreaTable({ title, kind, api, activeKey, onSelect, onPlan, full }) {
+function AreaTable({ title, kind, api, activeKey, onSelect, onPlan, full, only = null }) {
   if (api.status === 'loading') return <Loading what={`Ranking the ${title.toLowerCase()}`} />
   if (api.status === 'error') return <ErrorBox error={api.error} onRetry={api.retry} title={`Could not rank the ${title.toLowerCase()}`} brief />
   if (api.status !== 'ok') return null
-  const rows = api.data.areas
+  const rows = only ? api.data.areas.filter((r) => r.name === only) : api.data.areas // UX round 2: "Saan hahanapin" can limit the list to one barangay or one zone
   return (
     <section className="nw-areatable">
       <h3>{title}</h3>
@@ -65,7 +65,7 @@ function AreaTable({ title, kind, api, activeKey, onSelect, onPlan, full }) {
 }
 
 // Mode 1: barangays AND zones ranked for the selected species. Clicking a name zooms the map to it and highlights it.
-export default function AreasPanel({ speciesNames, combine, onCombine, byBarangay, byZone, activeKey, onSelect, onPlan, seasonNote, allRemoved, view = 'compact', onView = () => {} }) {
+export default function AreasPanel({ focus = null, speciesNames, combine, onCombine, byBarangay, byZone, activeKey, onSelect, onPlan, seasonNote, allRemoved, view = 'compact', onView = () => {} }) {
   const definition = byBarangay.status === 'ok' ? byBarangay.data.score_definition : ''
   const none = !allRemoved && byBarangay.status === 'ok' && byBarangay.data.areas.every((r) => r.suitable_points === 0)
   return (
@@ -106,8 +106,12 @@ export default function AreasPanel({ speciesNames, combine, onCombine, byBaranga
             )}
           </div>
         )}
-        <AreaTable title="Barangays" kind="barangay" api={byBarangay} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} />
-        <AreaTable title="Zones" kind="zone" api={byZone} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} />
+        {(!focus || focus.kind === 'all' || focus.kind === 'barangay') && (
+          <AreaTable title="Barangays" kind="barangay" api={byBarangay} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} only={focus?.kind === 'barangay' ? focus.name : null} />
+        )}
+        {(!focus || focus.kind === 'all' || focus.kind === 'zone') && (
+          <AreaTable title="Zones" kind="zone" api={byZone} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} only={focus?.kind === 'zone' ? focus.name : null} />
+        )}
       </div>
     </div>
   )

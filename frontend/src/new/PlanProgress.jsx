@@ -45,21 +45,30 @@ export default function PlanProgress({ planId, version = 0, full = false, onTopU
         <strong>{t.planted}</strong> of {t.planned} trees planted ({t.percent_planted}%) <AskHelp id="progress" />
       </div>
       <ul className="nw-counts nw-pcounts">
-        <li style={{ color: fieldColor('planted') }}>
-          <Icon name={fieldIcon('planted')} /> Planted: <strong>{t.planted}</strong>
+        <li>
+          <span className="nw-fieldmark" style={{ color: fieldColor('planted') }}>
+            <Icon name={fieldIcon('planted')} />
+          </span>{' '}
+          Planted: <strong>{t.planted}</strong>
         </li>
         <li>
           <Icon name="clock" /> Remaining: <strong>{t.remaining}</strong>
         </li>
-        <li style={{ color: fieldColor('not_plantable') }}>
-          <Icon name={fieldIcon('not_plantable')} /> Problem: <strong>{t.problem}</strong>
+        <li>
+          <span className="nw-fieldmark" style={{ color: fieldColor('not_plantable') }}>
+            <Icon name={fieldIcon('not_plantable')} />
+          </span>{' '}
+          Problem: <strong>{t.problem}</strong>
         </li>
       </ul>
       {t.problem > 0 && p.by_class && (
         <ul className="nw-counts nw-pcounts nw-problemclasses" aria-label="Problem blocks by reason">
           {FIELD_ORDER.filter((k) => ['not_plantable', 'water', 'hard'].includes(k) && p.by_class[k]?.blocks > 0).map((k) => (
-            <li key={k} style={{ color: fieldColor(k) }}>
-              <Icon name={fieldIcon(k)} /> {fieldLabel(k)}: <strong>{p.by_class[k].blocks}</strong> block{p.by_class[k].blocks === 1 ? '' : 's'}
+            <li key={k}>
+              <span className="nw-fieldmark" style={{ color: fieldColor(k) }}>
+                <Icon name={fieldIcon(k)} />
+              </span>{' '}
+              {fieldLabel(k)}: <strong>{p.by_class[k].blocks}</strong> block{p.by_class[k].blocks === 1 ? '' : 's'}
             </li>
           ))}
         </ul>

@@ -42,8 +42,11 @@ export default function FieldSummary({ summary, observer, onObserver, onChanged 
         <>
           <ul className="nw-counts">
             {['verified_plantable', 'not_plantable', 'needs_recheck', 'planted'].map((k) => (
-              <li key={k} style={{ color: fieldColor(fieldClass(k)) }}>
-                <Icon name={fieldIcon(fieldClass(k))} /> {STATUS_LABEL[k]}: <strong>{s.by_status[k] ?? 0}</strong>{k === 'planted' && s.trees_planted_total > 0 ? ` blocks · ${s.trees_planted_total} trees` : ''}
+              <li key={k}>
+                <span className="nw-fieldmark" style={{ color: fieldColor(fieldClass(k)) }}>
+                  <Icon name={fieldIcon(fieldClass(k))} />
+                </span>{' '}
+                {STATUS_LABEL[k]}: <strong>{s.by_status[k] ?? 0}</strong>{k === 'planted' && s.trees_planted_total > 0 ? ` blocks · ${s.trees_planted_total} trees` : ''}
               </li>
             ))}
           </ul>

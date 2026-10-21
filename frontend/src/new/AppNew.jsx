@@ -1,6 +1,20 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '../v2/v2.css'
 import './new.css'
+import './canopy.css'
+import SettingsMenu from './SettingsMenu.jsx'
+import HintsSwitch from './HintsSwitch.jsx'
+import { useHints } from './hints.js'
+import { Tabs } from './ui/ui.jsx'
+import ToastViewport from './ui/ToastViewport.jsx'
+import { toast } from './ui/toast.js'
+import { sparkBurst } from './ui/spark.js'
+import { findPosition, geoMessageKey } from './myLocation.js'
+import { AnimatePresence, motion } from 'motion/react'
+import { motionAllowed } from './motionPref.js'
+import Splash from './Splash.jsx'
+import Landing from './Landing.jsx'
+import { markVisit, shouldShowLanding } from './landing.js'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
@@ -15,6 +29,11 @@ import AreaResultPanel from './AreaResultPanel.jsx'
 import AreasPanel from './AreasPanel.jsx'
 import { decodeFieldCode, STATUS_LABEL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
+import { continueState, describeArea, diagnosticText, geometryHectares, haText } from './areaInfo.js'
+import { tr, useLang } from './i18n.js'
+import { sitePhText } from './phEvidence.js'
+import FieldMenu from './FieldMenu.jsx'
+import { menuLines } from './pointMenu.js'
 import { PURPOSE_SHORT } from './labelsNew.js'
 import MoreMenu from './MoreMenu.jsx'
 import MapViewMenu from './MapViewMenu.jsx'
@@ -22,10 +41,8 @@ import PlanLegend from './PlanLegend.jsx'
 import PlanResult from './PlanResult.jsx'
 import PlanStep from './PlanStep.jsx'
 import { countText, countsSummary } from './counts.js'
-import PairsWith from './PairsWith.jsx'
 import FieldLegend from './FieldLegend.jsx'
 import ZoningLegend from './ZoningLegend.jsx'
-import { HelpBanner, HelpButton } from './HelpCenter.jsx'
 import GuidedTour from './tutorial/GuidedTour.jsx'
 import HelpPage from './tutorial/HelpPage.jsx'
 import ScoreSourceNotice from './ScoreSourceNotice.jsx'
@@ -44,7 +61,6 @@ import CampaignLogs from './CampaignLogs.jsx'
 import PlantingWindow from './PlantingWindow.jsx'
 import PointPanel from './PointPanel.jsx'
 import ContextPanel from './ContextPanel.jsx'
-import Segmented from './Segmented.jsx'
 import SpeciesCard from './SpeciesCard.jsx'
 import MapNew from './MapNew.jsx'
 import ModeSwitch from './ModeSwitch.jsx'
@@ -54,7 +70,8 @@ import SearchBar from './SearchBar.jsx'
 import { FEW_SPECIES, formatDay, formatRange, monthsText, seasonQuery, windowMonths } from './season.js'
 import SeasonNotice from './SeasonNotice.jsx'
 import SidebarStep from './SidebarStep.jsx'
-import SpeciesMultiPicker from './SpeciesMultiPicker.jsx'
+import SpeciesChooser from './SpeciesChooser.jsx'
+import SpeciesFlow from './SpeciesFlow.jsx'
 import { useObserver } from './useObserver.js'
 import { usePost } from './usePost.js'
 import { useIncludeUnzoned, useLegendOpen, useMapDetail, useViewMode } from './useViewMode.js'
@@ -83,11 +100,48 @@ export default function AppNew() {
   const [combine, setCombine] = useState('all') // mode 1: 'all' | 'any'
   const [rowActive, setRowActive] = useState(null) // mode 1: the clicked table row {kind, name}
   const [planPrefill, setPlanPrefill] = useState(null)
+  const lang = useLang()
+  const hints = useHints()
+  const pageTitle = useRef(null)
+  // "My location": the position stays in memory (never logged, never sent). The button shows "Finding your location…" while it works and never stays stuck; any failure says what to do and offers
+  // "Set my location on the map" (the next tap on the map sets it).
+  const [myLoc, setMyLoc] = useState(null)
+  const [locating, setLocating] = useState(false)
+  const [pickingMe, setPickingMe] = useState(false)
+  const [locFailed, setLocFailed] = useState(false)
+  const placeMe = (pos, fromTap) => {
+    setMyLoc({ lat: pos.lat, lon: pos.lon })
+    setGoTarget({ lat: pos.lat, lon: pos.lon })
+    setLocFailed(false)
+    if (!locate(pos.lat, pos.lon)) toast('info', tr('geo.outside', {}, lang))
+    else if (fromTap) toast('success', tr('geo.set', {}, lang))
+  }
+  const locateMe = async () => {
+    if (locating) return
+    setLocating(true)
+    setPickingMe(false)
+    try {
+      placeMe(await findPosition())
+    } catch (e) {
+      setLocFailed(true)
+      toast('warning', tr(geoMessageKey(e), {}, lang), 9000)
+    } finally {
+      setLocating(false)
+    }
+  }
+  const [landing, setLanding] = useState(() => shouldShowLanding())
+  const [firstVisit] = useState(() => shouldShowLanding())
+  const closeLanding = () => {
+    markVisit()
+    setLanding(false)
+  }
   const [tool, setTool] = useState('point') // mode 2: 'point' | 'barangay' | 'draw'
   const [area, setArea] = useState(null) // mode 2: {kind:'barangay'|'zone', name} | {kind:'polygon', geometry}
   const [draft, setDraft] = useState([]) // mode 2: corners of the shape being drawn, [lat, lon]
+  const [markArea, setMarkArea] = useState(null) // goal "I have species", step 3 "Markahan sa mapa": the finished shape {kind:'polygon', geometry} (UX round 4)
   const [notice, setNotice] = useState('')
   const [spot, setSpot] = useState(null) // the clicked point {lat, lon}
+  const [fieldMenu, setFieldMenu] = useState(null) // the menu of a square {x, y, pick, pointId, square: {lat, lon, pointId}, click: {lat, lon}} (x null = centred), or null
   const [viableFor, setViableFor] = useState(null)
   const [goTarget, setGoTarget] = useState(null)
   const [fitTarget, setFitTarget] = useState(null)
@@ -101,6 +155,10 @@ export default function AppNew() {
   const [campaignUnit, setCampaignUnit] = useState('')
   const [nSaplings, setNSaplings] = useState('100')
   const [counts, setCounts] = useState({}) // trees per chosen species (a species not edited yet has the default)
+  const [speciesSub, setSpeciesSub] = useState(1) // goal "I have species", step 4: 1 species, 2 where to look, 3 the best areas (right card)
+  const [where, setWhere] = useState({ kind: 'all', name: '' }) // "Saan hahanapin": the whole municipality, one barangay or one zone
+  const [speciesHow, setSpeciesHow] = useState('') // UX 12: '' (not asked yet) | 'one' | 'many'
+  const [mainSpecies, setMainSpecies] = useState(null) // UX 12: the main species when the person chose many
   const [ownSpecies, setOwnSpecies] = useState(false) // goal "I have an area": the user chose their own species and counts
   const [focusIds, setFocusIds] = useState(() => new Set()) // planned squares to circle on the map ("Show these on the map")
   const help = useHelpState()
@@ -230,12 +288,13 @@ export default function AppNew() {
     )
   const noneSuitable = useMemo(() => !!columns && selection && columns.W.every((w) => w === 0), [columns, selection])
 
+  const markActive = mode === 'species' && speciesSub === 3 && !markArea
   const highlight = useMemo(() => {
-    const spec = mode === 'area' ? area : rowActive
+    const spec = mode === 'area' ? area : markArea || rowActive
     if (!spec) return null
     if (spec.kind === 'polygon') return spec.geometry
     return (spec.kind === 'barangay' ? barangayFeatures : zoneFeatures).find((f) => f.properties.name === spec.name)?.geometry ?? null
-  }, [mode, area, rowActive, barangayFeatures, zoneFeatures])
+  }, [mode, area, markArea, rowActive, barangayFeatures, zoneFeatures])
 
   // hover text: barangay and score of the point under the mouse
   const labeler = useMemo(() => {
@@ -288,8 +347,30 @@ export default function AppNew() {
   const planHere = (kind, row) => setPlanPrefill({ purpose, speciesIds: selIds, speciesNames: selNames, combine, area: { kind, name: row.display_name, key: row.name } })
 
   const onPick = ({ index, context = -1, plan = -1, lat, lon }) => {
+    setFieldMenu(null)
+    if (pickingMe) {
+      placeMe({ lat, lon }, true)
+      setPickingMe(false)
+      return
+    }
     if (mode === 'area' && tool === 'draw') {
+      if (area?.kind === 'polygon') {
+        setNotice(tr('area.lockNotice', {}, lang)) // UX round 2 (A2)
+        return
+      }
       setDraft((d) => [...d, [lat, lon]])
+      return
+    }
+    if (mode === 'species' && speciesSub === 3) {
+      // Markahan sa mapa: one click is a point (the point panel opens); three or more clicks and "Tapusin" make an area
+      if (markArea) {
+        setNotice(tr('mark.lockNotice', {}, lang))
+        return
+      }
+      // the right card stays closed while marking, so that it never covers the map; the first click also keeps the spot, and "Tingnan ang species sa puntong ito" opens its panel
+      if (draft.length === 0) setSpot(columns && index >= 0 ? { lat: columns.lat[index], lon: columns.lon[index], pointId: columns.point_id[index] } : { lat, lon })
+      setDraft((d) => [...d, [lat, lon]])
+      setNotice('')
       return
     }
     if (mode === 'area' && tool === 'barangay') {
@@ -314,6 +395,36 @@ export default function AppNew() {
     setPanelTab('point')
     setHidden(false)
     setNotice('')
+  }
+  // Right-click (or long press) on the map: ONLY a menu opens (where this is, "Tingnan ang species dito", the field check). The right card does not open and nothing is selected: that is what a left click does.
+  // Not while drawing an area, and only for planting squares and planned blocks.
+  const onContext = (pick) => {
+    if ((mode === 'area' && tool === 'draw') || (markActive && draft.length > 0)) return
+    let sq = null
+    if (pick.plan >= 0 && planResult) {
+      const it = planResult.plan[pick.plan]
+      sq = { lat: it.lat, lon: it.lon, pointId: it.point_id }
+    } else if (pick.index >= 0 && columns) {
+      sq = { lat: columns.lat[pick.index], lon: columns.lon[pick.index], pointId: columns.point_id[pick.index] }
+    }
+    if (!sq) {
+      setFieldMenu(null)
+      setNotice(pick.context >= 0 ? tr('notice.notPlanting', {}, lang) : tr('notice.noSquare', {}, lang))
+      return
+    }
+    setFieldMenu({ x: pick.x, y: pick.y, pick, pointId: sq.pointId, square: sq, click: { lat: pick.lat, lon: pick.lon } })
+  }
+  const chooseWhere = (w) => {
+    setWhere(w)
+    if (w.kind === 'all' || !w.name) {
+      setRowActive(null)
+      return
+    }
+    const f = featureOf(w.kind, w.name)
+    if (f) {
+      setRowActive({ kind: w.kind, name: w.name })
+      setFitTarget({ bbox: f.properties.bbox })
+    }
   }
   const goTo = (lat, lon) => {
     setSpot({ lat, lon })
@@ -342,7 +453,7 @@ export default function AppNew() {
     const rankable = it.type === 'grid_point' && (it.legal_zone || it.zoning_status === 'unconfirmed')
     const pointId = it.type === 'plan_point' || rankable ? it.point_id : undefined
     const searched =
-      it.type === 'coords' ? `coordinates ${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}` : it.type === 'grid_point' ? `grid point ${it.point_id}` : it.type === 'plan_point' ? `${it.point_ref} (${it.species})` : (it.name || it.display_name)
+      it.type === 'coords' ? `coordinates ${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}` : it.type === 'grid_point' ? `${tr('search.point', {}, lang)} ${it.point_id}` : it.type === 'plan_point' ? `${it.point_ref} (${it.species})` : (it.name || it.display_name)
     const ci = it.type === 'grid_point' && !rankable && contextCols ? contextCols.point_id.indexOf(it.point_id) : -1
     setSpot({ lat: it.lat, lon: it.lon, searched, ...(it.type === 'plan_point' ? { planned: true } : {}), ...(ci >= 0 ? { context: ci } : pointId ? { pointId } : {}) })
     setGoTarget({ lat: it.lat, lon: it.lon })
@@ -350,9 +461,9 @@ export default function AppNew() {
     setHidden(false)
     setNotice('')
     if (it.type === 'plan_point') {
-      setSearchNote({ title: `${it.point_ref} · ${it.species}`, lines: [`Plan ${it.plan_id}`, `Grid point ${it.point_id}${it.barangay_display ? ' · ' + it.barangay_display : ''}`] })
+      setSearchNote({ title: `${it.point_ref} · ${it.species}`, lines: [`Plan ${it.plan_id}`, `${tr('search.pointLabel', { id: it.point_id }, lang)}${it.barangay_display ? ' · ' + it.barangay_display : ''}`] })
     } else if (it.type === 'grid_point') {
-      setSearchNote({ title: `Grid point ${it.point_id}`, lines: [it.note ?? `${it.barangay_display || 'Outside the barangay outlines'} · ${it.zone}`] })
+      setSearchNote({ title: tr('search.pointLabel', { id: it.point_id }, lang), lines: [it.note ?? `${it.barangay_display || 'Outside the barangay outlines'} · ${it.zone}`] })
     } else if (it.type === 'place') {
       setSearchNote({ title: it.name || it.display_name, lines: [it.display_name], attribution: it.attribution })
     } else {
@@ -361,9 +472,40 @@ export default function AppNew() {
   }
   const finishDraw = () => {
     if (draft.length < 3) return
-    chooseArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
+    if (mode === 'species') {
+      setMarkArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
+      setNotice('')
+      setPanelTab('main')
+      setHidden(false)
+      setSidebarOpen(true) // the summary is in the sidebar: bring it back on a narrow screen
+    } else chooseArea({ kind: 'polygon', geometry: polygonFromVertices(draft) })
     setFitTarget({ bbox: geometryBbox(polygonFromVertices(draft)) })
     setDraft([])
+  }
+  // one marked point = a plan on the one 100 m square it stands in (a 100 m box around the centre of the square, or around the click when no square was hit): the service then selects that one square
+  const usePoint = () => {
+    if (draft.length !== 1) return
+    const [lat0, lon0] = spot && spot.pointId !== undefined ? [spot.lat, spot.lon] : draft[0]
+    const dlat = 50 / 111320
+    const dlon = 50 / (111320 * Math.cos((lat0 * Math.PI) / 180))
+    const corners = [[lat0 - dlat, lon0 - dlon], [lat0 - dlat, lon0 + dlon], [lat0 + dlat, lon0 + dlon], [lat0 + dlat, lon0 - dlon]]
+    const geometry = polygonFromVertices(corners)
+    setMarkArea({ kind: 'polygon', single: true, geometry })
+    setFitTarget({ bbox: geometryBbox(geometry) })
+    setDraft([])
+    setNotice('')
+    setSidebarOpen(true)
+  }
+  const clearMark = () => {
+    setDraft([])
+    setMarkArea(null)
+    setNotice('')
+  }
+  const goSub = (n) => {
+    setSpeciesSub(n)
+    if (n === 3) setHidden(true)
+    if (n !== 3) setDraft([]) // a half-drawn shape is dropped when the person leaves the step; a finished one is kept
+    setNotice('')
   }
   const changeMode = (m) => {
     setMode(m)
@@ -372,6 +514,7 @@ export default function AppNew() {
     setHidden(false)
     setTool('point')
     setDraft([])
+    setMarkArea(null)
     setNotice('')
   }
   const toggleStep = (id) => setOpenStep((o) => (o === id ? '' : id))
@@ -382,12 +525,35 @@ export default function AppNew() {
   }
 
   const hasMain = mode === 'species' ? selection : !!area
+  // UX 2-5: what the Area step says about the choice, and whether Continue may be pressed (an area with no planting square blocks it)
+  const cont = continueState({ mode, area, areaRank, lang })
+  // UX 12: one species or many (a main species and the species that can go with it on the same land)
+  const chooser = (forArea) => (
+    <SpeciesChooser species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} purpose={purpose} area={forArea} query={sq} how={speciesHow} onHow={setSpeciesHow} mainId={mainSpecies} onMain={setMainSpecies} />
+  )
+  // goal "I have species": the area the plan will use = the shape marked on the map, else the area chosen with "Plan here", else the barangay or zone of "Saan hahanapin"
+  const whereArea = where.kind !== 'all' && where.name ? { kind: where.kind, name: where.name } : null
+  const speciesArea = markArea || (planPrefill ? { kind: planPrefill.area.kind, name: planPrefill.area.key } : whereArea)
+  const diagArea = mode === 'area' ? area : speciesArea
+  const diag = usePost(`/area/diagnostic?${uz}`, !diagArea ? null : diagArea.kind === 'barangay' ? { barangay: diagArea.name } : diagArea.kind === 'zone' ? { zone: diagArea.name } : { polygon: diagArea.geometry })
+  const areaSplit = diag.status === 'ok' ? diagnosticText(diag.data, lang) : null
+  const areaSummary = useMemo(
+    () => (mode !== 'area' ? [] : describeArea({ tool, area, spot, barangayFeatures, zoneFeatures, squares: areaRank.status === 'ok' ? areaRank.data.area.legal_points : null, selection: areaRank.status === 'ok' ? areaRank.data.area.selection ?? null : null, split: areaSplit, ph: areaRank.status === 'ok' ? areaRank.data.area.ph ?? null : null, lang })),
+    [mode, tool, area, spot, barangayFeatures, zoneFeatures, areaRank.status, areaRank.data, areaSplit, lang],
+  )
   const hasPoint = !!spot
   const hasPlanTab = !!planResult
   const avail = { plan: hasPlanTab, main: hasMain, point: hasPoint }
   const activeTab = avail[panelTab] ? panelTab : (['plan', 'main', 'point'].find((k) => avail[k]) ?? 'point')
   const showPanel = (hasMain || hasPoint || hasPlanTab) && !hidden
-  const tabs = [...(hasPlanTab ? [{ id: 'plan', label: 'Plan' }] : []), ...(hasMain ? [{ id: 'main', label: mode === 'species' ? 'Areas' : 'Area species' }] : []), ...(hasPoint ? [{ id: 'point', label: 'This point' }] : [])]
+  // UX 14: two different lists, two clear names, one sentence each (they are never merged)
+  const tabs = [
+    ...(hasPlanTab ? [{ id: 'plan', label: 'Plan', hint: tr('tab.plan.hint', {}, lang) }] : []),
+    ...(hasMain
+      ? [{ id: 'main', label: tr(mode === 'species' ? 'tab.main.species' : 'tab.main.area', {}, lang), hint: tr(mode === 'species' ? 'tab.main.hint.species' : 'tab.main.hint.area', {}, lang) }]
+      : []),
+    ...(hasPoint ? [{ id: 'point', label: tr('tab.point', {}, lang), hint: tr('tab.point.hint', {}, lang) }] : []),
+  ]
   const areaLabel = !area ? '' : area.kind === 'polygon' ? 'the drawn area' : (featureOf(area.kind, area.name)?.properties.display_name ?? area.name)
 
   // ---- step 5 "Plan"
@@ -397,9 +563,9 @@ export default function AppNew() {
   const cs = countsSummary(countRows.map((r) => r.id), counts)
   const nValid = countsMode ? cs.valid : /^\d+$/.test(String(nSaplings).trim()) && nNum >= 1 && nNum <= 2000
   const planTotal = countsMode ? cs.total : nNum
-  const planArea = mode === 'area' ? area : planPrefill ? { kind: planPrefill.area.kind, name: planPrefill.area.key } : null
+  const planArea = mode === 'area' ? area : speciesArea
   const planAreaBody = !planArea ? null : planArea.kind === 'barangay' ? { barangay: planArea.name } : planArea.kind === 'zone' ? { zone: planArea.name } : { polygon: planArea.geometry }
-  const planAreaLabel = !planArea ? '' : planArea.kind === 'polygon' ? 'The drawn area' : (featureOf(planArea.kind, planArea.name)?.properties.display_name ?? planArea.name)
+  const planAreaLabel = !planArea ? '' : planArea.kind === 'polygon' ? (planArea.single ? 'One square' : 'The drawn area') : (featureOf(planArea.kind, planArea.name)?.properties.display_name ?? planArea.name)
   const planSpeciesOk = !countsMode || selIds.length > 0
   const planBody = !planAreaBody
     ? null
@@ -412,7 +578,7 @@ export default function AppNew() {
     : !planSpeciesOk
     ? 'Choose species first'
     : campaignName.trim() === ''
-    ? 'Name the campaign'
+    ? 'Lagyan ng pangalan ang plano'
     : win.error
     ? 'Fix the planting dates'
     : !nValid
@@ -454,8 +620,11 @@ export default function AppNew() {
     try {
       const r = await apiPost(`/plan-event?${sq}`, { ...planBody, campaign: { name: campaignName.trim(), unit: campaignUnit.trim() } })
       showPlanResult(r)
+      sparkBurst(document.querySelector('[data-role="create-plan"]'))
+      toast('success', tr('toast.planCreated', { name: campaignName.trim() }, lang))
     } catch (e) {
       setCreateError(e.message)
+      toast('error', tr('toast.planFailed', { msg: e.message }, lang))
     } finally {
       setCreating(false)
     }
@@ -483,6 +652,17 @@ export default function AppNew() {
     const item = planResult.plan.find((x) => x.point_id === pointId)
     return item ? { item, kind: planSpecies.get(item.species_id)?.kind ?? 0, planId: planResult.plan_id } : null
   }, [planResult, pointId, planSpecies])
+  // the field-check menu of a right-click: its own field-check data, its own lines and its own plan block (the point panel keeps its own)
+  const menuField = useApi(fieldMenu ? `/field-checks/${fieldMenu.pointId}?${fc}` : null)
+  const menuInfo = useMemo(
+    () => (fieldMenu ? menuLines({ square: fieldMenu.square, click: fieldMenu.click, barangayFeatures, zoneFeatures, win: win.applied, today: win.today, me: myLoc, fromYou: (m) => tr('geo.fromYou', { m }, lang) }) : { title: '', lines: [] }),
+    [fieldMenu, barangayFeatures, zoneFeatures, win.applied, win.today, myLoc, lang],
+  )
+  const menuBlock = useMemo(() => {
+    if (!fieldMenu || !planResult || planResult.layout_mode !== 'blocks') return null
+    const item = planResult.plan.find((x) => x.point_id === fieldMenu.pointId)
+    return item ? { planId: planResult.plan_id, trees: item.trees_planned, ref: item.block_ref } : null
+  }, [fieldMenu, planResult])
   const nPlanUnconfirmed = useMemo(() => (planItems ? planItems.filter((x) => x.unconfirmed).length : 0), [planItems])
   const planLabeler = useMemo(
     () =>
@@ -518,6 +698,7 @@ export default function AppNew() {
     setHidden(false)
   }
   const planFromRow = (kind, row) => {
+    selectRow(kind, row) // UX 6: the outline is highlighted and the map zooms to the area, as when its name is clicked
     planHere(kind, row)
     setSidebarOpen(true)
     setOpenStep('plan')
@@ -546,11 +727,27 @@ export default function AppNew() {
     ? `${selIds.length === 1 ? selNames[0] : `${selIds.length} species`} · ${selIds.length === 1 ? 'one species' : combine === 'all' ? 'must suit all' : 'suits at least one'}`
     : 'Best species at each point'
 
+  // the tabs are full pages: Esc goes back to the studio, and the page title takes the focus when a tab opens
+  useEffect(() => {
+    if (tab === 'studio') return undefined
+    // the page mounts after the old one has faded out: focus the title of the page that is really there
+    const focusTimer = setTimeout(() => (document.querySelector('[data-role="tab-page"] h1') ?? pageTitle.current)?.focus({ preventScroll: true }), 220)
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (document.querySelector('[role="dialog"], .set-menu, .nw-helppage, .ln-root')) return
+      setTab('studio')
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      clearTimeout(focusTimer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [tab])
   return (
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
     <PublicNotice health={healthData} />
     <ScoreSourceNotice health={healthData} />
-    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
+    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${tab !== 'studio' ? 'tab-page' : ''} lang-${lang} ${hints ? '' : 'hints-off'} ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
@@ -561,12 +758,15 @@ export default function AppNew() {
           selected={selected}
           spot={spot}
           onPick={onPick}
+          onContext={onContext}
+          areaSquares={(mode === 'area' ? area : markArea)?.kind === 'polygon' && diag.status === 'ok' ? diag.data.squares ?? null : null}
           meta={meta}
           goTarget={goTarget}
           fitTarget={fitTarget}
           highlight={highlight}
+          myLoc={myLoc}
           draft={draft}
-          drawing={mode === 'area' && tool === 'draw'}
+          drawing={(mode === 'area' && tool === 'draw') || markActive}
           field={fieldForMap}
           baseLayer={baseLayer}
           contextCols={contextCols}
@@ -589,8 +789,8 @@ export default function AppNew() {
 
       {/* messages over the map */}
       <div className="nw-toasts v2 v2-embedded">
-        {grid.status === 'loading' && <Loading what="Loading the grid points" />}
-        {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title="Could not load the grid points" />}
+        {grid.status === 'loading' && <Loading what={tr('grid.loading', {}, lang)} />}
+        {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title={tr('grid.error', {}, lang)} />}
         {fewSpecies && seasonNotice(true)}
         {boundaries.status === 'error' && !boundaries.error.network && <ErrorBox error={boundaries.error} onRetry={boundaries.retry} title="Could not load the outlines" brief />}
       </div>
@@ -607,6 +807,13 @@ export default function AppNew() {
           </div>
           <div className="nw-legend-sub">{legendSub}</div>
           <ColorLegend />
+          {(mode === 'area' ? area : markArea)?.kind === 'polygon' && diag.status === 'ok' && diag.data.squares && (
+            <div className="nw-legend-area" data-role="legend-area-squares">
+              <span className="nw-legend-sq is-counted" aria-hidden="true" /> {tr('sq.counted', {}, lang)}
+              <br />
+              <span className="nw-legend-sq is-partial" aria-hidden="true" /> {tr('sq.partial', {}, lang)}
+            </div>
+          )}
           {noneSuitable && (
             <div className="nw-legend-warn" role="status">
               {allRemoved ? 'No chosen species can be planted in your dates.' : `No point is suitable for this selection${combine === 'all' && selIds.length > 1 ? ': try “Suits at least one”' : ''}.`}
@@ -627,11 +834,20 @@ export default function AppNew() {
               )}
             </div>
           )}
-          <div className="nw-legend-note">Each dot is a 100 m grid cell in a planting zone. Blue-ringed dot = the chosen point.</div>
+          <div className="nw-legend-note">{tr('sq.note', {}, lang)}</div>
         </div>
       ) : (
         <button type="button" className="nw-legend-btn" aria-expanded="false" onClick={() => setLegendOpen(true)}>
           <Icon name="legend" /> Legend
+        </button>
+      )}
+      <button type="button" className={`nw-locate ${locating ? 'is-busy' : ''}`} onClick={locateMe} data-role="locate" aria-busy={locating} aria-label={locating ? tr('geo.finding', {}, lang) : tr('map.locate', {}, lang)} title={tr('map.locate', {}, lang)}>
+        <Icon name="target" size={18} />
+        {locating && <span className="nw-locate-text">{tr('geo.finding', {}, lang)}</span>}
+      </button>
+      {(locFailed || pickingMe) && (
+        <button type="button" className={`nw-locate-set ${pickingMe ? 'is-on' : ''}`} onClick={() => setPickingMe((v) => !v)} data-role="locate-set" aria-pressed={pickingMe}>
+          <Icon name="pin" size={16} /> {pickingMe ? tr('geo.setHint', {}, lang) : tr('geo.setOnMap', {}, lang)}
         </button>
       )}
 
@@ -652,29 +868,36 @@ export default function AppNew() {
             <div className="nw-subtitle">MENRO · San Mateo, Rizal</div>
           </div>
         </div>
-        <div className="nw-tabs" role="tablist" aria-label="Views">
-          {TABS.map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={`nw-tab ${tab === t.id ? 'is-active' : ''}`} onClick={() => setTab(t.id)}>
-              <Icon name={t.icon} size={18} /> {t.label}
-            </button>
-          ))}
-        </div>
+        <Tabs className="nw-tabs-v2" label="Views" value={tab} onChange={setTab} items={TABS.map((x) => ({ id: x.id, label: x.label, icon: <Icon name={x.icon} size={18} /> }))} />
         <div className="nw-topright">
-          <HelpButton onClick={() => help.openHelp()} />
+          <SettingsMenu onAbout={() => setLanding(true)} onHelp={() => help.openHelp()} onTour={() => { setSidebarOpen(true); help.startTour('full') }} />
           <div className="nw-pill" role="status">
             <span className={`nw-dot nw-dot-${apiState}`} aria-hidden="true" />
             <span>{apiState === 'ok' ? 'API connected' : apiState === 'wait' ? 'Connecting…' : 'API offline'}</span>
           </div>
         </div>
       </header>
+      <AnimatePresence mode="wait">
       {tab !== 'studio' && (
-        <section className="nw-modal" aria-label={TABS.find((t) => t.id === tab).label}>
-          <div className="nw-modal-head">
-            <h2>{tab === 'history' ? 'Campaign Event Logs & History' : tab === 'weather' ? 'Weather this week' : 'System Spatial Analytics'}<AskHelp id={tab === 'weather' ? 'weather' : 'logs-analytics'} /></h2>
-            <button type="button" className="nw-btn" onClick={() => setTab('studio')}>
-              <Icon name="close" /> Close & Return to Map
-            </button>
-          </div>
+        <motion.section
+          key={tab}
+          className="nw-page nw-modal"
+          data-role="tab-page"
+          data-tab={tab}
+          aria-label={TABS.find((x) => x.id === tab).label}
+          initial={motionAllowed() ? { opacity: 0 } : false}
+          animate={{ opacity: 1 }}
+          exit={motionAllowed() ? { opacity: 0 } : { opacity: 0 }}
+          transition={{ duration: motionAllowed() ? 0.15 : 0, ease: 'easeOut' }}
+        >
+          <div className="nw-page-in">
+            <header className="nw-page-head">
+              <h1 ref={pageTitle} tabIndex={-1}>
+                {tr(`page.${tab === 'history' ? 'history' : tab === 'weather' ? 'weather' : 'analytics'}.t`, {}, lang)}
+              </h1>
+              <AskHelp id={tab === 'weather' ? 'weather' : 'logs-analytics'} />
+              <p>{tr(`page.${tab === 'history' ? 'history' : tab === 'weather' ? 'weather' : 'analytics'}.d`, {}, lang)}</p>
+            </header>
           {tab === 'history' ? (
             <CampaignLogs today={win.today} onOpen={openSavedPlan} onStudio={() => setTab('studio')} fieldVersion={fieldVersion} onTopUp={openTopUp} />
           ) : tab === 'weather' ? (
@@ -692,17 +915,33 @@ export default function AppNew() {
               includeUnzoned={includeUnzoned}
             />
           ) : (
-            <AnalyticsPanel includeUnzoned={includeUnzoned} />
+            <AnalyticsPanel />
           )}
-        </section>
+          </div>
+        </motion.section>
       )}
+      </AnimatePresence>
 
       {/* SIDEBAR (look copied from the earlier dashboard) */}
+      {markActive && !sidebarOpen && (
+        <div className="nw-markbar" role="group" aria-label={tr('mark.bar.group', {}, lang)} data-role="mark-bar">
+          <span data-role="mark-bar-count">{tr('mark.bar.count', { n: draft.length }, lang)}</span>
+          <button type="button" className="nw-btn nw-btn-small" disabled={draft.length === 0} onClick={() => setDraft((d) => d.slice(0, -1))}>
+            {tr('mark.bar.undo', {}, lang)}
+          </button>
+          <button type="button" className="nw-btn nw-btn-small" disabled={draft.length === 0} onClick={clearMark}>
+            {tr('mark.bar.clear', {}, lang)}
+          </button>
+          <button type="button" className="nw-btn nw-btn-go nw-btn-small" disabled={draft.length < 3} onClick={finishDraw} data-role="mark-bar-finish">
+            {tr('mark.finish', {}, lang)}
+          </button>
+        </div>
+      )}
       <button type="button" className="nw-toggle" onClick={() => setSidebarOpen((o) => !o)} aria-expanded={sidebarOpen} aria-controls="nw-sidebar">
         <Icon name={sidebarOpen ? 'left' : 'right'} /> {sidebarOpen ? 'Hide Control Panel' : 'Open Control Panel'}
       </button>
       <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls">
-        {!help.bannerOff && <HelpBanner onStart={() => { setSidebarOpen(true); help.startTour('full') }} onDismiss={help.dismissBanner} />}
+        <HintsSwitch />
         <SidebarStep
           n={1}
           id="goal"
@@ -725,11 +964,11 @@ export default function AppNew() {
           n={2}
           id="purpose"
           icon="tree"
-          title="Layunin ng pagtatanim (Planting purpose)"
+          title={tr('purpose.title', {}, lang)}
           summary={PURPOSE_SHORT[purpose]}
           open={openStep === 'purpose'}
           onToggle={() => toggleStep('purpose')}
-          help="Urban greening: shade, safe roots, low upkeep. Tree planting: conservation and livelihood. Watershed: holding soil on slopes and by waterways."
+          help="Urban greening: shade, lower root-damage risk, low upkeep. Tree planting: conservation and livelihood. Watershed: holding soil on slopes and by waterways."
         >
           <PurposePicker value={purpose} onChange={setPurpose} />
           <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('window')}>
@@ -767,21 +1006,43 @@ export default function AppNew() {
         >
           {mode === 'species' ? (
             <>
-              {fewSpecies && seasonNotice(false)}
-              <SpeciesMultiPicker species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} />
-              {selIds.length > 0 && selIds.length <= 5 && (
-                <PairsWith speciesId={selIds[selIds.length - 1]} chosen={selIds} query={seasonQuery(win.applied, false)} onAdd={(ids) => setSelIds((cur) => [...cur, ...ids.filter((i) => !cur.includes(i))])} />
-              )}
-              <Segmented
-                name="combine"
-                label="Place counts when"
-                help="“Suits all”: every chosen species can grow there, and the score is the lowest of theirs. “Suits at least one”: one is enough, and the score is the highest."
-                value={combine}
-                options={[
-                  { value: 'all', label: 'Suits all' },
-                  { value: 'any', label: 'Suits at least one' },
-                ]}
-                onChange={setCombine}
+              <SpeciesFlow
+                sub={speciesSub}
+                setSub={goSub}
+                species={species}
+                selIds={selIds}
+                setSelIds={setSelIds}
+                onlySeason={onlySeason}
+                onInfo={setCardId}
+                purpose={purpose}
+                query={sq}
+                how={speciesHow}
+                setHow={setSpeciesHow}
+                mainId={mainSpecies}
+                setMain={setMainSpecies}
+                combine={combine}
+                setCombine={setCombine}
+                includeUnzoned={includeUnzoned}
+                setIncludeUnzoned={setIncludeUnzoned}
+                where={where}
+                onWhere={chooseWhere}
+                barangays={barangayFeatures}
+                zones={zoneFeatures}
+                onGoPlan={() => setOpenStep('plan')}
+                planAreaLabel={planArea ? (markArea ? tr(markArea.single ? 'flow.areaPoint' : 'flow.areaDrawn', {}, lang) : planAreaLabel) : ''}
+                planCreated={!!planResult}
+                markCount={draft.length}
+                markArea={markArea}
+                markSummary={markArea ? [tr('mark.size', { ha: haText(geometryHectares(markArea.geometry), lang) }, lang), areaSplit, diag.status === 'ok' ? sitePhText(diag.data.ph ?? null, 'area', lang) : null].filter(Boolean) : []}
+                onFinishMark={finishDraw}
+                onUsePoint={usePoint}
+                onUndoMark={() => setDraft((d) => d.slice(0, -1))}
+                onClearMark={clearMark}
+                onShowPoint={() => { setPanelTab('point'); setHidden(false) }}
+                onOpenMap={() => setSidebarOpen(false)}
+                notice={notice}
+                selNames={selNames}
+                seasonNotice={fewSpecies ? seasonNotice(false) : null}
               />
             </>
           ) : (
@@ -797,6 +1058,8 @@ export default function AppNew() {
                 onFinish={finishDraw}
                 onUndo={() => setDraft((d) => d.slice(0, -1))}
                 onClearDraft={() => setDraft([])}
+                summary={areaSummary}
+                blocked={cont.ok ? '' : cont.reason}
               />
               {notice && (
                 <p className="nw-hint nw-warn" role="status">
@@ -805,7 +1068,7 @@ export default function AppNew() {
               )}
             </>
           )}
-          <UnzonedToggle value={includeUnzoned} onChange={setIncludeUnzoned} />
+          {mode === 'area' && <UnzonedToggle value={includeUnzoned} onChange={setIncludeUnzoned} />}
           {planPrefill && (
             <div className="nw-prefill">
               <span>
@@ -816,9 +1079,11 @@ export default function AppNew() {
               </button>
             </div>
           )}
-          <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('plan')}>
+          {(mode === 'area' || planPrefill) && (
+          <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('plan')} disabled={!cont.ok} aria-disabled={!cont.ok} title={cont.ok ? undefined : cont.reason}>
             Continue
           </button>
+          )}
         </SidebarStep>
         <SidebarStep
           n={5}
@@ -839,6 +1104,7 @@ export default function AppNew() {
             onN={setNSaplings}
             nValid={nValid}
             areaLabel={planAreaLabel}
+            areaSplit={areaSplit}
             modeLabel={countsMode ? `Your species (${selIds.length})` : 'Mix chosen automatically'}
             countsMode={countsMode}
             countRows={countRows}
@@ -848,7 +1114,7 @@ export default function AppNew() {
             ownSpecies={ownSpecies && mode === 'area'}
             onOwnSpecies={() => setOwnSpecies(true)}
             onAutoMix={() => setOwnSpecies(false)}
-            picker={<SpeciesMultiPicker species={species} selected={selIds} onChange={setSelIds} onlySeason={onlySeason} onInfo={setCardId} />}
+            picker={chooser(area)}
             windowText={`${formatRange(win.applied.start, win.applied.end)} · ${onlySeason ? 'only species for your dates' : 'all species'}`}
             preview={preview}
             reason={planReason}
@@ -867,6 +1133,30 @@ export default function AppNew() {
         <button type="button" className="nw-reopen" onClick={() => setHidden(false)}>
           Show results
         </button>
+      )}
+      {fieldMenu && (
+        <FieldMenu
+          x={fieldMenu.x}
+          y={fieldMenu.y}
+          pointId={fieldMenu.pointId}
+          title={menuInfo.title}
+          lines={menuInfo.lines}
+          api={menuField}
+          observer={observer}
+          onObserver={setObserver}
+          onSaved={() => {
+            bumpField()
+            toast('success', tr('toast.fieldSaved', {}, lang))
+            setSessionMarks((s) => new Set(s).add(fieldMenu.pointId))
+          }}
+          block={menuBlock}
+          onSeeSpecies={() => {
+            const pick = fieldMenu.pick
+            setFieldMenu(null)
+            onPick(pick)
+          }}
+          onClose={() => setFieldMenu(null)}
+        />
       )}
       {showPanel && (
         <RightPanel
@@ -907,12 +1197,6 @@ export default function AppNew() {
                   searched={spot.searched}
                   pointId={pointId}
                   fieldApi={fieldPoint}
-                  observer={observer}
-                  onObserver={setObserver}
-                  onSaved={() => {
-                    bumpField()
-                    if (pointId) setSessionMarks((s) => new Set(s).add(pointId))
-                  }}
                   viable={viable}
                   onFindViable={() => setViableFor(spotQuery)}
                   onGo={goTo}
@@ -925,11 +1209,13 @@ export default function AppNew() {
                   combine={combine}
                   onlySeason={onlySeason}
                   planBlock={planBlock}
+                  onOpenFieldMenu={() => spot && pointId && setFieldMenu({ x: null, y: null, pick: { index: -1, context: -1, plan: -1, lat: spot.lat, lon: spot.lon, pointId }, pointId, square: { lat: spot.lat, lon: spot.lon, pointId }, click: { lat: spot.lat, lon: spot.lon } })}
                 />
               )}
             </div>
           ) : mode === 'species' ? (
             <AreasPanel
+              focus={speciesSub >= 3 ? where : null}
               speciesNames={selNames}
               combine={combine}
               onCombine={setCombine}
@@ -988,6 +1274,9 @@ export default function AppNew() {
           }}
         />
       )}
+      <ToastViewport />
+      {!firstVisit && <Splash ready={apiState !== 'wait'} />}
+      {landing && <Landing onClose={closeLanding} />}
     </div>
     </HelpContext.Provider>
   )

@@ -20,6 +20,8 @@ from pathlib import Path
 
 import pandas as pd
 
+import species_ph_evidence as spe
+
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
 VALIDATION = ROOT / "data" / "validation"
@@ -64,6 +66,30 @@ def _fmt_number(v):
     return str(int(f)) if f == int(f) else str(f)
 
 
+CLIMATE_PAR = {"rain_min_mm": "rain", "rain_max_mm": "rain", "temp_min_c": "temp", "temp_max_c": "temp"}
+KIND_WORDS = {"tolerance": "matitiis (tolerance)", "listed": "nakalista (hindi sinabi kung matitiis o pinakamainam)", "optimal_only": "pinakamainam lang (optimal)"}
+
+
+def _ph_proposal(species_id):
+    """(rank, source url, note) for a pH row: the literature-proposed range from the evidence file, or the instruction for the 16 species without one."""
+    ref = spe.reference(species_id)
+    if ref is None:
+        return "", "", "Walang evidence file para sa pH. Kailangang magpasya ang agriculturist."
+    if ref["status"] != "sourced":
+        extra = f" ({ref['note']})" if ref.get("note") else ""
+        return "", "", "walang nahanap na sanggunian; kailangang magpasya ang agriculturist" + extra
+    bits = []
+    for lab, lo, hi in (("matitiis", ref["tol_min"], ref["tol_max"]), ("pinakamainam", ref["opt_min"], ref["opt_max"]), ("nakalista", ref["listed_min"], ref["listed_max"])):
+        if lo is not None:
+            bits.append(f"{lab} {lo:g}-{hi:g}")
+    note = "Iminumungkahi ng literatura (mula sa sanggunian, hindi pa pirmado ng agriculturist): " + "; ".join(bits) + f" | uri: {KIND_WORDS.get(ref['verdict_kind'], ref['verdict_kind'])} | sipi: \"{ref['quote']}\""
+    if ref["scope"] == "genus_or_group":
+        note += " | saklaw ng grupo/genus, hindi eksaktong species"
+    if ref["conflict"]:
+        note += " | MAY MAGKAIBANG SANGGUNIAN; tingnan sa agriculturist"
+    return str(ref["source_rank"]), ref["source_url"], note
+
+
 def build_rows(processed=None):
     """The rows of the form (a list of dicts with SHEET_COLUMNS, the response columns empty). Reads the species table and the sources table; changes nothing."""
     processed = Path(processed or PROCESSED)
@@ -80,7 +106,12 @@ def build_rows(processed=None):
             if name in NUMERIC:
                 v = _fmt_number(v)
             c = cell.get((int(s.species_id), name))
-            if c is None:
+            if name in ("ph_min", "ph_max"):
+                # the pH draft is shown as the DRAFT, next to what the literature says (evidence file); the old cited source is not offered as a source
+                rank, source, note = _ph_proposal(int(s.species_id))
+            elif name in CLIMATE_PAR and not spe.climate_match(int(s.species_id), CLIMATE_PAR[name]):
+                rank, source, note = "", "", "Paunang saklaw (draft); hindi makita o hindi tugma sa sanggunian. Walang source link na ipinapakita."
+            elif c is None:
                 rank, source, note = "", "", "no source recorded"
             else:
                 rank = "" if pd.isna(c.source_rank) else str(int(c.source_rank))

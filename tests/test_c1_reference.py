@@ -97,7 +97,7 @@ def test_the_sheet_has_one_row_per_species_and_attribute_that_has_a_value():
     assert sum(1 for r in rows if r["attribute"] == "rain_max_mm") == 44                            # Palosapis has no rain_max (removed on purpose): no row, nothing invented
     assert not [r for r in rows if r["attribute"] == "rain_max_mm" and r["common_name"] == "Palosapis"]
     narra = next(r for r in rows if r["species_id"] == 1 and r["attribute"] == "ph_min")
-    assert narra["common_name"] == "Narra" and narra["scientific_name"] == "Pterocarpus indicus" and narra["current_value"] == "5" and narra["source_rank"] == "3" and narra["source"].startswith("https://prosea")
+    assert narra["common_name"] == "Narra" and narra["scientific_name"] == "Pterocarpus indicus" and narra["current_value"] == "5" and narra["source_rank"] == "3" and narra["source"].startswith("https://ecocrop.apps.fao.org")       # PH integration: the pH row now shows the evidence file's source (FAO EcoCrop), not the old cited one
     assert all(r["verdict"] == "" and r["corrected_value"] == "" and r["remarks"] == "" and r["reviewer"] == "" and r["date"] == "" for r in rows)
     assert any("OFF-LIST" in r["source_note"] for r in rows) and any("FLAGGED" in r["source_note"] for r in rows)       # off-list and flagged sources are marked
 
@@ -259,9 +259,9 @@ def test_the_species_detail_still_works_without_the_file(client):
 # ================================================================ the dashboard side
 def test_the_card_section_is_wired_and_has_the_agreed_words():
     card = (ROOT / "frontend" / "src" / "new" / "SpeciesCard.jsx").read_text(encoding="utf-8")
-    assert "<ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} />" in card and "buildClimate" in card and "PROVISIONAL" in card
+    assert "<ClimateReference cref={d.climate_reference} cv={cv} sitePh={d.site_ph} phRef={d.ph_reference ?? null} />" in card and "buildClimate" in card and "PROVISIONAL" in card
     js = (ROOT / "frontend" / "src" / "new" / "climateRef.js").read_text(encoding="utf-8")
-    for must in ("Klima at lupa (reference lang)", "Pasok", "Mababa sa saklaw na nakalista (hindi pa verified)", "Lampas sa saklaw na nakalista (hindi pa verified)", "Walang datos pa",
+    for must in ("Klima at lupa (reference lang)", "Pasok", "Mababa sa saklaw na nakalista (hindi pa pirmado)", "Lampas sa saklaw na nakalista (hindi pa pirmado)", "Walang datos pa",
                  "Hindi ito bahagi ng score. Pinakamalapit na istasyon ang gamit, hindi San Mateo mismo."):
         assert must in js, must
     assert not re.search(r"\b\d{3,}\.\d\b", js)                                                                                  # no number is typed in the code (2574.4 comes from the file)
@@ -271,4 +271,4 @@ def test_the_node_tests_of_the_section_pass():
     import shutil
     r = subprocess.run([shutil.which("node"), "--test", "src/new/climateRef.test.mjs"], cwd=ROOT / "frontend", capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
     assert r.returncode == 0, r.stdout[-1500:]
-    assert "# pass 9" in r.stdout and "# fail 0" in r.stdout
+    assert "# pass 10" in r.stdout and "# fail 0" in r.stdout

@@ -278,8 +278,44 @@ const FieldPackCore = (function () {
     }
   }
 
+  // Soil pH reference (PH integration): the measured pH against the evidence range of a species. Same rules as frontend/src/new/phEvidence.js (a test compares them). Nothing is saved or sent.
+  function parsePh(text) {
+    const t = String(text == null ? '' : text).trim().replace(',', '.')
+    if (!/^\d{1,2}(\.\d{1,2})?$/.test(t)) return null
+    const v = Number(t)
+    return v >= 3 && v <= 10 ? v : null
+  }
+  function phCompare(ph, ref) {
+    if (ph == null || !ref || ref.status !== 'sourced') return 'none'
+    const inside = (lo, hi) => lo != null && hi != null && ph >= lo && ph <= hi
+    if (inside(ref.opt_min, ref.opt_max)) return 'optimal'
+    if (inside(ref.tol_min, ref.tol_max)) return 'tolerated'
+    if (inside(ref.listed_min, ref.listed_max)) return ref.verdict_kind === 'optimal_only' ? 'optimal' : 'listed'
+    return ref.verdict_kind === 'optimal_only' ? 'outside_optimal' : 'outside'
+  }
+
+  // "Suriin sa lugar" (site checklist): the answers are the planter's own, kept in memory only. Nothing is checked, saved or sent; they are not part of any field check or score.
+  // answers = { itemId: optionId }. Counts by the kind of the chosen option: oo (first), hindi, hindi_sigurado, other (the middle option of a four-option question).
+  function checklistCounts(items, answers) {
+    const c = { oo: 0, hindi: 0, hindi_sigurado: 0, other: 0, unanswered: 0 }
+    for (const it of items || []) {
+      const o = (it.options || []).find((x) => x.id === (answers || {})[it.id])
+      if (!o) c.unanswered++
+      else if (o.kind === 'oo' || o.kind === 'hindi' || o.kind === 'hindi_sigurado') c[o.kind]++
+      else c.other++
+    }
+    return c
+  }
+  // The tips to show for one answer: the tip of the option, and the genus tip only when the plan has one of its genera (genera = the genera of the plan's species).
+  function checklistTips(item, optionId, genera) {
+    const o = (item.options || []).find((x) => x.id === optionId)
+    if (!o) return { tip: '', genusTip: '' }
+    const has = (item.genus || []).some((g) => (genera || []).includes(g))
+    return { tip: o.tip || '', genusTip: o.kind === 'oo' && has && item.genus_tip ? item.genus_tip : '' }
+  }
+
   return { R, REASONS, EXTRA_COLUMNS, POINTS, CLOSE_M, PACE_M, distanceM, bearingDeg, compassPoint, turnDeg, arrival, startStatus, treeStatus, paces, rowPlace, distanceLabel, normDeg, angleDiff, smoothAngle, circularStd, coneHalfAngle, relativeCue, compassHeading, headingFromEvent, conePath,
-    progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc }
+    progress, nextTarget, treeOf, decide, exportCsv, makeStore, emptyState, key, esc, parsePh, phCompare, checklistCounts, checklistTips }
 })()
 
 if (typeof module !== 'undefined' && module.exports) module.exports = FieldPackCore

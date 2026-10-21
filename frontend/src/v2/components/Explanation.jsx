@@ -1,6 +1,8 @@
 import { CRITERION_LABEL, PART_LABEL, TERM_LABEL, flagInfo, humanize } from '../labels.js'
 import { fmt, pct } from '../scale.js'
 import SourceLink from './SourceLink.jsx'
+import { otherInputText } from '../../new/inputWords.js'
+import { getLang, tr } from '../../new/i18n.js'
 
 // A value, or the words Data Unavailable. A missing value is never hidden.
 function Val({ v, digits = 2, suffix = '' }) {
@@ -8,8 +10,15 @@ function Val({ v, digits = 2, suffix = '' }) {
   return t === null ? <span className="unavailable">Data Unavailable</span> : <>{t}{suffix}</>
 }
 
-function Sources({ list }) {
-  if (!list || list.length === 0) return <span className="unavailable">Data Unavailable</span>
+// A list of cited sources. With none: say WHY (nothing cited for this input, or it is a team decision / provisional map), never a bare "Data Unavailable".
+function Sources({ list, other = [] }) {
+  if (!list || list.length === 0) {
+    return (
+      <span className="unavailable" data-role="no-source">
+        {other.length > 0 ? tr('x.noSourceWhy', { what: other.map((o) => otherInputText(o)).join('; ') }, getLang()) : tr('x.noSourceInput', {}, getLang())}
+      </span>
+    )
+  }
   return (
     <ul className="plain-list">
       {list.map((s) => (
@@ -25,12 +34,12 @@ function siteInput(term, point) {
   if (!point) return null
   if (term === 'elevation') return point.elev_m == null ? null : `${point.elev_m} m above sea level`
   if (term === 'slope') return point.slope_pct == null ? null : `${Number(point.slope_pct).toFixed(1)} % (from 100 m cells${point.slope_method === 'partial' ? ', one direction only, may be under-estimated' : ''})`
-  if (term === 'soil') return point.soil_texture_legacy ? `${point.soil_texture_legacy} (soil map not yet verified)` : null
+  if (term === 'soil') return point.soil_texture_legacy ? `${point.soil_texture_legacy} (soil map not verified)` : null
   return null
 }
 
 function PartValue({ value }) {
-  return value === null || value === undefined ? <span className="unavailable">Data Unavailable</span> : <>{fmt(value)}</>
+  return value === null || value === undefined ? <span className="unavailable">{tr('x.blankPart', {}, getLang())}</span> : <>{fmt(value)}</>
 }
 
 // The full explanation of one species at one place: every term and criterion with its value, weight and sources.
@@ -74,7 +83,7 @@ export default function Explanation({ item, point }) {
                 </th>
                 <td>
                   <Val v={t.value} />
-                  {t.value === null && <span className="muted block">not scored: input missing</span>}
+                  {t.value === null && <span className="muted block">{tr('x.notCounted', {}, getLang())}</span>}
                 </td>
                 <td>{pct(t.weight) ?? <span className="unavailable">Data Unavailable</span>}</td>
                 <td>
@@ -117,7 +126,7 @@ export default function Explanation({ item, point }) {
                     </li>
                   ))}
                 </ul>
-                <Sources list={c.sources} />
+                <Sources list={c.sources} other={c.other_inputs ?? []} />
                 {c.other_inputs?.length > 0 && (
                   <ul className="plain-list muted">
                     {c.other_inputs.map((o) => (

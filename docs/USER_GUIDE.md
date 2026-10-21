@@ -60,7 +60,7 @@ Choose “I have species” to find where your species can grow. Choose “I hav
 
 **7. Clicking a point** (the map screen)
 
-Click any square to open its panel. The first card gives a short verdict, such as “Good place for Kamagong: overall match 77%”. Below it are the field check and the list of best species. Choose Detailed at the top for the numbers behind the verdict.
+Click any square to open its panel. The first card gives a short verdict, such as “Good place for Kamagong: overall match 77%”. Below it are the field check status and the list of best species. To make a field check, right-click the square on the map (on a phone, press and hold it). Choose Detailed at the top for the numbers behind the verdict.
 
 *Watch for:* The tour opens an example point for you. Check the card for warnings before you trust a spot.
 
@@ -90,7 +90,7 @@ The species card and the plan result have a section called Ways to improve survi
 
 **11. Filter the species list** (the map screen)
 
-In “I have species”, the species list has a Purpose filter, such as fruit-bearing or timber. It also has an Available in LGU nursery tick box that keeps only the species on the nursery list.
+In “I have species”, the funnel icon at the right end of the species search box (with a number when filters are on) opens the filters: a Purpose filter, such as fruit-bearing or timber, and an Available in LGU nursery tick box that keeps only the species on the nursery list.
 
 *Watch for:* The nursery list does not say how many seedlings are ready. Stock quantities are unknown.
 
@@ -100,7 +100,7 @@ In “I have species”, the species list has a Purpose filter, such as fruit-be
 
 **12. Planning an event: five steps** (the map screen)
 
-The left panel has five steps: Goal, Purpose, Planting window, Species or Area, and Plan. Work down them in order. Each closed step shows a one-line summary of your choice.
+The left panel has five steps: Goal, Purpose, Planting window, Species or Area, and Plan. Work down them in order. Each closed step shows a one-line summary of your choice. In “I have species”, step 4 is a short walk of its own with a stepper (1 of 4): Choose species, Where to look, Mark on the map (one click is a point; three or more clicks and Finish area make an area), then Create plan. Next stays off until the step is done, and it says why. A finished step can be clicked to go back.
 
 *Watch for:* Each species has its own best months. Set your dates in step 3, or press “Jump to the next planting season”.
 
@@ -148,11 +148,11 @@ The team walks to the START point of a block. They plant the numbered trees row 
 
 **18. Field checks** (the map screen)
 
-On a point panel, the field check card records what the team saw. Every status has a colour and a symbol: Planted (green check), Plantable (green ring), Needs recheck (amber question mark) and Not plantable (red cross). A blue cross means water. A gray cross means paved, building or rock.
+To make a field check, right-click a square on the map (on a phone, press and hold it): a menu opens where the team records what it saw. The point panel shows the latest mark. Every status is one violet mark, and the shape tells them apart: Planted (check), Marked plantable by an observer (ring), Needs recheck (question mark) and Not plantable (cross). The reason (water, paved, building, rock) is written next to the mark, not shown by a colour.
 
 *Watch for:* You type your name once. A saved check is never edited. A change is a new check, and clearing a Not plantable mark needs a note.
 
-*You see the field check card when you click a point.*
+*You see the latest field check when you click a point; the menu opens with a right-click or a long press.*
 
 **19. Progress and top-up** (the map screen)
 
@@ -186,9 +186,9 @@ System Analytics shows simple counts: how many map squares there are, how many f
 
 **23. Data and limits** (the map screen)
 
-Most of the data is Provisional. The zoning rules come from the MPDC form signed on 7 October 2026. The planting-month notes, the nursery list and the warnings come from the MAO interview. The species data is not yet signed off by the licensed agriculturist.
+Most of the data is Provisional. The zoning rules come from answers written on a form by the MPDC (provisional). The planting-month notes, the nursery list and the warnings come from the MAO interview. The species data is not yet signed off by the licensed agriculturist.
 
-*Watch for:* Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.
+*Watch for:* Distance to creeks and rivers is used as a soft wetness factor (50 metres), but MENRO has not answered the waterways question, so this layer is not checked. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.
 
 ### Finish
 
@@ -216,7 +216,7 @@ They show the overall match. Green is Good (55% or more). Orange is Moderate (35
 
 **What are site match, purpose fit and overall match?**
 
-Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers. Site suitability is predicted by a Random Forest trained on the expert rules. Hard limits (zone, elevation, steep slope) always apply first.
+Site match says how well the land suits a species. Purpose fit says how well the species suits what you want, such as shade or watershed. Overall match combines the two. If the site match is under 50%, the overall match is zero. Detailed view shows the numbers. Site suitability is predicted by a Random Forest trained on the expert rules. These are saved scores; the model is not run in the app, and it is not an independent measurement of survival. Hard limits (zone, elevation, steep slope) always apply first.
 
 **How do I show the zoning colours?**
 
@@ -278,7 +278,7 @@ Choose “I have species” when you already know what you want to plant and nee
 
 **What are the three purposes?**
 
-Urban greening is for shade, safe roots and low upkeep in town. Tree planting is for conservation and livelihood. Watershed is for holding soil on slopes and by waterways. The purpose changes how species are scored.
+Urban greening is for shade, lower root-damage risk and low upkeep in town. Tree planting is for conservation and livelihood. Watershed is for holding soil on slopes and by waterways. The purpose changes how species are scored.
 
 **Why are some species missing from the list?**
 
@@ -329,6 +329,10 @@ No. The advice is only text. The site match, the purpose fit and the overall mat
 **Where does the advice come from?**
 
 Some tips come from the MAO interview. Others are general practice. Each tip shows its source. All of it is advice that the agriculturist still has to confirm.
+
+**What is "Puwedeng samahan" when I choose many species?**
+
+You first choose a main species. "Puwedeng samahan" then lists species that are suitable on at least half of the same squares of your area (or of the whole municipality when no area is chosen). It is only about the land. It does not yet consider canopy size, roots or shade.
 
 **What is Works well with?**
 
@@ -384,11 +388,11 @@ Walk to the START point of a block and put in a stake. Plant tree 1 half a spaci
 
 **How do I record that trees were planted?**
 
-Two ways. In the dashboard, click the block, type your name once, press Planted and enter how many trees. Or fill blocks.csv in the field, then press “Import field checks (CSV)” under More, Field checks. Importing the same file twice adds nothing.
+Two ways. In the dashboard, right-click the block (press and hold on a phone), type your name once, press Planted and enter how many trees. Or fill blocks.csv in the field, then press “Import field checks (CSV)” under More, Field checks. Importing the same file twice adds nothing.
 
 **What do the field-check colours and symbols mean?**
 
-Planted is green with a check. Plantable (verified) is a green ring. Needs recheck is amber with a question mark. Not plantable is a red cross. Not plantable because of water is a blue cross. Not plantable because it is paved, built or rock is a gray cross. The colour is always shown with a symbol and words.
+Every field-check mark is the same violet; only the shape differs. Planted is a check. Marked plantable by an observer is a ring: the mark of one person who typed a name; it is not an expert check and it never changes a score. Needs recheck is a question mark. Not plantable is a cross; the reason (water, paved, built or rock) is written in words next to it. The shape is always shown with words.
 
 **What are the reasons for Not plantable?**
 
@@ -428,7 +432,7 @@ It marks information that comes from an interview, a form or our own rules and h
 
 **Which data is signed off?**
 
-The zoning rules come from the MPDC form signed on 7 October 2026, and the warnings and notes come from the MAO interview, but they are still provisional. The species data (release v1.0-review) has not been signed off by the licensed agriculturist. Distance to creeks and rivers is used as a soft wetness factor (50 metres), but the waterways map has not been validated by MENRO: the waterways form was signed blank.
+The zoning rules come from answers written on a form by the MPDC (provisional), and the warnings and notes come from the MAO interview, but they are still provisional. The species data (release v1.0-review) has not been signed off by the licensed agriculturist. Distance to creeks and rivers is used as a soft wetness factor (50 metres), but MENRO has not answered the waterways question, so this layer is not checked.
 
 **Does the system decide where to plant?**
 

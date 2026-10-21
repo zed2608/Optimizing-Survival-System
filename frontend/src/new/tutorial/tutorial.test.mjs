@@ -81,6 +81,6 @@ test('round 21: the wetness wording says the creek and river distance is used an
   assert.ok(!/are not used/.test(all.replace(/not used for the/g, '')), 'no "are not used" sentence about creeks')
   assert.ok((all.match(/soft wetness factor \(50 metres\)/g) ?? []).length >= 2, 'the tour and the signed-off answer')
   assert.ok(/distance to creeks and rivers \(a soft wetness factor, 50 metres/.test(all), 'the glossary')
-  assert.ok((all.match(/not (yet )?(been )?validated by MENRO/g) ?? []).length >= 3)
+  assert.ok((all.match(/not (yet )?(been )?validated by MENRO|MENRO has not answered the waterways question/g) ?? []).length >= 3)
   assert.ok(!/zone and rain/.test(all), 'rain is not scored')
 })

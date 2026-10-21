@@ -1,3 +1,4 @@
+import { getLang, tr, useLang } from './i18n.js'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
@@ -40,7 +41,7 @@ function describe(it, locate) {
     case 'species':
       return { group: 'species', icon: 'tree', label: it.common_name, sub: it.scientific_name ? `Species · ${it.scientific_name}` : 'Species' }
     case 'grid_point':
-      return { group: 'point', icon: 'dot', label: `Grid point ${it.point_id}`, sub: `Grid point · ${it.barangay_display || 'Outside the barangay outlines'} · ${it.legal_zone ? it.zone || 'planting zone' : 'not a planting zone'}` }
+      return { group: 'point', icon: 'dot', label: tr('search.pointLabel', { id: it.point_id }, getLang()), sub: `${tr('search.pointSub', {}, getLang())} · ${it.barangay_display || 'Outside the barangay outlines'} · ${it.legal_zone ? it.zone || 'planting zone' : 'not a planting zone'}` }
     case 'plan_point':
       return { group: 'point', icon: 'pin', label: `${it.point_ref} · ${it.species}`, sub: `Plan point · ${it.barangay_display || 'barangay unknown'} · ${it.plan_id}` }
     case 'place':
@@ -58,6 +59,7 @@ function looksLikeCoordinates(t) {
 // browser (coords.js); streets and landmarks (GET /search/geocode) are asked only when Enter is pressed on that row and only if the API says
 // the optional place search is on. Calls onChoose(item); the page decides what to do.
 export default function SearchBar({ onChoose, note, onDismissNote, locate, includeUnzoned = true }) {
+  const lang = useLang()
   const uid = useId()
   const listId = `${uid}-list`
   const [text, setText] = useState('')
@@ -134,6 +136,18 @@ export default function SearchBar({ onChoose, note, onDismissNote, locate, inclu
     inputRef.current?.focus()
   }
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   const slots = showRecent ? recent.length : rows.length + (showHint ? 1 : 0)
   function onKeyDown(e) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -191,6 +205,7 @@ export default function SearchBar({ onChoose, note, onDismissNote, locate, inclu
           autoComplete="off"
           spellCheck="false"
           placeholder="Search barangay, species, point, coordinates…"
+          title="Ctrl K"
           value={text}
           maxLength={100}
           onChange={(e) => {
@@ -294,7 +309,7 @@ export default function SearchBar({ onChoose, note, onDismissNote, locate, inclu
             <div className="nw-search-msg">
               <strong>No results for “{trimmed}”.</strong>
               <br />
-              Try a barangay (Santa Ana, Sto Niño), a species (Narra), coordinates (14.69, 121.12 or 296799 1625091), a grid point number (832) or a plan point (DUH-012).
+              {tr('sb.hint', {}, lang)}
             </div>
           )}
         </div>

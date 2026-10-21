@@ -63,6 +63,14 @@ const GridCanvasLayer = L.Layer.extend({
     map.on('mousemove', this._onMove, this)
     map.on('mouseout', this._onOut, this)
     map.on('click', this._onClick, this)
+    map.on('contextmenu', this._onContext, this)                      // right-click (UX 13)
+    this._lpStart = (ev) => this._longPressStart(ev)                   // long press on a touch screen (UX 13): about 0.6 s without moving
+    this._lpCancel = () => this._longPressCancel()
+    const box = map.getContainer()
+    box.addEventListener('touchstart', this._lpStart, { passive: true })
+    box.addEventListener('touchmove', this._lpCancel, { passive: true })
+    box.addEventListener('touchend', this._lpCancel, { passive: true })
+    box.addEventListener('touchcancel', this._lpCancel, { passive: true })
     this._update()
   },
 
@@ -71,6 +79,13 @@ const GridCanvasLayer = L.Layer.extend({
     map.off('mousemove', this._onMove, this)
     map.off('mouseout', this._onOut, this)
     map.off('click', this._onClick, this)
+    map.off('contextmenu', this._onContext, this)
+    const box = map.getContainer()
+    box.removeEventListener('touchstart', this._lpStart)
+    box.removeEventListener('touchmove', this._lpCancel)
+    box.removeEventListener('touchend', this._lpCancel)
+    box.removeEventListener('touchcancel', this._lpCancel)
+    this._longPressCancel()
     this._closeTip()
     L.DomUtil.remove(this._canvas)
     this._canvas = null
@@ -504,8 +519,9 @@ const GridCanvasLayer = L.Layer.extend({
     this._labeler = fn
   },
 
-  setHandlers({ onPick }) {
+  setHandlers({ onPick, onContext }) {
     this.options.onPick = onPick
+    this.options.onContext = onContext
   },
 
   // for the page: how many points exist / are drawn right now (written on the canvas as data-* attributes)
@@ -754,11 +770,11 @@ const GridCanvasLayer = L.Layer.extend({
       const cname = (this._field.cls && this._field.cls[k]) || ({ 1: 'verified', 2: 'not_plantable', 3: 'recheck' })[status]
       const spec = FIELD_CLASSES[cname] ?? FIELD_CLASSES.not_plantable
       const col = spec.color
-      if (spec.shape === 'ring') {                                   // plantable (verified): a green ring
+      if (spec.shape === 'ring') {                                   // plantable (verified): a ring
         const ring = () => ctx.arc(x, y, R, 0, TWO_PI)
         halo(5, '#ffffff', ring)
         halo(2.5, col, ring)
-      } else if (spec.shape === 'check') {                           // planted: a green disc with a white check
+      } else if (spec.shape === 'check') {                           // planted: a violet disc with a white check
         ctx.beginPath()
         ctx.arc(x, y, R, 0, TWO_PI)
         ctx.fillStyle = col
@@ -769,7 +785,7 @@ const GridCanvasLayer = L.Layer.extend({
           ctx.lineTo(x - R * 0.1, y + R * 0.4)
           ctx.lineTo(x + R * 0.55, y - R * 0.4)
         })
-      } else if (spec.shape === 'question') {                        // needs recheck: an amber disc with a white question mark
+      } else if (spec.shape === 'question') {                        // needs recheck: a violet disc with a white question mark
         ctx.beginPath()
         ctx.arc(x, y, R, 0, TWO_PI)
         ctx.fillStyle = col
@@ -891,7 +907,43 @@ const GridCanvasLayer = L.Layer.extend({
     if (this._map && this._tip && this._map.hasLayer(this._tip)) this._map.closeTooltip(this._tip)
   },
 
+  // The point under a right-click or a long press: the same hit test as a click (a planned block, a planting square, or a square that is not a planting zone). No bubble handling.
+  _contextAt(layerPoint, latlng, containerPoint) {
+    if (!this.options.onContext) return
+    this._closeTip()
+    const pi = this._hitPlan(layerPoint)
+    const i = pi >= 0 ? -1 : this._hit(layerPoint)
+    const ci = pi < 0 && i < 0 ? this._hitContext(layerPoint) : -1
+    this.options.onContext({ index: i, context: ci, plan: pi, lat: latlng.lat, lon: latlng.lng, x: containerPoint.x, y: containerPoint.y })
+  },
+
+  _onContext(e) {
+    if (e.originalEvent && e.originalEvent.preventDefault) e.originalEvent.preventDefault()
+    this._contextAt(e.layerPoint, e.latlng, e.containerPoint)
+  },
+
+  _longPressStart(ev) {
+    this._longPressCancel()
+    if (!ev.touches || ev.touches.length !== 1) return
+    const t = ev.touches[0]
+    const rect = this._map.getContainer().getBoundingClientRect()
+    const cp = L.point(t.clientX - rect.left, t.clientY - rect.top)
+    this._lpTimer = setTimeout(() => {
+      this._lpTimer = null
+      this._suppressClickUntil = Date.now() + 700
+      this._contextAt(this._map.containerPointToLayerPoint(cp), this._map.containerPointToLatLng(cp), cp)
+    }, 600)
+  },
+
+  _longPressCancel() {
+    if (this._lpTimer) {
+      clearTimeout(this._lpTimer)
+      this._lpTimer = null
+    }
+  },
+
   _onClick(e) {
+    if (this._suppressClickUntil && Date.now() < this._suppressClickUntil) return   // the click that follows a long press is not a pick
     const bub = this._hitBubble(e.layerPoint)
     if (bub) {                                                          // a bubble: zoom in to its trees
       const pts = bub.members.map((i) => L.latLng(this._pitems[i].lat, this._pitems[i].lon))

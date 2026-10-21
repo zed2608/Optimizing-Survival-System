@@ -1,8 +1,8 @@
 import { FIELD_TABLE as table } from './fieldStatusTable.js'
 
 // The colours and icons of the field-check statuses: ONE module for the map, the legend, the panels, the progress tab (and, through fieldStatus.json, the field map PDF).
-// planted = green with a check; plantable (verified) = green ring; needs recheck = amber with a question mark; not plantable = red with a cross,
-// except water reasons = blue and paved / building / rock = gray. Colour is never the only signal: every class has an icon and words.
+// One violet for every mark (UX round 5, C). The shape tells the status apart: planted = a check; plantable (verified) = a ring; needs recheck = a question mark;
+// not plantable (also water, paved, building, rock) = a cross. The words and the reason are always written next to the mark.
 export const FIELD_ORDER = table.order
 export const FIELD_CLASSES = table.classes
 

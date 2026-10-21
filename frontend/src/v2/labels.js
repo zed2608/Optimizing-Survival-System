@@ -1,7 +1,7 @@
 // Plain-language wording for the new dashboard. Anything not listed falls back to a readable version of its code name.
 
 export const PURPOSES = [
-  { value: 'urban', label: 'Urban greening', help: 'Streets, parks and public spaces: shade, safe roots, low maintenance.' },
+  { value: 'urban', label: 'Urban greening', help: 'Streets, parks and public spaces: shade, lower root-damage risk, low maintenance.' },
   { value: 'planting', label: 'Tree planting and restoration', help: 'Planting events: conservation, livelihood value, easy establishment.' },
   { value: 'watershed', label: 'Watershed and landscape protection', help: 'Slopes and waterways: soil holding, slope and riparian tolerance.' },
 ]
@@ -25,8 +25,8 @@ export const TERM_LABEL = {
 export const CRITERION_LABEL = {
   intended_use_fit: 'Fits the intended use',
   shade_provision: 'Shade',
-  infrastructure_safety: 'Safe near buildings and pavements',
-  storm_safety: 'Storm (typhoon) safety',
+  infrastructure_safety: 'Lower risk of root damage near buildings and pavements (provisional score)',
+  storm_safety: 'Storm (typhoon) resistance (provisional score)',
   low_maintenance: 'Low maintenance',
   native_biodiversity_value: 'Native biodiversity value',
   conservation_value: 'Conservation value',
@@ -47,7 +47,7 @@ export const PART_LABEL = {
   canopy_spread_m: 'Canopy spread',
   growth_rate: 'Growth rate',
   foliage: 'Leaf cover through the year',
-  root_urban_safety_prov: 'Root safety near buildings (provisional)',
+  root_urban_safety_prov: 'Root damage risk near buildings (provisional score)',
   root_soil_binding_prov: 'Root soil holding (provisional)',
   planting_difficulty: 'Infrastructure risk noted',
   mature_height_m: 'Mature height (shorter is safer)',
@@ -72,11 +72,11 @@ export const PART_LABEL = {
 // Flags in words for non-specialists. `help` is the longer explanation.
 export const FLAG_TEXT = {
   soil_unverified_mismatch: {
-    label: 'Soil match not yet verified',
+    label: 'Soil match not verified',
     help: 'The soil texture here does not match the species list, but the soil map is still unverified, so the score is lowered instead of ruling the species out.',
   },
   species_data_unverified: {
-    label: 'Species data not fully verified',
+    label: 'Species data not verified',
     help: 'Some values for this species cite a source file that was not provided.',
   },
   low_confidence: {

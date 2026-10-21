@@ -286,3 +286,15 @@ def test_the_species_ranking_follows_include_unzoned(client, monkeypatch):
         j = week(client, **q).json()
         ids = [it["species_id"] for it in j["species"]["best_months"]["items"]]
         assert ids == [s for s in municipal_order(client, "urban", **q) if s in set(ids)] and j["include_unzoned"] is (not q)
+
+
+# ---- design revamp, Phase 7: the Habagat note (restates the MAO's rule; no forecast) -----------------------------------------------
+def test_habagat_block_names_the_rule_and_says_if_the_week_touches_jul_sep(client, monkeypatch):
+    set_today(monkeypatch, date(2027, 7, 10))
+    mock_forecast(monkeypatch)
+    h = week(client, **at(11)).json()["habagat"]
+    assert h["active"] is True and h["months"] == [7, 8, 9] and h["provisional"] is True
+    assert h["barangays"] == ["Maly", "Dulong Bayan I", "Dulong Bayan II", "Santa Ana"] and "wash out seedlings" in h["warning"] and "MAO" in h["source"]
+    set_today(monkeypatch, OCT)
+    mock_forecast(monkeypatch)
+    assert week(client, **at(9)).json()["habagat"]["active"] is False

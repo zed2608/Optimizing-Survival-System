@@ -1,10 +1,15 @@
 // node --test src/new/weatherText.test.mjs : the "no weather now" message (C3).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { WEATHER_UNREACHABLE, weatherError } from './weatherText.js'
+import { weatherError as weatherErrorIn } from './weatherText.js'
+import { setLang } from './i18n.js'
+setLang('tl') // V2: the sentence is in messages.js; these tests pin the Taglish sentence, the English one is checked at the end
+const WEATHER_UNREACHABLE = 'Hindi maabot ang weather ngayon. Subukan ulit mamaya.'
+const weatherError = (e) => weatherErrorIn(e, 'tl')
 
 test('the plain Filipino sentence is exactly the agreed one', () => {
-  assert.equal(WEATHER_UNREACHABLE, 'Hindi maabot ang weather ngayon. Subukan ulit mamaya.')
+  assert.equal(weatherErrorIn(null, 'tl').main, WEATHER_UNREACHABLE)
+  assert.equal(weatherErrorIn(null, 'en').main, 'The weather cannot be reached now. Try again later.')
 })
 
 test('no network, and a 503 from the service (no forecast and no saved copy), both say it plainly and keep the reason under it', () => {

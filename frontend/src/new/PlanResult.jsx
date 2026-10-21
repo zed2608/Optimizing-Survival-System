@@ -1,3 +1,4 @@
+import CountUp from './ui/CountUp.jsx'
 import { useMemo, useState } from 'react'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
@@ -5,6 +6,7 @@ import { fmt, pct } from '../v2/scale.js'
 import HelpTip from './HelpTip.jsx'
 import KitControls from './KitControls.jsx'
 import MatchChip from './MatchChip.jsx'
+import PlanPh from './PlanPh.jsx'
 import PlanProgress from './PlanProgress.jsx'
 import PlanWeather from './PlanWeather.jsx'
 import AdviceSection from './AdviceSection.jsx'
@@ -96,23 +98,23 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
         <p className="nw-plan-sentence">{planSentence(result)}</p>
         <div className="nw-bignums" role="group" aria-label="The plan in three numbers">
           <div className="nw-bignum">
-            <strong>{s.saplings_placed}</strong>
+            <strong><CountUp value={s.saplings_placed} /></strong>
             <span>Trees{s.saplings_placed < s.n_saplings_requested ? ` (of ${s.n_saplings_requested})` : ''}</span>
           </div>
           {blocks && lay ? (
             <>
               <div className="nw-bignum">
-                <strong>{lay.blocks}</strong>
+                <strong><CountUp value={lay.blocks} /></strong>
                 <span>Blocks</span>
               </div>
               <div className="nw-bignum">
-                <strong>{lay.hectares_used}</strong>
+                <strong><CountUp value={lay.hectares_used} /></strong>
                 <span>Hectares</span>
               </div>
             </>
           ) : (
             <div className="nw-bignum">
-              <strong>{items.length}</strong>
+              <strong><CountUp value={items.length} /></strong>
               <span>Squares</span>
             </div>
           )}
@@ -284,6 +286,8 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
               </div>
             )}
           </section>
+
+          <PlanPh species={planted.map((p) => ({ id: p.species_id, name: p.species }))} />
 
           <section className="nw-pcard" aria-label="Weather for this plan">
             <div className="nw-pcard-head">

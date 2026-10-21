@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AskHelp from './tutorial/AskHelp.jsx'
+import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
 import { PURPOSE_TAGS } from './purposeTags.js'
@@ -7,10 +8,11 @@ import SeasonBadge from './SeasonBadge.jsx'
 
 // Step 4 (goal "I have species"): search, pick species. Each species shows its season for the chosen dates. With the season filter on, species that
 // are out of season are hidden (a species that is already chosen stays visible so that nothing disappears from under the user).
-export default function SpeciesMultiPicker({ species, selected, onChange, onlySeason, onInfo }) {
+export default function SpeciesMultiPicker({ species, selected, onChange, onlySeason, onInfo, single = false }) {
   const [query, setQuery] = useState('')
   const [tag, setTag] = useState('') // trait filter (species_purpose_tags: provisional; a filter only, it never changes a score)
   const [nurseryOnly, setNurseryOnly] = useState(false) // only species that are in the LGU nursery list
+  const [showFilters, setShowFilters] = useState(false) // UX round 2: the filters are behind one button "Salain"
   if (species.status === 'loading') return <div className="v2 v2-embedded"><Loading what="Loading the species list" /></div>
   if (species.status === 'error') return <div className="v2 v2-embedded"><ErrorBox error={species.error} onRetry={species.retry} title="Could not load the species list" brief /></div>
   if (species.status !== 'ok') return null
@@ -21,14 +23,33 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
   const q = query.trim().toLowerCase()
   const byText = q ? visible.filter((s) => s.common_name.toLowerCase().includes(q) || String(s.scientific_name ?? '').toLowerCase().includes(q)) : visible
   const shown = byText.filter((s) => chosen.has(s.species_id) || ((!tag || (s.purpose_tags ?? []).includes(tag)) && (!nurseryOnly || s.in_nursery)))   // a chosen species never disappears from under the user
-  const toggle = (id) => onChange(chosen.has(id) ? selected.filter((x) => x !== id) : [...selected, id])
+  const toggle = (id) => onChange(single ? (chosen.has(id) ? [] : [id]) : chosen.has(id) ? selected.filter((x) => x !== id) : [...selected, id])
 
   return (
     <div>
       <label className="sr-only" htmlFor="nw-species-search">
         Search species
       </label>
-      <input id="nw-species-search" type="search" className="nw-input" placeholder="Search species" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="nw-searchfield">
+        <input id="nw-species-search" type="search" className="nw-input" placeholder="Search species" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <button
+          type="button"
+          className="nw-funnel"
+          aria-label="Filter"
+          aria-expanded={showFilters}
+          title={(tag ? 1 : 0) + (nurseryOnly ? 1 : 0) > 0 ? `Filter (${(tag ? 1 : 0) + (nurseryOnly ? 1 : 0)} active)` : 'Filter'}
+          onClick={() => setShowFilters((v) => !v)}
+          data-role="filter-toggle"
+        >
+          <Icon name="funnel" />
+          {(tag ? 1 : 0) + (nurseryOnly ? 1 : 0) > 0 && (
+            <span className="nw-funnel-badge" data-role="filter-badge" aria-hidden="true">
+              {(tag ? 1 : 0) + (nurseryOnly ? 1 : 0)}
+            </span>
+          )}
+        </button>
+      </div>
+      {showFilters && (
       <div className="nw-pfilter">
         <label className="nw-label nw-pfilter-label" htmlFor="nw-purpose-filter">
           Salain ayon sa katangian (Filter by trait) <ProvisionalTag />
@@ -48,10 +69,13 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
         </label>
         <div className="muted nw-pfilter-note">Stock quantities unknown</div>
       </div>
+      )}
       <div className="nw-row">
-        <button type="button" className="nw-btn nw-btn-small" onClick={() => onChange([...new Set([...selected, ...shown.map((s) => s.species_id)])])}>
-          Select all{q ? ' shown' : ''}
-        </button>
+        {!single && (
+          <button type="button" className="nw-btn nw-btn-small" onClick={() => onChange([...new Set([...selected, ...shown.map((s) => s.species_id)])])}>
+            Select all{q ? ' shown' : ''}
+          </button>
+        )}
         <button type="button" className="nw-btn nw-btn-small" onClick={() => onChange([])} disabled={selected.length === 0}>
           Clear
         </button>

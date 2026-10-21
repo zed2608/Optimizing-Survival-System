@@ -131,7 +131,7 @@ def test_the_field_map_pdf_has_the_status_key(tmp_path):
     pytest.importorskip("pymupdf")
     import pymupdf
     text = "".join(p.get_text() for p in pymupdf.open(str(r["kit_dir"] / "field-map.pdf")))
-    for label in ("Mark each block in the field", "Planted", "Plantable (verified)", "Needs recheck", "Not plantable: water", "Not plantable: paved, building or rock"):
+    for label in ("Mark each block in the field", "Planted", "Marked plantable (observer)", "Needs recheck", "Not plantable: water", "Not plantable: paved, building or rock"):
         assert label in text, label
 
 

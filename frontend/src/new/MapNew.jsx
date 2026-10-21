@@ -3,8 +3,10 @@ import L from 'leaflet'
 import { MapContainer, TileLayer, useMap, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MAP_BOUNDS, MAP_CENTER } from '../v2/config.js'
+import { motionAllowed } from './motionPref.js'
 import BoundaryLayers from './BoundaryLayers.jsx'
 import DrawLayer from './DrawLayer.jsx'
+import AreaSquaresLayer from './AreaSquaresLayer.jsx'
 import GridLayer from './GridLayer.jsx'
 import HighlightLayer from './HighlightLayer.jsx'
 import ZoningLayer from './ZoningLayer.jsx'
@@ -47,12 +49,37 @@ function FitTarget({ target }) {
   return null
 }
 
-// "Go to this spot": jump to a place and zoom in (no animation, so the canvas layer never shows a stale frame).
+// "Go to this spot": fly to a place and zoom in (a short smooth flight; a plain jump when motion is off).
 function GoTo({ target }) {
   const map = useMap()
   useEffect(() => {
-    if (target) map.setView([target.lat, target.lon], Math.max(map.getZoom(), 16), { animate: false })
+    if (!target) return
+    const z = Math.max(map.getZoom(), 16)
+    if (motionAllowed()) map.flyTo([target.lat, target.lon], z, { duration: 0.8 })
+    else map.setView([target.lat, target.lon], z, { animate: false })
   }, [target, map])
+  return null
+}
+
+// Where the person is (My location, or the place they tapped): a blue dot with a ring. In memory only.
+function MeMarker({ me }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!me) return undefined
+    const m = L.marker([me.lat, me.lon], { icon: L.divIcon({ className: 'cy-me', html: '<span></span>', iconSize: [18, 18] }), interactive: false, keyboard: false, zIndexOffset: 500 }).addTo(map)
+    return () => m.remove()
+  }, [me, map])
+  return null
+}
+
+// A soft pulse ring around the selected spot (decoration; the square itself is outlined by the grid layer).
+function PulseRing({ spot }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!spot || !motionAllowed()) return undefined
+    const m = L.marker([spot.lat, spot.lon], { icon: L.divIcon({ className: 'cy-pulse', html: '<span></span><span></span>', iconSize: [0, 0] }), interactive: false, keyboard: false, zIndexOffset: -100 }).addTo(map)
+    return () => m.remove()
+  }, [spot, map])
   return null
 }
 
@@ -62,7 +89,7 @@ const BASE_LAYERS = {
   street: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' },
 }
 
-export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, meta, goTarget, fitTarget, highlight, draft, drawing, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false, zoning = null, zoningOn = false }) {
+export default function MapNew({ myLoc = null, bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, onContext, meta, goTarget, fitTarget, highlight, draft, drawing, areaSquares = null, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false, zoning = null, zoningOn = false }) {
   const base = BASE_LAYERS[baseLayer] ?? BASE_LAYERS.satellite
   return (
     <MapContainer
@@ -80,12 +107,15 @@ export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, sel
       <ZoomControl position="topright" />
       <FitToMunicipality bbox={bbox} />
       <GoTo target={goTarget} />
+      <PulseRing spot={spot} />
+      <MeMarker me={myLoc} />
       <FitTarget target={fitTarget} />
       <ZoningLayer zoning={zoning} visible={zoningOn} />
       <BoundaryLayers boundaries={boundaries} />
       <HighlightLayer geometry={highlight} />
       <DrawLayer vertices={draft} />
-      <GridLayer columns={grid} clear={clearGrid} labeler={labeler} selected={selected} spot={spot} onPick={onPick} meta={meta} field={field} contextCols={contextCols} contextVisible={contextVisible} contextLabeler={contextLabeler} safeArea={safeArea} planItems={planItems} planVisible={planVisible} planLabeler={planLabeler} detailed={detailed} ground={ground} groundOn={groundOn} />
+      <AreaSquaresLayer squares={areaSquares} />
+      <GridLayer columns={grid} clear={clearGrid} labeler={labeler} selected={selected} spot={spot} onPick={onPick} onContext={onContext} meta={meta} field={field} contextCols={contextCols} contextVisible={contextVisible} contextLabeler={contextLabeler} safeArea={safeArea} planItems={planItems} planVisible={planVisible} planLabeler={planLabeler} detailed={detailed} ground={ground} groundOn={groundOn} />
     </MapContainer>
   )
 }

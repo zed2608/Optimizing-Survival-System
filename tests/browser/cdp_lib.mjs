@@ -1,6 +1,6 @@
 // Shared helper of the field pack browser checks: headless Edge through the Chrome DevTools protocol (no packages), fake GPS, intercepted map tiles, real touch taps.
 // The tile requests are ALWAYS caught here and answered with a small picture (or made to fail), so no check ever contacts openstreetmap.org or arcgisonline.com.
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,6 +12,8 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 export async function launch({ out = tmpdir() } = {}) {
   const port = 9400 + Math.floor(Math.random() * 400)
   const edge = spawn(EDGE, [`--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'edge_fp_'))}`, '--headless=new', '--disable-gpu', '--no-first-run', 'about:blank'], { stdio: 'ignore' })
+  // whatever happens (an exception, Ctrl+C), the whole Edge process tree ends with this script: leaked headless Edge processes used to eat the memory of the machine
+  process.on('exit', () => { try { spawnSync('taskkill', ['/PID', String(edge.pid), '/T', '/F'], { stdio: 'ignore' }) } catch { /* already gone */ } })
   let tgt
   for (let i = 0; i < 60; i++) { try { tgt = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); if (tgt) break } catch {} await sleep(300) }
   const ws = new WebSocket(tgt.webSocketDebuggerUrl)

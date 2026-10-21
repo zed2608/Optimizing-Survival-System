@@ -30,10 +30,12 @@ from scipy.spatial import cKDTree
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "pipeline"))
 import advisory as adv  # noqa: E402
+import analytics as an  # noqa: E402  (System Analytics: counts of what exists, nothing forecast)
 import advice as sva  # noqa: E402  (ways to improve survival: advice only, no score is touched)
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
 import field_pack as fpk  # noqa: E402  (the Field Pack page, stage A2)
+import species_ph_evidence as spe  # noqa: E402  (pH evidence file and rain / temperature agreement: DISPLAY ONLY)
 import soilgrids_ph as sgph  # noqa: E402  (site pH of the squares, a model estimate: DISPLAY ONLY, never read by a score; stage C2)
 import climate_reference as cref  # noqa: E402  (rain / climate type / temperature / pH of San Mateo: DISPLAY ONLY, never read by a score; stage C1)
 import pack_store as ps  # noqa: E402  (stored planter links: token, expiry, one pack per plan)
@@ -134,8 +136,8 @@ LIMITS = [
     "Scores are not valid outside the mapped municipality of San Mateo, Rizal.",
     "{PLANTING} planting squares + {OTHER} other squares = {TOTAL} map squares.",
     "{UNZONED_LIMIT}",
-    "Field checks (verified plantable / not plantable / needs recheck) carry a name only: there is no login yet, and anyone with access to the dashboard can add one.",
-    "While the field-check switch is on, points whose latest check is 'not plantable' are left out of rankings and plans; 'verified plantable' only adds a badge and never changes a score.",
+    "Field checks (marked plantable by an observer / not plantable / needs recheck) carry a name only (the mark of one person): there is no login yet, they are not an expert check, and anyone with access to the dashboard can add one.",
+    "While the field-check switch is on, points whose latest check is 'not plantable' are left out of rankings and plans; 'marked plantable by an observer' only adds a badge and never changes a score.",
 ]
 FIELD_LIMITS = LIMITS[-2:]
 
@@ -627,12 +629,12 @@ def resolve_area(d, req):
         if z is None:
             raise HTTPException(400, f"Unknown zone '{req.zone}'. Zones: {', '.join(d.zone_names)}")
         return d.point_zone == z, {"type": "zone", "name": d.zone_names[z], "display_name": d.zone_names[z], "bbox": d.zone_bbox[z]}
-    mask = polygon_mask(sites, req.polygon, d.cfg["polygon_max_vertices"])
+    mask, how = polygon_mask(sites, req.polygon, d.cfg["polygon_max_vertices"], with_mode=True)
     if not mask.any():
         raise HTTPException(400, "The area contains no legal-zone grid points (it may lie outside San Mateo or only cover non-planting zones).")
     nd = d.cfg["coord_decimals"]
     sel = sites[mask]
-    return mask, {"type": "polygon", "name": "Drawn area", "display_name": "Drawn area",
+    return mask, {"type": "polygon", "name": "Drawn area", "display_name": "Drawn area", "selection": how,
                   "bbox": [round(float(sel.lon.min()), nd), round(float(sel.lat.min()), nd), round(float(sel.lon.max()), nd), round(float(sel.lat.max()), nd)]}
 
 
@@ -1522,6 +1524,19 @@ def species_list(season=Depends(season_q), d=Depends(D)):
             "note": "GET /species/{species_id} lists every field with its source URL and rank", **season_extra(d, season)}
 
 
+PH_FIELDS = ("ph_min", "ph_max")
+CLIMATE_FIELDS = {"rain_min_mm": "rain", "rain_max_mm": "rain", "temp_min_c": "temp", "temp_max_c": "temp"}
+CLIMATE_UNMATCHED = "Paunang saklaw; hindi makita o hindi tugma sa sanggunian"
+
+
+@app.get("/species-ph-reference")
+def species_ph_reference():
+    """pH reference of every species, compact (the plan result lists it per species). Display only; from the evidence file; a missing file gives an empty list."""
+    t = spe._dataset(str(spe.DATASET))
+    return {"available": t is not None, "provisional": True, "tag": spe.DATASET_LABEL, "none_text": "pH range not available",
+            "species": {str(i): spe.dataset_reference(i) for i in sorted(t)} if t else {}}
+
+
 @app.get("/species/{species_id}")
 def species_detail(species_id: int, point_id: Optional[int] = Query(None, description="a grid square: its SoilGrids pH estimate is shown (display only)"), season=Depends(season_q), d=Depends(D)):
     i = d.species_idx.get(species_id)
@@ -1530,14 +1545,24 @@ def species_detail(species_id: int, point_id: Optional[int] = Query(None, descri
     row = d.ctx.species.iloc[i]
     rows = d.sources[d.sources.species_id == species_id]
     sx = {"season": season_object(d.species_months[i], season), "season_window": season_block(d, season)} if season is not None else {}
-    fields = [{"field_name": r.field_name, "value_as_written": py(r.value_text), "source_id": int(r.source_id), "source_url": py(r.source_url),
-               "source_rank": py(r.source_rank), "rank_basis": py(r.rank_basis), "off_list": py(r.off_list), "flags": py(r.flags)}
-              for r in rows.itertuples(index=False)]
+    # pH: the old draft range and its source are NOT shown (cross-check: not traceable); `ph_reference` below comes from the evidence file. Rain / temperature: the source link and rank are
+    # shown ONLY when the cited page matches the draft (species_climate_agreement.csv); otherwise `unmatched_source` true and no link.
+    fields = []
+    for r in rows.itertuples(index=False):
+        if r.field_name in PH_FIELDS:
+            continue
+        f = {"field_name": r.field_name, "value_as_written": py(r.value_text), "source_id": int(r.source_id), "source_url": py(r.source_url),
+             "source_rank": py(r.source_rank), "rank_basis": py(r.rank_basis), "off_list": py(r.off_list), "flags": py(r.flags)}
+        par = CLIMATE_FIELDS.get(r.field_name)
+        if par and not spe.climate_match(species_id, par):
+            f.update(source_url=None, source_rank=None, rank_basis=None, unmatched_source=True)
+        fields.append(f)
+    vmin, vmax, vkind = spe.working_range(species_id)
     return {**sx, "species_id": species_id, "common_name": row.common_name, "scientific_name": row.scientific_name,
             "confidence": {"share_of_cells_with_rank1_or_2_source": py(row.confidence_r12), "cells_cited": py(row.n_cells_cited),
                            "cells_rank1_or_2": py(row.n_cells_rank12)},
             "flags": d.ctx.species_flags.get(species_id, []),
-            "fields": fields, "clean_values": {k: py(v) for k, v in row.items()},
+            "fields": fields, "clean_values": {k: py(v) for k, v in row.items() if k not in PH_FIELDS},
             "provisional_note": "root_urban_safety_prov and root_soil_binding_prov are provisional scores from tag_maps_root.csv, not sourced facts; "
                                 "is_high_value_crop is a team decision",
             "reference_urls": d.refs[d.refs.species_id == species_id].reference_url.tolist(),
@@ -1548,7 +1573,9 @@ def species_detail(species_id: int, point_id: Optional[int] = Query(None, descri
                          for r in d.nursery_rows.get(species_id, [])] if d.nursery_table_present else None),
             "interview_notes": d.interview_notes.get(species_id, []),
             "climate_reference": cref.for_species(d.climate_ref, row),
-            "site_ph": sgph.site_answer(d.soil_ph, point_id, row.get("ph_min"), row.get("ph_max")),
+            "ph_reference": spe.dataset_reference(species_id),
+            "climate_sources": {par: (spe.climate_match(species_id, par) or {"unmatched_source": True, "text": CLIMATE_UNMATCHED}) for par in ("rain", "temp")},
+            "site_ph": sgph.site_answer(d.soil_ph, point_id, vmin, vmax, vkind),
             "purpose_scores": {p: purpose_breakdown(d, species_id, p) for p in mt.PURPOSES}}
 
 
@@ -1755,9 +1782,11 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
     if drop:                                                          # season_filter=only: out-of-season species are not ranked
         items = [t for t in items if t[4] not in drop]
     out, ids = [], set()
+    site_ph = square_ph(d, int(pt.point_id))                          # display only: the pH estimate of this square and each species' verdict against it (no score or order reads it)
     for rnk, (el, w, s, k, sid, conf, bd) in enumerate(items[:limit], 1):
         terms = {t: {"value": v["value"], "weight": v["weight"], "sources": [source(d, x) for x in v["src"]]} for t, v in bd.get("terms", {}).items()}
         out.append({"rank": rnk, "species_id": sid, "common_name": d.ctx.species.common_name.iloc[k], "S": round(s, 4), "P": round(float(P[k]), 4),
+                    "ph_verdict": species_ph_verdict(site_ph, sid),
                     "W": round(w, 4), "eligible": el, "confidence": py(conf), "flags": flags_for(d, sid, bd, conf) + (["zoning_unconfirmed"] if unconf else []) + gflags + sr.rehab_flags(pt.zone_desc, sid, d.food_ids) + ([sr.HABAGAT_FLAG] if hab_on else []),
                     "site_breakdown": {"gate_failed": bd.get("gate_failed", []), "terms": terms},
                     **rf_block(d, bd),
@@ -1774,6 +1803,7 @@ def rank(purpose: Purpose, lat: float = Query(ge=-90, le=90), lon: float = Query
                           "zoning_note": ((f"{pt.zone_desc}: confirm with the LGU before planting" if isinstance(pt.zone_desc, str) else UNZONED_NOTE)
                                           if unconf else "Inside a legal planting zone")} if d.zoning_on else {}),
                       **soil_facts(pt),
+                      "site_ph": site_ph,
                       **({"zone_condition": py(pt.zone_condition)} if "zone_condition" in d.all_points and isinstance(pt.zone_condition, str) and pt.zone_condition else {}),
                       **({"rehab_site": {"zone": py(pt.zone_desc), "warning": sr.REHAB_WARNING, "applies_to": "food-bearing species", "source": sr.REHAB_SOURCE}} if sr.rehab_zone(py(pt.zone_desc)) else {}),
                       **({"habagat": d.hab} if hab_on else {}),
@@ -1949,7 +1979,41 @@ class PlanRequest(BaseModel):
         return self
 
 
-def polygon_mask(sites, polygon, max_vertices):
+SQUARE_HALF_M = 50.0           # half the side of a grid square (the squares are 100 m)
+METRES_PER_DEGREE = 111320.0   # about, for the small box of a square; only used when a drawn area holds no square centre
+
+
+AREA_COVER_MIN = 0.5           # PROVISIONAL (UX round 2, A3): a square also counts when the drawn area covers at least this share of it, even if its centre is outside
+
+
+def square_boxes(lon, lat):
+    """The 100 m square of every centre, as a box in lon/lat (the grid is about UTM aligned: this is a close approximation for a square this small)."""
+    import shapely
+    dlat = SQUARE_HALF_M / METRES_PER_DEGREE
+    dlon = SQUARE_HALF_M / (METRES_PER_DEGREE * np.cos(np.radians(lat)))
+    return shapely.box(lon - dlon, lat - dlat, lon + dlon, lat + dlat)
+
+
+def select_squares(g, lon, lat):
+    """(selected, mode, centres, touched, covered): Rule 1: a square counts when its CENTRE lies inside the area OR the area covers at least AREA_COVER_MIN of the square. Rule 2 (only when rule 1
+    selects nothing: an area smaller than half a square): every square the area touches. mode = 'centres' (rule 1) or 'touching' (rule 2). S, P and W of a square do not depend on the rule."""
+    import shapely
+    centres = shapely.contains_xy(g, lon, lat)
+    boxes = square_boxes(lon, lat)
+    touched = shapely.intersects(g, boxes)
+    covered = np.zeros(len(lon), dtype=bool)
+    near = np.where(touched & ~centres)[0]
+    if len(near):
+        covered[near] = shapely.area(shapely.intersection(g, boxes[near])) / shapely.area(boxes[near]) >= AREA_COVER_MIN
+    rule1 = centres | covered
+    if rule1.any() or not len(lon):
+        return rule1, "centres", centres, touched, covered
+    return touched, "touching", centres, touched, covered
+
+
+def polygon_mask(sites, polygon, max_vertices, with_mode=False):
+    """Which squares a drawn area selects (see select_squares): centre inside or at least half covered; if none, the squares it touches.
+    with_mode=True returns (mask, 'centres' | 'touching')."""
     import shapely
     from shapely.geometry import shape
     geom = polygon.get("geometry") if polygon.get("type") == "Feature" else polygon
@@ -1962,7 +2026,8 @@ def polygon_mask(sites, polygon, max_vertices):
                                  "(closed rings, no self-intersections)")
     if len(shapely.get_coordinates(g)) > max_vertices:
         raise HTTPException(422, f"polygon has too many vertices (limit {max_vertices})")
-    return shapely.contains_xy(g, sites.lon.to_numpy(), sites.lat.to_numpy())
+    m, mode, _c, _t, _v = select_squares(g, sites.lon.to_numpy(), sites.lat.to_numpy())
+    return (m, mode) if with_mode else m
 
 
 def campaign_info(s):
@@ -2850,6 +2915,16 @@ def week_verdict(days, c):
     return {"code": code, "label": WEEK_VERDICTS[code], "reasons": reasons, "thresholds": thresholds}, total
 
 
+def habagat_weather_block(d, week_months):
+    """The Habagat note of the weather view (display only): the months and barangays of the MAO's rule (site_rules.HABAGAT_CFG), the warning sentence, and whether this week touches those months.
+    It restates a rule the system already applies to W of those barangays in a planting window; it adds no forecast."""
+    cfg = sr.HABAGAT_CFG
+    upper = {str(nm).upper(): disp for nm, disp in zip(d.barangay_names, d.barangay_display)}
+    hit = sorted(set(int(m) for m in week_months) & set(cfg["months"]))
+    return {"months": list(cfg["months"]), "month_names": ["Jul", "Aug", "Sep"], "barangays": [upper.get(b.upper(), b.title()) for b in cfg["barangays"]], "active": bool(hit),
+            "warning": sr.HABAGAT_WARNING, "source": cfg["source"], "provisional": True}
+
+
 @app.get("/weather/week")
 def weather_week(purpose: Purpose, lat: Optional[float] = Query(None, ge=-90, le=90, description="default: the centre of San Mateo"),
                  lon: Optional[float] = Query(None, ge=-180, le=180, description="default: the centre of San Mateo"), d=Depends(D)):
@@ -2957,6 +3032,7 @@ def weather_week(purpose: Purpose, lat: Optional[float] = Query(None, ge=-90, le
                         "week_months": [mn[m - 1] for m in season.months]},
             "enso": enso, "thresholds": {"dry_spell_mm": c["dry_spell_mm"], "dry_spell_days": n, "heavy_rain_mm": c["heavy_rain_mm"]},
             "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "forecast_fetched_at": fc["fetched_at"], "network_error": fc["network_error"],
+            "habagat": habagat_weather_block(d, season.months),
             "forecast_source": adv.SOURCE, "disclaimer": adv.DISCLAIMER, "sources": sources_map(d, ids)}
 
 
@@ -3047,6 +3123,175 @@ class AreaRankRequest(BaseModel):
     n_saplings: int = Field(API_CFG["area_mix_saplings"], ge=1, le=API_CFG["plan_max_saplings"], description="saplings the suggested mix is worked out for")
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Square diagnostic of an area (UX round 2, A3): why an area has fewer suitable squares than it looks like on the map. Counts only; nothing is scored or changed.
+# ---------------------------------------------------------------------------------------------------------------------
+class AreaDiagnosticRequest(BaseModel):
+    polygon: Optional[dict] = Field(None, description="GeoJSON Polygon / MultiPolygon (or a Feature holding one), lon/lat")
+    barangay: Optional[str] = None
+    zone: Optional[str] = None
+
+
+def area_diagnostic(d, req):
+    """How the squares of an area divide. touched = squares the area touches (square and area intersect); centres_inside = squares whose centre is inside (the first selection rule); planting = touched squares
+    that are scored in this view; not_planting = the rest, by reason (outside the zoning map, a named non-planting zone); left_out_by_field_check = planting squares marked not plantable (when that switch is on);
+    suitable = planting squares where at least one species has S >= 0.50; low_match = planting squares where none has. `selected` and `rule_used` say what POST /rank/area would use."""
+    import shapely
+    from shapely.geometry import shape
+    ap, ctx = d.all_points, d.ctx
+    lon, lat = ap.lon.to_numpy(), ap.lat.to_numpy()
+    given = [k for k in ("polygon", "barangay", "zone") if getattr(req, k) is not None]
+    if len(given) != 1:
+        raise HTTPException(422, "Give exactly one area: polygon (GeoJSON), barangay (name) or zone (name)" + (f"; got {', '.join(given)}" if given else "; got none"))
+    kind = given[0]
+    if kind == "polygon":
+        geom = req.polygon.get("geometry") if req.polygon.get("type") == "Feature" else req.polygon
+        try:
+            g = shape(geom)
+        except Exception:
+            g = None
+        if g is None or g.geom_type not in ("Polygon", "MultiPolygon") or g.is_empty or not g.is_valid or g.area <= 0:
+            raise HTTPException(422, "polygon must be a valid, non-empty GeoJSON Polygon or MultiPolygon with lon/lat coordinates (closed rings, no self-intersections)")
+        _sel, _mode, centres, touched, covered = select_squares(g, lon, lat)
+    elif kind == "barangay":
+        b = find_barangay(d, req.barangay)
+        if b is None:
+            raise HTTPException(400, f"Unknown barangay '{req.barangay}'.")
+        centres = d.allpt_barangay == b
+        touched = centres
+    else:
+        want = req.zone.strip().lower()
+        centres = ap.zone_desc.fillna("").astype(str).str.strip().str.lower().to_numpy() == want
+        if not centres.any():
+            raise HTTPException(400, f"Unknown zone '{req.zone}'.")
+        touched = centres
+    scored = pd.Index(ctx.sites.point_id.astype(int))
+    pid = ap.point_id.astype(int).to_numpy()
+    is_scored = np.isin(pid, scored.to_numpy())
+    plant = touched & is_scored
+    non = touched & ~is_scored
+    reasons = {}
+    for z in ap.zone_desc[non].tolist():
+        code = "outside_zoning" if pd.isna(z) else d.cfg["context_zone_reasons"].get(str(z), "other")
+        reasons[code] = reasons.get(code, 0) + 1
+    rows = scored.get_indexer(pd.Index(pid[plant]))
+    ex = d.ex_mask[rows] if len(rows) else np.zeros(0, dtype=bool)
+    ok_any = (ctx.S[rows] >= mt.CFG["s_min"]).any(axis=1) if len(rows) else np.zeros(0, dtype=bool)
+    suitable = int((ok_any & ~ex).sum())
+    covered_extra = covered if kind == "polygon" else np.zeros(len(lon), dtype=bool)
+    sel_rule1 = int(((centres | covered_extra) & is_scored).sum())
+    sel_centres = sel_rule1
+    counted_n = sel_centres if sel_centres > 0 or kind != "polygon" else int(plant.sum())
+    squares = None
+    if kind == "polygon":
+        # the squares to draw on the map: counted = the ones the selection rule uses; partial = planting squares the area only touches (less than AREA_COVER_MIN of them, centre outside): not counted
+        use = (centres | covered_extra) if sel_centres > 0 else touched
+        counted = plant & use
+        partial = plant & ~use
+        cap = 3000
+        squares = {"counted": [[round(float(x), 6), round(float(y), 6)] for x, y in zip(lon[counted][:cap], lat[counted][:cap])],
+                   "partial": [[round(float(x), 6), round(float(y), 6)] for x, y in zip(lon[partial][:cap], lat[partial][:cap])],
+                   "half_size_m": SQUARE_HALF_M, "min_cover_share": AREA_COVER_MIN}
+    ph_mask = counted if kind == "polygon" else plant                 # the squares that are counted (a polygon) or all planting squares (a barangay or zone)
+    ph = area_ph(d, pid[ph_mask])                                      # display only: SoilGrids estimate over those squares (median of the means, Q0.05, Q0.95); None when none has a value
+    return {"kind": kind, "counted_squares": counted_n, "partial_squares": int(len(squares["partial"])) if squares else 0, "squares": squares, "touched": int(touched.sum()), "centres_inside": int(centres.sum()), "covered_half_or_more_without_centre": int((covered_extra & ~centres).sum()),
+            "touched_without_centre": int((touched & ~centres).sum()),
+            "planting": int(plant.sum()), "not_planting": {"total": int(non.sum()), "by_reason": reasons, "labels": {k: CONTEXT_REASONS[k] for k in reasons}},
+            "left_out_by_field_check": int(ex.sum()), "suitable": suitable, "low_match": int((~ok_any & ~ex).sum()),
+            "selected": sel_centres if sel_centres > 0 or kind != "polygon" else int(plant.sum()), "rule_used": "centres" if (sel_centres > 0 or kind != "polygon") else "touching",
+            "rule": f"A square counts when its centre is inside the area or the area covers at least {int(AREA_COVER_MIN * 100)}% of it; if no square qualifies, every square the area touches.",
+            "ph": ph, "unzoned_squares_are_planting": bool(d.zoning_on), "note": "Counts of 100 m squares. Display only: no score, rank or plan reads them."}
+
+
+@app.post("/area/diagnostic")
+def area_diagnostic_endpoint(req: AreaDiagnosticRequest, d=Depends(HD)):
+    """The square diagnostic of one area (see area_diagnostic)."""
+    return area_diagnostic(d, req)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Companion species (UX 12). A suggestion that comes ONLY from the land: species whose suitable squares (S >= 0.50) cover at least COMPANION_CFG["min_overlap_share"] of the squares where the main
+# species is suitable, inside the chosen area (or the whole municipality). It says nothing about roots, canopy, shade or any ecological fit. PROVISIONAL settings; no score is changed.
+# ---------------------------------------------------------------------------------------------------------------------
+COMPANION_CFG = {"min_overlap_share": 0.5, "limit": 12}
+COMPANION_NOTE = "Batay lang ito sa parehong angkop na lugar. Hindi pa kasama ang laki ng canopy, ugat o lilim."
+
+
+class CompanionRequest(BaseModel):
+    species_id: int
+    purpose: Purpose
+    polygon: Optional[dict] = Field(None, description="GeoJSON Polygon / MultiPolygon (or a Feature holding one), lon/lat")
+    barangay: Optional[str] = None
+    zone: Optional[str] = None
+
+
+@app.post("/companions")
+def companions(req: CompanionRequest, q_season=Depends(season_q), d=Depends(HD)):
+    """Species that are suitable on the same squares as a main species (see COMPANION_CFG). Same-genus species are left out (they would share the genus limit of a mix). Display only."""
+    ctx = d.ctx
+    k_main = d.species_idx.get(req.species_id)
+    if k_main is None:
+        raise HTTPException(404, f"species_id {req.species_id} not found")
+    given = [k for k in ("polygon", "barangay", "zone") if getattr(req, k) is not None]
+    if given:
+        mask, info = resolve_area(d, req)
+    else:
+        mask, info = np.ones(len(ctx.sites), dtype=bool), {"type": "municipality", "name": "San Mateo", "display_name": "Buong bayan ng San Mateo"}
+    mask = mask & ~d.ex_mask
+    idx = np.where(mask)[0]
+    elig = ctx.S[idx] >= mt.CFG["s_min"]
+    e_main = elig[:, k_main]
+    n_main = int(e_main.sum())
+    if n_main == 0:
+        raise HTTPException(400, f"{ctx.species.common_name.iloc[k_main]} is not suitable (S >= 0.50) on any square of this area, so there is nothing to suggest.")
+    drop = set(season_drop_ids(d, q_season))
+    genus_main = str(ctx.species.genus.iloc[k_main])
+    rows = []
+    for k in range(len(ctx.species)):
+        sid = int(ctx.species.species_id.iloc[k])
+        if k == k_main or sid in drop or str(ctx.species.genus.iloc[k]) == genus_main:
+            continue
+        shared = int((e_main & elig[:, k]).sum())
+        share = shared / n_main
+        if share >= COMPANION_CFG["min_overlap_share"]:
+            rows.append({"species_id": sid, "common_name": str(ctx.species.common_name.iloc[k]), "genus": str(ctx.species.genus.iloc[k]), "shared_squares": shared, "share_of_main_squares": round(share, 4)})
+    rows.sort(key=lambda r: (-r["share_of_main_squares"], r["common_name"]))
+    return {"main": {"species_id": req.species_id, "common_name": str(ctx.species.common_name.iloc[k_main]), "genus": genus_main, "suitable_squares": n_main},
+            "area": {**info, "squares": int(len(idx))}, "companions": rows[:COMPANION_CFG["limit"]], "n_companions": len(rows),
+            "rule": f"Species whose suitable squares cover at least {int(COMPANION_CFG['min_overlap_share'] * 100)}% of the squares where {ctx.species.common_name.iloc[k_main]} is suitable; same genus left out.",
+            "note": COMPANION_NOTE, "provisional": True, "scored": False}
+
+
+def square_ph(d, point_id):
+    """The SoilGrids pH under one square (display only; a model estimate at 250 m, not measured). None when the file or the value is missing: nothing is filled in."""
+    r = d.soil_ph.get(int(point_id))
+    if not r or r["mean"] is None or r["q05"] is None or r["q95"] is None:
+        return None
+    return {"mean": round(r["mean"], 2), "q05": round(r["q05"], 2), "q95": round(r["q95"], 2), "source": sgph.ATTRIBUTION, "scope": "square",
+            "note": "Model estimate (SoilGrids 2.0, 250 m cells), not measured in San Mateo. Display only: not part of the score."}
+
+
+def area_ph(d, point_ids):
+    """The SoilGrids pH of an area for the display of the species list: the middle (median) of the squares' means, Q0.05 and Q0.95 over the squares that have a value (a model estimate, not measured).
+    None when the file is missing or no square of the area has a value. Never read by a score or a ranking."""
+    rows = [d.soil_ph[int(p)] for p in point_ids if int(p) in d.soil_ph and d.soil_ph[int(p)]["mean"] is not None and d.soil_ph[int(p)]["q05"] is not None and d.soil_ph[int(p)]["q95"] is not None]
+    if not rows:
+        return None
+    med = sgph._median
+    return {"n_squares": len(rows), "n_total": int(len(point_ids)), "mean": round(med([r["mean"] for r in rows]), 2), "q05": round(med([r["q05"] for r in rows]), 2), "q95": round(med([r["q95"] for r in rows]), 2),
+            "source": sgph.ATTRIBUTION, "note": "Model estimate (SoilGrids 2.0, 250 m), not measured in San Mateo. Display only: not part of the score."}
+
+
+def species_ph_verdict(ph, species_id):
+    """The pH verdict of one species for an area (the codes of soilgrids_ph.compare_interval); 'no_confirmed_range' when the species has none, 'no_value' when the area has no estimate."""
+    lo, hi, kind = spe.working_range(species_id)
+    if kind == "none":
+        return "no_range"
+    if ph is None:
+        return "no_value"
+    return sgph.compare_interval(ph["q05"], ph["q95"], lo, hi, kind)
+
+
 @app.post("/rank/area")
 def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
     """Species ranked for a whole area (a barangay, a zone or a drawn polygon) plus the suggested mix with shares from the palette code."""
@@ -3074,6 +3319,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
     if drop:                                                           # season_filter=only: out-of-season species are not ranked (the scores are untouched)
         suitable = suitable[~suitable.species_id.isin(drop)]
     conf = area_mean_confidence(d, ctx.sites.point_id.to_numpy()[idx])
+    ph_area = area_ph(d, ctx.sites.point_id.to_numpy()[idx])           # display only: SoilGrids pH of the area against each species' reference range; no score or rank reads it
     rows, ids = [], set()
     for rnk, r in enumerate(suitable.head(req.limit).itertuples(index=False), 1):
         sid = int(r.species_id)
@@ -3090,7 +3336,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
                      "share_of_area_suitable": round(float(r.eligible_share), 4), "P": round(float(P[k]), 4),
                      "p_confidence": py(d.ps_by_key[(sid, req.purpose)].confidence) if py(d.ps_by_key[(sid, req.purpose)].confidence) is not None else miss,
                      "mean_site_confidence": round(float(mc), 4) if mc is not None else miss, "flags": flags,
-                     "source_ids": {"site_score": s_ids, "purpose_score": p_ids}})
+                     "source_ids": {"site_score": s_ids, "purpose_score": p_ids}, "ph_verdict": species_ph_verdict(ph_area, sid)})
     keep_k = [k for k, sid_ in enumerate(ctx.species.species_id.astype(int)) if sid_ not in drop]
     if not keep_k or suitable.empty:
         pal_res = {"species_id": [], "common_name": [], "share": [], "quota": [], "score": [], "needs_both_sexes": [], "common_months": [], "dioecious_rejected": [],
@@ -3110,7 +3356,7 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
             r_["season"] = season_object(d.species_months[d.species_idx[r_["species_id"]]], season)
         if mix and not [m for m in season.months if m in pal_res["common_months"]]:
             pal_res["warnings"] = list(pal_res["warnings"]) + ["season: the species of this mix do not share a planting month inside the window"]
-    out = {"purpose": req.purpose, "area": {**info, "legal_points": int(len(idx)), "points_with_a_suitable_species": any_suitable},
+    out = {"purpose": req.purpose, "area": {**info, "legal_points": int(len(idx)), "points_with_a_suitable_species": any_suitable, "ph": ph_area},
             "species_total": int(len(ctx.species)), "species_with_suitable_points": int(len(suitable)), "returned": len(rows), "ranking": rows,
             "mix": {"n_saplings": req.n_saplings, "species": mix, "common_planting_months": pal_res["common_months"], "warnings": pal_res["warnings"],
                     "dioecious_left_out": pal_res["dioecious_rejected"],
@@ -3194,6 +3440,144 @@ def field_check_add(req: FieldCheckIn, d=Depends(D)):
                        "Saved. This does not change any score." if req.status == "verified_plantable" else
                        f"Saved: {req.trees_planted} trees planted in this block (plan {req.plan_id})." if req.status == "planted" else "Saved."),
             "limits": FIELD_LIMITS[:1]}
+
+
+@app.get("/analytics/summary")
+def analytics_summary(barangay: Optional[str] = Query(None, description="only this barangay"), species_id: Optional[int] = Query(None, description="only this species"),
+                      date_from: Optional[str] = Query(None, alias="from", description="YYYY-MM-DD: activity from this day"), date_to: Optional[str] = Query(None, alias="to", description="YYYY-MM-DD: activity up to this day"),
+                      d=Depends(D)):
+    """Read-only counts for the System Analytics tab. Everything is counted from data that already exists (the saved scores, the SoilGrids estimates, the saved plans and field checks); nothing is forecast
+    (forecasting needs survival records, which do not exist yet) and no score, rank or plan reads any of it. The barangay and species filters narrow the suitability and pH charts and the planned-versus-planted
+    tables; the dates narrow the activity by week (field checks carry no species, so the species filter does not apply to them)."""
+    ctx = d.ctx
+    n_sites, n_sp = ctx.S.shape
+    b_idx = None
+    if barangay:
+        b_idx = find_barangay(d, barangay)
+        if b_idx is None:
+            raise HTTPException(400, f"Unknown barangay '{barangay}'.")
+    k_sel = None
+    if species_id is not None:
+        k_sel = d.species_idx.get(species_id)
+        if k_sel is None:
+            raise HTTPException(404, f"species_id {species_id} not found")
+    d_from, d_to = an.parse_day(date_from), an.parse_day(date_to)
+    if d_from is False or d_to is False:
+        raise HTTPException(422, "from and to must be dates written YYYY-MM-DD.")
+    if d_from and d_to and d_to < d_from:
+        raise HTTPException(422, "The end date is before the start date.")
+
+    def in_range(iso):
+        day = str(iso)[:10]
+        return not ((d_from and day < d_from.isoformat()) or (d_to and day > d_to.isoformat()))
+
+    rows = np.ones(n_sites, dtype=bool) if b_idx is None else (d.point_barangay == b_idx)
+    cols = list(range(n_sp)) if k_sel is None else [k_sel]
+    S = ctx.S[np.ix_(np.where(rows)[0], cols)]
+    ok = S >= mt.CFG["s_min"]
+    names = ctx.species.common_name.tolist()
+    ids = ctx.species.species_id.astype(int).tolist()
+    # --- suitability
+    per_species = [{"species_id": ids[k], "name": names[k], "suitable_squares": int((ctx.S[rows, k] >= mt.CFG["s_min"]).sum())} for k in cols]
+    per_barangay = []
+    for b, (nm, disp) in enumerate(zip(d.barangay_names, d.barangay_display)):
+        m = d.point_barangay == b
+        sub = ctx.S[m][:, cols] if m.any() else np.zeros((0, len(cols)))
+        per_barangay.append({"barangay": nm, "display_name": disp, "squares": int(m.sum()), "suitable_squares": int((sub >= mt.CFG["s_min"]).any(axis=1).sum()) if len(sub) else 0})
+    # --- pH (display only)
+    pts = ctx.sites.point_id.astype(int).to_numpy()[rows]
+
+    def ph_of(key):
+        return np.array([d.soil_ph[p][key] if p in d.soil_ph and d.soil_ph[p][key] is not None else np.nan for p in pts], dtype=float)
+
+    q05, q95, mean = ph_of("q05"), ph_of("q95"), ph_of("mean")
+    vtot = {}
+    for k in cols:
+        lo, hi, _kind = spe.working_range(ids[k])
+        for code_, n in an.verdict_counts(q05, q95, lo, hi).items():
+            vtot[code_] = vtot.get(code_, 0) + n
+    # --- land
+    ap = d.all_points
+    am = np.ones(len(ap), dtype=bool) if b_idx is None else (d.allpt_barangay == b_idx)
+    zone = ap.zone_desc[am]
+    zones = zone.fillna("(outside the zoning map)").astype(str).value_counts()
+    no_soil = int(ap["soil_texture_lgu"][am].isna().sum()) if "soil_texture_lgu" in ap.columns else None
+    zstat = ap.zoning_status[am].value_counts().to_dict() if "zoning_status" in ap.columns else {}
+    # --- saved plans and field checks
+    week = {}
+    n_plans, trees_planned_total = 0, 0
+    pv_b, pv_s = {}, {}
+    root = plans_dir(d)
+    files = sorted(root.glob("plan_*_summary.json"), reverse=True)[:100] if root.is_dir() else []
+    for sj in files:
+        plan_id = sj.name[:-len("_summary.json")]
+        if not valid_plan_id(plan_id) or not (root / f"{plan_id}.csv").is_file():
+            continue
+        try:
+            summ = json.loads(sj.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            continue
+        m_ = re.search(r"_(\d{8})_(\d{6})", plan_id)
+        when = datetime.strptime(m_.group(1) + m_.group(2), "%Y%m%d%H%M%S").isoformat() if m_ else datetime.fromtimestamp(sj.stat().st_mtime).isoformat(timespec="seconds")
+        if not in_range(when):
+            continue
+        placed = int(summ.get("saplings_placed") or 0)
+        n_plans += 1
+        trees_planned_total += placed
+        w = an.week_start(when)
+        e = week.setdefault(w, {"week": w, "plans": 0, "trees_planned": 0, "field_checks": 0})
+        e["plans"] += 1
+        e["trees_planned"] += placed
+        try:
+            plan_df, _ = load_plan(d, plan_id)
+            if not fv.is_blocks_plan(plan_df):
+                continue
+            for blk in block_progress(d, plan_id, plan_df):
+                bn = barangay_display_of(d, blk["point_id"]) or "(outside the barangay outlines)"
+                if b_idx is not None and bn != d.barangay_display[b_idx]:
+                    continue
+                if species_id is not None and blk["species_id"] != species_id:
+                    continue
+                for tbl, key in ((pv_b, bn), (pv_s, blk["species"])):
+                    t = tbl.setdefault(key, {"name": key, "planned": 0, "planted": 0})
+                    t["planned"] += blk["trees_planned"]
+                    t["planted"] += blk["trees_planted"]
+        except (HTTPException, OSError, ValueError, KeyError):
+            continue
+    by_status, n_events = {}, 0
+    try:
+        con = sqlite3.connect(f"file:{d.field_db}?mode=ro", uri=True)
+        try:
+            ev = con.execute("SELECT created_at, status, point_id FROM field_checks").fetchall()
+        finally:
+            con.close()
+    except sqlite3.Error:
+        ev = []
+    for created, status, pid in ev:
+        if not in_range(created):
+            continue
+        if b_idx is not None and barangay_display_of(d, pid) != d.barangay_display[b_idx]:
+            continue
+        n_events += 1
+        by_status[status] = by_status.get(status, 0) + 1
+        w = an.week_start(created)
+        e = week.setdefault(w, {"week": w, "plans": 0, "trees_planned": 0, "field_checks": 0})
+        e["field_checks"] += 1
+    cur = fv.summary(d.field_current, lambda pid: barangay_display_of(d, pid))
+    return {
+        "filters": {"barangay": None if b_idx is None else d.barangay_names[b_idx], "species_id": species_id, "from": d_from.isoformat() if d_from else None, "to": d_to.isoformat() if d_to else None},
+        "kpi": {"squares_scored": int(rows.sum()), "species": len(cols), "suitable_squares": int(ok.any(axis=1).sum()), "plans": n_plans, "trees_planned": trees_planned_total,
+                "field_checks_current": cur["by_status"], "field_check_events": n_events, "field_check_events_by_status": by_status},
+        "suitability": {"histogram": an.histogram(S.ravel(), an.S_EDGES, zero_separate=True), "threshold": mt.CFG["s_min"], "per_species": sorted(per_species, key=lambda x: -x["suitable_squares"]), "per_barangay": per_barangay,
+                        "note": "S is the site suitability after the Random Forest (or the rules). A pair with S = 0 failed a hard limit."},
+        "ph": {"histogram": an.histogram(mean, an.PH_EDGES), "squares_with_estimate": int((~np.isnan(mean)).sum()), "squares_without_estimate": int(np.isnan(mean).sum()), "verdicts": vtot,
+               "note": "SoilGrids estimate (250 m), not measured in San Mateo; species ranges from the project species dataset. Display only: no score reads it."},
+        "land": {"zones": [{"zone": k, "squares": int(v)} for k, v in zones.items()], "outside_zoning_map": int(zone.isna().sum()), "zoning_status": {str(k): int(v) for k, v in zstat.items()}, "no_soil_data": no_soil, "total_squares": int(am.sum())},
+        "activity": {"by_week": [week[k] for k in sorted(k for k in week if k)], "note": "Counted from the saved plans (newest 100) and the saved field checks (events)."},
+        "planned_vs_planted": {"by_barangay": sorted(pv_b.values(), key=lambda x: -x["planned"]), "by_species": sorted(pv_s.values(), key=lambda x: -x["planned"]),
+                               "note": "Trees planned in blocks plans against the trees field teams marked planted (latest event of each block)."},
+        "forecast_note": "No forecast is shown: forecasting needs survival records, which do not exist yet.",
+    }
 
 
 @app.get("/field-checks/summary")

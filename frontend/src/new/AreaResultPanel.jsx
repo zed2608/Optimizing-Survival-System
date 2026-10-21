@@ -1,3 +1,4 @@
+import { tr, useLang } from './i18n.js'
 import { useState } from 'react'
 import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
@@ -10,6 +11,10 @@ import ColorLegend from '../v2/components/ColorLegend.jsx'
 import HelpTip from './HelpTip.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
+import RowIcons from './RowIcons.jsx'
+import ScoreBar from './ui/ScoreBar.jsx'
+import { useApi } from '../v2/useApi.js'
+import PhSiteCard from './PhSiteCard.jsx'
 import SeasonBadge from './SeasonBadge.jsx'
 import SeasonNotice from './SeasonNotice.jsx'
 import SourceGroup from './SourceGroup.jsx'
@@ -18,13 +23,13 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const MARKER = -1
 
 // The API's 400/422 answers in plain words (with the API's own sentence kept below as the detail).
-function friendly(error) {
+function friendly(error, lang) {
   const m = error.message
   if (error.status === 400 && m.includes('no legal-zone grid points')) {
-    return { title: 'Nothing to rank in this area', text: 'The area has no planting-zone grid points. Draw it over the coloured dots, or pick a barangay or zone from the lists.' }
+    return { title: tr('ar.none.t', {}, lang), text: tr('ar.none.p', {}, lang) }
   }
   if (error.status === 400 && m.includes('No species has eligible points')) {
-    return { title: 'No suitable species in this area', text: 'No species can grow here for this purpose (S stays below 0.50 everywhere). Try another area or another purpose.' }
+    return { title: tr('ar.nosp.t', {}, lang), text: tr('ar.nosp.p', {}, lang) }
   }
   if (error.status === 422 && m.toLowerCase().includes('polygon')) {
     return { title: 'That shape cannot be used', text: 'The drawn area must have at least 3 corners and its edges must not cross each other. Press “Start again” and redraw it.' }
@@ -38,11 +43,14 @@ function MissingOr({ v, f }) {
 
 // Mode 2: ranked species for a whole area, plus the suggested mix (shares from the palette code, with its caps).
 export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDates, onInfo, view = 'compact', onView = () => {} }) {
+  const lang = useLang()
+  const phApi = useApi('/species-ph-reference')
+  const phRanges = phApi.status === 'ok' && phApi.data?.available ? phApi.data.species : null
   const [show, setShow] = useState(5)
   const full = view === 'full'
   if (api.status === 'loading') return <div className="v2 v2-embedded"><div className="panel-body"><Loading what={`Ranking species for ${areaLabel}`} /></div></div>
   if (api.status === 'error') {
-    const f = friendly(api.error)
+    const f = friendly(api.error, lang)
     return (
       <div className="v2 v2-embedded">
         <div className="panel-body">
@@ -81,6 +89,12 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
             <Icon name="close" /> {r.area.not_plantable_points} point{r.area.not_plantable_points === 1 ? ' is' : 's are'} marked <strong>not plantable</strong> in the field and left out of this ranking.
           </p>
         )}
+        {r.area.selection === 'touching' && (
+          <p className="muted" data-role="area-touching">
+            {tr('ar.touch', {}, lang)}
+          </p>
+        )}
+        <PhSiteCard ph={r.area.ph ?? null} scope="area" speciesIds={r.ranking.map((x) => x.species_id)} />
         {r.area.not_plantable_points === 0 && <p className="muted">No point of this area is marked not plantable in the field.</p>}
 
         {sb && r.ranking.length === 0 && sb.removed > 0 && (
@@ -138,7 +152,10 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
                   <span className="sr-only"> (species information)</span>
                 </button>
                 {full ? <ScoreChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average score W where suitable" /> : <MatchChip w={s.mean_W_where_suitable === MARKER ? null : s.mean_W_where_suitable} label="Average match where suitable" />}
-                <SeasonBadge season={s.season} strip={false} best={false} />
+              </div>
+              <div className="cy-rowmeta">
+                <ScoreBar value={s.mean_W_where_suitable === MARKER ? 0 : s.mean_W_where_suitable} label="Average match where suitable" />
+                <RowIcons season={s.season} phVerdict={s.ph_verdict} speciesId={s.species_id} site={api.data?.area?.ph ?? null} ranges={phRanges} />
               </div>
               <details className="nw-pdetails" open={full || undefined}>
                 <summary>

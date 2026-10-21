@@ -11,8 +11,12 @@ def src(name):
 
 
 def test_step_2_and_the_weather_control_say_planting_purpose():
-    assert 'title="Layunin ng pagtatanim (Planting purpose)"' in src("AppNew.jsx")
-    assert "Layunin ng pagtatanim (Planting purpose)" in src("WeatherTab.jsx")
+    # V2: the label moved into messages.js so that English mode shows no Filipino: English "Planting purpose", Taglish "Layunin ng pagtatanim (Planting purpose)"
+    assert "title={tr('purpose.title', {}, lang)}" in src("AppNew.jsx")
+    assert "tr('wx.purpose', {}, lang)" in src("WeatherTab.jsx")
+    msgs = src("messages.js")
+    assert "'purpose.title': 'Planting purpose'" in msgs and "'purpose.title': 'Layunin ng pagtatanim (Planting purpose)'" in msgs
+    assert "'wx.purpose': 'Planting purpose'" in msgs and "'wx.purpose': 'Layunin ng pagtatanim (Planting purpose)'" in msgs
     assert '<legend className="sr-only">Planting purpose</legend>' in src("PurposePicker.jsx")      # the radio group keeps its English name for screen readers
 
 

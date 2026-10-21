@@ -549,6 +549,7 @@ HOW TO USE THE POINTS ON A PHONE (works without signal)
   1. Before going out, with internet: copy points.gpx (or points.kml) to the phone and open it
      with an offline map app (for example OsmAnd, Organic Maps or Gaia GPS). Download the map
      area of San Mateo, Rizal inside that app. Test it once in airplane mode.
+     (The map inside the Field Pack page is different: it needs internet. Only the plan is inside the page.)
   2. Each waypoint is named like {df.point_ref.iloc[0]} (species code + number). Tap it to read the common name,
      planting months and any flags. Use "navigate to" or the compass arrow to walk to it.
   3. Find the same point in point-list.csv by its point_ref. Tick the status column when the tree

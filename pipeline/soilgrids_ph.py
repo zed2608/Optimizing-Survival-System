@@ -45,7 +45,7 @@ COLUMNS = ["square_id", "ph_mean_0_30", "ph_q05_0_30", "ph_q95_0_30", "source", 
 NODATA = 0                                                                          # what the service answers where it has no data
 D_FACTOR = 10                                                                       # the service's own scale factor for pH ("mapped_units": "pH*10")
 BUFFER_DEG = 0.02
-ATTRIBUTION = "pH: SoilGrids 2.0 (ISRIC), CC BY 4.0 [VERIFY]"      # [VERIFY]: the service metadata names no licence; see data/reference/soilgrids_license_evidence.txt (stage C2b)
+ATTRIBUTION = "pH: SoilGrids 2.0 (ISRIC), CC BY 4.0 [licence to be confirmed]"      # [licence to be confirmed]: the service metadata names no licence; see data/reference/soilgrids_license_evidence.txt (stage C2b)
 
 
 class SoilGridsError(RuntimeError):
@@ -221,15 +221,19 @@ def summary(table):
             "n_squares": len(ok), "n_total": len(table)}
 
 
-def compare_interval(q05, q95, ph_min, ph_max):
+def compare_interval(q05, q95, ph_min, ph_max, kind=None):
     """THE comparison rule of the Species card (display only; it decides nothing in any score). Inputs: the model's 5th and 95th percentile of the site pH and the species' listed pH range.
       'no_value'  - the site has no Q0.05 / Q0.95 (nothing is guessed);
       'no_range'  - the species has no ph_min or no ph_max (nothing is guessed);
       'inside'    - the WHOLE interval lies in the range:        ph_min <= q05  and  q95 <= ph_max;
       'outside'   - the WHOLE interval lies outside the range:   q95 < ph_min  or  q05 > ph_max;
       'uncertain' - anything else (the interval overlaps an edge of the range, or is wider than the range).
-    The limits themselves count as inside."""
+    The limits themselves count as inside.
+    kind (optional, from the evidence file species_ph_evidence.csv): 'none' = the species has no confirmed range -> 'no_confirmed_range' (no Nasa / Labas / Hindi tiyak verdict);
+    'optimal_only' = the range is only the OPTIMAL one, so a whole interval outside it is 'outside_optimal' ("Labas sa pinakamainam na saklaw"), not 'outside'. Any other kind (or None) = the rules above."""
     q05, q95, lo, hi = _num(q05), _num(q95), _num(ph_min), _num(ph_max)
+    if kind == "none":
+        return "no_confirmed_range"
     if q05 is None or q95 is None:
         return "no_value"
     if lo is None or hi is None:
@@ -239,11 +243,11 @@ def compare_interval(q05, q95, ph_min, ph_max):
     if lo <= q05 and q95 <= hi:
         return "inside"
     if q95 < lo or q05 > hi:
-        return "outside"
+        return "outside_optimal" if kind == "optimal_only" else "outside"
     return "uncertain"
 
 
-def site_answer(table, point_id, ph_min, ph_max):
+def site_answer(table, point_id, ph_min, ph_max, kind=None):
     """What the Species card shows for one species and one chosen square (or the whole municipality when point_id is None). The verdict comes from compare_interval (the whole Q0.05-Q0.95 interval against the species range).
     No file, no square, no value: available False and a reason; never a number made up."""
     base = {"scored": False, "attribution": ATTRIBUTION, "note": "Reference only. A model estimate, not measured in San Mateo. Not part of the score."}
@@ -262,9 +266,9 @@ def site_answer(table, point_id, ph_min, ph_max):
             return {**base, "available": False, "reason": "no_value_here", "scope": "square", "point_id": int(point_id)}
         mean, q05, q95, scope = r["mean"], r["q05"], r["q95"], "square"
         extra = {"point_id": int(point_id)}
-    verdict = compare_interval(q05, q95, lo, hi)
+    verdict = compare_interval(q05, q95, lo, hi, kind)
     return {**base, "available": True, "scope": scope, "ph_mean": round(mean, 2), "ph_q05": None if q05 is None else round(q05, 2), "ph_q95": None if q95 is None else round(q95, 2),
-            "species_ph_min": lo, "species_ph_max": hi, "verdict": verdict, **extra}
+            "species_ph_min": lo, "species_ph_max": hi, "range_kind": kind, "verdict": verdict, **extra}
 
 
 # ---------------------------------------------------------------------------------------------------- the report
