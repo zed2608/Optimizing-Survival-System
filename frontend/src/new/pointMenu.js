@@ -19,11 +19,12 @@ const nameOf = (features, lon, lat, key) => {
 
 // the three lines: "Guinayang" / "Agricultural Zone, grid 1921" / "Planting window 20 Oct - 29 Dec 2026, viewed 20 Oct 2026" and, from 1 m, "1 m from where you clicked".
 // square = { lat, lon, pointId } (centre of the square), click = { lat, lon }
-export function menuLines({ square, click, barangayFeatures, zoneFeatures, win, today }) {
+export function menuLines({ square, click, barangayFeatures, zoneFeatures, win, today, me = null, fromYou = (m) => `${m} m from you` }) {
   const barangay = nameOf(barangayFeatures, square.lon, square.lat, 'display_name') ?? 'Outside the barangay outlines'
   const zone = nameOf(zoneFeatures, square.lon, square.lat, 'name') ?? 'Outside our zoning map'
   const away = Math.round(click ? distanceM(click.lat, click.lon, square.lat, square.lon) : 0)
   const lines = [`${barangay} / ${zone}, grid ${square.pointId}`, `Planting window ${formatDay(win.start)} - ${formatDay(win.end, true)}, viewed ${formatDay(today, true)}`]
   if (away >= 1) lines.push(`${away} m from where you clicked`)
+  if (me) lines.push(fromYou(Math.round(distanceM(me.lat, me.lon, square.lat, square.lon))))   // the position the person gave (My location, or a tap on the map): kept in memory only
   return { title: barangay, barangay, zone, lines }
 }

@@ -61,6 +61,17 @@ function GoTo({ target }) {
   return null
 }
 
+// Where the person is (My location, or the place they tapped): a blue dot with a ring. In memory only.
+function MeMarker({ me }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!me) return undefined
+    const m = L.marker([me.lat, me.lon], { icon: L.divIcon({ className: 'cy-me', html: '<span></span>', iconSize: [18, 18] }), interactive: false, keyboard: false, zIndexOffset: 500 }).addTo(map)
+    return () => m.remove()
+  }, [me, map])
+  return null
+}
+
 // A soft pulse ring around the selected spot (decoration; the square itself is outlined by the grid layer).
 function PulseRing({ spot }) {
   const map = useMap()
@@ -78,7 +89,7 @@ const BASE_LAYERS = {
   street: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' },
 }
 
-export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, onContext, meta, goTarget, fitTarget, highlight, draft, drawing, areaSquares = null, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false, zoning = null, zoningOn = false }) {
+export default function MapNew({ myLoc = null, bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, onContext, meta, goTarget, fitTarget, highlight, draft, drawing, areaSquares = null, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false, zoning = null, zoningOn = false }) {
   const base = BASE_LAYERS[baseLayer] ?? BASE_LAYERS.satellite
   return (
     <MapContainer
@@ -97,6 +108,7 @@ export default function MapNew({ bbox, boundaries, grid, clearGrid, labeler, sel
       <FitToMunicipality bbox={bbox} />
       <GoTo target={goTarget} />
       <PulseRing spot={spot} />
+      <MeMarker me={myLoc} />
       <FitTarget target={fitTarget} />
       <ZoningLayer zoning={zoning} visible={zoningOn} />
       <BoundaryLayers boundaries={boundaries} />

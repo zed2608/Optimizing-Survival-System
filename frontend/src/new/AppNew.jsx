@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '../v2/v2.css'
 import './new.css'
 import './canopy.css'
@@ -9,6 +9,7 @@ import { Tabs } from './ui/ui.jsx'
 import ToastViewport from './ui/ToastViewport.jsx'
 import { toast } from './ui/toast.js'
 import { sparkBurst } from './ui/spark.js'
+import { findPosition, geoMessageKey } from './myLocation.js'
 import { AnimatePresence, motion } from 'motion/react'
 import { motionAllowed } from './motionPref.js'
 import Splash from './Splash.jsx'
@@ -101,16 +102,32 @@ export default function AppNew() {
   const [planPrefill, setPlanPrefill] = useState(null)
   const lang = useLang()
   const hints = useHints()
-  const locateMe = () => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      toast('warning', tr('map.noGeo', {}, lang))
-      return
+  const pageTitle = useRef(null)
+  // "My location": the position stays in memory (never logged, never sent). The button shows "Finding your location…" while it works and never stays stuck; any failure says what to do and offers
+  // "Set my location on the map" (the next tap on the map sets it).
+  const [myLoc, setMyLoc] = useState(null)
+  const [locating, setLocating] = useState(false)
+  const [pickingMe, setPickingMe] = useState(false)
+  const [locFailed, setLocFailed] = useState(false)
+  const placeMe = (pos, fromTap) => {
+    setMyLoc({ lat: pos.lat, lon: pos.lon })
+    setGoTarget({ lat: pos.lat, lon: pos.lon })
+    setLocFailed(false)
+    if (!locate(pos.lat, pos.lon)) toast('info', tr('geo.outside', {}, lang))
+    else if (fromTap) toast('success', tr('geo.set', {}, lang))
+  }
+  const locateMe = async () => {
+    if (locating) return
+    setLocating(true)
+    setPickingMe(false)
+    try {
+      placeMe(await findPosition())
+    } catch (e) {
+      setLocFailed(true)
+      toast('warning', tr(geoMessageKey(e), {}, lang), 9000)
+    } finally {
+      setLocating(false)
     }
-    navigator.geolocation.getCurrentPosition(
-      (p) => goTo(p.coords.latitude, p.coords.longitude),
-      () => toast('warning', tr('map.geoDenied', {}, lang)),
-      { enableHighAccuracy: true, timeout: 10000 },
-    )
   }
   const [landing, setLanding] = useState(() => shouldShowLanding())
   const [firstVisit] = useState(() => shouldShowLanding())
@@ -331,6 +348,11 @@ export default function AppNew() {
 
   const onPick = ({ index, context = -1, plan = -1, lat, lon }) => {
     setFieldMenu(null)
+    if (pickingMe) {
+      placeMe({ lat, lon }, true)
+      setPickingMe(false)
+      return
+    }
     if (mode === 'area' && tool === 'draw') {
       if (area?.kind === 'polygon') {
         setNotice(tr('area.lockNotice', {}, lang)) // UX round 2 (A2)
@@ -633,8 +655,8 @@ export default function AppNew() {
   // the field-check menu of a right-click: its own field-check data, its own lines and its own plan block (the point panel keeps its own)
   const menuField = useApi(fieldMenu ? `/field-checks/${fieldMenu.pointId}?${fc}` : null)
   const menuInfo = useMemo(
-    () => (fieldMenu ? menuLines({ square: fieldMenu.square, click: fieldMenu.click, barangayFeatures, zoneFeatures, win: win.applied, today: win.today }) : { title: '', lines: [] }),
-    [fieldMenu, barangayFeatures, zoneFeatures, win.applied, win.today],
+    () => (fieldMenu ? menuLines({ square: fieldMenu.square, click: fieldMenu.click, barangayFeatures, zoneFeatures, win: win.applied, today: win.today, me: myLoc, fromYou: (m) => tr('geo.fromYou', { m }, lang) }) : { title: '', lines: [] }),
+    [fieldMenu, barangayFeatures, zoneFeatures, win.applied, win.today, myLoc, lang],
   )
   const menuBlock = useMemo(() => {
     if (!fieldMenu || !planResult || planResult.layout_mode !== 'blocks') return null
@@ -705,11 +727,27 @@ export default function AppNew() {
     ? `${selIds.length === 1 ? selNames[0] : `${selIds.length} species`} · ${selIds.length === 1 ? 'one species' : combine === 'all' ? 'must suit all' : 'suits at least one'}`
     : 'Best species at each point'
 
+  // the tabs are full pages: Esc goes back to the studio, and the page title takes the focus when a tab opens
+  useEffect(() => {
+    if (tab === 'studio') return undefined
+    // the page mounts after the old one has faded out: focus the title of the page that is really there
+    const focusTimer = setTimeout(() => (document.querySelector('[data-role="tab-page"] h1') ?? pageTitle.current)?.focus({ preventScroll: true }), 220)
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (document.querySelector('[role="dialog"], .set-menu, .nw-helppage, .ln-root')) return
+      setTab('studio')
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      clearTimeout(focusTimer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [tab])
   return (
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
     <PublicNotice health={healthData} />
     <ScoreSourceNotice health={healthData} />
-    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root lang-${lang} ${hints ? '' : 'hints-off'} ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
+    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${tab !== 'studio' ? 'tab-page' : ''} lang-${lang} ${hints ? '' : 'hints-off'} ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
@@ -726,6 +764,7 @@ export default function AppNew() {
           goTarget={goTarget}
           fitTarget={fitTarget}
           highlight={highlight}
+          myLoc={myLoc}
           draft={draft}
           drawing={(mode === 'area' && tool === 'draw') || markActive}
           field={fieldForMap}
@@ -802,9 +841,15 @@ export default function AppNew() {
           <Icon name="legend" /> Legend
         </button>
       )}
-      <button type="button" className="nw-locate" onClick={locateMe} data-role="locate" aria-label={tr('map.locate', {}, lang)} title={tr('map.locate', {}, lang)}>
+      <button type="button" className={`nw-locate ${locating ? 'is-busy' : ''}`} onClick={locateMe} data-role="locate" aria-busy={locating} aria-label={locating ? tr('geo.finding', {}, lang) : tr('map.locate', {}, lang)} title={tr('map.locate', {}, lang)}>
         <Icon name="target" size={18} />
+        {locating && <span className="nw-locate-text">{tr('geo.finding', {}, lang)}</span>}
       </button>
+      {(locFailed || pickingMe) && (
+        <button type="button" className={`nw-locate-set ${pickingMe ? 'is-on' : ''}`} onClick={() => setPickingMe((v) => !v)} data-role="locate-set" aria-pressed={pickingMe}>
+          <Icon name="pin" size={16} /> {pickingMe ? tr('geo.setHint', {}, lang) : tr('geo.setOnMap', {}, lang)}
+        </button>
+      )}
 
       {showZoning && <ZoningLegend api={zoning} onHide={() => setShowZoning(false)} onExpand={() => setLegendOpen(false)} />}
 
@@ -834,13 +879,25 @@ export default function AppNew() {
       </header>
       <AnimatePresence mode="wait">
       {tab !== 'studio' && (
-        <motion.section key={tab} className="nw-modal" aria-label={TABS.find((x) => x.id === tab).label} initial={motionAllowed() ? { opacity: 0, y: 14 } : false} animate={{ opacity: 1, y: 0 }} exit={motionAllowed() ? { opacity: 0, y: -10 } : { opacity: 0 }} transition={{ duration: motionAllowed() ? 0.25 : 0, ease: [0.2, 0.7, 0.2, 1] }}>
-          <div className="nw-modal-head">
-            <h2>{tab === 'history' ? 'Campaign Event Logs & History' : tab === 'weather' ? 'Weather this week' : 'System Spatial Analytics'}<AskHelp id={tab === 'weather' ? 'weather' : 'logs-analytics'} /></h2>
-            <button type="button" className="nw-btn" onClick={() => setTab('studio')}>
-              <Icon name="close" /> Close & Return to Map
-            </button>
-          </div>
+        <motion.section
+          key={tab}
+          className="nw-page nw-modal"
+          data-role="tab-page"
+          data-tab={tab}
+          aria-label={TABS.find((x) => x.id === tab).label}
+          initial={motionAllowed() ? { opacity: 0 } : false}
+          animate={{ opacity: 1 }}
+          exit={motionAllowed() ? { opacity: 0 } : { opacity: 0 }}
+          transition={{ duration: motionAllowed() ? 0.15 : 0, ease: 'easeOut' }}
+        >
+          <div className="nw-page-in">
+            <header className="nw-page-head">
+              <h1 ref={pageTitle} tabIndex={-1}>
+                {tr(`page.${tab === 'history' ? 'history' : tab === 'weather' ? 'weather' : 'analytics'}.t`, {}, lang)}
+              </h1>
+              <AskHelp id={tab === 'weather' ? 'weather' : 'logs-analytics'} />
+              <p>{tr(`page.${tab === 'history' ? 'history' : tab === 'weather' ? 'weather' : 'analytics'}.d`, {}, lang)}</p>
+            </header>
           {tab === 'history' ? (
             <CampaignLogs today={win.today} onOpen={openSavedPlan} onStudio={() => setTab('studio')} fieldVersion={fieldVersion} onTopUp={openTopUp} />
           ) : tab === 'weather' ? (
@@ -860,6 +917,7 @@ export default function AppNew() {
           ) : (
             <AnalyticsPanel />
           )}
+          </div>
         </motion.section>
       )}
       </AnimatePresence>
