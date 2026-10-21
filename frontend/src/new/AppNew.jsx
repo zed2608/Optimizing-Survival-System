@@ -6,8 +6,8 @@ import { toggleTheme, useTheme } from './theme.js'
 import ToastViewport from './ui/ToastViewport.jsx'
 import { toast } from './ui/toast.js'
 import Splash from './Splash.jsx'
-import Welcome from './Welcome.jsx'
-import { markWelcomeSeen, welcomeSeen } from './welcome.js'
+import Landing from './Landing.jsx'
+import { markVisit, shouldShowLanding } from './landing.js'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
@@ -96,10 +96,11 @@ export default function AppNew() {
   const [planPrefill, setPlanPrefill] = useState(null)
   const lang = useLang()
   const theme = useTheme()
-  const [welcome, setWelcome] = useState(() => !welcomeSeen())
-  const closeWelcome = () => {
-    markWelcomeSeen()
-    setWelcome(false)
+  const [landing, setLanding] = useState(() => shouldShowLanding())
+  const [firstVisit] = useState(() => shouldShowLanding())
+  const closeLanding = () => {
+    markVisit()
+    setLanding(false)
   }
   const [tool, setTool] = useState('point') // mode 2: 'point' | 'barangay' | 'draw'
   const [area, setArea] = useState(null) // mode 2: {kind:'barangay'|'zone', name} | {kind:'polygon', geometry}
@@ -810,7 +811,7 @@ export default function AppNew() {
           ))}
         </div>
         <div className="nw-topright">
-          <button type="button" className="nw-iconbtn nw-welcomebtn" onClick={() => setWelcome(true)} data-role="welcome-open" aria-label={tr('welcome.open', {}, lang)} title={tr('welcome.open', {}, lang)}>
+          <button type="button" className="nw-iconbtn nw-welcomebtn" onClick={() => setLanding(true)} data-role="welcome-open" aria-label={tr('ln.label', {}, lang)} title={tr('ln.label', {}, lang)}>
             <Icon name="info" size={18} />
           </button>
           <button type="button" className="nw-iconbtn" onClick={toggleTheme} data-role="theme-toggle" aria-label={tr(theme === 'dark' ? 'theme.toLight' : 'theme.toDark', {}, lang)} title={tr(theme === 'dark' ? 'theme.toLight' : 'theme.toDark', {}, lang)}>
@@ -1214,8 +1215,8 @@ export default function AppNew() {
         />
       )}
       <ToastViewport />
-      <Splash ready={apiState !== 'wait'} />
-      {welcome && <Welcome onClose={closeWelcome} />}
+      {!firstVisit && <Splash ready={apiState !== 'wait'} />}
+      {landing && <Landing onClose={closeLanding} />}
     </div>
     </HelpContext.Provider>
   )
