@@ -23,7 +23,7 @@ function Stepper({ steps, sub, setSub, lang }) {
             <button type="button" className="nw-stepbtn" disabled={!reachable || current} onClick={() => setSub(st.n)} data-step={st.n} aria-label={`${t('flow.stepLabel', { n: st.n, title: st.title })}${st.summary ? `. ${st.summary}` : ''}`}>
               <span className="nw-flowno">{st.done && !current ? <Icon name="check" /> : st.n}</span>
               <span className="nw-steptext">
-                <span className="nw-steptitle">{st.title}</span>
+                <span className="nw-steptitle">{t(`flow.short${st.n}`)}</span>
                 {st.done && !current && st.summary && <span className="nw-stepsum">{st.summary}</span>}
               </span>
             </button>

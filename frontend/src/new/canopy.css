@@ -396,9 +396,9 @@
 .an-note { margin: 0; font-size: var(--fs-xs); line-height: 1.45; }
 .an-svg { width: 100%; height: auto; display: block; }
 .an-grid-line, .an-svg .an-grid { stroke: var(--c-line); stroke-width: 1; }
-.an-svg .an-tick { fill: var(--c-muted); font-size: 10px; font-family: var(--font); }
-.an-svg .an-axis { fill: var(--c-text); font-size: 11px; font-weight: 600; font-family: var(--font); }
-.an-svg .an-val { fill: var(--c-text); font-size: 10px; font-family: var(--font); }
+.an-svg .an-tick { fill: var(--c-muted); font-size: 12px; font-family: var(--font); }
+.an-svg .an-axis { fill: var(--c-text); font-size: 12px; font-weight: 600; font-family: var(--font); }
+.an-svg .an-val { fill: var(--c-text); font-size: 12px; font-family: var(--font); }
 .an-legend { display: flex; flex-wrap: wrap; gap: var(--sp-3); list-style: none; margin: 4px 0 0; padding: 0; font-size: var(--fs-xs); }
 .an-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; }
 .an-table-wrap { max-height: 240px; overflow: auto; border: 1px solid var(--c-line); border-radius: var(--r-sm); }
@@ -514,7 +514,7 @@ body, button, input, select, textarea, optgroup, option, .nw-root, .nw-root * { 
 button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .nw-root code, .nw-root pre, .nw-root .nw-mono { font-family: ui-monospace, 'SF Mono', Consolas, monospace; }
 .cy-serif { font-family: var(--font-serif); font-style: italic; font-weight: 500; letter-spacing: -0.01em; }
-.cy-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-muted); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cy-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-muted); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cy-eyebrow i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.6; display: inline-block; }
 .cy-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--c-accent) 18%, transparent); color: var(--c-accent-text); font-size: 12px; font-weight: 600; }
 .cy-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
@@ -536,7 +536,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .cy-timeline { list-style: none; margin: 0; padding: 0; position: relative; }
 .cy-timeline::before { content: ''; position: absolute; left: 15px; top: 14px; bottom: 14px; width: 2px; background: var(--c-line); }
 .cy-timeline > li { position: relative; padding-left: 40px; }
-.cy-timeline > li > .cy-dot { position: absolute; left: 4px; top: 12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--c-surface); border: 2px solid var(--c-line); color: var(--c-muted); font-size: 11px; font-weight: 700; z-index: 1; transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease), transform var(--t-mid) var(--ease); }
+.cy-timeline > li > .cy-dot { position: absolute; left: 4px; top: 12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--c-surface); border: 2px solid var(--c-line); color: var(--c-muted); font-size: 12px; font-weight: 700; z-index: 1; transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease), transform var(--t-mid) var(--ease); }
 .cy-timeline > li.is-current > .cy-dot { border-color: var(--c-primary); color: var(--c-primary); transform: scale(1.12); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-primary) 18%, transparent); }
 .cy-timeline > li.is-done > .cy-dot { background: var(--c-accent); border-color: var(--c-accent); color: #10240f; }
 .cy-timeline > li.is-future { opacity: 0.62; }
@@ -597,7 +597,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 @media (max-width: 480px) { .nw-root .nw-tabs-v2 { max-width: calc(100vw - 190px); overflow-x: auto; scrollbar-width: none; } .nw-root .cy-tabs-slide .cy-tab { padding: 6px 10px; } }
 .set-wrap { position: relative; }
 .set-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 2500; width: min(320px, calc(100vw - 24px)); padding: 12px 14px 14px; background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-lg); box-shadow: var(--sh-3); display: grid; gap: 10px; animation: cy-rise var(--t-mid) var(--ease); }
-.set-title { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-muted); }
+.set-title { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-muted); }
 .set-row { display: grid; gap: 6px; } .set-label { font-size: 12px; font-weight: 600; color: var(--c-muted); }
 .set-seg { display: flex; gap: 2px; padding: 3px; background: var(--c-surface-2); border-radius: var(--r-pill); }
 .set-segbtn { flex: 1; min-height: 40px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--c-muted); font-weight: 600; cursor: pointer; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
@@ -611,7 +611,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .nw-root .nw-step { position: relative; margin-left: 34px; }
 .nw-root .nw-step::after { content: ''; position: absolute; left: -23px; top: 40px; bottom: -10px; width: 2px; background: var(--c-line); }
 .nw-root .nw-step:last-of-type::after { display: none; }
-.nw-root .nw-step .nw-step-n { position: absolute; left: -35px; top: 10px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--c-line); background: var(--c-surface); color: var(--c-muted); display: grid; place-items: center; font-size: 11px; font-weight: 700; z-index: 1; transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease), transform var(--t-mid) var(--ease); }
+.nw-root .nw-step .nw-step-n { position: absolute; left: -35px; top: 10px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--c-line); background: var(--c-surface); color: var(--c-muted); display: grid; place-items: center; font-size: 12px; font-weight: 700; z-index: 1; transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease), transform var(--t-mid) var(--ease); }
 .nw-root .nw-step.is-open .nw-step-n { background: var(--c-surface); border-color: var(--c-primary); color: var(--c-primary); transform: scale(1.12); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-primary) 18%, transparent); }
 .nw-root .nw-step:has(~ .nw-step.is-open) .nw-step-n { background: var(--c-accent); border-color: var(--c-accent); color: transparent; }
 .nw-root .nw-step:has(~ .nw-step.is-open) .nw-step-n::after { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 10px; margin: -7px 0 0 -2.5px; border: solid #10240f; border-width: 0 2px 2px 0; transform: rotate(45deg); }
@@ -702,3 +702,92 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .an-svg.an-vert rect { transform-origin: center bottom; animation-name: an-rise; }
 @keyframes an-grow { from { transform: scaleX(0); } } @keyframes an-rise { from { transform: scaleY(0); } }
 @media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .an-svg rect { animation: none; } }
+
+/* ======================= FIX ROUND: the tabs are full pages ======================= */
+/* Campaign Logs, Weather and System Analytics fill the whole area under the header: a solid page, a centred container that scrolls inside the page, nothing of the studio visible behind it. */
+.nw-root .nw-page { position: absolute; z-index: 1050; top: 56px; left: 0; right: 0; bottom: 0; background: var(--c-bg); color: var(--c-text); overflow-y: auto; overscroll-behavior: contain; }
+.nw-page-in { width: 100%; max-width: 1200px; margin: 0 auto; padding: 24px 24px 48px; box-sizing: border-box; }
+@media (max-width: 800px) { .nw-page-in { padding: 16px 16px 40px; } }
+.nw-page-head { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; margin: 0 0 20px; }
+.nw-page-head h1 { margin: 0; font-size: 28px; line-height: 1.15; letter-spacing: -0.02em; font-weight: 800; color: var(--c-text); outline: none; }
+.nw-page-head h1:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 4px; border-radius: 4px; }
+.nw-page-head p { grid-column: 1 / -1; margin: 0; font-size: 14px; color: var(--c-muted); max-width: 70ch; }
+@media (max-width: 480px) { .nw-page-head h1 { font-size: 24px; } }
+.nw-root.tab-page .nw-map, .nw-root.tab-page .leaflet-container, .nw-root.tab-page .nw-sidebar, .nw-root.tab-page .nw-right, .nw-root.tab-page .nw-search, .nw-root.tab-page .nw-mapview,
+.nw-root.tab-page .nw-legend, .nw-root.tab-page .nw-legend-btn, .nw-root.tab-page .nw-locate, .nw-root.tab-page .nw-toggle, .nw-root.tab-page .nw-plan-legend, .nw-root.tab-page .nw-ground-legend,
+.nw-root.tab-page .nw-zoning-legend, .nw-root.tab-page .nw-reopen, .nw-root.tab-page .nw-markbar, .nw-root.tab-page .nw-card, .nw-root.tab-page .nw-fmenu, .nw-root.tab-page .nw-fmenu-backdrop,
+.nw-root.tab-page .nw-toasts, .nw-root.tab-page .nw-legend-note { visibility: hidden; pointer-events: none; }
+/* an empty Campaign Logs page: the message sits in the middle of the page with its action */
+.nw-page .nw-logs.nw-empty { max-width: 520px; margin: 10vh auto 0; text-align: center; display: grid; justify-items: center; gap: 10px; }
+.nw-root .nw-page.nw-modal { border: 0; border-radius: 0; box-shadow: none; padding: 0; margin: 0; backdrop-filter: none; }
+
+/* My location: the busy state, the "set it on the map" pill and the blue marker */
+.nw-root .nw-locate.is-busy { width: auto; padding: 0 14px 0 12px; gap: 8px; display: inline-flex; align-items: center; }
+.nw-root .nw-locate.is-busy .nw-icon { animation: cy-spin 1s linear infinite; }
+.nw-locate-text { font-size: 13px; font-weight: 600; white-space: nowrap; }
+@keyframes cy-spin { to { transform: rotate(360deg); } }
+.nw-root .nw-locate-set { position: absolute; z-index: 1100; right: var(--dock-right); bottom: 128px; min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-pill); box-shadow: var(--sh-2); font-weight: 600; font-size: 13px; cursor: pointer; }
+.nw-root .nw-locate-set.is-on { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; }
+.nw-root.tab-page .nw-locate-set { visibility: hidden; pointer-events: none; }
+.cy-me { pointer-events: none; } .cy-me span { display: block; width: 18px; height: 18px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(26, 115, 232, 0.25), 0 1px 4px rgba(0, 0, 0, 0.4); }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .nw-root .nw-locate.is-busy .nw-icon { animation: none; } }
+
+/* ======================= FIX ROUND: text size and contrast =======================
+   Rules: no text under 12px; every surface sets its own text colour from a paired token; links use --c-link; a "locked" step is a calm,
+   readable style (dashed marker, normal text), never an opacity on the whole block. */
+.nw-root .nw-fil { font-size: 12px; }
+@media (max-width: 640px) { .nw-root input, .nw-root select, .nw-root textarea { font-size: 16px; } }
+.nw-root a:not(.btn):not(.nw-btn):not([class*='cy-']) , .nw-root .nw-link, .nw-root .nw-namebtn, .nw-root .nw-fact-src a, .nw-root .v2 a { color: var(--c-link); }
+.nw-root .v2 { color: var(--c-text); }
+/* cards inside panels: the theme surface and its text */
+.nw-root .nw-card, .nw-root .nw-card-head, .nw-root .nw-card-body, .nw-root .nw-card-foot, .nw-root .nw-card-sec, .nw-root .nw-fact, .nw-root .nw-pcard, .nw-root .nw-opt-head { background: var(--c-surface); color: var(--c-text); border-color: var(--c-line); }
+.nw-root .nw-card-sec.is-big { background: var(--c-ok-bg); color: var(--c-text); border-color: var(--c-ok); }
+.nw-root .nw-card-sec.is-big h3 { color: var(--c-ok); }
+.nw-root .nw-card-note, .nw-root .nw-legend-warn { background: var(--c-warn-bg); color: var(--c-text); border-color: var(--c-warn); }
+.nw-root .nw-card-sci, .nw-root .nw-fact dt, .nw-root .nw-fact .muted, .nw-root .nw-fact-src, .nw-root .nw-fact-src.muted { color: var(--c-muted); }
+.nw-root .nw-fact dt { text-transform: none; letter-spacing: 0; font-size: 13px; }
+.nw-root .nw-fact-val, .nw-root .nw-card-head h2, .nw-root .nw-card-sec h3 { color: var(--c-text); }
+.nw-root .nw-legend-other, .nw-root .nw-legend-other div, .nw-root .nw-legend-other strong, .nw-root .nw-legend-area, .nw-root .nw-legend-sub, .nw-root .nw-legend-note { color: var(--c-text); }
+.nw-root .nw-legend-note, .nw-root .nw-legend-sub { color: var(--c-muted); font-size: 12px; }
+/* chips that say "provisional / draft": a warm surface with its own dark/light text */
+.nw-root .nw-prov, .nw-root .nw-draft { background: var(--c-warn-bg); color: var(--c-warn); border: 1px solid var(--c-warn); font-size: 12px; }
+.nw-root .fc-warnrow .nw-tip-btn, .nw-root .v2-embedded .nw-tip-btn { color: var(--c-info); background: var(--c-info-bg); border-color: var(--c-info); }
+.nw-root .fc-warnline { color: var(--c-warn); }
+.nw-root .nw-pcard summary { color: var(--c-link); }
+/* sidebar: the goal buttons and the purposes */
+.nw-root .nw-mode { color: var(--c-text); background: var(--c-surface-2); border: 1px solid var(--c-line); }
+.nw-root .nw-mode-sub { opacity: 1; color: var(--c-muted); }
+.nw-root .nw-mode.is-active { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; background-image: none; }
+.nw-root .nw-mode.is-active .nw-mode-sub { color: var(--c-on-primary); }
+.nw-root .nw-purpose { background: var(--c-surface-2); color: var(--c-text); border: 1px solid var(--c-line); }
+.nw-root .nw-purpose.is-selected { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; background-image: none; }
+.nw-root .nw-purpose span { color: inherit; }
+/* More list: normal text, a visible hover, no disabled look */
+.nw-root .nw-more-toggle, .nw-root .nw-more-item { color: var(--c-text); background: transparent; }
+.nw-root .nw-more-toggle:hover, .nw-root .nw-more-item:hover { background: var(--c-surface-2); }
+/* steps: the title and its one-line summary are readable; the "locked" (not yet reached) look is a dashed marker plus a lock-free calm style */
+.nw-root .nw-step-title { color: var(--c-text); }
+.nw-root .nw-step-sum { color: var(--c-muted); font-size: 12px; }
+.nw-root .nw-tip-btn { color: var(--c-text); }
+.nw-root .nw-step.is-open ~ .nw-step, .nw-root .cy-timeline > li.is-future { opacity: 1; }
+.nw-root .nw-step.is-open ~ .nw-step .nw-step-n, .nw-root .cy-timeline > li.is-future > .cy-dot { border-style: dashed; color: var(--c-muted); }
+.nw-root .nw-step.is-open ~ .nw-step .nw-step-title { color: var(--c-muted); font-weight: 500; }
+.nw-root .nw-step.is-open ~ .nw-step:hover .nw-step-title, .nw-root .nw-step.is-open ~ .nw-step:focus-within .nw-step-title { color: var(--c-text); font-weight: 600; }
+/* the species-walk stepper: full short labels, two lines allowed, never "..." */
+.nw-root .nw-stepbtn { align-items: center; justify-content: flex-start; padding: 6px 2px; color: var(--c-muted); font-size: 13px; }
+.nw-root .nw-steptitle, .nw-root .nw-stepsum { overflow: visible; text-overflow: clip; white-space: normal; text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
+.nw-root .nw-stepsum { font-size: 12px; opacity: 1; color: var(--c-muted); }
+@media (max-width: 480px) { .nw-root .nw-stepper li:not(.is-current) .nw-steptitle { display: block; } .nw-root .nw-stepper li.is-current .nw-steptitle { font-size: 13px; } }
+.nw-root .nw-stepper li.is-current .nw-stepbtn { color: var(--c-text); }
+/* small headings: sentence case, no letter-spaced micro labels */
+.nw-root .set-title, .nw-root .nw-search-head, .nw-root .nw-wlabel, .nw-root .nw-plansum dt, .nw-root .nw-label, .nw-root .nw-counter h3, .nw-root .nw-faqlist h3, .nw-root .nw-glossary h3 { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--c-muted); }
+.nw-root .cy-eyebrow { letter-spacing: 0.06em; font-size: 12px; }
+.nw-root .nw-brand { font-size: 12px; }
+.nw-root .set-title { font-size: 12px; }
+/* weather hero: the sky can be light, so the text sits on a dark scrim (white on it passes AA over any sky) */
+.wx-hero-body { background: rgba(8, 20, 32, 0.68); border-radius: var(--r-lg); margin: var(--sp-3); padding: var(--sp-4) var(--sp-5); color: #fff; }
+.nw-root .nw-fmenu-where { color: var(--c-muted); }
+.nw-root .nw-limits-list { color: var(--c-text); font-size: 13px; }
+/* field-check buttons: the violet mark stays (border), the fill follows the theme surface and the text its paired token */
+.nw-root .fc-bigbtn { background: var(--c-surface); color: var(--c-text); }
+.nw-root .fc-b-verified_plantable, .nw-root .fc-b-not_plantable, .nw-root .fc-b-other, .nw-root .fc-b-needs_recheck { background: color-mix(in srgb, #8b5cf6 14%, var(--c-surface)); color: var(--c-text); }
