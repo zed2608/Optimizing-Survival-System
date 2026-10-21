@@ -15,7 +15,11 @@ def test_the_three_weather_places_use_the_one_message():
         assert "import { weatherError } from './weatherText.js'" in t, name
         assert "weatherError(api.error)" in t, name
         assert "Weather is not available now" not in t and "no weather now" not in t and "no weather advice now" not in t, name   # the old plain English sentences are gone
-    assert "Hindi maabot ang weather ngayon. Subukan ulit mamaya." in (NEW / "weatherText.js").read_text(encoding="utf-8")
+    # V2: the sentence moved into messages.js so that English mode shows no Filipino: Taglish keeps the same sentence, English says the same thing in English
+    msgs = (NEW / "messages.js").read_text(encoding="utf-8")
+    assert "'wx.unreachable': 'Hindi maabot ang weather ngayon. Subukan ulit mamaya.'" in msgs
+    assert "'wx.unreachable': 'The weather cannot be reached now. Try again later.'" in msgs
+    assert "tr('wx.unreachable'" in (NEW / "weatherText.js").read_text(encoding="utf-8")
 
 
 def test_the_service_still_refuses_honestly_without_a_forecast(monkeypatch, tmp_path):
