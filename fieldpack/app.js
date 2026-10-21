@@ -79,6 +79,13 @@
   const blockOf = (ref) => pack.blocks.find((b) => b.ref === ref)
   const fmt = (x) => x.toFixed(6)
   const num = (x) => String(Math.round(x * 100) / 100) // 7 -> "7", 12.5 -> "12.5"
+  // spaced blocks: how far and which way tree k is from tree k-1 (from START for tree 1), from the plan's own coordinates (Core.distanceM / bearingDeg)
+  const legFrom = (block, k) => {
+    const cur = block.trees.find((q) => q[0] === k)
+    const prev = k > 1 ? block.trees.find((q) => q[0] === k - 1) : null
+    const a = prev ? [prev[1], prev[2]] : block.start
+    return { k: k - 1, d: Core.distanceM(a[0], a[1], cur[1], cur[2]), deg: Core.bearingDeg(a[0], a[1], cur[1], cur[2]) }
+  }
   const freshFix = () => (gps.fix && Date.now() - gps.fix.at < 60000 ? gps.fix : null)
   const activeTree = (block) => (view.tree !== null && Core.treeOf(block, view.tree) ? view.tree : Core.nextTarget(block, state))
   const dirWord = (deg) => t('dir_' + Core.compassPoint(deg))
@@ -519,7 +526,11 @@
     try {
       map = L.map(ui.mapEl, { zoomControl: false, attributionControl: false, maxZoom: 22, zoomSnap: 0.5, doubleClickZoom: false })
       L.polygon(block.square, { color: '#000', weight: 2, fill: false, dashArray: '2 6' }).addTo(map)
-      ml.area = L.polygon(block.area, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: 0.08 }).addTo(map)
+      if (block.layout === 'spaced') { // the shape the user selected in the dashboard (dashed) and the plantable ground of this block, not a square
+        if (pack.area && pack.area.selected) for (const ring of pack.area.selected) L.polygon(ring, { color: '#1f6fb2', weight: 2, fill: false, dashArray: '6 6', interactive: false }).addTo(map)
+        const rings = block.areas && block.areas.length ? block.areas : [block.square]
+        ml.area = L.featureGroup(rings.map((ring) => L.polygon(ring, { color: '#1f2a24', weight: 2, fillColor: '#1d5f2c', fillOpacity: 0.14, interactive: false }))).addTo(map)
+      } else ml.area = L.polygon(block.area, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: 0.08 }).addTo(map)
       ml.start = L.marker(block.start, { icon: startIcon(), keyboard: false, interactive: false, zIndexOffset: 800 }).addTo(map)
       const k = activeTree(block)
       for (const tr of block.trees) {
@@ -601,10 +612,12 @@
     const k = activeTree(block)
     const f = block.first_offset_m
     const sx = block.trees[0][3] - f[0], sy = block.trees[0][4] - f[1] // the START corner in metres from the south-west corner of the 100 m square
+    const spaced = block.layout === 'spaced'
     const w = block.per_row * block.spacing_m, hh = block.rows * block.spacing_m
     const svg = svgEl('svg', { viewBox: '-4 -10 108 112', role: 'img', 'aria-label': t('miniLabel') })
     svg.append(svgEl('rect', { x: 0, y: 0, width: 100, height: 100, fill: '#fff', stroke: '#000', 'stroke-width': 1 }))
-    svg.append(svgEl('rect', { x: sx, y: 100 - sy - hh, width: w, height: hh, fill: '#eee', stroke: '#000', 'stroke-width': 1.2, 'stroke-dasharray': '3 2' }))
+    if (spaced) for (const ring of block.region_m || []) svg.append(svgEl('polygon', { points: ring.map((q) => q[0] + ',' + (100 - q[1])).join(' '), fill: '#eee', stroke: '#000', 'stroke-width': 1.2, 'stroke-dasharray': '3 2' }))
+    else svg.append(svgEl('rect', { x: sx, y: 100 - sy - hh, width: w, height: hh, fill: '#eee', stroke: '#000', 'stroke-width': 1.2, 'stroke-dasharray': '3 2' }))
     const rad = Math.max(2.2, Math.min(5, block.spacing_m * 0.3))
     for (const tr of block.trees) {
       const r = state.trees[Core.key(block, tr[0])]
@@ -682,8 +695,8 @@
     ui.arrow.toggleAttribute('hidden', !fix)
     if (!fix) { // no GPS reading: no arrow and no distance; the row and the spot of the tree (from the plan) and the tape measure take over
       if (tg.kind === 'tree') {
-        const rp = Core.rowPlace(tg.k, block.per_row)
-        ui.tgtline.textContent = t('tgtNoGps', { name: tg.name, r: rp.row, c: rp.place })
+        if (block.layout === 'spaced') { const leg = legFrom(block, tg.k); ui.tgtline.textContent = t('tgtNoGpsSp', { name: tg.name, d: num(leg.d), dir: dirWord(leg.deg), from: leg.k === 0 ? t('startLabel') : t('treeWord') + ' ' + leg.k }) }
+        else { const rp = Core.rowPlace(tg.k, block.per_row); ui.tgtline.textContent = t('tgtNoGps', { name: tg.name, r: rp.row, c: rp.place }) }
         if (gps.status === 'nogps') { ui.sureline.textContent = t('noGpsTip'); ui.sureline.hidden = false; ui.approx.hidden = true }
       }
       return
@@ -763,10 +776,14 @@
     const finished = k === null
     let text = ''
     if (step === 1) text = gps.status === 'nogps' ? t('s1NoGps') : gpsOn ? t('s1Text') : t('s1Off')
-    if (step === 2) text = t('s2Text', { a: num(off[0]), b: num(off[1]) })
+    const spaced = block.layout === 'spaced'
+    const first = spaced && block.trees.length ? legFrom(block, 1) : null
+    if (step === 2) text = spaced ? t('s2TextSp', { d: num(first ? first.d : 0), dir: first ? dirWord(first.deg) : '' }) : t('s2Text', { a: num(off[0]), b: num(off[1]) })
     if (step === 3 && !finished) {
-      const rp = Core.rowPlace(k, block.per_row)
-      text = rp.row === 1 && rp.place === 1 ? t('s3First', { a: num(off[0]), b: num(off[1]) }) : rp.place > 1 ? t('s3Walk', { s: num(sp), p: Core.paces(sp), k }) : t('s3Row', { r: rp.row, s: num(sp), j: k - block.per_row, k })
+      const leg = spaced ? legFrom(block, k) : null
+      const rp = spaced ? { row: 0, place: 0 } : Core.rowPlace(k, block.per_row)
+      if (spaced) text = t('s3Sp', { k, d: num(leg.d), dir: dirWord(leg.deg), from: leg.k === 0 ? t('startLabel') : t('treeWord') + ' ' + leg.k, m: num(block.spacing_m) })
+      else text = rp.row === 1 && rp.place === 1 ? t('s3First', { a: num(off[0]), b: num(off[1]) }) : rp.place > 1 ? t('s3Walk', { s: num(sp), p: Core.paces(sp), k }) : t('s3Row', { r: rp.row, s: num(sp), j: k - block.per_row, k })
     }
     if (step === 4) { const p = Core.progress(block, state); text = t('s4Text', { p: p.planted, s: p.skipped, l: p.todo }) }
     ui.text.textContent = text
@@ -798,7 +815,7 @@
     // the target (arrow, distance, word)
     updateTarget()
     // Details (expanded panel)
-    ui.paces.textContent = t('detPaces', { p: Core.paces(off[0]), q: Core.paces(off[1]), s: num(sp), sp: Core.paces(sp), n: block.per_row })
+    ui.paces.textContent = spaced ? t('detPacesSp', { s: num(sp), sp: Core.paces(sp) }) : t('detPaces', { p: Core.paces(off[0]), q: Core.paces(off[1]), s: num(sp), sp: Core.paces(sp), n: block.per_row })
     const tg = curTarget(block)
     ui.coords.textContent = tg ? t('targetCoords', { lat: fmt(tg.lat), lon: fmt(tg.lon) }) : ''
     ui.hdgLine.textContent = hs ? t(hs.source === 'compass' ? 'headingCompass' : 'headingGps') : t('headingNone')
@@ -923,8 +940,9 @@
     ui.btnStop = h('button', { type: 'button', class: 'btn link', hidden: true, onclick: () => setNoGps() }, t('gpsStop'))
     ui.details = h('div', { class: 'inner', hidden: true }, ui.stepnav, ui.paces, ui.coords, h('p', { class: 'note' }, t('approxMap')), ui.hdgLine, ui.hdgNote, ui.hint, ui.btnCompass, ui.compassMsg, ui.fileNote,
       h('p', { class: 'note' }, t('mapLegend')), h('p', { class: 'note' }, t('mapHonest')), h('p', { class: 'note' }, t('s4Blocked')), h('p', { class: 'note' }, t('banner')),
-      h('h3', null, t('layoutTitle')), h('p', { class: 'note', style: 'font-weight:700' }, `${block.ref} · ${block.name}`), h('p', { class: 'note' }, t('blockLine', { n: block.n, sp: num(block.spacing_m), rows: block.rows, per: block.per_row })),
-      h('p', { class: 'note' }, t('orderLine')), h('p', { class: 'note' }, t('startLine', { lat: fmt(block.start[0]), lon: fmt(block.start[1]) })), block.note ? h('p', { class: 'note' }, block.note) : null, ui.btnStop)
+      h('h3', null, t('layoutTitle')), h('p', { class: 'note', style: 'font-weight:700' }, `${block.ref} · ${block.name}`), h('p', { class: 'note' }, block.layout === 'spaced' ? t('blockLineSp', { n: block.n, sp: num(block.spacing_m) }) : t('blockLine', { n: block.n, sp: num(block.spacing_m), rows: block.rows, per: block.per_row })),
+      block.layout === 'spaced' && block.fits === false ? h('p', { class: 'warn', role: 'status' }, t('fitShort', { p: block.n, n: block.requested })) : null,
+      h('p', { class: 'note' }, block.layout === 'spaced' ? t('orderLineSp') : t('orderLine')), h('p', { class: 'note' }, t('startLine', { lat: fmt(block.start[0]), lon: fmt(block.start[1]) })), block.note ? h('p', { class: 'note' }, block.note) : null, ui.btnStop)
     ui.body = h('div', { class: 'sheetbody' }, ui.gpsbar, ui.gpsPanel, ui.text, ui.target, ui.status, ui.errRow, ui.chips, ui.blockDone, ui.reasons, ui.details)
     ui.sheet = h('section', { class: 'sheet', 'data-tour': 'sheet', 'aria-label': t('sheetLabel') }, ui.grab, ui.body, ui.btnrow)
     // the round buttons on the map
@@ -1245,6 +1263,7 @@
     return h('div', null,
       h('div', { class: 'toolrow' }, toolbox()),
       h('h1', { 'data-tour': 'l-title' }, t('title')),
+      h('p', { class: 'note', 'data-role': 'who' }, t('landWho')),
       langSwitch(),
       h('h2', null, t('howTitle')),
       h('ol', { class: 'steps', 'data-tour': 'l-how' }, [1, 2, 3, 4].map((i) => h('li', null, t('how' + i)))),
@@ -1409,7 +1428,7 @@
       h('div', { class: 'blocks', 'data-tour': 'h-blocks' }, pack.blocks.map((b) => {
         const p = Core.progress(b, state)
         return h('button', { type: 'button', class: 'bcard', onclick: () => { view.screen = 'block'; view.ref = b.ref; view.tree = null; view.skipOpen = false; view.step = stepOf(b); render() } },
-          h('strong', null, b.ref), h('span', null, b.name), h('small', null, t('blockCard', { n: b.n, done: p.planted + p.skipped })),
+          h('strong', null, b.ref), h('span', null, b.name), h('small', null, t('blockCard', { n: b.n, done: p.planted + p.skipped }) + (b.layout === 'spaced' && b.fits === false ? ' · ' + t('fitShort', { p: b.n, n: b.requested }) : '')),
           h('div', { class: 'bar', role: 'img', 'aria-label': t('blockCard', { n: b.n, done: p.planted + p.skipped }) }, h('span', { class: 'p', style: `width:${(100 * p.planted) / p.n}%` }), h('span', { class: 's', style: `width:${(100 * p.skipped) / p.n}%` })))
       })),
       phSection(),

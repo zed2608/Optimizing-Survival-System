@@ -212,7 +212,7 @@ input[type=text]:focus { border-color: var(--c-focus); }
 
 /* the prototype notice */
 #banner { background: var(--c-warn-bg); color: var(--c-warn); border-bottom: 1px solid var(--c-warn); font-weight: 600; font-size: max(12px, calc(.8125rem * var(--cap))); }
-#bannerclose { width: 44px; height: 44px; margin: 0; border: 0; background: transparent; color: var(--c-warn); border-radius: var(--r-sm); font-size: 18px; }
+#bannerclose { width: 48px; height: 44px; margin: 0; border: 0; background: transparent; color: var(--c-warn); border-radius: var(--r-sm); font-size: 18px; }
 #bannerclose::after { inset: 0; }
 .pill { background: var(--c-warn-bg); color: var(--c-warn); border: 1px solid var(--c-warn); font-weight: 700; font-size: max(12px, .8125rem); }
 #banner.is-chip { background: transparent; border-bottom: 0; }
@@ -229,7 +229,7 @@ input[type=text]:focus { border-color: var(--c-focus); }
 
 /* landing: a calm page, the one big button stays at the bottom */
 .lang { background: var(--c-surface-2); border-radius: var(--r-md); padding: 4px; gap: 4px; }
-.langbtn { border-color: transparent; background: transparent; min-height: 44px; }
+.langbtn { border-color: transparent; background: transparent; min-height: 48px; }
 .langbtn[aria-pressed="true"] { background: var(--c-primary); color: var(--c-on-primary); }
 .steps { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg); padding: .9rem 1rem .9rem 2.6rem; box-shadow: var(--sh-1); }
 .honest { border: 1px solid var(--c-warn); background: var(--c-warn-bg); color: var(--c-warn); border-radius: var(--r-md); font-weight: 600; }

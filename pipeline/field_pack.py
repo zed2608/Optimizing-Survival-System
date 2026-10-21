@@ -61,6 +61,11 @@ def read_kit(path):
         if need not in files:
             raise PackError(f"{need} is missing from the kit: only a kit of a plan in blocks (with blocks.csv) can be packed")
     manifest = json.loads(files["manifest.json"].decode("utf-8"))
+    manifest["_extra"] = {n: files[n].decode("utf-8-sig") for n in ("trees.csv", "area.geojson") if n in files}       # spaced kits: every tree and the area (not part of the file; added when the kit is read)
+    listed_extra = {f["name"]: f["sha256"] for f in manifest.get("files", [])}
+    for n, text in manifest["_extra"].items():
+        if listed_extra.get(n) and listed_extra[n] != hashlib.sha256(files[n]).hexdigest():
+            raise PackError(f"{n} does not match manifest.json (the file was changed after the kit was built): ask for a new kit")
     listed = {f["name"]: f["sha256"] for f in manifest.get("files", [])}
     got = hashlib.sha256(files["blocks.csv"]).hexdigest()
     if listed.get("blocks.csv") and listed["blocks.csv"] != got:
@@ -92,6 +97,55 @@ def tree_positions(spacing_m, per_row, rows, n, utm_e, utm_n):
     g["area_ll"] = [rnd(ll(*g["corners"][k])) for k in ("SW", "SE", "NE", "NW")]                                         # the planted rectangle
     g["first_offset"] = [round(g["first_tree"][0] - g["corners"]["SW"][0], 3), round(g["first_tree"][1] - g["corners"]["SW"][1], 3)]   # tree 1 is this far east and north of the START corner
     return out, (round(sw[0], 7), round(sw[1], 7)), g
+
+
+def spaced_block(r, tree_rows, feature):
+    """A block of a SPACED kit: the trees come from trees.csv (in walking order), the ground from area.geojson. Same keys as a rows block, plus layout, areas, region_m, requested, fits, fit_note."""
+    from pyproj import Transformer
+    crs = fk.CFG["site_crs"]
+    to_ll = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    to_utm = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
+    e0, n0 = float(r["utm_e"]) - 50.0, float(r["utm_n"]) - 50.0
+    ll = lambda x, y: tuple(reversed(to_ll.transform(e0 + x, n0 + y)))
+    trees = [[int(t["tree"]), round(float(t["lat"]), 7), round(float(t["lon"]), 7), round(float(t["x_m"]), 3), round(float(t["y_m"]), 3)] for t in sorted(tree_rows, key=lambda t: int(t["tree"]))]
+    if [t[0] for t in trees] != list(range(1, len(trees) + 1)):
+        raise PackError(f"{r['block_ref']}: the trees of trees.csv are not numbered 1 to {len(trees)}")
+    if len(trees) != int(float(r.get("trees_fit") or 0)):
+        raise PackError(f"{r['block_ref']}: trees.csv holds {len(trees)} trees but blocks.csv says {r.get('trees_fit')} fit")
+    if trees and max(abs(trees[0][1] - float(r["first_tree_lat"])), abs(trees[0][2] - float(r["first_tree_lon"]))) > COORD_TOLERANCE_DEG * 5:
+        raise PackError(f"{r['block_ref']}: tree 1 of trees.csv differs from the first_tree columns of blocks.csv: the kit was made with another layout")
+    start = [float(r["start_lat"]), float(r["start_lon"])]
+    sx, sy = float(r["start_utm_e"]) - e0, float(r["start_utm_n"]) - n0
+    rnd = lambda pt: [round(pt[0], 7), round(pt[1], 7)]
+    side = 100.0
+    rings, region_m = [], []
+    if feature:
+        for poly in feature["geometry"]["coordinates"]:
+            ring = poly[0]
+            rings.append([[round(la, 7), round(lo, 7)] for lo, la in ring])
+            region_m.append([[round(a - e0, 2), round(b - n0, 2)] for a, b in (to_utm.transform(lo, la) for lo, la in ring)])
+    first_offset = [round(trees[0][3] - sx, 3), round(trees[0][4] - sy, 3)] if trees else [0.0, 0.0]
+    g = {"side_m": side, "square_ll": [rnd(ll(*c)) for c in ((0.0, 0.0), (side, 0.0), (side, side), (0.0, side))], "area_ll": rings[0] if rings else [],
+         "first_offset": first_offset}
+    block = {"layout": "spaced", "requested": int(float(r["trees_planned"])), "fits": len(trees) >= int(float(r["trees_planned"])), "fit_note": r.get("fit_note", ""),
+             "areas": rings, "region_m": region_m, "start_m": [round(sx, 3), round(sy, 3)]}
+    return trees, tuple(start), g, block
+
+
+def pack_area(area_text):
+    """The area the user selected and the plantable ground for the map (simplified to about 1 m; lat/lon rings), or None."""
+    if not area_text:
+        return None
+    from shapely.geometry import shape
+    doc = json.loads(area_text)
+    out = {}
+    for f in doc.get("features", []):
+        k = f["properties"].get("kind")
+        if k in ("selected", "plantable"):
+            g = shape(f["geometry"]).simplify(0.00001, preserve_topology=True)
+            polys = [g] if g.geom_type == "Polygon" else list(g.geoms)
+            out[k] = [[[round(la, 6), round(lo, 6)] for lo, la in p.exterior.coords] for p in polys]
+    return out or None
 
 
 PH_KEYS = ("status", "verdict_kind", "verdict_min", "verdict_max", "tol_min", "tol_max", "opt_min", "opt_max", "listed_min", "listed_max", "source_name", "source_rank", "conflict", "scope")
@@ -159,9 +213,28 @@ def build_pack(blocks_text, manifest, satellite=False):
     plan_id, check_code = plan_ids.pop(), codes.pop()
     if manifest.get("plan_id") not in (None, plan_id) or manifest.get("check_code") not in (None, check_code):
         raise PackError("manifest.json and blocks.csv name different plans or check codes")
-    blocks = []
+    blocks, skipped = [], []
+    extra = manifest.get("_extra") or {}
+    spaced = "layout" in columns and any(r.get("layout") == "spaced" for r in rows)
+    if spaced and "trees.csv" not in extra:
+        raise PackError("the kit is made of spaced points but trees.csv is missing from it")
+    tree_rows = {}
+    for t in csv.DictReader(io.StringIO(extra.get("trees.csv", ""))):
+        tree_rows.setdefault(t["point_ref"], []).append(t)
+    features = {f["properties"].get("ref"): f for f in json.loads(extra["area.geojson"]).get("features", []) if f["properties"].get("kind") == "block"} if "area.geojson" in extra else {}
     for r in rows:
         n = int(float(r["trees_planned"]))
+        if r.get("layout") == "spaced":
+            trees, start, g, sp_ = spaced_block(r, tree_rows.get(r["block_ref"], []), features.get(r["block_ref"]))
+            if not trees:                                                # no plantable ground in this block (the selected area leaves nothing): nothing to plant, so it is not in the pack
+                skipped.append(r["block_ref"])
+                continue
+            blocks.append({"ref": r["block_ref"], "point_id": int(r["point_id"]), "species_code": r["species_code"], "name": r["common_name"], "n": len(trees),
+                           "spacing_m": float(r["min_distance_m"] or r["spacing_m"] or 0), "rows": 0, "per_row": 0, "row_direction": "spaced points", "start_corner": "",
+                           "barangay": r.get("barangay", ""), "zone": r.get("zone", ""), "flags": r.get("flags", ""), "note": r.get("notes", ""),
+                           "centre": [float(r["lat"]), float(r["lon"])], "start": list(start), "side_m": 100.0, "margin_m": float(r.get("margin_m") or 0),
+                           "square": g["square_ll"], "area": g["area_ll"], "first_offset_m": g["first_offset"], "trees": trees, "row": {c: r.get(c, "") for c in columns}, **sp_})
+            continue
         trees, sw, g = tree_positions(r["spacing_m"], r["trees_per_row"], r["rows"], n, r["utm_e"], r["utm_n"])
         first, start = trees[0], sw
         for what, got, want in (("first tree", (first[1], first[2]), (float(r["first_tree_lat"]), float(r["first_tree_lon"]))), ("START", start, (float(r["start_lat"]), float(r["start_lon"])))):
@@ -172,10 +245,12 @@ def build_pack(blocks_text, manifest, satellite=False):
                        "start_corner": r.get("start_corner", ""), "barangay": r.get("barangay", ""), "zone": r.get("zone", ""), "flags": r.get("flags", ""), "note": r.get("notes", ""),
                        "centre": [float(r["lat"]), float(r["lon"])], "start": list(start), "side_m": float(r["rect_side_m"]), "margin_m": float(r["margin_m"]),
                        "square": g["square_ll"], "area": g["area_ll"], "first_offset_m": g["first_offset"], "trees": trees, "row": {c: r.get(c, "") for c in columns}})
+    if not blocks:
+        raise PackError("no block of this kit has ground where trees fit at the required spacing: enlarge the area or reduce the trees, then make a new kit")
     ds = manifest.get("dataset") or {}
     pack_ph = ph_reference_list(blocks)
     pack = {"format": PACK_FORMAT, "plan_id": plan_id, "check_code": check_code, "built_on": manifest.get("built_on", ""), "dataset": {"tag": ds.get("tag", ""), "hash": ds.get("hash", "")},
-            "ph": pack_ph, "checklist": checklist_for_pack(blocks), "columns": columns, "basemaps": [BASEMAPS["osm"]] + ([BASEMAPS["sat"]] if satellite else []), "blocks": blocks}
+            "ph": pack_ph, "checklist": checklist_for_pack(blocks), "columns": columns, **({"area": pack_area(extra.get("area.geojson")), "skipped_blocks": skipped} if spaced else {}), "basemaps": [BASEMAPS["osm"]] + ([BASEMAPS["sat"]] if satellite else []), "blocks": blocks}
     pack["pack_id"] = hashlib.sha256(json.dumps(pack, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:8]
     return pack
 

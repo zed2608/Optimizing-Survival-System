@@ -91,7 +91,7 @@ def test_the_page_has_the_section_no_network_call_and_stays_one_small_file():
     app = (ROOT / "fieldpack" / "app.js").read_text(encoding="utf-8")
     section = app.split("function checklistSection()")[1].split("function homeScreen()")[0]
     assert not re.search(r"\bfetch\(|XMLHttpRequest|sendBeacon|localStorage|save\(\)|store\.", section)       # no network, nothing saved
-    assert len(page.encode("utf-8")) < 350_000
+    assert len(page.encode("utf-8")) < 520_000          # design v2: the two Canopy fonts travel inside the page (about 125 KB)
 
 
 def test_the_docker_image_has_the_checklist_file():

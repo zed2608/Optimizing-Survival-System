@@ -269,3 +269,8 @@ The pH evidence builder now reads the EcoCrop line from the note column too and 
 - The state "No confirmed range" (16 species before) no longer appears; every species has a range. Verdict kind is "listed" (one range, not tolerated / best).
 - Verdict counts over 45 species x 8,088 squares: before inside 42,718 / uncertain 172,984 / no confirmed range 129,408 / no estimate 18,850; after inside 704 / uncertain 334,006 / no estimate 29,250 (650 squares have no SoilGrids value). "Outside" never occurs: the model interval (Q0.05-Q0.95) is wider than most species ranges. Display only.
 - Dockerfile: one COPY line added for the dataset file.
+
+## Design v2, Task C (Field Pack: selected area, spaced points, Canopy restyle)
+- CLAUDE.md "Field kit accuracy and layout (round 13)": the default layout of a blocks kit is now SPACED points inside the selected area (`pipeline/point_layout.py`, `pipeline/kit_spaced.py`, `OS_POINT_LAYOUT=rows` gives the old rows). New kit files `trees.csv`, `area.geojson`; blocks.csv has 4 trailing columns (`layout`, `min_distance_m`, `trees_fit`, `fit_note`); plan items gain `layout`, `points_m`, `region_m`, `start_m`, `trees_fit`, `min_distance_m`, `fits`, `fit_note`. The distance formula and every number are in `LAYOUT_CFG` (PROVISIONAL, verify with the adviser / LGU).
+- Field Pack: tokens are a generated copy of the dashboard's (`scripts/sync_fieldpack_tokens.py` -> `fieldpack/tokens.css`, fonts in `fieldpack/vendor/fonts/`); the page is about 130 KB larger because of the fonts.
+- docs/PLANTING_BLOCKS.md, docs/USER_GUIDE.md and the Field Pack help text describe rows: they need a spaced-points update (the Help text in `fieldpack/strings.js` already has the spaced lines; the old row lines stay for kits made as rows).
