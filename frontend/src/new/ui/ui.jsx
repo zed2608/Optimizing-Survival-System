@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Icon from '../Icon.jsx'
 
 // The shared components of the Canopy design system (UX revamp, Phase 2). Plain, small, no dependency. Every interactive one has a 44 px target and a visible focus ring (canopy.css).
@@ -20,16 +20,27 @@ export function Chip({ tone = 'neutral', icon = null, children, className = '' }
   )
 }
 
-// items = [{id, label}], value = id. Arrow keys move, Home / End jump (the WAI-ARIA tabs pattern).
-export function Tabs({ items, value, onChange, label }) {
+// items = [{id, label, icon?}], value = id. Arrow keys move, Home / End jump (the WAI-ARIA tabs pattern). The highlight is one element that slides under the active tab (CSS transition).
+export function Tabs({ items, value, onChange, label, className = '' }) {
   const refs = useRef({})
+  const [hl, setHl] = useState({ left: 0, width: 0 })
+  const measure = () => {
+    const el = refs.current[value]
+    if (el) setHl({ left: el.offsetLeft, width: el.offsetWidth })
+  }
+  useLayoutEffect(measure, [value, items.length])
+  useEffect(() => {
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  })
   const move = (i) => {
     const n = items[(i + items.length) % items.length]
     onChange(n.id)
     refs.current[n.id]?.focus()
   }
   return (
-    <div className="cy-tabs" role="tablist" aria-label={label}>
+    <div className={`cy-tabs-slide ${className}`} role="tablist" aria-label={label}>
+      <span className="cy-tab-hl" style={{ left: hl.left, width: hl.width }} aria-hidden="true" />
       {items.map((it, i) => (
         <button
           key={it.id}
@@ -47,10 +58,41 @@ export function Tabs({ items, value, onChange, label }) {
             else if (e.key === 'End') { e.preventDefault(); move(items.length - 1) }
           }}
         >
-          {it.label}
+          {it.icon}
+          <span className="cy-tab-label">{it.label}</span>
         </button>
       ))}
     </div>
+  )
+}
+
+export function IconButton({ label, className = '', type = 'button', children, ...rest }) {
+  return (
+    <button type={type} className={`cy-iconbtn ${className}`} aria-label={label} title={label} {...rest}>
+      {children}
+    </button>
+  )
+}
+
+// A small label in tiny letter-spaced capitals; items are separated by dots.
+export function Eyebrow({ items }) {
+  return (
+    <span className="cy-eyebrow">
+      {items.flatMap((x, i) => (i === 0 ? [<span key={x}>{x}</span>] : [<i key={`d${i}`} aria-hidden="true" />, <span key={x}>{x}</span>]))}
+    </span>
+  )
+}
+
+export function Badge({ children }) {
+  return <span className="cy-badge">{children}</span>
+}
+
+// A panel on the edge of the screen. side 'right' (a bottom sheet on a phone).
+export function Drawer({ label, children, className = '' }) {
+  return (
+    <aside className={`cy-drawer is-right ${className}`} aria-label={label}>
+      {children}
+    </aside>
   )
 }
 
