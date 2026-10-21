@@ -13,6 +13,8 @@ os.environ.setdefault("OS_FIELD_DB", str(Path(_TMP) / "field_checks.db"))
 # Round 19c: the default source of the site match S is the Random Forest ("rf"). The older suites pin numbers made with the expert rules (for example 257,869 eligible pairs),
 # so they run with "rules" (OS_S_SOURCE); tests/test_rf_source.py names the source in every test and checks the real default.
 os.environ.setdefault("OS_S_SOURCE", "rules")
+# Design v2 (Task C): the real default of the field kit is the spaced layout (pipeline/point_layout.py); the older kit suites pin the row layout of before, tests/test_kit_spaced.py names it.
+os.environ.setdefault("OS_POINT_LAYOUT", "rows")
 ROOT = Path(__file__).resolve().parents[1]
 for p in (str(ROOT), str(ROOT / "pipeline")):
     if p not in sys.path:

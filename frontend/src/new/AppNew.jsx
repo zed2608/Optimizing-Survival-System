@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Callout from './ui/Callout.jsx'
 import '../v2/v2.css'
 import './new.css'
 import './canopy.css'
@@ -43,14 +44,17 @@ import PlanStep from './PlanStep.jsx'
 import { countText, countsSummary } from './counts.js'
 import FieldLegend from './FieldLegend.jsx'
 import ZoningLegend from './ZoningLegend.jsx'
-import GuidedTour from './tutorial/GuidedTour.jsx'
+import ToursMenu from './tours/ToursMenu.jsx'
+import useTourBridge from './tours/useTourBridge.js'
+import { getTour, PAGE_TOUR } from './tours/tourDefs.js'
+import { startTour } from './tours/tourController.js'
+import { EXAMPLE_POINT, EXAMPLE_VERTICES } from './tours/tourExample.js'
 import HelpPage from './tutorial/HelpPage.jsx'
 import ScoreSourceNotice from './ScoreSourceNotice.jsx'
 import PublicNotice from './PublicNotice.jsx'
 import { isSandbox, SANDBOX_NOTICE_HEIGHT, FALLBACK_NOTICE_HEIGHT } from './publicMode.js'
 import { isFallback } from './scoreSource.js'
 import { HelpContext } from './tutorial/helpContext.js'
-import { TOUR_STEPS } from './tutorial/tutorialContent.js'
 import { useHelpState } from './help.js'
 import { matchText } from './plainWords.js'
 import { apiPost } from './apiPost.js'
@@ -65,7 +69,7 @@ import ModeSwitch from './ModeSwitch.jsx'
 import PurposePicker from './PurposePicker.jsx'
 import RightPanel from './RightPanel.jsx'
 import SearchBar from './SearchBar.jsx'
-import { FEW_SPECIES, formatDay, formatRange, monthsText, seasonQuery, windowMonths } from './season.js'
+import { formatDay, formatRange, monthsText, seasonQuery, windowMonths } from './season.js'
 import SeasonNotice from './SeasonNotice.jsx'
 import SidebarStep from './SidebarStep.jsx'
 import SpeciesChooser from './SpeciesChooser.jsx'
@@ -163,12 +167,14 @@ export default function AppNew() {
   const [ownSpecies, setOwnSpecies] = useState(false) // goal "I have an area": the user chose their own species and counts
   const [focusIds, setFocusIds] = useState(() => new Set()) // planned squares to circle on the map ("Show these on the map")
   const help = useHelpState()
+  const [toursOpen, setToursOpen] = useState(false)
+  const [hasPlan, setHasPlan] = useState(false)
   const [planResult, setPlanResult] = useState(null) // the last plan created (it is also saved on the server)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [showPlan, setShowPlan] = useState(true) // the "Planned trees" layer
   const win = usePlantingWindow()
-  const [onlySeason, setOnlySeason] = useOnlySeason()
+  const [onlySeason] = useOnlySeason() // always false: the dates label species, they never remove one (W1)
   const [tab, setTab] = useState('studio')
   const [fieldVersion, setFieldVersion] = useState(0) // bumped after every saved field check: reloads what depends on them (and skips the browser cache)
   const [showField, setShowField] = useState(true)
@@ -273,11 +279,14 @@ export default function AppNew() {
     pointBarangay = b >= 0 && grid.data ? grid.data.barangays_display[b] : locate(shownRank.data.point.lat, shownRank.data.point.lon)
   }
   const sInfo = species.status === 'ok' ? species.data.season : null
-  const kept = sInfo ? (onlySeason ? sInfo.species_total - sInfo.out_of_season : sInfo.species_total) : null
-  const fewSpecies = onlySeason && kept !== null && kept <= FEW_SPECIES
+  const kept = sInfo ? sInfo.species_total : null
+  const fewSpecies = !!sInfo && sInfo.in_season + sInfo.partly === 0 // no species is in its best months for these dates: say so, the species stay listed (W1)
   const selectedRemoved = selection ? (grid.data?.season?.selected_removed_ids ?? []) : []
   const allRemoved = selection && selectedRemoved.length === selIds.length
-  const showAllSpecies = () => setOnlySeason(false)
+  const showAllSpecies = () => {
+    setSidebarOpen(true)
+    setOpenStep('pick')
+  }
   const changeDates = () => {
     setSidebarOpen(true)
     setOpenStep('window')
@@ -744,6 +753,83 @@ export default function AppNew() {
       document.removeEventListener('keydown', onKey)
     }
   }, [tab])
+  // ---- the tour engine's handle on this page (R1 W3): navigation and selection only, never a write
+  const runTour = (id, section) => {
+    const t = getTour(id)
+    if (!t) return
+    setToursOpen(false)
+    help.closeHelp()
+    startTour(t, { section })
+  }
+  const startPageTour = () => runTour(PAGE_TOUR[tab] ?? 'global')
+  // first visit: once the landing is closed, the short tour of the header and the global controls starts by itself, with "Don't show again" (it is remembered in the browser when the tour ends or is skipped)
+  useEffect(() => {
+    if (landing || !firstVisit) return undefined
+    let seen = null
+    try {
+      seen = window.localStorage.getItem('nw_tour_done')
+    } catch {
+      /* storage refused: the tour is simply offered again next time */
+    }
+    if (seen === '1') return undefined
+    const id = setTimeout(() => {
+      const t = getTour('global')
+      if (t) startTour(t, { auto: true })
+    }, 900)
+    return () => clearTimeout(id)
+  }, [landing, firstVisit])
+  useTourBridge({
+    page: help.helpPage ? 'help' : tab,
+    snapshot: () => ({ planResult, tab, openStep, mode, purpose, selIds, combine, speciesSub, speciesHow, mainSpecies, where, tool, area, draft, markArea, spot, sidebarOpen, view, panelTab, hidden, cardId, legendOpen, detailed, start: win.raw.start, end: win.raw.end, helpPage: help.helpPage }),
+    restore: (s) => {
+      setPlanResult(s.planResult); setTab(s.tab); setOpenStep(s.openStep); setMode(s.mode); setPurpose(s.purpose); setSelIds(s.selIds); setCombine(s.combine); setSpeciesSub(s.speciesSub); setSpeciesHow(s.speciesHow)
+      setMainSpecies(s.mainSpecies); setWhere(s.where); setTool(s.tool); setArea(s.area); setDraft(s.draft); setMarkArea(s.markArea); setSpot(s.spot); setSidebarOpen(s.sidebarOpen)
+      setView(s.view); setPanelTab(s.panelTab); setHidden(s.hidden); setCardId(s.cardId); setLegendOpen(s.legendOpen); setDetailed(s.detailed); setFieldMenu(null)
+      win.setRange(s.start, s.end)
+      if (s.helpPage) help.openHelp(s.helpPage.faq)
+      else help.closeHelp()
+    },
+    setPage: (p) => {
+      if (p === 'help') help.openHelp()
+      else {
+        help.closeHelp()
+        setTab(p)
+      }
+    },
+    setSidebar: (v) => setSidebarOpen(v),
+    setStep: (id) => setOpenStep(id),
+    setMode: (m) => (m === mode ? undefined : changeMode(m)),
+    setSpeciesSub: (n) => setSpeciesSub(n),
+    setHow: (h) => setSpeciesHow(h),
+    setTool: (t) => changeTool(t),
+    setExampleArea: () => chooseArea({ kind: 'polygon', geometry: polygonFromVertices(EXAMPLE_VERTICES) }),
+    openExamplePoint: () => {
+      setSpot({ lat: EXAMPLE_POINT.lat, lon: EXAMPLE_POINT.lon, pointId: EXAMPLE_POINT.id })
+      setPanelTab('point')
+      setHidden(false)
+    },
+    closePoint: () => setSpot(null),
+    setView: (v) => setView(v),
+    openExampleMenu: () => setFieldMenu({ x: null, y: null, pick: { lat: EXAMPLE_POINT.lat, lon: EXAMPLE_POINT.lon, index: -1, plan: -1, context: -1 }, pointId: EXAMPLE_POINT.id, square: { lat: EXAMPLE_POINT.lat, lon: EXAMPLE_POINT.lon, pointId: EXAMPLE_POINT.id }, click: { lat: EXAMPLE_POINT.lat, lon: EXAMPLE_POINT.lon } }),
+    closeMenu: () => setFieldMenu(null),
+    openSpeciesCard: (id) => setCardId(id),
+    closeSpeciesCard: () => setCardId(null),
+    setLegend: (v) => setLegendOpen(v),
+    openLatestPlan: async () => {
+      const r = await apiGet('/plans?limit=1')
+      const id = (r.plans ?? r)?.[0]?.plan_id
+      if (id) await openSavedPlan(id)
+    },
+  })
+  useEffect(() => {
+    if (!toursOpen) return undefined
+    let live = true
+    apiGet('/plans?limit=1').then((r) => live && setHasPlan(((r.plans ?? r) ?? []).length > 0), () => live && setHasPlan(false))
+    return () => {
+      live = false
+    }
+  }, [toursOpen])
+
   return (
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
     <PublicNotice health={healthData} />
@@ -798,7 +884,7 @@ export default function AppNew() {
 
       {/* legend of the colours (on the map) */}
       {legendOpen ? (
-        <div className="nw-legend v2 v2-embedded" role="group" aria-label="Map legend">
+        <div className="nw-legend v2 v2-embedded" role="group" aria-label="Map legend" data-tour="m-legend">
           <div className="nw-legend-head">
             <strong>{view === 'full' ? 'Overall score W' : 'Overall match'} · {purposeLabel(purpose)}</strong>
             <AskHelp id="colours" />
@@ -809,16 +895,16 @@ export default function AppNew() {
           <div className="nw-legend-sub">{legendSub}</div>
           <ColorLegend />
           {(mode === 'area' ? area : markArea)?.kind === 'polygon' && diag.status === 'ok' && diag.data.squares && (
-            <div className="nw-legend-area" data-role="legend-area-squares">
+            <div className="nw-legend-area" data-role="legend-area-squares" data-tour="m-legend-area">
               <span className="nw-legend-sq is-counted" aria-hidden="true" /> {tr('sq.counted', {}, lang)}
               <br />
               <span className="nw-legend-sq is-partial" aria-hidden="true" /> {tr('sq.partial', {}, lang)}
             </div>
           )}
           {noneSuitable && (
-            <div className="nw-legend-warn" role="status">
+            <Callout tone="warning" className="nw-legend-warn">
               {allRemoved ? 'No chosen species can be planted in your dates.' : `No point is suitable for this selection${combine === 'all' && selIds.length > 1 ? ': try “Suits at least one”' : ''}.`}
-            </div>
+            </Callout>
           )}
           {fieldForMap && (
             <FieldLegend />
@@ -838,16 +924,16 @@ export default function AppNew() {
           <div className="nw-legend-note">{tr('sq.note', {}, lang)}</div>
         </div>
       ) : (
-        <button type="button" className="nw-legend-btn" aria-expanded="false" onClick={() => setLegendOpen(true)}>
+        <button type="button" className="nw-legend-btn" aria-expanded="false" onClick={() => setLegendOpen(true)} data-tour="m-legend-btn">
           <Icon name="legend" /> Legend
         </button>
       )}
-      <button type="button" className={`nw-locate ${locating ? 'is-busy' : ''}`} onClick={locateMe} data-role="locate" aria-busy={locating} aria-label={locating ? tr('geo.finding', {}, lang) : tr('map.locate', {}, lang)} title={tr('map.locate', {}, lang)}>
+      <button type="button" className={`nw-locate ${locating ? 'is-busy' : ''}`} onClick={locateMe} data-role="locate" data-tour="m-locate" aria-busy={locating} aria-label={locating ? tr('geo.finding', {}, lang) : tr('map.locate', {}, lang)} title={tr('map.locate', {}, lang)}>
         <Icon name="target" size={18} />
         {locating && <span className="nw-locate-text">{tr('geo.finding', {}, lang)}</span>}
       </button>
       {(locFailed || pickingMe) && (
-        <button type="button" className={`nw-locate-set ${pickingMe ? 'is-on' : ''}`} onClick={() => setPickingMe((v) => !v)} data-role="locate-set" aria-pressed={pickingMe}>
+        <button type="button" className={`nw-locate-set ${pickingMe ? 'is-on' : ''}`} onClick={() => setPickingMe((v) => !v)} data-role="locate-set" data-tour="m-locate-set" aria-pressed={pickingMe}>
           <Icon name="pin" size={16} /> {pickingMe ? tr('geo.setHint', {}, lang) : tr('geo.setOnMap', {}, lang)}
         </button>
       )}
@@ -861,7 +947,7 @@ export default function AppNew() {
       {/* TOP GLASS NAVIGATION BAR (look copied from the earlier dashboard) */}
       <header className="nw-topbar">
         <div className="nw-brandrow">
-          <div className="nw-brand">
+          <div className="nw-brand" data-tour="h-brand">
             <Icon name="tree" size={18} /> LGU SAN MATEO
           </div>
           <div title="Urban Tree Planting Decision Support System. Municipal Environment and Natural Resources Office (MENRO)">
@@ -869,10 +955,10 @@ export default function AppNew() {
             <div className="nw-subtitle">MENRO · San Mateo, Rizal</div>
           </div>
         </div>
-        <Tabs className="nw-tabs-v2" label="Views" value={tab} onChange={setTab} items={TABS.map((x) => ({ id: x.id, label: x.label, icon: <Icon name={x.icon} size={18} /> }))} />
+        <Tabs tourId="h-tabs" className="nw-tabs-v2" label="Views" value={tab} onChange={setTab} items={TABS.map((x) => ({ id: x.id, label: x.label, icon: <Icon name={x.icon} size={18} /> }))} />
         <div className="nw-topright">
-          <SettingsMenu onAbout={() => setLanding(true)} onHelp={() => help.openHelp()} onTour={() => { setSidebarOpen(true); help.startTour('full') }} />
-          <div className="nw-pill" role="status">
+          <SettingsMenu onAbout={() => setLanding(true)} onHelp={() => help.openHelp()} onTour={() => setToursOpen(true)} />
+          <div className="nw-pill" role="status" data-tour="h-api">
             <span className={`nw-dot nw-dot-${apiState}`} aria-hidden="true" />
             <span>{apiState === 'ok' ? 'API connected' : apiState === 'wait' ? 'Connecting…' : 'API offline'}</span>
           </div>
@@ -892,7 +978,7 @@ export default function AppNew() {
           transition={{ duration: motionAllowed() ? 0.15 : 0, ease: 'easeOut' }}
         >
           <div className="nw-page-in">
-            <header className="nw-page-head">
+            <header className="nw-page-head" data-tour="p-head">
               <h1 ref={pageTitle} tabIndex={-1}>
                 {tr(`page.${tab === 'history' ? 'history' : tab === 'weather' ? 'weather' : 'analytics'}.t`, {}, lang)}
               </h1>
@@ -940,10 +1026,10 @@ export default function AppNew() {
           </button>
         </div>
       )}
-      <button type="button" className="nw-toggle" onClick={() => setSidebarOpen((o) => !o)} aria-expanded={sidebarOpen} aria-controls="nw-sidebar">
+      <button type="button" className="nw-toggle" data-tour="m-collapse" onClick={() => setSidebarOpen((o) => !o)} aria-expanded={sidebarOpen} aria-controls="nw-sidebar">
         <Icon name={sidebarOpen ? 'left' : 'right'} /> {sidebarOpen ? 'Hide Control Panel' : 'Open Control Panel'}
       </button>
-      <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls">
+      <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls" data-tour="s-panel">
         <HintsSwitch />
         <SidebarStep
           n={1}
@@ -988,7 +1074,7 @@ export default function AppNew() {
           onToggle={() => toggleStep('window')}
           help="The season decides which species can be planted. A month counts if any day of it is in your dates. Scores never change with the dates."
         >
-          <PlantingWindow win={win} onlySeason={onlySeason} onOnlySeason={setOnlySeason} species={species} />
+          <PlantingWindow win={win} species={species} />
           <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('pick')}>
             Continue
           </button>
@@ -1065,9 +1151,9 @@ export default function AppNew() {
                 blocked={cont.ok ? '' : cont.reason}
               />
               {notice && (
-                <p className="nw-hint nw-warn" role="status">
+                <Callout tone="warning">
                   {notice}
-                </p>
+                </Callout>
               )}
             </>
           )}
@@ -1243,24 +1329,14 @@ export default function AppNew() {
           usingRules={usingRules}
           screen={tab}
           onClose={help.closeHelp}
-          onTour={() => {
-            setSidebarOpen(true)
-            help.startTour('full')
-          }}
+          onTour={startPageTour}
           onQuickTour={() => {
-            setSidebarOpen(true)
-            help.startTour('screen')
+            help.closeHelp()
+            setToursOpen(true)
           }}
         />
       )}
-      {help.tour && (
-        <GuidedTour
-          steps={help.tour === 'screen' ? TOUR_STEPS.filter((st) => st.screen === tab) : TOUR_STEPS}
-          onClose={() => {
-            help.endTour()
-          }}
-        />
-      )}
+      {toursOpen && <ToursMenu page={tab} onStart={runTour} onClose={() => setToursOpen(false)} hasPlan={hasPlan} />}
       {cardId !== null && (
         <SpeciesCard
           speciesId={cardId}

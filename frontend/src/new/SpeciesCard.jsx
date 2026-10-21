@@ -1,4 +1,5 @@
 import { getLang, tr } from './i18n.js'
+import Callout from './ui/Callout.jsx'
 import { useEffect, useRef } from 'react'
 import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
@@ -65,9 +66,9 @@ function Fact({ label, rows = [], text, large = false, extra = null, note = '' }
   )
 }
 
-function Section({ title, big = false, children }) {
+function Section({ title, big = false, children, tourId }) {
   return (
-    <section className={`nw-card-sec ${big ? 'is-big' : ''}`} aria-label={title}>
+    <section className={`nw-card-sec ${big ? 'is-big' : ''}`} aria-label={title} data-tour={tourId}>
       <h3>{title}</h3>
       <dl className="nw-facts">{children}</dl>
     </section>
@@ -200,7 +201,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
   }
 
   return (
-    <aside className="nw-card v2 v2-embedded" role="dialog" aria-label={d ? `About ${d.common_name}` : 'Species information'}>
+    <aside className="nw-card v2 v2-embedded" data-tour="c-card" role="dialog" aria-label={d ? `About ${d.common_name}` : 'Species information'}>
       <div className="nw-card-head">
         <div>
           <h2>{d ? d.common_name : 'Species information'}</h2>
@@ -211,12 +212,12 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
         </button>
       </div>
       <div className="nw-card-body">
-        <p className="nw-card-note">Data comes from the sources linked below; values marked draft are not yet signed off by the agriculturist.</p>
+        <Callout tone="info">Data comes from the sources linked below; values marked draft are not yet signed off by the agriculturist.</Callout>
         {api.status === 'loading' && <Loading what="Loading the species information" />}
         {api.status === 'error' && <ErrorBox error={api.error} onRetry={api.retry} title="Could not load the species information" brief />}
         {d && (
           <>
-            <Section title="Header">
+            <Section title="Header" tourId="c-header">
               <Fact label="Common name" rows={[F.common_name]} />
               <Fact label="Scientific name" rows={[F.scientific_name]} />
               <Fact label="Category" rows={[F.category]} />
@@ -255,7 +256,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
               </div>
             </Section>
 
-            <Section title="Planting stage and timing" big>
+            <Section title="Planting stage and timing" big tourId="c-timing">
               <Fact label="Deployment stage" rows={[F.deployment_stage]} large />
               <Fact
                 label="Planting months"

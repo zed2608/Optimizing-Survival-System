@@ -8,7 +8,7 @@ export default function HintsSwitch() {
   const lang = useLang()
   const id = useId()
   return (
-    <label className="hint-switch" htmlFor={id} data-role="hints-switch">
+    <label className="hint-switch" htmlFor={id} data-role="hints-switch" data-tour="s-hints">
       <span>{tr('hints.label', {}, lang)}</span>
       <input id={id} type="checkbox" role="switch" checked={on} onChange={(e) => setHints(e.target.checked)} />
       <span className="hint-track" aria-hidden="true">

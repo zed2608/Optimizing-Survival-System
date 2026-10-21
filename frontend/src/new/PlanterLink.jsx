@@ -71,7 +71,7 @@ export default function PlanterLink({ planId }) {
   }
 
   return (
-    <div className="nw-plink" data-state={state}>
+    <div className="nw-plink" data-state={state} data-tour="r-planter">
       <h4>
         <T k="make" />
       </h4>

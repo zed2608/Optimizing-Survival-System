@@ -35,7 +35,7 @@ export function SeasonDetail({ season }) {
         {monthsText(season.window_months)}
         {season.months_in_window.length ? `; ${monthsText(season.months_in_window)} can be planted.` : '.'}
       </p>
-      <MonthStrip filled={season.species_months} ring={season.window_months} size="large" />
+      <MonthStrip filled={season.species_months} ring={season.window_months} size="large" tourId="r-months" />
       <p className="muted">{BEST_MONTHS_NOTE}</p>
     </div>
   )

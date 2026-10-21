@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import Callout from './ui/Callout.jsx'
 import Icon from './Icon.jsx'
 import { API_BASE } from '../v2/config.js'
 import { REASON_LABEL, STATUS_LABEL } from './fieldLabels.js'
@@ -37,7 +38,7 @@ export default function FieldSummary({ summary, observer, onObserver, onChanged 
   return (
     <div aria-label="Field checks">
       {summary.status === 'loading' && <p className="nw-hint">Loading…</p>}
-      {summary.status === 'error' && <p className="nw-hint nw-warn">Field checks are not available (the planning service is not reachable).</p>}
+      {summary.status === 'error' && <Callout tone="warning">Field checks are not available (the planning service is not reachable).</Callout>}
       {s && (
         <>
           <ul className="nw-counts">
@@ -92,9 +93,9 @@ export default function FieldSummary({ summary, observer, onObserver, onChanged 
       <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" tabIndex={-1} onChange={onFile} aria-label="Choose the filled point-list.csv of a field kit" />
       {busy && <p className="nw-hint" role="status">Importing…</p>}
       {problem && (
-        <p className="nw-hint nw-warn" role="alert">
+        <Callout tone="warning" role="alert">
           {problem}
-        </p>
+        </Callout>
       )}
       {report && (
         <div className="nw-report" role="status">

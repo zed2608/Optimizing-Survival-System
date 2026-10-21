@@ -1,3 +1,4 @@
+import { tr, useLang } from './i18n.js'
 import { useState } from 'react'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
@@ -12,6 +13,7 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
   const [query, setQuery] = useState('')
   const [tag, setTag] = useState('') // trait filter (species_purpose_tags: provisional; a filter only, it never changes a score)
   const [nurseryOnly, setNurseryOnly] = useState(false) // only species that are in the LGU nursery list
+  const lang = useLang()
   const [showFilters, setShowFilters] = useState(false) // UX round 2: the filters are behind one button "Salain"
   if (species.status === 'loading') return <div className="v2 v2-embedded"><Loading what="Loading the species list" /></div>
   if (species.status === 'error') return <div className="v2 v2-embedded"><ErrorBox error={species.error} onRetry={species.retry} title="Could not load the species list" brief /></div>
@@ -30,7 +32,7 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
       <label className="sr-only" htmlFor="nw-species-search">
         Search species
       </label>
-      <div className="nw-searchfield">
+      <div className="nw-searchfield" data-tour="s-species-search">
         <input id="nw-species-search" type="search" className="nw-input" placeholder="Search species" value={query} onChange={(e) => setQuery(e.target.value)} />
         <button
           type="button"
@@ -40,6 +42,7 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
           title={(tag ? 1 : 0) + (nurseryOnly ? 1 : 0) > 0 ? `Filter (${(tag ? 1 : 0) + (nurseryOnly ? 1 : 0)} active)` : 'Filter'}
           onClick={() => setShowFilters((v) => !v)}
           data-role="filter-toggle"
+          data-tour="s-trait-filter"
         >
           <Icon name="funnel" />
           {(tag ? 1 : 0) + (nurseryOnly ? 1 : 0) > 0 && (
@@ -52,10 +55,10 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
       {showFilters && (
       <div className="nw-pfilter">
         <label className="nw-label nw-pfilter-label" htmlFor="nw-purpose-filter">
-          Salain ayon sa katangian (Filter by trait) <ProvisionalTag />
+          {tr('sc.filterTrait', {}, lang)} <ProvisionalTag />
         </label>
         <select id="nw-purpose-filter" className="nw-input" value={tag} onChange={(e) => setTag(e.target.value)}>
-          <option value="">Lahat ng katangian (All traits)</option>
+          <option value="">{tr('sc.allTraits', {}, lang)}</option>
           {PURPOSE_TAGS.map((t) => (
             <option key={t} value={t}>
               {t}
@@ -83,7 +86,7 @@ export default function SpeciesMultiPicker({ species, selected, onChange, onlySe
           {selected.length} chosen
         </span>
       </div>
-      <div className="nw-checklist" role="group" aria-label="Species list">
+      <div className="nw-checklist" role="group" aria-label="Species list" data-tour="s-species-list">
         {shown.length === 0 && <p className="nw-hint">{q ? `No species match “${query}”.` : 'No species to show.'}</p>}
         {shown.map((s) => (
           <label key={s.species_id} className="nw-check nw-check-sp">

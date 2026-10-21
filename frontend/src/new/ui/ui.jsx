@@ -21,7 +21,7 @@ export function Chip({ tone = 'neutral', icon = null, children, className = '' }
 }
 
 // items = [{id, label, icon?}], value = id. Arrow keys move, Home / End jump (the WAI-ARIA tabs pattern). The highlight is one element that slides under the active tab (CSS transition).
-export function Tabs({ items, value, onChange, label, className = '' }) {
+export function Tabs({ items, value, onChange, label, className = '', tourId }) {
   const refs = useRef({})
   const [hl, setHl] = useState({ left: 0, width: 0 })
   const measure = () => {
@@ -39,7 +39,7 @@ export function Tabs({ items, value, onChange, label, className = '' }) {
     refs.current[n.id]?.focus()
   }
   return (
-    <div className={`cy-tabs-slide ${className}`} role="tablist" aria-label={label}>
+    <div className={`cy-tabs-slide ${className}`} role="tablist" aria-label={label} data-tour={tourId}>
       <span className="cy-tab-hl" style={{ left: hl.left, width: hl.width }} aria-hidden="true" />
       {items.map((it, i) => (
         <button

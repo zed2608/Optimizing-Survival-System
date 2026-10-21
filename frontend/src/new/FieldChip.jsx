@@ -1,12 +1,14 @@
 import Icon from './Icon.jsx'
 import { fieldColor, fieldIcon, fieldLabel } from './fieldStatus.js'
+import { useLang } from './i18n.js'
 
 // A field-check status as a small chip: icon AND colour AND words (never colour alone). cls = planted | verified | recheck | not_plantable | water | hard.
 export default function FieldChip({ cls, text }) {
+  const lang = useLang()
   const c = fieldColor(cls)
   return (
     <span className={`nw-chip nw-fchip fc-chip fc-${cls}`} style={{ color: c, borderColor: c, borderWidth: 1, borderStyle: 'solid', background: '#fff' }}>
-      <Icon name={fieldIcon(cls)} size={14} /> {text ?? fieldLabel(cls)}
+      <Icon name={fieldIcon(cls)} size={14} /> {text ?? fieldLabel(cls, lang)}
     </span>
   )
 }

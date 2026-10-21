@@ -2,21 +2,21 @@
    Everything is sized in rem and the root size follows the variable --ui (0.85 ... 1.5, the Aa - / Aa + buttons) on top of the phone's own font setting (100%).
    The map buttons and the top bar grow at most to 1.2 (--cap), so that they never take the whole screen; every button stays at least 48 px.
    The block screen is a navigation view: a slim top bar, the map filling the rest, round map buttons on the right and a bottom panel (collapsed, normal or expanded) over the map. */
-:root { --fg: #000; --bg: #fff; --good: #006400; --bad: #8b0000; --ban: #ffe14d; --blue: #0033cc; --maprot: 0deg; --ui: 1; --cap: calc(min(var(--ui), 1.2) / var(--ui)); --ctl: max(48px, calc(3rem * var(--cap))); }
+:root { --maprot: 0deg; --ui: 1; --cap: calc(min(var(--ui), 1.2) / var(--ui)); --ctl: max(48px, calc(3rem * var(--cap))); }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; height: 100%; font-size: calc(100% * var(--ui)); }
-body { margin: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; font: 1.125rem/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--fg); background: var(--bg); overflow-x: hidden; }
+body { margin: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; font: 1.125rem/1.4 var(--font); color: var(--c-text); background: var(--c-bg); overflow-x: hidden; }
 body.in-block, body.has-tour { overflow: hidden; }
 button { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 
 /* the prototype notice: a strip at the top, or a small "Prototype" chip that opens it again */
-#banner { flex: none; display: flex; align-items: center; gap: .4rem; background: var(--ban); color: #000; font-weight: 700; font-size: calc(.8125rem * var(--cap)); line-height: 1.2; padding: env(safe-area-inset-top) calc(6px + env(safe-area-inset-right)) 0 calc(10px + env(safe-area-inset-left)); border-bottom: 2px solid #000; min-height: 40px; }
+#banner { flex: none; display: flex; align-items: center; gap: .4rem; background: var(--c-warn-bg); color: var(--c-text); font-weight: 700; font-size: calc(.8125rem * var(--cap)); line-height: 1.2; padding: env(safe-area-inset-top) calc(6px + env(safe-area-inset-right)) 0 calc(10px + env(safe-area-inset-left)); border-bottom: 1px solid var(--c-line); min-height: 40px; }
 #bannertext { flex: 1; padding: 4px 0; }
-#bannerclose { position: relative; flex: none; width: 36px; height: 36px; border: 2px solid #000; border-radius: 6px; background: #fff; font-size: 16px; line-height: 1; padding: 0; margin: 2px 0; }
+#bannerclose { position: relative; flex: none; width: 36px; height: 36px; border: 1px solid var(--c-line); border-radius: 6px; background: var(--c-surface); font-size: 16px; line-height: 1; padding: 0; margin: 2px 0; }
 #bannerclose::after { content: ""; position: absolute; inset: -8px; }  /* a bigger tap area that stays inside the strip */
 #bannerchip { display: none; background: none; border: 0; padding: 0 .25rem; min-height: 48px; min-width: 48px; margin: -9px 0; align-items: center; }
-.pill { display: inline-block; background: var(--ban); border: 2px solid #000; border-radius: 999px; padding: .1rem .6rem; font-weight: 800; font-size: .8125rem; line-height: 1.3; color: #000; }
+.pill { display: inline-block; background: var(--c-warn-bg); border: 1px solid var(--c-line); border-radius: 999px; padding: .1rem .6rem; font-weight: 800; font-size: .8125rem; line-height: 1.3; color: var(--c-text); }
 #banner.is-chip { background: transparent; border-bottom: 0; min-height: 30px; padding-bottom: 0; }
 #banner.is-chip #bannertext, #banner.is-chip #bannerclose { display: none; }
 #banner.is-chip #bannerchip { display: inline-flex; }
@@ -25,16 +25,16 @@ body.in-block #app { overflow: hidden; padding: 0; max-width: none; margin: 0; d
 
 h1 { font-size: 1.6rem; margin: .5rem 0; line-height: 1.2; } h2 { font-size: 1.35rem; margin: 1.1rem 0 .5rem; } h3 { font-size: 1.2rem; margin: .6rem 0 .4rem; }
 p { margin: .4rem 0; overflow-wrap: anywhere; }
-.note { font-size: 1rem; } .ok { color: var(--good); font-weight: 700; } .warn { color: var(--bad); font-weight: 700; }
+.note { font-size: 1rem; } .ok { color: var(--c-ok); font-weight: 700; } .warn { color: var(--c-danger); font-weight: 700; }
 label { display: block; font-weight: 700; margin: .75rem 0 .25rem; }
-input[type=text] { width: 100%; min-height: max(52px, 3.25rem); font: inherit; font-size: max(16px, 1rem); padding: .5rem .6rem; border: 3px solid #000; border-radius: 8px; background: #fff; color: #000; }
-.btn { display: inline-flex; align-items: center; justify-content: center; min-height: max(52px, 3.25rem); min-width: max(52px, 3.25rem); padding: .6rem 1rem; margin: 4px 6px 4px 0; font-weight: 700; color: #000; background: #fff; border: 3px solid #000; border-radius: 10px; text-align: center; }
-.btn.good { background: var(--good); color: #fff; }
-.btn.bad { background: #fff; color: var(--bad); border-color: var(--bad); }
+input[type=text] { width: 100%; min-height: max(52px, 3.25rem); font: inherit; font-size: max(16px, 1rem); padding: .5rem .6rem; border: 1px solid var(--c-line); border-radius: 8px; background: var(--c-surface); color: var(--c-text); }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: max(52px, 3.25rem); min-width: max(52px, 3.25rem); padding: .6rem 1rem; margin: 4px 6px 4px 0; font-weight: 700; color: var(--c-text); background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 10px; text-align: center; }
+.btn.good { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; }
+.btn.bad { background: var(--c-surface); color: var(--c-danger); border-color: var(--c-danger); }
 .btn.link { border: 0; text-decoration: underline; min-height: 48px; }
 .btn.wide { width: 100%; margin: 4px 0; }
 .btn:disabled { opacity: .35; }
-.btn:focus-visible, input:focus-visible, .chip:focus-visible, .rbtn:focus-visible, summary:focus-visible, .grab:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
+.btn:focus-visible, input:focus-visible, .chip:focus-visible, .rbtn:focus-visible, summary:focus-visible, .grab:focus-visible { outline: 4px solid var(--c-link); outline-offset: 2px; }
 .actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: .5rem; }
 
 /* the tools: text size and Help (top of every screen) */
@@ -49,35 +49,35 @@ input[type=text] { width: 100%; min-height: max(52px, 3.25rem); font: inherit; f
 
 /* home: block cards with a progress bar */
 .blocks { display: grid; gap: 10px; }
-.bcard { display: block; width: 100%; text-align: left; padding: .75rem .9rem; border: 3px solid #000; border-radius: 12px; background: #fff; min-height: 76px; }
+.bcard { display: block; width: 100%; text-align: left; padding: .75rem .9rem; border: 1px solid var(--c-line); border-radius: 12px; background: var(--c-surface); min-height: 76px; }
 .bcard strong { font-size: 1.25rem; margin-right: .5rem; }
 .bcard span { font-size: 1.125rem; }
 .bcard small { display: block; font-size: 1rem; font-weight: 400; margin: 2px 0 .5rem; }
-.bar { display: flex; height: 12px; border: 2px solid #000; border-radius: 8px; background: #fff; overflow: hidden; }
-.bar .p { background: var(--good); } .bar .s { background: var(--bad); }
+.bar { display: flex; height: 12px; border: 1px solid var(--c-line); border-radius: 8px; background: var(--c-surface); overflow: hidden; }
+.bar .p { background: var(--c-ok); } .bar .s { background: var(--c-danger); }
 
 /* landing */
 .lang { display: flex; gap: 6px; margin: 6px 0; }
 .langbtn { flex: 1; margin: 0; }
-.langbtn[aria-pressed="true"] { background: #000; color: #fff; }
+.langbtn[aria-pressed="true"] { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; }
 .steps { margin: 6px 0; padding-left: 1.75rem; font-size: 1.125rem; }
 .steps li { margin: .5rem 0; }
-.honest { border: 3px solid #000; border-radius: 10px; padding: .5rem .75rem; background: var(--ban); font-weight: 600; font-size: 1rem; }
+.honest { border: 1px solid var(--c-line); border-radius: 10px; padding: .5rem .75rem; background: var(--c-warn-bg); font-weight: 600; font-size: 1rem; }
 .checklist { list-style: none; margin: 0; padding: 0; }
 .check { display: flex; align-items: flex-start; gap: .6rem; margin: 0; padding: .6rem 2px; font-weight: 400; min-height: 48px; }
-.check input { flex: none; width: max(28px, 1.75rem); height: max(28px, 1.75rem); margin: 0; accent-color: #006400; }
-.btn.big { min-height: max(64px, 4rem); font-size: 1.375rem; background: #000; color: #fff; }
+.check input { flex: none; width: max(28px, 1.75rem); height: max(28px, 1.75rem); margin: 0; accent-color: var(--c-primary); }
+.btn.big { min-height: max(64px, 4rem); font-size: 1.375rem; background: var(--c-primary); color: var(--c-on-primary); }
 
 /* help (overlay) */
 .overlay { position: fixed; inset: 0; z-index: 3000; background: rgba(0, 0, 0, 0.6); display: flex; align-items: flex-end; justify-content: center; }
-.overlaybox { width: 100%; max-width: 40rem; max-height: 92%; overflow-y: auto; background: #fff; border: 3px solid #000; border-radius: 16px 16px 0 0; padding: .75rem calc(14px + env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left)); }
+.overlaybox { width: 100%; max-width: 40rem; max-height: 92%; overflow-y: auto; background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 16px 16px 0 0; padding: .75rem calc(14px + env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left)); }
 .overlayhead { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .overlayhead h2 { margin: 0; }
-.trouble { border-top: 2px solid #ccc; padding-top: 4px; }
+.trouble { border-top: 1px solid var(--c-line); padding-top: 4px; }
 body.has-overlay { overflow: hidden; }
 
 /* block screen */
-.topbar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-height: max(56px, 3.5rem); padding: 4px calc(8px + env(safe-area-inset-right)) 4px calc(8px + env(safe-area-inset-left)); background: #fff; border-bottom: 3px solid #000; }
+.topbar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-height: max(56px, 3.5rem); padding: 4px calc(8px + env(safe-area-inset-right)) 4px calc(8px + env(safe-area-inset-left)); background: var(--c-surface); border-bottom: 1px solid var(--c-line); }
 .topbar .toolbox { margin-left: auto; }
 .topbar .ttl { flex: 1 1 8rem; min-width: 8rem; font-weight: 700; font-size: 1.05rem; line-height: 1.2; display: flex; flex-direction: column; }
 .topbar .ttl1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -88,27 +88,27 @@ body.has-overlay { overflow: hidden; }
 .map { width: 100%; height: 100%; background: #f4f4f4; touch-action: none; }
 .mapbtns { position: absolute; right: calc(8px + env(safe-area-inset-right)); top: 8px; z-index: 900; display: flex; flex-direction: row-reverse; align-items: flex-start; gap: 6px; }
 .mcol { display: flex; flex-direction: column; gap: 6px; }
-.rbtn { width: var(--ctl); height: var(--ctl); border-radius: 50%; border: 3px solid #000; background: #fff; color: #000; display: grid; place-items: center; padding: 0; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); }
-.rbtn[aria-pressed="true"] { background: #000; color: #fff; }
+.rbtn { width: var(--ctl); height: var(--ctl); border-radius: 50%; border: 1px solid var(--c-line); background: var(--c-surface); color: var(--c-text); display: grid; place-items: center; padding: 0; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); }
+.rbtn[aria-pressed="true"] { background: var(--c-primary); color: var(--c-on-primary); }
 .rbtn svg { width: 50%; height: 50%; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.nobase { position: absolute; top: 8px; left: 7.5rem; right: calc(var(--ctl) * 2 + 24px); z-index: 900; background: var(--ban); color: #000; border: 3px solid #000; border-radius: 8px; padding: .3rem .5rem; font-weight: 700; font-size: .875rem; text-align: center; }
+.nobase { position: absolute; top: 8px; left: 7.5rem; right: calc(var(--ctl) * 2 + 24px); z-index: 900; background: var(--c-warn-bg); color: var(--c-text); border: 1px solid var(--c-line); border-radius: 8px; padding: .3rem .5rem; font-weight: 700; font-size: .875rem; text-align: center; }
 .protochip { position: absolute; left: 8px; top: 0; z-index: 900; min-height: 48px; min-width: 48px; background: none; border: 0; padding: 0; display: flex; align-items: center; }
 .attrib { position: absolute; right: 6px; bottom: 0; z-index: 940; background: rgba(255, 255, 255, 0.9); font-size: 12px; line-height: 1.2; padding: 2px 6px; border-radius: 4px 4px 0 0; }
-.attrib a { color: #004a7c; }
-.mini { position: absolute; left: 8px; top: 8px; z-index: 900; width: 92px; background: #fff; border: 3px solid #000; border-radius: 8px; padding: 2px; }
+.attrib a { color: #1d4f80; }
+.mini { position: absolute; left: 8px; top: 8px; z-index: 900; width: 92px; background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 8px; padding: 2px; }
 .stage.chip-on .mini { top: 50px; }
 .minisvg svg { width: 100%; height: auto; display: block; }
 
 /* the bottom panel: collapsed (the handle row only), normal (one step) or expanded (Details) */
-.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 950; display: flex; flex-direction: column; max-height: max(calc(100% - var(--rb)), min(calc(100% - 3.5rem), 20rem)); /* normally not so tall that it covers the round map buttons; at the biggest text sizes the panel and its button come first */ background: #fff; border-top: 3px solid #000; border-radius: 16px 16px 0 0; box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.35); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 950; display: flex; flex-direction: column; max-height: max(calc(100% - var(--rb)), min(calc(100% - 3.5rem), 20rem)); /* normally not so tall that it covers the round map buttons; at the biggest text sizes the panel and its button come first */ background: var(--c-surface); border-top: 1px solid var(--c-line); border-radius: 16px 16px 0 0; box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.35); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 .sheet[data-state="expanded"] { max-height: calc(100% - 8px); }
 .grab { position: relative; flex: none; touch-action: none; cursor: grab; padding: .7rem .5rem 0 .75rem; user-select: none; -webkit-user-select: none; }
 .grab .pill { position: absolute; top: .3rem; left: 50%; transform: translateX(-50%); width: 3rem; height: .35rem; padding: 0; border: 0; background: #000; border-radius: 4px; }
 .grabrow { display: flex; align-items: center; gap: .4rem; min-height: var(--ctl); }
 .grabtext { flex: 1; min-width: 0; }
 .dots { display: flex; align-items: center; gap: .3rem; margin-top: .15rem; }
-.dots .dot { width: .6rem; height: .6rem; border-radius: 50%; border: 2px solid #000; background: #fff; }
-.dots .dot.on { background: #000; }
+.dots .dot { width: .6rem; height: .6rem; border-radius: 50%; border: 1px solid var(--c-line); background: var(--c-surface); }
+.dots .dot.on { background: var(--c-primary); }
 .sum { flex: 1; min-width: 0; font-weight: 800; font-size: 1.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detailsbtn { flex: none; margin: 0; min-height: var(--ctl); padding: 0 .7rem; font-size: calc(1rem * var(--cap)); }
 .chevbtn { flex: none; margin: 0; min-height: var(--ctl); min-width: var(--ctl); padding: 0; }
@@ -119,38 +119,38 @@ body.has-overlay { overflow: hidden; }
 .sheet .note { font-size: .9rem; }
 .target { margin: .3rem 0; }
 .tgtrow { display: flex; align-items: center; gap: .6rem; }
-.tgtarrow { flex: none; width: 2.75rem; height: 2.75rem; color: var(--blue); }
+.tgtarrow { flex: none; width: 2.75rem; height: 2.75rem; color: var(--c-link); }
 .tgttext { min-width: 0; }
 .tgtline { font-size: 1.4rem; font-weight: 800; line-height: 1.15; margin: 0; }
-.target[data-status="here"] .tgtline { color: var(--good); }
-.cue { font-size: 1.15rem; font-weight: 800; margin: .1rem 0 0; color: var(--blue); }
+.target[data-status="here"] .tgtline { color: var(--c-ok); }
+.cue { font-size: 1.15rem; font-weight: 800; margin: .1rem 0 0; color: var(--c-link); }
 .dirline { font-size: 1.15rem; font-weight: 800; margin: .1rem 0 0; }
-.sureline { font-size: .9rem; font-weight: 700; margin: .25rem 0 0; padding: .15rem .45rem; background: #fff3d6; border: 2px solid #7a5200; border-radius: 6px; }
+.sureline { font-size: .9rem; font-weight: 700; margin: .25rem 0 0; padding: .15rem .45rem; background: var(--c-warn-bg); color: var(--c-warn); border: 1px solid var(--c-warn); border-radius: 6px; }
 .approx { margin: .25rem 0 0; }
 .msg { font-size: .95rem; font-weight: 600; margin: .2rem 0; }
-.msg.ok { color: var(--good); } .msg.warn { color: var(--bad); }
+.msg.ok { color: var(--c-ok); } .msg.warn { color: var(--c-danger); }
 .stepnav { display: flex; align-items: center; gap: 6px; margin: 0 0 .25rem; }
 .stepnav .steplabel { flex: 1; text-align: center; font-weight: 700; }
 .btn.arrow { margin: 0; min-width: 48px; min-height: 48px; padding: 0 8px; font-size: 1.6rem; line-height: 1; }
 .inner h3 { margin-top: .75rem; }
-.btnrow { flex: none; display: flex; flex-wrap: wrap; gap: .5rem; padding: .4rem .75rem calc(.5rem + env(safe-area-inset-bottom)); border-top: 2px solid #ccc; background: #fff; }
+.btnrow { flex: none; display: flex; flex-wrap: wrap; gap: .5rem; padding: .4rem .75rem calc(.5rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--c-line); background: var(--c-surface); }
 .btnrow .primary { flex: 1 1 7rem; min-height: max(60px, calc(3.75rem * var(--cap))); font-size: calc(1.35rem * var(--cap)); margin: 0; }
 .btnrow .secondary { flex: 0 1 auto; min-height: max(52px, calc(3.25rem * var(--cap))); min-width: 4.2rem; max-width: 100%; margin: 0; align-self: center; padding: .6rem .8rem; font-size: calc(1.05rem * var(--cap)); }
 .reasons { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; margin: .4rem 0; }
 .reasons .btn { margin: 0; font-size: 1rem; }
 .chips { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 8px; margin: 0 -2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
-.chip { flex: none; width: max(48px, 3rem); height: max(48px, 3rem); border-radius: 50%; border: 3px solid #000; background: #fff; color: #000; font-weight: 700; font-size: 1rem; padding: 0; display: grid; place-items: center; }
-.chip.planted { background: var(--good); color: #fff; }
-.chip.skipped { background: #fff; color: var(--bad); border-color: var(--bad); text-decoration: line-through; }
-.chip.active { background: var(--ban); color: #000; box-shadow: 0 0 0 3px var(--blue); text-decoration: none; }
+.chip { flex: none; width: max(48px, 3rem); height: max(48px, 3rem); border-radius: 50%; border: 1px solid var(--c-line); background: var(--c-surface); color: var(--c-text); font-weight: 700; font-size: 1rem; padding: 0; display: grid; place-items: center; }
+.chip.planted { background: var(--c-ok-bg); color: var(--c-ok); border-color: var(--c-ok); }
+.chip.skipped { background: var(--c-surface); color: var(--c-danger); border-color: var(--c-danger); text-decoration: line-through; }
+.chip.active { background: var(--c-warn-bg); color: var(--c-text); box-shadow: 0 0 0 3px var(--c-link); text-decoration: none; }
 
 /* the map's own things */
-.treeicon { box-sizing: border-box; width: 100%; height: 100%; border-radius: 50%; border: 3px solid #000; background: #fff; color: #000; font: 700 13px/1 system-ui, sans-serif; display: grid; place-items: center; transform: rotate(calc(-1 * var(--maprot, 0deg))); }
-.treeicon.st-planted { background: var(--good); color: #fff; }
-.treeicon.st-skipped { background: #fff; color: var(--bad); border-color: var(--bad); text-decoration: line-through; }
-.treeicon.st-active { background: var(--ban); color: #000; border-width: 4px; box-shadow: 0 0 0 4px var(--blue); }
-.linelabel { position: absolute; left: 0; top: 0; width: max-content; background: #fff; color: #000; border: 2px solid var(--blue); border-radius: 6px; padding: 2px 6px; font: 700 15px/1.2 system-ui, sans-serif; text-align: center; white-space: nowrap; transform: translate(-50%, -50%) rotate(calc(-1 * var(--maprot, 0deg))); }
+.treeicon { box-sizing: border-box; width: 100%; height: 100%; border-radius: 50%; border: 1px solid var(--c-line); background: var(--c-surface); color: var(--c-text); font: 700 13px/1 system-ui, sans-serif; display: grid; place-items: center; transform: rotate(calc(-1 * var(--maprot, 0deg))); }
+.treeicon.st-planted { background: var(--c-ok); color: #fff; }
+.treeicon.st-skipped { background: var(--c-surface); color: var(--c-danger); border-color: var(--c-danger); text-decoration: line-through; }
+.treeicon.st-active { background: var(--c-warn-bg); color: var(--c-text); border-width: 4px; box-shadow: 0 0 0 4px var(--c-link); }
+.linelabel { position: absolute; left: 0; top: 0; width: max-content; background: var(--c-surface); color: var(--c-text); border: 2px solid var(--c-link); border-radius: 6px; padding: 2px 6px; font: 700 15px/1.2 system-ui, sans-serif; text-align: center; white-space: nowrap; transform: translate(-50%, -50%) rotate(calc(-1 * var(--maprot, 0deg))); }
 .starticon { background: #000; color: #fff; border: 2px solid #fff; border-radius: 6px; font: 800 13px/24px system-ui, sans-serif; text-align: center; transform: rotate(calc(-1 * var(--maprot, 0deg))); }
 .me { position: relative; width: 80px; height: 80px; }
 .me svg { position: absolute; inset: 0; width: 80px; height: 80px; overflow: visible; }
@@ -160,26 +160,26 @@ body.has-overlay { overflow: hidden; }
 
 /* the guided tour: a spotlight on the real element and a short card (the same look as the tour of the main dashboard) */
 .tour { position: fixed; inset: 0; z-index: 4000; }
-.tour-hole { position: fixed; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(2, 6, 23, 0.6); border: 3px solid #34d399; pointer-events: none; }
+.tour-hole { position: fixed; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(2, 6, 23, 0.6); border: 3px solid var(--c-accent); pointer-events: none; }
 .tour-hole.is-big { box-shadow: none; }
-.tour-card { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); margin: 0 auto; max-width: 30rem; max-height: 72vh; overflow-y: auto; background: #fff; color: #0f172a; border: 3px solid #000; border-radius: 12px; padding: .6rem .85rem; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45); outline: none; font-size: calc(1rem * var(--cap)); }
+.tour-card { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); margin: 0 auto; max-width: 30rem; max-height: 72vh; overflow-y: auto; background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: 12px; padding: .6rem .85rem; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45); outline: none; font-size: calc(1rem * var(--cap)); }
 .tour-card.at-top { top: calc(8px + env(safe-area-inset-top)); bottom: auto; }
 .tour-card.at-bottom { bottom: calc(8px + env(safe-area-inset-bottom)); top: auto; }
-.tour-count { font-size: .8125em; color: #475569; }
+.tour-count { font-size: max(12px, .8125em); color: var(--c-muted); }
 .tour-title { font-size: 1.25em; margin: .1em 0 .25em; }
 .tour-text { font-size: 1.0625em; margin: 0 0 .35em; }
 .tour-dots { display: flex; gap: .35em; margin: .2em 0 .45em; }
-.tdot { width: .6em; height: .6em; border-radius: 50%; background: #cbd5e1; }
-.tdot.on { background: #047857; }
+.tdot { width: .6em; height: .6em; border-radius: 50%; background: var(--c-line); }
+.tdot.on { background: var(--c-primary); }
 .tour-btns { display: flex; flex-wrap: wrap; gap: .4em; }
 .tourbtn { margin: 0; min-width: max(48px, calc(3rem * var(--cap))); min-height: max(48px, calc(3rem * var(--cap))); padding: .3em .8em; font-size: 1em; }
-.tourbtn.ghost { background: #fff; border-color: #64748b; color: #334155; }
+.tourbtn.ghost { background: var(--c-surface); border-color: var(--c-line); color: var(--c-text); }
 
 /* stage A1f: the GPS bar (always there, says how the GPS is, opens the way to fix it or to go on without it) and the error buttons */
-.gpsbar { position: sticky; top: 0; z-index: 4; background: #fff; display: flex; width: 100%; justify-content: space-between; align-items: center; min-height: max(48px, calc(3rem * var(--cap))); margin: .1rem 0 .3rem; padding: 0 .75rem; font-size: calc(1rem * var(--cap)); font-weight: 700; text-align: left; }
-.gpsbar[data-state="ok"] { border-color: var(--good); color: var(--good); }
-.gpsbar[data-state="waiting"], .gpsbar[data-state="off"] { border-color: #7a5200; background: #fff3d6; }
-.gpsbar[data-state="error"] { border-color: var(--bad); background: #ffe9e9; color: var(--bad); }
+.gpsbar { position: sticky; top: 0; z-index: 4; background: var(--c-surface); display: flex; width: 100%; justify-content: space-between; align-items: center; min-height: max(48px, calc(3rem * var(--cap))); margin: .1rem 0 .3rem; padding: 0 .75rem; font-size: calc(1rem * var(--cap)); font-weight: 700; text-align: left; }
+.gpsbar[data-state="ok"] { border-color: var(--c-ok); color: var(--c-ok); }
+.gpsbar[data-state="waiting"], .gpsbar[data-state="off"] { border-color: var(--c-warn); background: var(--c-warn-bg); color: var(--c-warn); }
+.gpsbar[data-state="error"] { border-color: var(--c-danger); background: var(--c-danger-bg); color: var(--c-danger); }
 .gpsbar[data-state="nogps"] { border-style: dashed; }
 .errrow { display: grid; gap: .4rem; margin: .3rem 0; }
 .errrow .btn { margin: 0; width: 100%; }
@@ -188,8 +188,125 @@ body.has-overlay { overflow: hidden; }
 .sheet[data-gps="open"] { max-height: calc(100% - 8px); }  /* the GPS panel gets room: its buttons come first */
 
 /* Suriin sa lugar (site checklist) */
-.clitem { border: 1px solid var(--line, #cbd5e1); border-radius: 8px; padding: 10px; margin: 10px 0; min-width: 0; }
+.clitem { border: 1px solid var(--c-line); border-radius: 8px; padding: 10px; margin: 10px 0; min-width: 0; }
 .clitem legend { font-weight: 700; padding: 0 4px; max-width: 100%; overflow-wrap: anywhere; }
-.clitem blockquote { margin: 6px 0; padding-left: 10px; border-left: 3px solid #94a3b8; overflow-wrap: anywhere; }
+.clitem blockquote { margin: 6px 0; padding-left: 10px; border-left: 3px solid var(--c-line); overflow-wrap: anywhere; }
 .clitem a { overflow-wrap: anywhere; }
 .clitem .actions { flex-wrap: wrap; }
+
+/* ======================= Canopy look (design v2): the tokens come from tokens.css (a generated copy of the dashboard's token block; light, and dark through prefers-color-scheme) =======================
+   Same structure and sizes as before; this block only restyles: soft 1 px borders and tonal surfaces instead of heavy black frames, one primary colour, status = shape + words (never colour alone).
+   The map and what is drawn on it keep light colours in both themes: the map pictures are light, so its own markers set their own background and text colour as pairs. */
+html { color-scheme: light dark; }
+body { background: var(--c-bg); color: var(--c-text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+a { color: var(--c-link); }
+:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
+button, input, select, textarea { font: inherit; letter-spacing: inherit; }
+h1 { font-family: var(--font-serif); font-style: italic; font-weight: 500; font-size: 1.9rem; letter-spacing: -.01em; margin: .6rem 0 .4rem; }
+h2, h3 { font-family: var(--font); font-weight: 700; letter-spacing: -.005em; }
+.note { color: var(--c-muted); }
+.note, .tour-count, .attrib, .sheet .note, .done { font-size: max(12px, .875rem); }
+.ok { color: var(--c-ok); } .warn { color: var(--c-danger); }
+input[type=text] { border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface); color: var(--c-text); min-height: 48px; }
+input[type=text]:focus { border-color: var(--c-focus); }
+
+/* the prototype notice */
+#banner { background: var(--c-warn-bg); color: var(--c-warn); border-bottom: 1px solid var(--c-warn); font-weight: 600; font-size: max(12px, calc(.8125rem * var(--cap))); }
+#bannerclose { width: 48px; height: 44px; margin: 0; border: 0; background: transparent; color: var(--c-warn); border-radius: var(--r-sm); font-size: 18px; }
+#bannerclose::after { inset: 0; }
+.pill { background: var(--c-warn-bg); color: var(--c-warn); border: 1px solid var(--c-warn); font-weight: 700; font-size: max(12px, .8125rem); }
+#banner.is-chip { background: transparent; border-bottom: 0; }
+
+/* buttons: one look everywhere */
+.btn { border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface-2); color: var(--c-text); font-weight: 600; box-shadow: none; }
+.btn:hover { background: var(--c-surface-3); }
+.btn.good, .btn.big { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; }
+.btn.good:hover, .btn.big:hover { background: var(--c-primary-hover); }
+.btn.bad { background: var(--c-danger-bg); color: var(--c-danger); border-color: var(--c-danger); }
+.btn.link { background: transparent; border-color: transparent; color: var(--c-link); text-decoration: underline; }
+.btn:disabled { opacity: 1; background: var(--c-surface-2); color: var(--c-muted); border: 1px dashed var(--c-line); cursor: not-allowed; }
+.btn.big { border-radius: var(--r-lg); box-shadow: var(--sh-2); }
+
+/* landing: a calm page, the one big button stays at the bottom */
+.lang { background: var(--c-surface-2); border-radius: var(--r-md); padding: 4px; gap: 4px; }
+.langbtn { border-color: transparent; background: transparent; min-height: 48px; }
+.langbtn[aria-pressed="true"] { background: var(--c-primary); color: var(--c-on-primary); }
+.steps { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg); padding: .9rem 1rem .9rem 2.6rem; box-shadow: var(--sh-1); }
+.honest { border: 1px solid var(--c-warn); background: var(--c-warn-bg); color: var(--c-warn); border-radius: var(--r-md); font-weight: 600; }
+.checklist { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg); padding: .25rem .9rem; }
+.checklist li + li { border-top: 1px solid var(--c-line); }
+
+/* home: block cards */
+.bcard { border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-surface); box-shadow: var(--sh-1); color: var(--c-text); }
+.bcard:hover { background: var(--c-surface-2); }
+.bcard small { color: var(--c-muted); font-size: max(12px, .9375rem); }
+.bar { border: 0; background: var(--c-surface-3); height: 10px; border-radius: 999px; }
+.bar .p { background: var(--c-ok); }
+.bar .s { background: repeating-linear-gradient(45deg, var(--c-danger) 0 4px, var(--c-danger-bg) 4px 8px); }  /* skipped = striped, not only red */
+
+/* overlay (Help) */
+.overlay { background: var(--c-scrim); }
+.overlaybox { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: 20px 20px 0 0; box-shadow: var(--sh-3); }
+.trouble { border-top: 1px solid var(--c-line); }
+
+/* the block screen */
+.topbar { background: var(--c-surface); color: var(--c-text); border-bottom: 1px solid var(--c-line); }
+.topbar .done { color: var(--c-muted); }
+.stage, .map, .leaflet-container { background: #e9ecee; }
+.rbtn { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); box-shadow: var(--sh-2); }
+.rbtn[aria-pressed="true"] { background: var(--c-primary); color: var(--c-on-primary); border-color: transparent; }
+.nobase { background: var(--c-warn-bg); color: var(--c-warn); border: 1px solid var(--c-warn); border-radius: var(--r-md); font-size: max(12px, .875rem); }
+.attrib { background: rgba(255, 255, 255, 0.92); color: #1f2a24; }
+.mini { background: #fff; border: 1px solid var(--c-line); border-radius: var(--r-md); box-shadow: var(--sh-1); }
+.sheet { background: var(--c-surface); color: var(--c-text); border-top: 1px solid var(--c-line); border-radius: 20px 20px 0 0; box-shadow: var(--sh-3); }
+.grab .pill { background: var(--c-line); border: 0; height: .3rem; }
+.dots .dot { border: 2px solid var(--c-primary); background: transparent; }
+.dots .dot.on { background: var(--c-primary); }
+.sum, .steptitle { color: var(--c-text); }
+.tgtarrow, .cue { color: var(--c-link); }
+.target[data-status="here"] .tgtline { color: var(--c-ok); }
+.msg.ok { color: var(--c-ok); } .msg.warn { color: var(--c-danger); }
+.btnrow { background: var(--c-surface); border-top: 1px solid var(--c-line); }
+.sureline { background: var(--c-warn-bg); color: var(--c-warn); border: 1px solid var(--c-warn); }
+
+/* tree chips: planted = green with a tick, skipped = struck through and dashed, now = ring; words and shapes carry the status as well as the colour */
+.chip { border: 1px solid var(--c-line); background: var(--c-surface-2); color: var(--c-text); position: relative; }
+.chip.planted { background: var(--c-ok-bg); color: var(--c-ok); border: 2px solid var(--c-ok); }
+.chip.planted::after { content: "\2713"; position: absolute; right: -3px; top: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--c-ok); color: var(--c-surface); font-size: max(12px, .75rem); line-height: 18px; text-align: center; font-weight: 700; }
+.chip.skipped { background: var(--c-danger-bg); color: var(--c-danger); border: 2px dashed var(--c-danger); text-decoration: line-through; }
+.chip.active { background: var(--c-warn-bg); color: var(--c-warn); border: 2px solid var(--c-focus); box-shadow: 0 0 0 3px var(--c-focus); text-decoration: none; }
+
+/* markers on the map (the map is light in both themes: each sets its own background and text colour) */
+.treeicon { border: 2px solid #1f2a24; background: #fff; color: #1f2a24; }
+.treeicon.st-planted { background: #1d5f2c; color: #fff; }
+.treeicon.st-skipped { background: #fff; color: #a8261b; border-color: #a8261b; }
+.treeicon.st-active { background: #fdf0d4; color: #1f2a24; border-width: 3px; box-shadow: 0 0 0 3px #1f6fb2; }
+.linelabel { background: #fff; color: #1f2a24; border: 2px solid #1f6fb2; }
+.starticon { background: #1f2a24; color: #fff; border: 2px solid #fff; }
+
+/* tour */
+.tour-card { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-lg); box-shadow: var(--sh-3); }
+.tour-text { color: var(--c-text); }
+
+/* GPS bar: the state is written in words and its edge says it too (solid ok / filled waiting / alert error / dashed none) */
+.gpsbar { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md); color: var(--c-text); font-weight: 600; }
+.gpsbar[data-state="ok"] { background: var(--c-ok-bg); border: 2px solid var(--c-ok); color: var(--c-ok); }
+.gpsbar[data-state="error"] { border: 2px solid var(--c-danger); }
+.gpsbar[data-state="nogps"] { border: 2px dashed var(--c-line); color: var(--c-muted); }
+
+/* checklist items and the pH tool */
+.clitem { background: var(--c-surface); border-radius: var(--r-md); }
+.clitem blockquote { color: var(--c-muted); }
+
+/* motion only when the phone allows it */
+@media (prefers-reduced-motion: no-preference) {
+  .btn, .bcard, .rbtn, .chip { transition: background 150ms ease, box-shadow 150ms ease; }
+  .overlaybox { animation: fp-rise 250ms ease; }
+  @keyframes fp-rise { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+.btn.big.wide { position: sticky; bottom: .25rem; z-index: 5; }
+
+/* links are real tap targets: a text link in the page is at least 44 px tall; the map credit keeps its small strip and gets an invisible bigger tap area instead */
+.clitem a, .note a, .overlaybox a { display: inline-block; min-height: 44px; line-height: 44px; padding: 0 .15rem; }
+.attrib a { position: relative; }
+.attrib a::after { content: ""; position: absolute; inset: -14px -6px; }

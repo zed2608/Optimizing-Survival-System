@@ -1,3 +1,4 @@
+import { useLang } from './i18n.js'
 import AskHelp from './tutorial/AskHelp.jsx'
 import { useState } from 'react'
 import Icon from './Icon.jsx'
@@ -9,6 +10,7 @@ import { FIELD_ORDER, fieldColor, fieldIcon, fieldLabel } from './fieldStatus.js
 // The progress of a plan in blocks, from the saved field checks: a bar, trees planted / remaining / problem, blocks done / partly / problem / to do, trees per species, and the
 // "Plan top-up" button that makes a new plan for the trees lost to problem blocks. version changes after every saved field check, so the numbers reload.
 export default function PlanProgress({ planId, version = 0, full = false, onTopUp, onOpenPlan }) {
+  const lang = useLang()
   const api = useApi(`/plans/${planId}/progress?v=${version}`)
   const [also, setAlso] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -68,7 +70,7 @@ export default function PlanProgress({ planId, version = 0, full = false, onTopU
               <span className="nw-fieldmark" style={{ color: fieldColor(k) }}>
                 <Icon name={fieldIcon(k)} />
               </span>{' '}
-              {fieldLabel(k)}: <strong>{p.by_class[k].blocks}</strong> block{p.by_class[k].blocks === 1 ? '' : 's'}
+              {fieldLabel(k, lang)}: <strong>{p.by_class[k].blocks}</strong> block{p.by_class[k].blocks === 1 ? '' : 's'}
             </li>
           ))}
         </ul>

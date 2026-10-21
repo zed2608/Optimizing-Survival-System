@@ -15,7 +15,7 @@ export default function LocationCard({ full = true, zoneCondition = '', barangay
   if (slope !== null && slope !== undefined) coords.push(`slope ${Number(slope).toFixed(0)} %`)
   const hasNotes = !!zoneCondition || zoning === 'unconfirmed' || (ground?.available && (ground.flags?.length > 0 || ground.info))
   return (
-    <section className="nw-pcard nw-loc" aria-label="Where this is">
+    <section className="nw-pcard nw-loc" aria-label="Where this is" data-tour="r-header">
       {searched && <div className="nw-loc-searched">Searched: {searched}</div>}
       <h2 className="nw-loc-title">{barangay || 'Outside the barangay outlines'}</h2>
       {!full && hasNotes && (
@@ -24,8 +24,8 @@ export default function LocationCard({ full = true, zoneCondition = '', barangay
         </p>
       )}
       {full && (
-        <details className="nw-landdetails" data-role="land-details">
-          <summary>{tr('land.title', {}, lang)}</summary>
+        <details className="nw-landdetails" data-role="land-details" data-tour="r-land">
+          <summary data-tour="r-land-summary">{tr('land.title', {}, lang)}</summary>
           {zoneCondition && (
             <div className="nw-loc-line nw-zonecond" role="note">
               <Icon name="info" size={14} /> Zone condition: {conditionText(zoneCondition)}. <ProvisionalTag /> <AskHelp id="needs-permission" />

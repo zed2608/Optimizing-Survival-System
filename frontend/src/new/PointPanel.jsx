@@ -29,7 +29,7 @@ import WhyNone from './WhyNone.jsx'
 // (open from the start in the Full view).
 function ResultRow({ item, point, onInfo, full, ranges }) {
   return (
-    <motion.li className={`nw-prow level-${wLevel(item.W, item.eligible)}`} initial={motionAllowed() ? { opacity: 0, y: 10 } : false} animate={{ opacity: 1, y: 0 }} transition={motionAllowed() ? { duration: 0.3, delay: Math.min(item.rank - 1, 10) * 0.04 } : { duration: 0 }}>
+    <motion.li data-tour={item.rank === 1 ? 'r-row' : undefined} className={`nw-prow level-${wLevel(item.W, item.eligible)}`} initial={motionAllowed() ? { opacity: 0, y: 10 } : false} animate={{ opacity: 1, y: 0 }} transition={motionAllowed() ? { duration: 0.3, delay: Math.min(item.rank - 1, 10) * 0.04 } : { duration: 0 }}>
       <div className="nw-prow-main">
         <span className="rank-no" aria-label={`Rank ${item.rank}`}>
           {item.rank}
@@ -50,7 +50,7 @@ function ResultRow({ item, point, onInfo, full, ranges }) {
         </p>
       )}
       <details className="nw-pdetails" open={full || undefined}>
-        <summary>
+        <summary data-tour={item.rank === 1 ? 'r-row-details' : undefined}>
           Details<span className="sr-only"> for {item.common_name}</span>
         </summary>
         <RowDetails item={item} point={point} full={full} />
@@ -65,7 +65,7 @@ function VerdictCard({ ranking, leftOut, preferId = null }) {
   const text = leftOut ? 'This spot was marked not plantable in the field, so it is left out of plans.' : verdictSentence(top, top?.flags ?? [])
   const good = !leftOut && top && matchLevel(top.W) === 'Good'
   return (
-    <section className={`nw-pcard nw-verdictcard ${good ? 'is-good' : top && !leftOut ? 'is-fair' : 'is-poor'}`} aria-label="Verdict for this spot">
+    <section className={`nw-pcard nw-verdictcard ${good ? 'is-good' : top && !leftOut ? 'is-fair' : 'is-poor'}`} aria-label="Verdict for this spot" data-tour="r-verdict">
       <p className="nw-verdict-text" role="status">
         <Icon name={good ? 'check' : top && !leftOut ? 'info' : 'warn'} /> {text} <AskHelp id="scores" />
       </p>
@@ -140,7 +140,7 @@ export default function PointPanel({
       {rank.data.limiting_factors && <WhyNone lf={rank.data.limiting_factors} ground={point.ground_cover} />}
 
       <section className="nw-pcard" aria-label="Best species for this spot">
-        <div className="nw-pcard-head">
+        <div className="nw-pcard-head" data-tour="r-species">
           <h3>Best species for this spot</h3>
           <HelpTip label="About this list">
             <div>Each point stands for a 100 m × 100 m square. Colours: green good, orange moderate, red poor, grey not suitable.</div>
@@ -163,7 +163,7 @@ export default function PointPanel({
             <Icon name="close" /> Left out of plans because of a field check.
           </p>
         )}
-        <ol className={`nw-plist ${leftOut ? 'is-greyed' : ''}`} aria-label={`Best species for ${purposeLabel(purpose)}`}>
+        <ol data-tour="r-list" className={`nw-plist ${leftOut ? 'is-greyed' : ''}`} aria-label={`Best species for ${purposeLabel(purpose)}`}>
           {shown.map((item) => (
             <ResultRow key={`${item.species_id}|${full}`} item={item} point={point} onInfo={onInfo} full={full} ranges={phRanges} />
           ))}

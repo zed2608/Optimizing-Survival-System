@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import Callout from './ui/Callout.jsx'
 import { useApi } from '../v2/useApi.js'
 import { ChartCard, GroupBars, HBars, VBars } from './charts/Charts.jsx'
 import { PALETTE } from './charts/palette.js'
@@ -39,7 +40,7 @@ export default function AnalyticsPanel() {
   const dateBad = f.from && f.to && f.to < f.from
 
   const filters = (
-    <section className="cy-card an-filters" aria-label={t('an.filters')}>
+    <section className="cy-card an-filters" aria-label={t('an.filters')} data-tour="an-filters">
       <label>
         <span className="nw-label">{t('an.barangay')}</span>
         <select className="nw-select" value={f.barangay} onChange={set('barangay')} data-role="an-barangay">
@@ -74,9 +75,9 @@ export default function AnalyticsPanel() {
         {t('an.reset')}
       </button>
       {dateBad && (
-        <p className="nw-warn" role="alert">
+        <Callout tone="error" role="alert">
           {t('an.dateBad')}
-        </p>
+        </Callout>
       )}
     </section>
   )
@@ -141,7 +142,7 @@ export default function AnalyticsPanel() {
   return (
     <div className="an-root" data-role="analytics">
       {filters}
-      <div className="an-kpis" data-role="kpis">
+      <div className="an-kpis" data-role="kpis" data-tour="an-kpis">
         <Kpi label={t('an.kpi.squares')} value={k.squares_scored} />
         <Kpi label={t('an.kpi.species')} value={k.species} />
         <Kpi label={t('an.kpi.suitable')} value={k.suitable_squares} sub={t('an.kpi.suitableSub', { th: d.suitability.threshold })} />
@@ -156,6 +157,7 @@ export default function AnalyticsPanel() {
 
       <div className="an-grid">
         <ChartCard
+          tourId="an-c-suit"
           title={t('an.c.s')}
           note={t('an.c.s.note', { zero: nf(S.zero), th: d.suitability.threshold })}
           rows={sRows}
@@ -166,15 +168,16 @@ export default function AnalyticsPanel() {
           <VBars data={sRows} xLabel={t('an.ax.s')} yLabel={t('an.ax.pairs')} />
         </ChartCard>
 
-        <ChartCard title={t('an.c.brgy')} rows={brgy} columns={[{ key: 'label', label: t('an.barangay') }, { key: 'a', label: t('an.col.suitable') }, { key: 'total', label: t('an.col.total') }]} filename="suitable_squares_by_barangay" summary={t('an.sum.top', { top: top(brgy) })}>
+        <ChartCard tourId="an-c-brgy" title={t('an.c.brgy')} rows={brgy} columns={[{ key: 'label', label: t('an.barangay') }, { key: 'a', label: t('an.col.suitable') }, { key: 'total', label: t('an.col.total') }]} filename="suitable_squares_by_barangay" summary={t('an.sum.top', { top: top(brgy) })}>
           <HBars rows={brgy} series={[{ label: t('an.col.suitable'), color: PALETTE.blue }]} xLabel={t('an.ax.squares')} />
         </ChartCard>
 
-        <ChartCard title={t('an.c.species')} rows={spRows} columns={colCsv()} filename="suitable_squares_by_species" summary={t('an.sum.top', { top: top(spRows) })}>
+        <ChartCard tourId="an-c-species" title={t('an.c.species')} rows={spRows} columns={colCsv()} filename="suitable_squares_by_species" summary={t('an.sum.top', { top: top(spRows) })}>
           <HBars rows={spRows} series={[{ label: t('an.ax.squares'), color: PALETTE.green }]} xLabel={t('an.ax.squares')} limit={10} />
         </ChartCard>
 
         <ChartCard
+          tourId="an-c-ph"
           title={t('an.c.ph')}
           note={t('an.c.ph.note', { with: nf(d.ph.squares_with_estimate), without: nf(d.ph.squares_without_estimate) })}
           rows={phRows}
@@ -185,11 +188,11 @@ export default function AnalyticsPanel() {
           <VBars data={phRows} xLabel={t('an.ax.ph')} yLabel={t('an.ax.squares')} color={PALETTE.orange} />
         </ChartCard>
 
-        <ChartCard title={t('an.c.verdict')} note={t('an.c.verdict.note')} rows={vRows} columns={[{ key: 'label', label: t('an.col.name') }, { key: 'a', label: t('an.ax.pairs') }]} filename="ph_verdict_counts" summary={t('an.sum.top', { top: top([...vRows].sort((a, b) => b.a - a.a)) })}>
+        <ChartCard tourId="an-c-verdict" title={t('an.c.verdict')} note={t('an.c.verdict.note')} rows={vRows} columns={[{ key: 'label', label: t('an.col.name') }, { key: 'a', label: t('an.ax.pairs') }]} filename="ph_verdict_counts" summary={t('an.sum.top', { top: top([...vRows].sort((a, b) => b.a - a.a)) })}>
           <HBars rows={vRows} series={[{ label: t('an.ax.pairs'), color: PALETTE.orange }]} xLabel={t('an.ax.pairs')} />
         </ChartCard>
 
-        <ChartCard title={t('an.c.zone')} rows={zRows} columns={colCsv()} filename="squares_by_zone" summary={t('an.sum.top', { top: top(zRows) })}>
+        <ChartCard tourId="an-c-zone" title={t('an.c.zone')} rows={zRows} columns={colCsv()} filename="squares_by_zone" summary={t('an.sum.top', { top: top(zRows) })}>
           <HBars rows={zRows} series={[{ label: t('an.ax.squares'), color: PALETTE.green }]} xLabel={t('an.ax.squares')} limit={8} />
           <ul className="an-callouts">
             <li data-role="outside-zoning">{t('an.land.outside', { n: nf(d.land.outside_zoning_map) })}</li>
@@ -198,6 +201,7 @@ export default function AnalyticsPanel() {
         </ChartCard>
 
         <ChartCard
+          tourId="an-c-activity"
           title={t('an.c.activity')}
           note={d.activity.by_week.length === 0 ? t('an.empty.text') : d.activity.note}
           rows={weeks}
@@ -213,6 +217,7 @@ export default function AnalyticsPanel() {
         </ChartCard>
 
         <ChartCard
+          tourId="an-c-trees"
           title={t('an.c.trees')}
           rows={weeks}
           columns={[{ key: 'week', label: t('an.ax.week') }, { key: 'trees_planned', label: t('an.ax.trees') }]}
@@ -222,15 +227,15 @@ export default function AnalyticsPanel() {
           {weeks.length === 0 ? <EmptyState icon="clipboard" title={t('an.empty.title')} text={t('an.empty.text')} /> : <VBars data={weeks.map((w) => ({ label: w.label, value: w.trees_planned }))} xLabel={t('an.ax.week')} yLabel={t('an.ax.trees')} color={PALETTE.green} />}
         </ChartCard>
 
-        <ChartCard title={t('an.c.pvb')} note={d.planned_vs_planted.note} rows={pvB} columns={[{ key: 'label', label: t('an.barangay') }, { key: 'a', label: t('an.planned') }, { key: 'b', label: t('an.planted') }]} filename="planned_vs_planted_by_barangay" summary={t('an.sum.top', { top: top(pvB) })}>
+        <ChartCard tourId="an-c-pvb" title={t('an.c.pvb')} note={d.planned_vs_planted.note} rows={pvB} columns={[{ key: 'label', label: t('an.barangay') }, { key: 'a', label: t('an.planned') }, { key: 'b', label: t('an.planted') }]} filename="planned_vs_planted_by_barangay" summary={t('an.sum.top', { top: top(pvB) })}>
           {pvB.length === 0 ? <EmptyState icon="clipboard" title={t('an.empty.title')} text={t('an.empty.text')} /> : <HBars rows={pvB} series={pvSeries} xLabel={t('an.ax.trees')} />}
         </ChartCard>
 
-        <ChartCard title={t('an.c.pvs')} note={d.planned_vs_planted.note} rows={pvS} columns={[{ key: 'label', label: t('an.species') }, { key: 'a', label: t('an.planned') }, { key: 'b', label: t('an.planted') }]} filename="planned_vs_planted_by_species" summary={t('an.sum.top', { top: top(pvS) })}>
+        <ChartCard tourId="an-c-pvs" title={t('an.c.pvs')} note={d.planned_vs_planted.note} rows={pvS} columns={[{ key: 'label', label: t('an.species') }, { key: 'a', label: t('an.planned') }, { key: 'b', label: t('an.planted') }]} filename="planned_vs_planted_by_species" summary={t('an.sum.top', { top: top(pvS) })}>
           {pvS.length === 0 ? <EmptyState icon="clipboard" title={t('an.empty.title')} text={t('an.empty.text')} /> : <HBars rows={pvS} series={pvSeries} xLabel={t('an.ax.trees')} />}
         </ChartCard>
       </div>
-      <p className="muted an-forecast" data-role="no-forecast">
+      <p className="muted an-forecast" data-role="no-forecast" data-tour="an-noforecast">
         {t('an.noforecast')}
       </p>
     </div>

@@ -10,7 +10,7 @@ import { tr, useLang } from '../i18n.js'
 const fmtN = (v) => (typeof v === 'number' ? v.toLocaleString('en-US') : String(v))
 
 // The frame of one chart: heading, one sentence, the chart, an optional table and the CSV button.
-export function ChartCard({ title, note, children, rows, columns, filename, summary }) {
+export function ChartCard({ title, note, children, rows, columns, filename, summary, tourId }) {
   const lang = useLang()
   const [table, setTable] = useState(false)
   const id = useId()
@@ -18,6 +18,7 @@ export function ChartCard({ title, note, children, rows, columns, filename, summ
     <motion.section
       className="cy-card an-chart"
       aria-label={title}
+      data-tour={tourId}
       initial={motionAllowed() ? { opacity: 0, y: 26 } : false}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '0px 0px -40px 0px' }}
@@ -26,10 +27,10 @@ export function ChartCard({ title, note, children, rows, columns, filename, summ
       <header className="an-chart-head">
         <h3>{title}</h3>
         <div className="an-chart-tools">
-          <button type="button" className="cy-btn cy-btn-quiet" aria-expanded={table} aria-controls={id} onClick={() => setTable((v) => !v)}>
+          <button type="button" className="cy-btn cy-btn-quiet" data-tour={tourId ? `${tourId}-table` : undefined} aria-expanded={table} aria-controls={id} onClick={() => setTable((v) => !v)}>
             {tr(table ? 'an.hideTable' : 'an.viewTable', {}, lang)}
           </button>
-          <button type="button" className="cy-btn" disabled={!rows?.length} onClick={() => downloadCsv(filename, toCsv(rows, columns))} data-role="csv">
+          <button type="button" className="cy-btn" disabled={!rows?.length} onClick={() => downloadCsv(filename, toCsv(rows, columns))} data-role="csv" data-tour={tourId ? `${tourId}-csv` : undefined}>
             {tr('an.csv', {}, lang)}
           </button>
         </div>

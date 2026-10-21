@@ -36,7 +36,7 @@ export default function RowDetails({ item, point, full }) {
         </dl>
       )}
       {full && (
-      <dl className="scores">
+      <dl className="scores" data-tour={item.rank === 1 ? 'r-scores' : undefined}>
         <div>
           <dt>Site suitability (S)</dt>
           <dd>{fmt(item.S) ?? 'Data Unavailable'}</dd>
@@ -75,7 +75,7 @@ export default function RowDetails({ item, point, full }) {
         </div>
       )}
       {!item.eligible && <div className="muted">Not suitable here: site suitability is below 0.50.</div>}
-      <button type="button" className="btn btn-small" aria-expanded={why} onClick={() => setWhy((w) => !w)}>
+      <button type="button" className="btn btn-small" aria-expanded={why} onClick={() => setWhy((w) => !w)} data-tour={item.rank === 1 ? 'r-why-btn' : undefined}>
         {why ? 'Hide why this score' : 'Why this score?'}
         <span className="sr-only"> for {item.common_name}</span>
       </button>
@@ -83,7 +83,7 @@ export default function RowDetails({ item, point, full }) {
         <div className="explain-wrap" role="region" aria-label={`Explanation for ${item.common_name}`}>
           <SeasonDetail season={item.season} />
           {item.rf && (
-            <p className="nw-rfline" data-rf="yes">
+            <p className="nw-rfline" data-rf="yes" data-tour={item.rank === 1 ? 'r-rf' : undefined}>
               <Icon name="tree" size={14} /> {item.rf.text}
               <span className="muted"> {item.rf.note}</span>
             </p>

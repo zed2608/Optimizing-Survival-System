@@ -187,7 +187,7 @@ export default function SearchBar({ onChoose, note, onDismissNote, locate, inclu
   const panelOpen = open && (showRecent || trimmed.length >= MIN_CHARS)
 
   return (
-    <div className="nw-search" role="search">
+    <div className="nw-search" role="search" data-tour="m-search">
       <div className="nw-search-box">
         <span className="nw-search-icon" aria-hidden="true">
           <Icon name="search" size={18} />

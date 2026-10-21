@@ -64,13 +64,13 @@ def test_the_page_is_one_self_contained_file_and_small(pack, tmp_path):
     f = tmp_path / "p.html"
     page = bfp.render_page(pack)
     f.write_text(page, encoding="utf-8")
-    assert f.stat().st_size < 350_000                                              # the sample kit: 6 blocks, 50 trees; Leaflet is about 150 KB of it (the page is about 306 KB with both languages, the tour and the text sizes)
+    assert f.stat().st_size < 520_000                                              # the sample kit: 6 blocks, 50 trees; Leaflet is about 150 KB of it (the page is about 306 KB with both languages, the tour and the text sizes)
     assert "Prototype. GPS accuracy not yet field-tested." in page                 # the permanent banner text is in the strings table that is inlined
     assert 'name="viewport"' in page and 'id="banner"' in page
     assert "/*__" not in page                                                      # every placeholder was filled
     assert not re.search(r"<script[^>]+src=|<link[^>]+href=|@import", page)        # nothing is loaded from outside: no CDN, no style sheet, no import
     css_urls = re.findall(r"url\(([^)]*)\)", page)
-    assert set(css_urls) <= {"#default#VML"}, css_urls                              # Leaflet's picture files are cut out; only an old-Internet-Explorer line stays (it loads nothing)
+    assert {u for u in css_urls if not u.startswith("data:font/woff2;base64,")} <= {"#default#VML"}, css_urls  # design v2: the two Canopy fonts travel inside the page as data: addresses (about 125 KB);                              # Leaflet's picture files are cut out; only an old-Internet-Explorer line stays (it loads nothing)
     ours = "".join((ROOT / "fieldpack" / n).read_text(encoding="utf-8") for n in ("app.js", "core.js", "strings.js"))
     assert not re.search(r"\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket|importScripts", ours)      # our own code never sends or fetches anything
     assert set(page_urls(page)) <= ALLOWED_HOSTS, page_urls(page)                  # the only addresses in the page: tile server, links and the SVG name
@@ -173,7 +173,7 @@ def test_phone_layout_rules_in_the_css():
     assert re.search(r"\.btn \{[^}]*min-height: max\(52px, 3\.25rem\)", css)                                               # tap targets of at least 52 px, growing with the text
     assert "--ctl: max(48px," in css and re.search(r"\.chip \{[^}]*width: max\(48px, 3rem\); height: max\(48px, 3rem\)", css) and re.search(r"\.rbtn \{ width: var\(--ctl\); height: var\(--ctl\)", css)     # chips and the round map buttons: 48 px or more
     assert re.search(r"\.btnrow \.primary \{[^}]*min-height: max\(60px, calc\(3\.75rem \* var\(--cap\)\)\)", css)                                  # "Planted": 60 px (56 px or more)
-    assert "color: var(--fg)" in css and "--fg: #000" in css and "--bg: #fff" in css                                       # black on white for sunlight
+    assert "--fg: #000" not in css and "color: var(--c-text); font-family: var(--font)" in css and "background: var(--c-bg)" in css     # design v2: the colours are Canopy tokens (tokens.css, light and dark)
     assert re.search(r"body \{[^}]*font: 1\.125rem", css) and re.search(r"input\[type=text\] \{[^}]*font-size: max\(16px, 1rem\)", css)       # inputs 16 px or more: iOS does not zoom
     px = [l for l in css.splitlines() if re.search(r"(?<![\w-])font-size: \d+px", l)]
     assert all(l.startswith((".attrib", "#bannerclose")) for l in px), px                                                   # text sizes are rem / em (only the map credit and the small x are in px)

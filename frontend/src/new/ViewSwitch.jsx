@@ -4,7 +4,7 @@ const OPTIONS = [
 ]
 
 // "Simple | Detailed" (the values stay compact and full): a two-option switch (radio buttons; Tab to it, Left/Right arrows or Enter/Space change it).
-export default function ViewSwitch({ value, onChange }) {
+export default function ViewSwitch({ value, onChange, tourId = 'r-view' }) {
   const onKey = (e) => {
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
       e.preventDefault()
@@ -14,7 +14,7 @@ export default function ViewSwitch({ value, onChange }) {
     }
   }
   return (
-    <div className="nw-viewswitch" role="radiogroup" aria-label="How much detail to show" onKeyDown={onKey}>
+    <div className="nw-viewswitch" role="radiogroup" aria-label="How much detail to show" onKeyDown={onKey} data-tour={tourId}>
       {OPTIONS.map(([v, label]) => (
         <button key={v} id={`nw-view-${v}`} type="button" role="radio" aria-checked={value === v} className={`nw-viewbtn ${value === v ? 'is-active' : ''}`} onClick={() => onChange(v)}>
           {label}

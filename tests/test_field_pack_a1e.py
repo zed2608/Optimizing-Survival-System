@@ -74,7 +74,7 @@ def test_text_size_five_levels_everything_in_rem_and_the_phone_font_setting_is_r
 
 def test_the_tour_has_the_steps_that_were_asked_for_and_every_text_exists_in_both_languages(tables):
     tours = APP.split("const TOURS = {")[1].split("function tourSheet")[0]
-    for name, count in (("landing", 4), ("home", 3), ("block", 8)):
+    for name, count in (("landing", 4), ("home", 3), ("block", 10)):
         part = tours.split(f"{name}: [")[1].split("\n    ],")[0]
         assert len(re.findall(r"\{ id: '", part)) == count, name
     for k in re.findall(r"(?:title|text): '(\w+)'", tours):

@@ -298,7 +298,7 @@ def test_the_forest_reserve_wording_in_the_code_and_the_kit():
     assert fk.flag_notes("zoning_unconfirmed;soil_provisional", None) == note + " Soil from the LGU soil map, digitized by us: provisional."
     assert "Zoning Named Zone: confirm" not in fk.flag_notes("zoning_unconfirmed", "Special Reserved Zone") and fk.flag_notes("zoning_unconfirmed", "Special Reserved Zone").startswith("Special Reserved Zone: confirm with the LGU")
     src = (ROOT / "pipeline" / "field_kit.py").read_text(encoding="utf-8")
-    assert src.count("shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting there.") == 2           # both README sentences (points and blocks)
+    assert src.count("shows it as Forest Reserve (Watershed): coordinate with MENRO and DENR before planting there.") == 3           # the README sentences: points, blocks in rows, blocks as spaced points (design v2)
     assert "soil_provisional means the soil" in src
 
 

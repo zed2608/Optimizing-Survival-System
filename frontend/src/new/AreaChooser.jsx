@@ -1,4 +1,5 @@
 import { tr, useLang } from './i18n.js'
+import Callout from './ui/Callout.jsx'
 const TOOLS = [
   { id: 'point', label: 'Click a point', help: 'Click a dot on the map to see its species.' },
   { id: 'barangay', label: 'Click a barangay', help: 'Click inside a barangay outline.' },
@@ -13,7 +14,7 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
   const zoneValue = area?.kind === 'zone' ? area.name : ''
   return (
     <div>
-      <fieldset className="nw-fieldset">
+      <fieldset className="nw-fieldset" data-tour="a-how">
         <legend className="nw-label">How to choose the area</legend>
         <div className="nw-tools">
           {TOOLS.map((t) => (
@@ -27,7 +28,7 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
       </fieldset>
 
       {tool === 'draw' && (
-        <div className="nw-drawbox">
+        <div className="nw-drawbox" data-tour="a-draw">
           <p className="nw-hint" role="status">
             {locked
               ? tr('area.drawLocked', {}, lang)
@@ -78,7 +79,7 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
       )}
 
       {summary.length > 0 && (
-        <div className="nw-current nw-areasummary" data-role="area-summary">
+        <div className="nw-current nw-areasummary" data-role="area-summary" data-tour="a-summary">
           <dl className="nw-summary-list">
             {summary.map((r) => (
               <div key={r.label}>
@@ -95,9 +96,9 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
         </div>
       )}
       {blocked && (
-        <p className="nw-hint nw-warn" role="alert" data-role="area-blocked">
+        <Callout tone="warning" data-role="area-blocked" role="alert">
           {blocked}
-        </p>
+        </Callout>
       )}
     </div>
   )

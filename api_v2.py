@@ -34,6 +34,7 @@ import analytics as an  # noqa: E402  (System Analytics: counts of what exists, 
 import advice as sva  # noqa: E402  (ways to improve survival: advice only, no score is touched)
 import field_verify as fv  # noqa: E402
 import field_kit as fk  # noqa: E402
+import kit_spaced as ks  # noqa: E402
 import field_pack as fpk  # noqa: E402  (the Field Pack page, stage A2)
 import species_ph_evidence as spe  # noqa: E402  (pH evidence file and rain / temperature agreement: DISPLAY ONLY)
 import soilgrids_ph as sgph  # noqa: E402  (site pH of the squares, a model estimate: DISPLAY ONLY, never read by a score; stage C2)
@@ -2063,10 +2064,20 @@ def render_plan(d, plan, summary, plan_id=None, extra=None):
             it.update({"trees_planned": int(r.trees_planned), "spacing_m": py(r.spacing_m), "rows": int(r.rows), "trees_per_row": int(r.trees_per_row), "capacity": int(r.capacity),
                        "usable_side_m": py(r.usable_side_m), "row_direction": r.row_direction, "start_corner": r.start_corner,
                        "layout_note": r.layout_note if isinstance(r.layout_note, str) else "", **block_geometry_fields(r)})
+    spaced = None
+    if blocks and fk.CFG["point_layout"] == "spaced":                    # design v2: the trees of a block are spaced points inside the selected area (the same call as the field kit)
+        try:
+            spaced = ks.layout_for_plan(plan, refs, summary, d.ctx.species, fk.CFG["site_crs"], fk.CFG["barangay_shp"])
+        except Exception:                                               # a layout problem must never hide the plan: the items then carry no points
+            spaced = None
     for it in items:
         ref = refs[it["point_id"]]
         if blocks:
             it["block_ref"] = ref
+            if spaced is not None and ref in spaced:
+                b_ = spaced[ref]
+                it.update({"layout": "spaced", "points_m": [list(p) for p in b_["points"]], "region_m": b_["region"], "start_m": list(b_["start"]) if b_["start"] else None,
+                           "trees_fit": b_["placed"], "min_distance_m": b_["min_distance_m"], "fits": b_["fits"], "fit_note": b_["reason"]})
         j = d.allpt_index.get(it["point_id"])                          # all grid squares (a saved plan may hold squares the current view does not score)
         b = int(d.allpt_barangay[j]) if j is not None else -1
         it.update({"point_ref": ref, "species_code": ref.split("-")[0], "barangay": d.barangay_names[b] if b >= 0 else "",
@@ -3436,10 +3447,23 @@ def field_check_add(req: FieldCheckIn, d=Depends(D)):
         raise HTTPException(422, str(ex))
     refresh_field(d)
     return {"check_id": check_id, "saved": {**ev, "source": "dashboard", "check_id": check_id}, "current": field_view(d, req.point_id),
-            "effect": ("The point is now left out of rankings and plans." if req.point_id in d.field_ex_ids else
-                       "Saved. This does not change any score." if req.status == "verified_plantable" else
-                       f"Saved: {req.trees_planted} trees planted in this block (plan {req.plan_id})." if req.status == "planted" else "Saved."),
+            "effect": field_effect_text(d, req),
             "limits": FIELD_LIMITS[:1]}
+
+
+def field_effect_text(d, req):
+    """What a saved field check does, in plain words, for the mode the service is in. Scores are never changed by a check; the exclusion switch decides whether a not-plantable square is left out."""
+    if req.status == "not_plantable":
+        if req.point_id in d.field_ex_ids:
+            return "Saved. This square is now left out of the rankings, the map colours and new plans (its scores are not changed). A new check with a note brings it back."
+        return "Saved: recorded only. In this demo a not-plantable mark does not change the rankings or the plans."
+    if req.status == "verified_plantable":
+        return "Saved. This only adds a badge; it never changes a score or a ranking."
+    if req.status == "needs_recheck":
+        return "Saved. This only adds a warning; the rankings and the plans do not change."
+    if req.status == "planted":
+        return f"Saved: {req.trees_planted} trees planted in this block (plan {req.plan_id})."
+    return "Saved."
 
 
 @app.get("/analytics/summary")

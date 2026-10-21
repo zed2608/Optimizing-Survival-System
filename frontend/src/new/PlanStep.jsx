@@ -2,6 +2,7 @@ import CountsForm from './CountsForm.jsx'
 import HelpTip from './HelpTip.jsx'
 import { plainWarning } from './plainWords.js'
 import SeasonNotice from './SeasonNotice.jsx'
+import Callout from './ui/Callout.jsx'
 
 const PRESETS = [50, 100, 300, 500]
 
@@ -25,11 +26,11 @@ export default function PlanStep({
         </label>
         <HelpTip label="Campaign name">The name of the planting event, saved with the plan.</HelpTip>
       </div>
-      <input id="nw-campaign-name" className="nw-input" value={name} maxLength={80} onChange={(e) => onName(e.target.value)} placeholder="e.g. Brgy. Santa Ana Tree Day" aria-required="true" />
+      <input id="nw-campaign-name" data-tour="p-name" className="nw-input" value={name} maxLength={80} onChange={(e) => onName(e.target.value)} placeholder="e.g. Brgy. Santa Ana Tree Day" aria-required="true" />
       <label className="nw-label" htmlFor="nw-campaign-unit">
         Assigned unit
       </label>
-      <input id="nw-campaign-unit" className="nw-input" value={unit} maxLength={80} onChange={(e) => onUnit(e.target.value)} placeholder="e.g. MENRO field team" />
+      <input id="nw-campaign-unit" data-tour="p-unit" className="nw-input" value={unit} maxLength={80} onChange={(e) => onUnit(e.target.value)} placeholder="e.g. MENRO field team" />
 
       {countsMode ? (
         <>
@@ -55,7 +56,7 @@ export default function PlanStep({
             </label>
             <HelpTip label="Number of trees">How many trees to plan in total, from 1 to 2000. They are planted in blocks: each block is one 100 m grid square planted at the species spacing.</HelpTip>
           </div>
-          <input id="nw-saplings" type="number" min="1" max="2000" className="nw-input" value={n} onChange={(e) => onN(e.target.value)} aria-invalid={!nValid} />
+          <input id="nw-saplings" data-tour="p-trees" type="number" min="1" max="2000" className="nw-input" value={n} onChange={(e) => onN(e.target.value)} aria-invalid={!nValid} />
           <div className="nw-presets" role="group" aria-label="Tree number presets">
             {PRESETS.map((v) => (
               <button key={v} type="button" className={`nw-btn nw-btn-small ${String(n) === String(v) ? 'nw-btn-go' : ''}`} onClick={() => onN(String(v))}>
@@ -64,9 +65,9 @@ export default function PlanStep({
             ))}
           </div>
           {!nValid && (
-            <p className="nw-error" role="alert">
+            <Callout tone="error" role="alert">
               Trees: 1 to 2000.
-            </p>
+            </Callout>
           )}
           {areaMode && (
             <button type="button" className="nw-linkbtn" onClick={onOwnSpecies}>
@@ -74,13 +75,13 @@ export default function PlanStep({
             </button>
           )}
           {est && (
-            <p className="nw-estimate" role="status">
+            <Callout tone="success" className="nw-estimate">
               About {est.blocks_about} block{est.blocks_about === 1 ? '' : 's'} of {est.typical_trees_per_block} trees (about {est.hectares_about} ha)
-            </p>
+            </Callout>
           )}
         </>
       )}
-      <dl className="nw-plansum" aria-label="What the plan will use">
+      <dl className="nw-plansum" aria-label="What the plan will use" data-tour="p-summary">
         <div>
           <dt>Area</dt>
           <dd>
@@ -104,16 +105,16 @@ export default function PlanStep({
       </dl>
 
       {p && p.capacity.message && (
-        <p className="nw-capacity" role="status">
+        <Callout tone="warning" className="nw-capacity">
           {p.capacity.message}
-        </p>
+        </Callout>
       )}
       {p && !p.can_create && p.reason !== 'no_suitable_squares' && seasonNoticeProps && (
         <SeasonNotice {...seasonNoticeProps} text={p.reason === 'chosen_species_outside_best_months' ? 'None of your chosen species can be planted in these dates.' : ''} />
       )}
-      {p && !p.can_create && p.reason === 'no_suitable_squares' && <p className="nw-error">{plainWarning(p.message)}</p>}
+      {p && !p.can_create && p.reason === 'no_suitable_squares' && <Callout tone="error">{plainWarning(p.message)}</Callout>}
 
-      <button type="button" className="nw-btn nw-btn-go nw-btn-wide" disabled={!!reason || creating} onClick={onCreate} data-role="create-plan">
+      <button type="button" className="nw-btn nw-btn-go nw-btn-wide" disabled={!!reason || creating} onClick={onCreate} data-role="create-plan" data-tour="p-create" data-tour-unsafe>
         {creating ? 'Creating…' : 'Create plan'}
       </button>
       {reason && (
@@ -122,15 +123,21 @@ export default function PlanStep({
         </p>
       )}
       {createError && (
-        <p className="nw-error" role="alert">
+        <Callout tone="error" role="alert">
           {plainWarning(createError)}
-        </p>
+        </Callout>
       )}
       {result && (
-        <div className="nw-created" role="status">
-          <strong>
-            Placed {placed} of {requested} trees{sm.layout ? ` in ${sm.layout.blocks} block${sm.layout.blocks === 1 ? '' : 's'}` : ''}
-          </strong>
+        <Callout
+          tone={placed < requested ? 'warning' : 'success'}
+          className="nw-created"
+          title={`Placed ${placed} of ${requested} trees${sm.layout ? ` in ${sm.layout.blocks} block${sm.layout.blocks === 1 ? '' : 's'}` : ''}`}
+          actions={
+            <button type="button" className="nw-btn nw-btn-small" onClick={onAnother}>
+              Make another plan
+            </button>
+          }
+        >
           {short.length > 0 && (
             <ul>
               {short.map((r) => (
@@ -147,10 +154,7 @@ export default function PlanStep({
               {sm.saplings_unallocated === 0 && sm.saplings_unmatched === 0 && <li>The area has no more suitable squares.</li>}
             </ul>
           )}
-          <button type="button" className="nw-btn nw-btn-small" onClick={onAnother}>
-            Make another plan
-          </button>
-        </div>
+        </Callout>
       )}
     </div>
   )

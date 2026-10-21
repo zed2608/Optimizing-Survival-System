@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { localToday, restoreWindow, validateWindow } from './season.js'
 
 const KEY_WINDOW = 'nw_planting_window'
-const KEY_ONLY = 'nw_season_only'
 
 function readJson(key) {
   try {
@@ -38,12 +37,8 @@ export function usePlantingWindow() {
   return { today, raw, applied, error: check.ok ? '' : check.error, setStart: (v) => update({ start: v }), setEnd: (v) => update({ end: v }), setRange: (start, end) => update({ start, end }) }
 }
 
-// "Only species that can be planted in my dates": ON by default, remembered in this browser.
+// The planting window never removes a species (W1): the land decides what is suitable, the dates only add a label (In season / Outside best months) and the order.
+// The old "only species for my dates" switch (default ON since 5 Oct) removed every species outside May-Sep, so October dates gave "0 of 45". It is gone; the app always asks with season_filter=mark.
 export function useOnlySeason() {
-  const [only, setOnly] = useState(() => readJson(KEY_ONLY) !== false)
-  const update = (v) => {
-    setOnly(v)
-    write(KEY_ONLY, v)
-  }
-  return [only, update]
+  return [false, () => {}]
 }

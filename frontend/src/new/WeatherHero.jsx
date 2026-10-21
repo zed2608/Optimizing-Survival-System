@@ -39,7 +39,7 @@ export default function WeatherHero({ day, heavy, dateLabel, habagat }) {
   const drops = cond === 'heavy' ? 34 : cond === 'rainy' ? 22 : cond === 'light' ? 10 : 0
   const stars = phase === 'night' && cond === 'clear'
   return (
-    <section className={`wx-hero wx-sky-${phase} wx-cond-${cond}`} aria-label={t('wx.heroLabel')} data-role="wx-hero" data-cond={cond} data-phase={phase}>
+    <section className={`wx-hero wx-sky-${phase} wx-cond-${cond}`} aria-label={t('wx.heroLabel')} data-role="wx-hero" data-tour="w-hero" data-cond={cond} data-phase={phase}>
       <svg className="wx-scene" viewBox="0 0 600 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
         {stars && [40, 120, 210, 300, 380, 470, 540].map((x, i) => <circle key={x} cx={x} cy={20 + ((i * 37) % 70)} r="1.6" className="wx-star" style={{ animationDelay: `${i * 0.4}s` }} />)}
         {cond === 'clear' && (phase === 'day' || phase === 'dawn' || phase === 'dusk') && (
@@ -96,7 +96,7 @@ export function WeekStrip({ days, heavy, weekday, dayLabel }) {
   const t = (k, p) => tr(k, p, lang)
   const weekMax = Math.max(0, ...days.map((d) => d.rain_mm ?? 0))
   return (
-    <ol className="wx-strip" aria-label={t('wx.stripLabel')} data-role="wx-strip">
+    <ol className="wx-strip" aria-label={t('wx.stripLabel')} data-role="wx-strip" data-tour="w-strip">
       {days.map((x) => {
         const c = dayCondition(x.rain_mm, heavy)
         const adv = dayAdvice(x.rain_mm, heavy)
@@ -127,7 +127,7 @@ export function WeekStrip({ days, heavy, weekday, dayLabel }) {
 export function WeatherRules({ heavy }) {
   const lang = useLang()
   return (
-    <p className="muted wx-rules" data-role="wx-rules">
+    <p className="muted wx-rules" data-role="wx-rules" data-tour="w-rules">
       {tr('wx.rules', { heavy }, lang)}
     </p>
   )

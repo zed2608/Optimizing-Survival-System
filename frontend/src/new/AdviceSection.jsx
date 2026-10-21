@@ -13,7 +13,7 @@ export default function AdviceSection({ items, note, view, limit }) {
   const shown = full ? items : items.slice(0, limit)
   const hidden = items.length - shown.length
   return (
-    <section className="nw-advice" aria-label="Ways to improve survival" data-advice-open={open ? 'yes' : 'no'}>
+    <section className="nw-advice" aria-label="Ways to improve survival" data-advice-open={open ? 'yes' : 'no'} data-tour="c-advice">
       <div className="nw-advice-bar">
         <button type="button" className="nw-advice-head" aria-expanded={open} aria-controls="nw-advice-list" onClick={() => setOpen((o) => !o)}>
           <Icon name={open ? 'down' : 'right'} size={14} /> <span>Ways to improve survival</span> <ProvisionalTag />

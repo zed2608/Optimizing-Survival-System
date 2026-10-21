@@ -22,7 +22,9 @@ def test_step_2_and_the_weather_control_say_planting_purpose():
 
 def test_step_4_filter_is_now_a_trait_filter():
     t = src("SpeciesMultiPicker.jsx")
-    assert "Salain ayon sa katangian (Filter by trait)" in t and "Lahat ng katangian (All traits)" in t
+    m = src("messages.js")                                                                         # the words live in the message table (W6: English mode shows English only)
+    assert "'sc.filterTrait': 'Salain ayon sa katangian (Filter by trait)'" in m and "'sc.allTraits': 'Lahat ng katangian (All traits)'" in m
+    assert "sc.filterTrait" in t and "sc.allTraits" in t
     assert "All purposes" not in t and ">\n          Purpose " not in t
     assert 'id="nw-purpose-filter"' in t                                                           # the element id is unchanged (nothing else depends on the words)
 

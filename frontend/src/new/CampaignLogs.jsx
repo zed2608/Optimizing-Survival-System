@@ -46,10 +46,10 @@ export default function CampaignLogs({ today, onOpen, onStudio, fieldVersion = 0
   if (api.status === 'error') return <div className="v2 v2-embedded nw-logs"><ErrorBox error={api.error} onRetry={api.retry} title="Could not load the saved plans" /></div>
   if (plans.length === 0) {
     return (
-      <div className="v2 v2-embedded nw-logs nw-empty">
+      <div className="v2 v2-embedded nw-logs nw-empty" data-tour="l-list">
         <h3>No plans saved yet</h3>
         <p className="nw-plain">Make a plan in step 5 of Active Studio. It will appear here.</p>
-        <button type="button" className="btn btn-primary" onClick={onStudio}>
+        <button type="button" className="btn btn-primary" onClick={onStudio} data-tour="l-studio">
           Go to Active Studio
         </button>
       </div>
@@ -58,7 +58,7 @@ export default function CampaignLogs({ today, onOpen, onStudio, fieldVersion = 0
   return (
     <div className="nw-logs">
       <div className="nw-logbar v2 v2-embedded">
-        <div className="nw-chips" role="group" aria-label="Filter by status">
+        <div className="nw-chips" role="group" aria-label="Filter by status" data-tour="l-filters">
           {FILTERS.map((f) => (
             <button key={f} type="button" className={`nw-fchip ${filter === f ? 'is-active' : ''}`} aria-pressed={filter === f} onClick={() => setFilter(f)}>
               {f === 'all' ? 'All' : STATUS[f].word} ({counts[f]})
@@ -68,17 +68,17 @@ export default function CampaignLogs({ today, onOpen, onStudio, fieldVersion = 0
         <label className="sr-only" htmlFor="nw-log-search">
           Search campaigns
         </label>
-        <input id="nw-log-search" type="search" className="fc-input" placeholder="Search name, unit or plan id" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input id="nw-log-search" data-tour="l-search" type="search" className="fc-input" placeholder="Search name, unit or plan id" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       {api.data.total_saved > LIMIT && <p className="nw-modal-text">Showing the newest {LIMIT} of {api.data.total_saved} saved plans.</p>}
       {openError && <p className="fc-bad" role="alert">{openError}</p>}
       {shown.length === 0 && <p className="nw-modal-text">No plan matches.</p>}
-      <ul className="nw-loglist">
-        {shown.map((p) => {
+      <ul className="nw-loglist" data-tour="l-list">
+        {shown.map((p, i) => {
           const c = p.campaign
           const st = STATUS[p.status]
           return (
-            <li key={p.plan_id} className="v2 v2-embedded nw-logcard" aria-label={`Plan ${p.plan_id}`}>
+            <li key={p.plan_id} className="v2 v2-embedded nw-logcard" aria-label={`Plan ${p.plan_id}`} data-tour={i === 0 ? 'l-card' : undefined}>
               <div className="nw-logcard-head">
                 <h3>{c.name ?? 'Unnamed plan (made before campaigns)'}</h3>
                 <span className={`nw-chip nw-st-${p.status}`}>
@@ -103,7 +103,7 @@ export default function CampaignLogs({ today, onOpen, onStudio, fieldVersion = 0
                 Plan id {p.plan_id} · {p.field_kit_built ? 'Kit built' : 'No kit yet'}
               </div>
               <div className="nw-row nw-logactions">
-                <button type="button" className="btn" disabled={opening === p.plan_id} onClick={() => open(p.plan_id)}>
+                <button type="button" className="btn" disabled={opening === p.plan_id} onClick={() => open(p.plan_id)} data-tour={i === 0 ? 'l-open' : undefined}>
                   {opening === p.plan_id ? 'Opening…' : 'Open on map'}
                 </button>
               </div>

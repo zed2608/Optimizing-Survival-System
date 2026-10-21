@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './loginRedirect.js'
 import DashboardSwitch from './DashboardSwitch.jsx'
+import TourRoot from './TourRoot.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <DashboardSwitch />
+    <TourRoot />
   </StrictMode>,
 )

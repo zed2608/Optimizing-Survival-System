@@ -7,7 +7,8 @@
 // With --ci the exit code is 1 when anything is below 12 px or below AA. The server must serve the built dashboard and the API (public mode, a temporary state folder).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { launch, sleep } from '../tests/browser/cdp_lib.mjs'
-import { layoutAudit } from './layout_lib.mjs'
+import { layoutAudit, purityAudit } from './layout_lib.mjs'
+import { pageAudit } from './contrast_lib.mjs'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = arg('--base', 'http://127.0.0.1:8011')
@@ -17,96 +18,6 @@ const OUT = arg('--out', 'reports/overnight/v2_fix_shots')
 const CI = process.argv.includes('--ci')
 mkdirSync(OUT, { recursive: true })
 
-// ------------------------------------------------------------------------------------------------ in the page
-function pageAudit() {
-  const parse = (s) => {
-    let m = s.match(/rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)(?:[ ,/]+([\d.]+%?))?\s*\)/)
-    if (m) return { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : +m[4] }
-    m = s.match(/color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/)
-    if (m) return { r: +m[1] * 255, g: +m[2] * 255, b: +m[3] * 255, a: m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : +m[4] }
-    return { r: 0, g: 0, b: 0, a: 0 }
-  }
-  const over = (top, bottom) => {
-    const a = top.a + bottom.a * (1 - top.a)
-    if (a === 0) return { r: 0, g: 0, b: 0, a: 0 }
-    const f = (c) => (top[c] * top.a + bottom[c] * bottom.a * (1 - top.a)) / a
-    return { r: f('r'), g: f('g'), b: f('b'), a }
-  }
-  const lum = (c) => {
-    const k = [c.r, c.g, c.b].map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 })
-    return 0.2126 * k[0] + 0.7152 * k[1] + 0.0722 * k[2]
-  }
-  const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
-  const label = (e) => {
-    const cls = [...e.classList].filter((c) => !/^(is-|has-)/.test(c)).slice(0, 2).join('.')
-    return e.tagName.toLowerCase() + (cls ? '.' + cls : '')
-  }
-  const ctx = (e) => {
-    for (let p = e.parentElement; p; p = p.parentElement) {
-      const role = p.getAttribute('data-role')
-      if (role) return `[${role}]`
-      const c = [...p.classList].find((x) => /^(nw-|cy-|an-|wx-|ln-|set-|v2)/.test(x))
-      if (c && p !== document.body) return '.' + c
-    }
-    return ''
-  }
-  const out = []
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-  const seen = new Set()
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    const text = n.textContent.replace(/\s+/g, ' ').trim()
-    if (!text) continue
-    const e = n.parentElement
-    if (!e || seen.has(e) || e.closest('svg, script, style, noscript, .sr-only, canvas, [aria-hidden="true"]') || (e.closest('.leaflet-container') && !e.closest('.leaflet-tooltip, .leaflet-popup'))) continue
-    if (e.closest('button:disabled, input:disabled, [aria-disabled="true"]')) continue
-    const r = e.getBoundingClientRect()
-    if (r.width < 1 || r.height < 1 || r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) continue
-    const cs = getComputedStyle(e)
-    if (cs.visibility === 'hidden' || cs.display === 'none') continue
-    // clip / hidden overflow ancestors that cut this node away entirely
-    let clipped = false
-    for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {
-      const ps = getComputedStyle(p)
-      if (ps.overflow !== 'visible' || ps.overflowX !== 'visible') { const pr = p.getBoundingClientRect(); if (r.bottom <= pr.top || r.top >= pr.bottom || r.right <= pr.left || r.left >= pr.right) { clipped = true; break } }
-    }
-    if (clipped) continue
-    if (parseFloat(cs.fontSize) < 1) continue // font-size 0 = icon-only control: no visible text
-    seen.add(e)
-    let op = 1
-    for (let p = e; p; p = p.parentElement) op *= parseFloat(getComputedStyle(p).opacity)
-    if (op < 0.05) continue
-    const fg = parse(cs.color)
-    fg.a *= op
-    // effective background: the layers from the element up to the root, composited over the page colour
-    const layers = []
-    let grad = false
-    let stops = []
-    const hl = e.closest('.cy-tabs-slide .cy-tab[aria-selected="true"]') && document.querySelector('.cy-tabs-slide .cy-tab-hl')
-    if (hl) layers.push(parse(getComputedStyle(hl).backgroundColor))
-    let cum = 1
-    for (let p = e; p; p = p.parentElement) {
-      const ps = getComputedStyle(p)
-      const o = parseFloat(ps.opacity)
-      const bg = parse(ps.backgroundColor)
-      if (bg.a > 0) layers.push({ ...bg, a: bg.a * cum })
-      if (ps.backgroundImage !== 'none' && /gradient/.test(ps.backgroundImage)) { grad = true; if (!stops.length) stops = (ps.backgroundImage.match(/rgba?([^)]*)/g) || []).map(parse).filter((c) => c.a > 0) }
-      if (bg.a >= 0.99 && cum >= 0.99) break
-      cum *= o
-    }
-    let base = { r: 255, g: 255, b: 255, a: 1 }
-    for (let i = layers.length - 1; i >= 0; i--) base = over(layers[i], base)
-    // text on a gradient: judged against the worst colour stop (the gradient is drawn over the flat layers)
-    const bases = stops.length ? stops.map((c) => over(c, base)) : [base]
-    let worst = null
-    for (const bb of bases) { const rr = ratio(over(fg, bb), bb); if (worst === null || rr < worst) worst = rr }
-    const text2 = over(fg, base)
-    const size = parseFloat(cs.fontSize)
-    const weight = parseInt(cs.fontWeight, 10) || 400
-    const large = size >= 24 || (size >= 18.66 && weight >= 700)
-    out.push({ sel: `${label(e)} < ${ctx(e)}`, text: text.slice(0, 40), size, weight, ratio: +worst.toFixed(2), large, grad })
-  }
-  return out
-}
 
 // ------------------------------------------------------------------------------------------------ the states
 const b = await launch({ out: OUT })
@@ -120,6 +31,7 @@ async function snap(name, ctxInfo) {
   const list = await ev(`(${pageAudit.toString()})()`)
   for (const r of list) rows.push({ ...ctxInfo, state: name, ...r })
   for (const r of await ev(`(${layoutAudit.toString()})()`)) layoutRows.push({ ...ctxInfo, state: name, ...r })
+  for (const r of await ev(`(${purityAudit.toString()})(${JSON.stringify(ctxInfo.theme)})`)) layoutRows.push({ ...ctxInfo, state: name, ...r })
   states[`${ctxInfo.theme}/${ctxInfo.w}`] = (states[`${ctxInfo.theme}/${ctxInfo.w}`] ?? 0) + 1
 }
 const quiet = async (f) => { try { await f() } catch (e) { console.log('  step skipped:', String(e.message).slice(0, 90)) } }
@@ -134,7 +46,7 @@ for (const theme of THEMES) {
     const shot = (n) => b.shot(`audit_${n}_${w}_${theme}`)
     await snap('studio-goal', c)
     for (const [n, re] of [['purpose', '/Planting purpose/'], ['window', '/Planting window/'], ['species', '/^Species/'], ['plan', '/^Plan(?!ting)/']]) {
-      await quiet(async () => { await clickText(re, '.nw-step-toggle'); await sleep(500); await snap('step-' + n, c) })
+      await quiet(async () => { await clickText(re, '.nw-step-toggle'); await sleep(500); await snap('step-' + n, c); await shot('step-' + n) })
     }
     await quiet(async () => {
       await clickText('/Show all species/'); await sleep(400)
@@ -186,10 +98,36 @@ for (const theme of THEMES) {
       await clickText('/^More/', 'button'); await sleep(500); await snap('more', c); await shot('more')
       for (const s of ['Known limits', 'Field checks', 'Data credits', 'Dataset version']) { await quiet(async () => { await clickText(new RegExp('^' + s), 'button'); await sleep(500); await snap('more-' + s, c) }) }
     })
+    // STATES (R1 W2): toast, no connection (error / empty), slow connection (loading), a plan's panel tabs (Plan / Field kit / Progress), the "no species in season" notice (the default dates are in October)
+    const net = (o) => b.send('Network.emulateNetworkConditions', { offline: !!o.offline, latency: o.latency ?? 0, downloadThroughput: o.down ?? -1, uploadThroughput: -1 })
+    await quiet(async () => {
+      await b.send('Network.enable')
+      await ev(`document.querySelectorAll('[role=tab].cy-tab')[0].click()`); await sleep(600)
+      await ev(`document.querySelector('[data-role=locate]')?.click()`); await sleep(1200); await snap('state-toast', c); await shot('state-toast')
+      for (let k = 0; k < 40 && (await ev(`document.querySelectorAll('.cy-toast').length`)) > 0; k++) await sleep(1000)   // wait until the toast has gone (the location retry may add a second one)
+    })
+    await quiet(async () => {
+      await net({ offline: true })
+      for (const [n, i] of [['logs', 2], ['analytics', 3]]) { await ev(`document.querySelectorAll('[role=tab].cy-tab')[${i}].click()`); await sleep(2500); await snap('state-offline-' + n, c); await shot('state-offline-' + n) }
+      await net({})
+    })
+    await quiet(async () => {
+      await net({ latency: 6000, down: 20000 })
+      await ev(`document.querySelectorAll('[role=tab].cy-tab')[3].click()`); await sleep(500); await snap('state-loading', c); await shot('state-loading')
+      await net({})
+      await sleep(1500)
+    })
+    await quiet(async () => {
+      await ev(`document.querySelectorAll('[role=tab].cy-tab')[0].click()`); await sleep(500)
+      await ev(`fetch('/plan-event?season_filter=mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purpose: 'urban', n_saplings: 60, seed: 3, campaign: { name: 'Audit plan', unit: 'QA' } }) }).then((r) => r.status)`)
+      await ev(`document.querySelectorAll('[role=tab].cy-tab')[2].click()`); await sleep(2500)
+      await clickText('/Open on map/'); await sleep(2500); await snap('state-plan-open', c); await shot('state-plan-open')
+      for (const tab of ['Field kit', 'Progress', 'Plan']) { await quiet(async () => { await clickText(new RegExp('^' + tab + '$'), '[role=tab], button'); await sleep(900); await snap('state-plan-' + tab, c); await shot('state-plan-' + tab) }) }
+    })
     // the landing slides
     await quiet(async () => {
       await ev(`localStorage.removeItem('nw_last_visit')`); await ev('location.reload()'); await sleep(3500)
-      for (let i = 0; i < 3; i++) { await sleep(900); await snap("landing-" + (i + 1), c); if (i < 2) { await ev(`document.querySelector('[data-role=ln-next]').click()`); await sleep(1300) } }
+      for (let i = 0; i < 3; i++) { await sleep(900); await snap('landing-' + (i + 1), c); if (i < 2) { await ev(`document.querySelector('[data-role=ln-next]').click()`); await sleep(1300) } }
     })
   }
 }
@@ -207,7 +145,7 @@ const group = (list) => {
   }
   return [...m.values()].sort((a, b2) => b2.n - a.n)
 }
-const BAD_LAYOUT = ['clipped', 'hscroll', 'sticks-out', 'overlap', 'see-through']
+const BAD_LAYOUT = ['clipped', 'hscroll', 'sticks-out', 'overlap', 'see-through', 'impure-light', 'impure-dark']
 const lay = layoutRows.filter((r) => BAD_LAYOUT.includes(r.kind))
 const layGroup = new Map()
 for (const r of lay) { const k = `${r.kind}  ${r.sel}`; const e = layGroup.get(k) ?? { n: 0, sample: r.text, w: r.w, sw: r.sw, where: new Set() }; e.n++; e.where.add(`${r.theme}/${r.w0 ?? r.w}/${r.state}`); layGroup.set(k, e) }

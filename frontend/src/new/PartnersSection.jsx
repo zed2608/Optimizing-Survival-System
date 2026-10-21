@@ -10,7 +10,7 @@ export default function PartnersSection({ speciesId, query = '' }) {
   const api = useApi(`/species/${speciesId}/partners?${query}`)
   const d = api.status === 'ok' ? api.data : null
   return (
-    <section className="nw-card-sec" aria-label="Works well with">
+    <section className="nw-card-sec" aria-label="Works well with" data-tour="c-partners">
       <div className="nw-pcard-head">
         <h3>Works well with</h3>
         <HelpTip label="About partner species">These are starting rules from the species data. The agriculturist will check them.</HelpTip>

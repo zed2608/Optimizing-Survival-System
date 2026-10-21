@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import Callout from './ui/Callout.jsx'
 import Icon from './Icon.jsx'
 import { useApi } from '../v2/useApi.js'
 import { PURPOSE_SHORT } from './labelsNew.js'
@@ -69,7 +70,7 @@ function SpeciesRow({ item, pos, full, sources, onInfo }) {
 
 function SpeciesList({ title, help, block, full, sources, onInfo, id }) {
   return (
-    <section className="v2 v2-embedded nw-wcard" aria-label={title} id={id}>
+    <section className="v2 v2-embedded nw-wcard" aria-label={title} id={id} data-tour={id === 'nw-w-best' ? 'w-best' : id === 'nw-w-water' ? 'w-water' : undefined}>
       <h3>
         {title} <span className="muted">({block.count})</span>
       </h3>
@@ -113,7 +114,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
   return (
     <div className="nw-wtab">
       <div className="nw-wbar">
-        <div className="nw-wfield">
+        <div className="nw-wfield" data-tour="w-where">
           <label className="nw-wlabel" htmlFor="nw-wloc">
             Where
           </label>
@@ -130,7 +131,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
             </optgroup>
           </select>
         </div>
-        <div className="nw-wfield">
+        <div className="nw-wfield" data-tour="w-purpose">
           <span className="nw-wlabel" id="nw-wpurpose">
             {tr('wx.purpose', {}, lang)}
           </span>
@@ -142,7 +143,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
             ))}
           </div>
         </div>
-        <ViewSwitch value={view} onChange={onView} />
+        <ViewSwitch value={view} onChange={onView} tourId="w-view" />
       </div>
 
       {(api.status === 'loading' || api.status === 'idle') && (
@@ -172,21 +173,21 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
       {d && (
         <>
           {d.cached && (
-            <p className="notice nw-wnotice" role="status">
+            <Callout tone={d.network_error ? 'warning' : 'info'} className="nw-wnotice">
               {d.network_error ? 'The weather service could not be reached, so this is a saved forecast, ' : 'This is a saved forecast, '}
               {ageText(d.cache_age_minutes)} old.{d.stale_note ? ` ${d.stale_note}` : ''}
-            </p>
+            </Callout>
           )}
           <h2 className="nw-wtitle">
             The next {d.week.n_days} days · {place ? place.label : d.location.note}
           </h2>
-          {d.week.short_note && <p className="notice">{d.week.short_note}</p>}
+          {d.week.short_note && <Callout tone="info">{d.week.short_note}</Callout>}
           <WeatherHero day={d.week.days[0]} heavy={heavy} dateLabel={`${weekday(d.week.days[0].date)} ${formatDay(d.week.days[0].date)}`} habagat={d.habagat} />
           <WeekStrip days={d.week.days} heavy={heavy} weekday={weekday} dayLabel={formatDay} />
           <WeatherRules heavy={heavy} />
           {d.week.missing_note && <p className="muted nw-wlight">{d.week.missing_note}</p>}
 
-          <section className={`v2 v2-embedded nw-wcard nw-verdict nw-verdict-${v.cls}`} aria-label="Week verdict">
+          <section className={`v2 v2-embedded nw-wcard nw-verdict nw-verdict-${v.cls}`} aria-label="Week verdict" data-tour="w-verdict">
             <h3 className="nw-verdict-title">
               <Icon name={v.glyph} size={22} /> {d.verdict.label}
             </h3>
@@ -195,7 +196,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
                 <li key={r.code}>{r.message}</li>
               ))}
             </ul>
-            <dl className="nw-wnums" aria-label="The week in numbers">
+            <dl className="nw-wnums" aria-label="The week in numbers" data-tour="w-numbers">
               <div>
                 <dt>Rain, 7 days</dt>
                 <dd>{num(d.week.rain_total_mm, ' mm')}</dd>
@@ -243,7 +244,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
             </section>
           )}
 
-          <div className="nw-wfoot">
+          <div className="nw-wfoot" data-tour="w-source">
             <p className="muted">Forecast: {d.forecast_source.name} ({d.forecast_source.url}). This is a planning aid, not a guarantee.</p>
             <p className="muted">{d.enso.is_default ? 'El Nino status is set by hand: none (source not set)' : `El Nino status is set by hand: ${d.enso.status} (${d.enso.source})`}</p>
             <p className="muted">

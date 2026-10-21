@@ -1,5 +1,6 @@
 import { shapeColor } from './planShapes.js'
 import { blockGeometry, fmtM, SQUARE_M as S } from './blockGeometry.js'
+import SpacedLayout from './SpacedLayout.jsx'
 
 const PAD = 16
 
@@ -7,6 +8,7 @@ const PAD = 16
 // the numbered trees at the centres of its cells (filled; the empty places of a partly filled block are hollow), START beside the south-west corner, the spacing, the margin
 // and a north arrow. The words under it say the same as the printed page of the kit.
 export default function BlockLayout({ item, kind = 0 }) {
+  if (item.layout === 'spaced') return <SpacedLayout item={item} kind={kind} /> // design v2: spaced points inside the selected area (the numbers come from the service)
   const { trees_planned: n, spacing_m: sp, rows, trees_per_row: tpr, capacity } = item
   const g = blockGeometry(sp, tpr, rows, n)
   const r = Math.max(0.9, Math.min(3, sp * 0.22))
