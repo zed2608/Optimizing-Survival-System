@@ -846,17 +846,6 @@ a.nw-btn-big { background: var(--nw-tint, var(--c-surface)); color: var(--c-text
   .nw-helppage-bar { padding: 10px 12px; }
   .nw-helppage-btns .nw-btn { flex: 1 1 auto; }
 }
-@media print {
-  body * { visibility: hidden !important; }
-  .nw-printguide, .nw-printguide * { visibility: visible !important; }
-  .nw-printguide { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0 12mm; color: var(--c-text); background: var(--c-surface); font: 11pt/1.4 Georgia, serif; }
-  .nw-printguide h1 { font-size: 20pt; margin: 0 0 4pt; }
-  .nw-printguide h2 { font-size: 15pt; margin: 18pt 0 6pt; border-bottom: 1px solid var(--c-text); }
-  .nw-printguide h3 { font-size: 12.5pt; margin: 12pt 0 4pt; }
-  .nw-printguide h4 { font-size: 11pt; margin: 6pt 0 2pt; }
-  .nw-printguide p, .nw-printguide dd { margin: 0 0 4pt; }
-  .nw-print-step { break-inside: avoid; margin-bottom: 6pt; }
-}
 
 /* ---- round 17: Ways to improve survival ---- */
 .nw-advice { margin: 10px 0; }

@@ -74,6 +74,10 @@
   }
 }
 
+/* print: always black on white, whatever the theme (the print rules below only use tokens) */
+@media print {
+  :root, :root[data-theme='dark'] { color-scheme: light; --c-bg: #fff; --c-surface: #fff; --c-surface-2: #fff; --c-surface-3: #eee; --c-text: #000; --c-muted: #333; --c-line: #999; --c-link: #000; --c-glass: #fff; --c-glass-strong: #fff; }
+}
 /* TOKENS:END */
 /* ---- the older token set (--nw-*) and the v2 cards read the same colours ---------------------------------------------------------------- */
 .nw-root, .nw-root .v2 {
@@ -870,4 +874,29 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 @media (max-width: 640px) {
   .nw-root .nw-table { table-layout: fixed; width: 100%; }
   .nw-root .nw-table th, .nw-root .nw-table td { overflow-wrap: anywhere; padding-left: 3px; padding-right: 3px; vertical-align: top; }
+}
+
+/* ======================= PRINT (R1 W4): the guide, a page of the dashboard (Weather, Logs, Analytics) and the plan panel print on as many A4 sheets as they need ======================= */
+@media print {
+  @page { size: A4; margin: 15mm; }
+  html, body, #root, .nw-root { height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; position: static !important; background: var(--c-bg) !important; color: var(--c-text) !important; }
+  /* the app chrome: header, tabs, panels, the map, toasts, the tour, notices, the landing */
+  .nw-topbar, .nw-sidebar, .nw-right, .nw-markbar, .nw-notice, .leaflet-container, .nw-toasts, .cy-toast, .tour, .nw-tour, .nw-tourbar, .cy-splash, .ln-root, .nw-mapview, .nw-locate, .nw-legend, .nw-legend-btn,
+  .nw-toggle, .nw-reopen, .nw-search, .nw-helpbtn, .nw-askhelp, .nw-tip-btn, .nw-helppage-bar, .nw-helppage-body, .nw-page-close, .nw-root > .nw-map, .nw-root .nw-mapwrap, button.nw-btn, .cy-callout-actions { display: none !important; }
+  .nw-root > :not(.nw-helppage):not(.nw-page):not(.nw-printguide) { display: none !important; }
+  .nw-helppage { position: static !important; display: block !important; inset: auto !important; background: var(--c-bg) !important; }
+  .nw-page { position: static !important; inset: auto !important; overflow: visible !important; background: var(--c-bg) !important; z-index: auto !important; }
+  .nw-page-in { max-width: none !important; padding: 0 !important; }
+  .nw-printguide { display: block !important; position: static !important; width: auto; padding: 0; color: var(--c-text); background: var(--c-bg); font: 11pt/1.45 Georgia, 'Times New Roman', serif; }
+  .nw-printguide h1 { font-size: 20pt; margin: 0 0 4pt; }
+  .nw-printguide h2 { font-size: 15pt; margin: 16pt 0 6pt; border-bottom: 1px solid var(--c-text); }
+  .nw-printguide h3 { font-size: 12.5pt; margin: 12pt 0 4pt; }
+  .nw-printguide h4 { font-size: 11pt; margin: 6pt 0 2pt; }
+  .nw-printguide p, .nw-printguide dd { margin: 0 0 4pt; }
+  h1, h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
+  .nw-print-step, .nw-pcard, .cy-callout, .an-card, .nw-kpi, figure, tr, li, .nw-card-sec { break-inside: avoid; page-break-inside: avoid; }
+  a[href^='http']::after { content: ' (' attr(href) ')'; font-size: 9pt; word-break: break-all; }
+  * { box-shadow: none !important; text-shadow: none !important; animation: none !important; transition: none !important; backdrop-filter: none !important; }
+  .nw-page, .nw-page *, .nw-printguide, .nw-printguide * { color: var(--c-text) !important; }
+  .nw-page canvas, .nw-page svg { max-width: 100% !important; }
 }
