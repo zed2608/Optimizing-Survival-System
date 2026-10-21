@@ -330,7 +330,7 @@ export default function AppNew() {
     setFieldMenu(null)
     if (mode === 'area' && tool === 'draw') {
       if (area?.kind === 'polygon') {
-        setNotice('Naka-lock ang iginuhit na lugar. Pindutin ang “Start again” o “Clear area” para gumuhit ng bago.') // UX round 2 (A2)
+        setNotice(tr('area.lockNotice', {}, lang)) // UX round 2 (A2)
         return
       }
       setDraft((d) => [...d, [lat, lon]])
@@ -428,7 +428,7 @@ export default function AppNew() {
     const rankable = it.type === 'grid_point' && (it.legal_zone || it.zoning_status === 'unconfirmed')
     const pointId = it.type === 'plan_point' || rankable ? it.point_id : undefined
     const searched =
-      it.type === 'coords' ? `coordinates ${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}` : it.type === 'grid_point' ? `puntos ${it.point_id}` : it.type === 'plan_point' ? `${it.point_ref} (${it.species})` : (it.name || it.display_name)
+      it.type === 'coords' ? `coordinates ${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}` : it.type === 'grid_point' ? `${tr('search.point', {}, lang)} ${it.point_id}` : it.type === 'plan_point' ? `${it.point_ref} (${it.species})` : (it.name || it.display_name)
     const ci = it.type === 'grid_point' && !rankable && contextCols ? contextCols.point_id.indexOf(it.point_id) : -1
     setSpot({ lat: it.lat, lon: it.lon, searched, ...(it.type === 'plan_point' ? { planned: true } : {}), ...(ci >= 0 ? { context: ci } : pointId ? { pointId } : {}) })
     setGoTarget({ lat: it.lat, lon: it.lon })
@@ -523,11 +523,11 @@ export default function AppNew() {
   const showPanel = (hasMain || hasPoint || hasPlanTab) && !hidden
   // UX 14: two different lists, two clear names, one sentence each (they are never merged)
   const tabs = [
-    ...(hasPlanTab ? [{ id: 'plan', label: 'Plan', hint: 'Ang planong ginawa mo: mga block, species at progress.' }] : []),
+    ...(hasPlanTab ? [{ id: 'plan', label: 'Plan', hint: tr('tab.plan.hint', {}, lang) }] : []),
     ...(hasMain
-      ? [{ id: 'main', label: mode === 'species' ? 'Mga lugar na angkop' : 'Para sa buong area', hint: mode === 'species' ? 'Mga barangay at zone na angkop sa mga species na pinili mo.' : 'Species na angkop sa BUONG napiling lugar (lahat ng parisukat nito).' }]
+      ? [{ id: 'main', label: tr(mode === 'species' ? 'tab.main.species' : 'tab.main.area', {}, lang), hint: tr(mode === 'species' ? 'tab.main.hint.species' : 'tab.main.hint.area', {}, lang) }]
       : []),
-    ...(hasPoint ? [{ id: 'point', label: 'Para sa puntong ito', hint: 'Species para sa ISANG puntos na pinili mo sa mapa; nandito rin ang field check nito.' }] : []),
+    ...(hasPoint ? [{ id: 'point', label: tr('tab.point', {}, lang), hint: tr('tab.point.hint', {}, lang) }] : []),
   ]
   const areaLabel = !area ? '' : area.kind === 'polygon' ? 'the drawn area' : (featureOf(area.kind, area.name)?.properties.display_name ?? area.name)
 
@@ -705,7 +705,7 @@ export default function AppNew() {
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
     <PublicNotice health={healthData} />
     <ScoreSourceNotice health={healthData} />
-    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${hints ? '' : 'hints-off'} ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
+    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root lang-${lang} ${hints ? '' : 'hints-off'} ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
@@ -746,8 +746,8 @@ export default function AppNew() {
 
       {/* messages over the map */}
       <div className="nw-toasts v2 v2-embedded">
-        {grid.status === 'loading' && <Loading what="Kinukuha ang mga puntos sa mapa" />}
-        {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title="Hindi makuha ang mga puntos sa mapa" />}
+        {grid.status === 'loading' && <Loading what={tr('grid.loading', {}, lang)} />}
+        {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title={tr('grid.error', {}, lang)} />}
         {fewSpecies && seasonNotice(true)}
         {boundaries.status === 'error' && !boundaries.error.network && <ErrorBox error={boundaries.error} onRetry={boundaries.retry} title="Could not load the outlines" brief />}
       </div>
@@ -900,7 +900,7 @@ export default function AppNew() {
           n={2}
           id="purpose"
           icon="tree"
-          title="Layunin ng pagtatanim (Planting purpose)"
+          title={tr('purpose.title', {}, lang)}
           summary={PURPOSE_SHORT[purpose]}
           open={openStep === 'purpose'}
           onToggle={() => toggleStep('purpose')}

@@ -13,11 +13,11 @@ import ChosenHere from './ChosenHere.jsx'
 import HelpTip from './HelpTip.jsx'
 import LocationCard from './LocationCard.jsx'
 import RowDetails from './RowDetails.jsx'
-import SeasonBadge from './SeasonBadge.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
 import FieldStatusLine from './FieldStatusLine.jsx'
 import PhSiteCard from './PhSiteCard.jsx'
-import PhChip from './PhChip.jsx'
+import RowIcons from './RowIcons.jsx'
+import ScoreBar from './ui/ScoreBar.jsx'
 import { useApi } from '../v2/useApi.js'
 import ViableSuggestion from './ViableSuggestion.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
@@ -37,9 +37,11 @@ function ResultRow({ item, point, onInfo, full, ranges }) {
           <span className="sr-only"> (species information)</span>
         </button>
         {full ? <ScoreChip w={item.W} eligible={item.eligible} /> : <MatchChip w={item.W} eligible={item.eligible} />}
-        <SeasonBadge season={item.season} strip={false} best={false} />
       </div>
-      <PhChip verdict={item.ph_verdict} speciesId={item.species_id} site={point.site_ph ?? null} ranges={ranges} />
+      <div className="cy-rowmeta">
+        <ScoreBar value={item.eligible ? item.W : 0} label={item.eligible ? `Overall match ${Math.round(item.W * 100)}%` : 'Not suitable here'} />
+        <RowIcons season={item.season} phVerdict={item.ph_verdict} speciesId={item.species_id} site={point.site_ph ?? null} ranges={ranges} />
+      </div>
       {item.eligible && item.flags?.includes('slope_graded') && (
         <p className="nw-prow-caution" data-caution="slope">
           <Icon name="mountain" size={14} /> {SLOPE_CAUTION}

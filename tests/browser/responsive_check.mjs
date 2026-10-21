@@ -44,7 +44,7 @@ for (const [W, H] of [[360, 740], [390, 844]]) {
   const tog = JSON.parse(await ev(TALL('.nw-toggle, .nw-step-toggle')))
   check(tag + 'the sidebar button and the step buttons are at least 44 px tall', tog.n >= 5 && tog.min >= 44, JSON.stringify(tog))
   // every step, one after the other
-  for (const re of [/Layunin ng pagtatanim/, /Planting window/, /Species/, /Plan(?!ting)/]) {
+  for (const re of [/Planting purpose/, /Planting window/, /Species/, /Plan(?!ting)/]) {
     await clickText(re, '.nw-step-toggle')
     await look('step ' + re.source.replace(/[^a-z ]/gi, ''))
   }

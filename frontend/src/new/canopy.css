@@ -649,3 +649,24 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
   .nw-root .nw-search, .nw-root.sidebar-open .nw-search, .nw-root.panel-open .nw-search, .nw-root.panel-open.sidebar-open .nw-search { left: 12px; right: 12px; width: auto; transform: none; top: 124px; }
   .nw-root .nw-locate { bottom: 76px; } .nw-root .leaflet-top.leaflet-right { bottom: 196px; top: auto; }
 }
+
+/* ======================= DESIGN V2 (Phase 4b): species rows ======================= */
+.cy-rowmeta { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px 28px; }
+.cy-scorebar { flex: 1; height: 8px; border-radius: 4px; background: var(--c-surface-3); overflow: hidden; display: block; min-width: 40px; }
+.cy-scorebar-fill { display: block; height: 100%; border-radius: 4px; background: var(--c-bar, #2f9e5f); }
+.cy-scorebar[data-step='3'] { --c-bar: #1f7a45; } .cy-scorebar[data-step='2'] { --c-bar: #5db37a; } .cy-scorebar[data-step='1'] { --c-bar: #a9d6b4; }
+:root[data-theme='dark'] .cy-scorebar[data-step='3'] { --c-bar: #6fd08f; } :root[data-theme='dark'] .cy-scorebar[data-step='2'] { --c-bar: #4aa86d; } :root[data-theme='dark'] .cy-scorebar[data-step='1'] { --c-bar: #2f6e49; }
+.cy-rowicons { display: inline-flex; align-items: center; gap: 4px; }
+.cy-rowicon { width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: 50%; border: 0; background: var(--c-surface-3); color: var(--c-muted); cursor: pointer; transition: transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.cy-rowicon:hover { transform: translateY(-1px); background: var(--c-surface-2); }
+.cy-rowicon.is-in_season, .cy-rowicon.is-ph-inside { color: var(--c-ok); background: var(--c-ok-bg); }
+.cy-rowicon.is-partly, .cy-rowicon.is-out_of_season, .cy-rowicon.is-ph-uncertain { color: var(--c-warn); background: var(--c-warn-bg); }
+.cy-rowicon.is-ph-outside, .cy-rowicon.is-ph-outside_optimal { color: var(--c-info); background: var(--c-info-bg); }
+/* no red for what is not an error: out-of-season is amber information */
+.nw-root .nw-season-out_of_season, .nw-root .v2-embedded .nw-season-out_of_season { color: var(--c-warn); background: var(--c-warn-bg); border-color: color-mix(in srgb, var(--c-warn) 40%, transparent); }
+.nw-root .nw-prow-main .cy-tip-box, .nw-root .cy-rowmeta .cy-tip-box { right: 0; left: auto; transform: none; }
+.nw-root .nw-prow .nw-prow-name { font-weight: 600; }
+.nw-root .nw-chip-bad { background: var(--c-danger-bg); color: var(--c-danger); }
+
+/* English mode shows no Filipino: the second (Filipino) line of the bilingual pairs is shown in Taglish mode only */
+.nw-root.lang-en .nw-fil { display: none; }

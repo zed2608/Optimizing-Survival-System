@@ -1,3 +1,4 @@
+import { tr, useLang } from './i18n.js'
 import Icon from './Icon.jsx'
 import FieldChip from './FieldChip.jsx'
 import { REASON_LABEL, STATUS_LABEL, when } from './fieldLabels.js'
@@ -8,22 +9,23 @@ import { fieldClass } from './fieldStatus.js'
 const describe = (e) => (e.status === 'not_plantable' ? `Not plantable: ${REASON_LABEL[e.reason] ?? e.reason}` : e.status === 'planted' ? `Planted: ${e.trees_planted} trees` : STATUS_LABEL[e.status])
 
 export default function FieldStatusLine({ api, onOpen }) {
+  const lang = useLang()
   const current = api.status === 'ok' ? api.data.current : null
   return (
     <section className="nw-pcard fc fc-top" aria-label="Field check of this spot" data-role="field-status-line">
       <div className="nw-pcard-head">
         <h3>Field check</h3>
-        {current ? <FieldChip cls={fieldClass(current.status, current.reason)} text={describe(current)} /> : api.status === 'ok' ? <span className="nw-chip">Hindi pa nasusuri</span> : null}
+        {current ? <FieldChip cls={fieldClass(current.status, current.reason)} text={describe(current)} /> : api.status === 'ok' ? <span className="nw-chip">{tr('fc.none', {}, lang)}</span> : null}
       </div>
       {current && (
         <p className="muted">
-          ni {current.observer} · {when(current.observed_at)}
+          {tr('fc.by', { name: current.observer }, lang)} · {when(current.observed_at)}
           {current.note ? ` · “${current.note}”` : ''}
         </p>
       )}
-      <p className="nw-hint">Para mag-field check: i-right-click ang puntos sa mapa, o pindutin ito nang matagal sa telepono. Siguraduhing tingnan muna ito sa mismong lugar.</p>
+      <p className="nw-hint">{tr('fc.how', {}, lang)}</p>
       <button type="button" className="nw-btn nw-btn-small" onClick={onOpen}>
-        <Icon name="check" size={14} /> Buksan ang field check
+        <Icon name="check" size={14} /> {tr('fc.open', {}, lang)}
       </button>
     </section>
   )

@@ -1,6 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ASK, COMPANION_NOTE, chosenIds, companionBody, overlapText } from './companions.js'
+import { chosenIds, companionBody, overlapText } from './companions.js'
+import { tr } from './i18n.js'
+// V2: the words moved into messages.js (English by default, Taglish through the switch); this test pins the Taglish words as before and adds the English ones
+const ASK = tr('sc.ask', {}, 'tl')
+const COMPANION_NOTE = tr('sc.note', {}, 'tl')
 
 test('the chosen ids: main first, no repeats, nothing without a main', () => {
   assert.deepEqual(chosenIds(null, [2, 3]), [])
@@ -19,6 +23,12 @@ test('the request body carries the area chosen in step 4, or none', () => {
 test('the words: the question, the honest note, and no claim of ecological fit', () => {
   assert.equal(ASK, 'Isang species lang ba o marami?')
   assert.match(COMPANION_NOTE, /Batay lang ito sa parehong angkop na lugar\. Hindi pa kasama ang laki ng canopy, ugat o lilim\./)
-  assert.equal(overlapText(0.734), 'angkop din sa 73% ng lugar na angkop sa pangunahing species')
-  assert.ok(!/ekolohiya|magkaibigan|bagay sa isa|pairs well/i.test(COMPANION_NOTE + overlapText(0.5)))
+  assert.equal(overlapText(0.734, 'tl'), 'angkop din sa 73% ng lugar na angkop sa pangunahing species')
+  assert.ok(!/ekolohiya|magkaibigan|bagay sa isa|pairs well/i.test(COMPANION_NOTE + overlapText(0.5, 'tl')))
+})
+
+test('English mode shows no Filipino: the same words in English', () => {
+  assert.equal(tr('sc.ask', {}, 'en'), 'One species or many?')
+  assert.equal(overlapText(0.734, 'en'), 'also suits 73% of the land that suits the main species')
+  assert.ok(!/ang |ng |mga |lang /.test(tr('sc.note', {}, 'en')))
 })

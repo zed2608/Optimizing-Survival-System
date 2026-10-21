@@ -1,3 +1,4 @@
+import { tr, useLang } from './i18n.js'
 import { useApi } from '../v2/useApi.js'
 import { planPhLine, planPhSummary } from './phEvidence.js'
 
@@ -12,6 +13,7 @@ function Two({ t }) {
 
 // A small card of the plan result: the pH range of each species of the plan (from the project species dataset) and how many have none. Reference only: it does not change the ranking, the plan CSV or the PDF.
 export default function PlanPh({ species }) {
+  const lang = useLang()
   const api = useApi('/species-ph-reference')
   const all = api.status === 'ok' && api.data?.available ? api.data.species : null
   if (!all || !species.length) return null
@@ -37,7 +39,7 @@ export default function PlanPh({ species }) {
         })}
       </ul>
       <p className="muted">
-        Mula sa dataset ng proyekto (Project species dataset). Gumamit ng pH test kit o meter sa mismong lugar.
+        {tr('pl.note', {}, lang)}
       </p>
     </section>
   )

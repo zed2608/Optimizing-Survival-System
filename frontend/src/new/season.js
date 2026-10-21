@@ -97,7 +97,7 @@ export function monthsText(months) {
 export const SEASON_WORDS = {
   in_season: { word: 'In season', glyph: 'check' },
   partly: { word: 'Partly in season', glyph: 'half' },
-  out_of_season: { word: 'Outside best months', glyph: 'close' },
+  out_of_season: { word: 'Outside best months', glyph: 'calendar' },
   unknown: { word: 'Season unknown', glyph: 'question' },
 }
 

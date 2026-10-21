@@ -21,7 +21,7 @@ const step = async (name) => { const f = await flow(); log.push({ step: name, ..
 await clickText('/Show all species/'); await sleep(600)
 await clickText('/Species/', '.nw-step-toggle'); await sleep(600)
 await clickText('/Show all species/'); await sleep(500)
-await must('step 1 the species question', await clickText('/^Isang species lang$/'))
+await must('step 1 the species question', await clickText('/^One species$/'))
 await sleep(600)
 await step('1_species')
 await must('choose a species', await ev(`(() => { const c = document.querySelector('.nw-checklist input[type=checkbox]'); if (!c) return false; c.click(); return true })()`))

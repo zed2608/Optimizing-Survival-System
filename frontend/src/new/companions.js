@@ -1,6 +1,5 @@
 // UX 12: "Isang species lang ba o marami?" Pure helpers (tested in companions.test.mjs). The companions come from the service (POST /companions): species suitable on the same squares as the main one.
-export const ASK = 'Isang species lang ba o marami?'
-export const COMPANION_NOTE = 'Batay lang ito sa parehong angkop na lugar. Hindi pa kasama ang laki ng canopy, ugat o lilim.'
+import { getLang, tr } from './i18n.js'
 
 // the species ids that go to the plan: the main species first, then the companions the person ticked (no repeats, never a companion without a main)
 export function chosenIds(mainId, companionIds) {
@@ -20,6 +19,6 @@ export function companionBody(purpose, mainId, area) {
 }
 
 // a short sentence for the list: how much of the main species' land the companion also suits
-export function overlapText(share) {
-  return `angkop din sa ${Math.round(share * 100)}% ng lugar na angkop sa pangunahing species`
+export function overlapText(share, lang = getLang()) {
+  return tr('sc.overlap', { pct: Math.round(share * 100) }, lang)
 }

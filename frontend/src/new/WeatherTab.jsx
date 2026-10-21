@@ -132,7 +132,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
         </div>
         <div className="nw-wfield">
           <span className="nw-wlabel" id="nw-wpurpose">
-            Layunin ng pagtatanim (Planting purpose)
+            {tr('wx.purpose', {}, lang)}
           </span>
           <div className="nw-seg" role="radiogroup" aria-labelledby="nw-wpurpose">
             {Object.keys(PURPOSE_SHORT).map((p) => (

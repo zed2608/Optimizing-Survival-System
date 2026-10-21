@@ -1,3 +1,4 @@
+import { tr, useLang } from './i18n.js'
 const TOOLS = [
   { id: 'point', label: 'Click a point', help: 'Click a dot on the map to see its species.' },
   { id: 'barangay', label: 'Click a barangay', help: 'Click inside a barangay outline.' },
@@ -6,6 +7,7 @@ const TOOLS = [
 
 // Mode 2: the ways to choose an area: click a point, click a barangay, pick one from a list, or draw a polygon.
 export default function AreaChooser({ tool, onTool, barangays, zones, area, onArea, draftCount, onFinish, onUndo, onClearDraft, summary = [], blocked = '' }) {
+  const lang = useLang()
   const locked = area?.kind === 'polygon' && tool === 'draw' // UX round 2 (A2): a finished drawn area is locked until "Clear area" or "Start again"
   const barangayValue = area?.kind === 'barangay' ? area.name : ''
   const zoneValue = area?.kind === 'zone' ? area.name : ''
@@ -28,10 +30,10 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
         <div className="nw-drawbox">
           <p className="nw-hint" role="status">
             {locked
-              ? 'Naka-lock ang iginuhit na lugar (nasa ibaba ang buod). Para gumuhit ng bago, pindutin ang “Start again” o “Clear area”.'
+              ? tr('area.drawLocked', {}, lang)
               : draftCount === 0
-              ? 'I-click ang mapa para ilagay ang unang sulok.'
-              : `${draftCount} sulok ang nailagay${draftCount < 3 ? ' (kailangan ng hindi bababa sa 3)' : ''}.`}
+              ? tr('area.draw0', {}, lang)
+              : tr('area.drawN', { n: draftCount, need: draftCount < 3 ? tr('area.drawNeed', {}, lang) : '' }, lang)}
           </p>
           <div className="nw-row">
             <button type="button" className="nw-btn nw-btn-small nw-btn-go" onClick={onFinish} disabled={locked || draftCount < 3}>
@@ -71,7 +73,7 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
               </option>
             ))}
           </select>
-          {(barangays.length === 0 || zones.length === 0) && <p className="nw-hint">Ang listahan ng barangay at zone ay galing sa planning service.</p>}
+          {(barangays.length === 0 || zones.length === 0) && <p className="nw-hint">{tr('area.svcNote', {}, lang)}</p>}
           </>
       )}
 
