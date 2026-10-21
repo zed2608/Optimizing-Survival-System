@@ -280,9 +280,9 @@ Choose “I have species” when you already know what you want to plant and nee
 
 Urban greening is for shade, lower root-damage risk and low upkeep in town. Tree planting is for conservation and livelihood. Watershed is for holding soil on slopes and by waterways. The purpose changes how species are scored.
 
-**Why are some species missing from the list?**
+**Why are some species not in their best months?**
 
-The box “Only species for my dates” hides species that are outside their best months in your dates. Press “Show all species” to see them all. Scores do not change with the dates.
+The dates only add a label to each species (In season, Partly, Outside best months). They never hide a species and never change a score. Outside the best months you can still plant, but expect more watering and more losses.
 
 **What does Outside best months mean?**
 

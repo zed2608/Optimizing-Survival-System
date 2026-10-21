@@ -65,7 +65,7 @@ import ModeSwitch from './ModeSwitch.jsx'
 import PurposePicker from './PurposePicker.jsx'
 import RightPanel from './RightPanel.jsx'
 import SearchBar from './SearchBar.jsx'
-import { FEW_SPECIES, formatDay, formatRange, monthsText, seasonQuery, windowMonths } from './season.js'
+import { formatDay, formatRange, monthsText, seasonQuery, windowMonths } from './season.js'
 import SeasonNotice from './SeasonNotice.jsx'
 import SidebarStep from './SidebarStep.jsx'
 import SpeciesChooser from './SpeciesChooser.jsx'
@@ -168,7 +168,7 @@ export default function AppNew() {
   const [createError, setCreateError] = useState('')
   const [showPlan, setShowPlan] = useState(true) // the "Planned trees" layer
   const win = usePlantingWindow()
-  const [onlySeason, setOnlySeason] = useOnlySeason()
+  const [onlySeason] = useOnlySeason() // always false: the dates label species, they never remove one (W1)
   const [tab, setTab] = useState('studio')
   const [fieldVersion, setFieldVersion] = useState(0) // bumped after every saved field check: reloads what depends on them (and skips the browser cache)
   const [showField, setShowField] = useState(true)
@@ -273,11 +273,14 @@ export default function AppNew() {
     pointBarangay = b >= 0 && grid.data ? grid.data.barangays_display[b] : locate(shownRank.data.point.lat, shownRank.data.point.lon)
   }
   const sInfo = species.status === 'ok' ? species.data.season : null
-  const kept = sInfo ? (onlySeason ? sInfo.species_total - sInfo.out_of_season : sInfo.species_total) : null
-  const fewSpecies = onlySeason && kept !== null && kept <= FEW_SPECIES
+  const kept = sInfo ? sInfo.species_total : null
+  const fewSpecies = !!sInfo && sInfo.in_season + sInfo.partly === 0 // no species is in its best months for these dates: say so, the species stay listed (W1)
   const selectedRemoved = selection ? (grid.data?.season?.selected_removed_ids ?? []) : []
   const allRemoved = selection && selectedRemoved.length === selIds.length
-  const showAllSpecies = () => setOnlySeason(false)
+  const showAllSpecies = () => {
+    setSidebarOpen(true)
+    setOpenStep('pick')
+  }
   const changeDates = () => {
     setSidebarOpen(true)
     setOpenStep('window')
@@ -988,7 +991,7 @@ export default function AppNew() {
           onToggle={() => toggleStep('window')}
           help="The season decides which species can be planted. A month counts if any day of it is in your dates. Scores never change with the dates."
         >
-          <PlantingWindow win={win} onlySeason={onlySeason} onOnlySeason={setOnlySeason} species={species} />
+          <PlantingWindow win={win} species={species} />
           <button type="button" className="nw-btn nw-btn-go nw-btn-wide" onClick={() => setOpenStep('pick')}>
             Continue
           </button>

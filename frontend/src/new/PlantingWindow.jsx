@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import HelpTip from './HelpTip.jsx'
 import MonthStrip from './MonthStrip.jsx'
 import { addDays, bestSeasonWindow, formatSpan, MAX_DAYS, monthsText, parseMonths, windowMonths } from './season.js'
 
-// Step 3: the planting window (start and end date), the 12-month strip of the months it covers, the "only species for my dates" switch and the
+// Step 3: the planting window (start and end date), the 12-month strip of the months it covers, the
 // button that jumps to the next planting season (the best window of NEXT_SEASON_DAYS days that starts today or later).
-export default function PlantingWindow({ win, onlySeason, onOnlySeason, species }) {
+export default function PlantingWindow({ win, species }) {
   const [jumped, setJumped] = useState('')
   const months = windowMonths(win.applied.start, win.applied.end)
   const list = species.status === 'ok' ? species.data.species : null
@@ -58,15 +57,6 @@ export default function PlantingWindow({ win, onlySeason, onOnlySeason, species 
       <p className="nw-hint nw-jumped" role="status">
         {jumped}
       </p>
-      <div className="nw-opt-head nw-opt-gap">
-        <label className="nw-togglerow" htmlFor="nw-only-season">
-          <input id="nw-only-season" type="checkbox" checked={onlySeason} onChange={(e) => onOnlySeason(e.target.checked)} />
-          <span>Only species for my dates</span>
-        </label>
-        <HelpTip label="Only species for my dates">
-          Species that cannot be planted in your planting window are left out of rankings, the map colours, area tables and plans. Turn it off to see every species with its season label. Scores never change.
-        </HelpTip>
-      </div>
     </div>
   )
 }
