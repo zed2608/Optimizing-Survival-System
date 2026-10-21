@@ -105,7 +105,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
     return null // the centre of San Mateo: the service uses it when no coordinates are sent
   }, [loc, spot, planLoc, barangays])
   const url = `/weather/week?purpose=${purpose}${place ? `&lat=${place.lat.toFixed(5)}&lon=${place.lon.toFixed(5)}` : ''}&include_unzoned=${includeUnzoned}`
-  const api = useApi(url)
+  const api = useApi(url, { ttlMs: 10 * 60 * 1000 }) // 10 minutes in the browser: a tab switch or a re-render never asks again (the service itself keeps 3 hours)
   const d = api.status === 'ok' ? api.data : null
   const v = d ? (VERDICT[d.verdict.code] ?? VERDICT.unknown) : null
   const heavy = d?.thresholds.heavy_rain_mm ?? 80
@@ -174,7 +174,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
           {d.cached && (
             <p className="notice nw-wnotice" role="status">
               {d.network_error ? 'The weather service could not be reached, so this is a saved forecast, ' : 'This is a saved forecast, '}
-              {ageText(d.cache_age_minutes)} old.
+              {ageText(d.cache_age_minutes)} old.{d.stale_note ? ` ${d.stale_note}` : ''}
             </p>
           )}
           <h2 className="nw-wtitle">
@@ -244,7 +244,7 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
           )}
 
           <div className="nw-wfoot">
-            <p className="muted">Forecast: Open-Meteo ({d.forecast_source.url}). This is a planning aid, not a guarantee.</p>
+            <p className="muted">Forecast: {d.forecast_source.name} ({d.forecast_source.url}). This is a planning aid, not a guarantee.</p>
             <p className="muted">{d.enso.is_default ? 'El Nino status is set by hand: none (source not set)' : `El Nino status is set by hand: ${d.enso.status} (${d.enso.source})`}</p>
             <p className="muted">
               Species are ranked by their municipal score for {PURPOSE_SHORT[purpose].toLowerCase()}. {d.species.n_species_total} species in all; {d.species.species_with_planting_months} have planting months recorded.

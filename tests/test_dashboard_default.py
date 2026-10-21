@@ -19,7 +19,7 @@ def test_the_default_is_one_setting_and_the_router_uses_it():
     cfg = (SRC / "dashboardConfig.js").read_text(encoding="utf-8")
     assert "export const DEFAULT_DASHBOARD = 'new'" in cfg and "'#/legacy'" in cfg.replace('"', "'") and "startsWith('#/v2')" in cfg
     sw = (SRC / "DashboardSwitch.jsx").read_text(encoding="utf-8")
-    assert "chooseDashboard(hash)" in sw and "import Legacy from './App.legacy.jsx'" in sw
+    assert "chooseDashboard(hash)" in sw and "lazy(() => import('./App.legacy.jsx'))" in sw
 
 
 def test_the_more_menu_links_to_the_old_dashboard_and_the_legacy_files_are_untouched():

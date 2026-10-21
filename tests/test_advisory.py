@@ -64,10 +64,10 @@ def test_success_calls_open_meteo_once_with_the_right_request_and_writes_the_cac
     f = adv.fetch_forecast(14.6912, 121.1234, tmp_path)
     assert len(calls) == 1
     url, p, to = calls[0]
-    assert url == "https://api.open-meteo.com/v1/forecast" and p["latitude"] == 14.69 and p["longitude"] == 121.12
+    assert url == "https://api.open-meteo.com/v1/forecast" and p["latitude"] == 14.7 and p["longitude"] == 121.1
     assert p["daily"] == "precipitation_sum,temperature_2m_max,temperature_2m_min" and p["forecast_days"] == 16 and p["timezone"] == "Asia/Manila" and to == adv.CFG["request_timeout_s"]
     assert f["cached"] is False and f["cache_age_minutes"] == 0.0 and f["network_error"] is None and len(f["daily"]["time"]) == 16
-    files = list(tmp_path.glob("openmeteo_14.69_121.12_16d.json"))
+    files = list(tmp_path.glob("openmeteo_14.70_121.10_16d.json"))
     assert len(files) == 1 and json.loads(files[0].read_text())["response"]["daily"]["time"][0] == TODAY.isoformat()
 
 
@@ -117,7 +117,7 @@ def test_an_unusable_response_counts_as_a_failure_and_is_not_cached(tmp_path, mo
 
 
 def test_a_corrupt_cache_file_is_ignored(tmp_path, monkeypatch, clock):
-    (tmp_path / "openmeteo_14.69_121.12_16d.json").write_text("{not json")
+    (tmp_path / "openmeteo_14.70_121.10_16d.json").write_text("{not json")
     monkeypatch.setattr(adv, "http_get", lambda *a: response())
     assert adv.fetch_forecast(14.69, 121.12, tmp_path)["cached"] is False
 

@@ -7,10 +7,11 @@
 // With --ci the exit code is 1 when anything is below 12 px or below AA. The server must serve the built dashboard and the API (public mode, a temporary state folder).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { launch, sleep } from '../tests/browser/cdp_lib.mjs'
+import { layoutAudit } from './layout_lib.mjs'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = arg('--base', 'http://127.0.0.1:8011')
-const WIDTHS = arg('--widths', '360,1280').split(',').map(Number)
+const WIDTHS = arg('--widths', '360,768,1100,1280').split(',').map(Number)
 const THEMES = arg('--themes', 'light,dark').split(',')
 const OUT = arg('--out', 'reports/overnight/v2_fix_shots')
 const CI = process.argv.includes('--ci')
@@ -56,7 +57,7 @@ function pageAudit() {
     const text = n.textContent.replace(/\s+/g, ' ').trim()
     if (!text) continue
     const e = n.parentElement
-    if (!e || seen.has(e) || e.closest('svg, script, style, noscript, .leaflet-container, .sr-only, canvas, [aria-hidden="true"]')) continue
+    if (!e || seen.has(e) || e.closest('svg, script, style, noscript, .sr-only, canvas, [aria-hidden="true"]') || (e.closest('.leaflet-container') && !e.closest('.leaflet-tooltip, .leaflet-popup'))) continue
     if (e.closest('button:disabled, input:disabled, [aria-disabled="true"]')) continue
     const r = e.getBoundingClientRect()
     if (r.width < 1 || r.height < 1 || r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) continue
@@ -114,9 +115,11 @@ const clickText = (re, sel = 'button') => ev(`(() => { const e = [...document.qu
 const key = async (k, code, vk) => { for (const type of ['keyDown', 'keyUp']) await b.send('Input.dispatchKeyEvent', { type, key: k, code, windowsVirtualKeyCode: vk, ...(k === 'Enter' ? { text: '\r' } : {}) }) }
 const rows = [] // every node of every state
 const states = {}
+const layoutRows = []
 async function snap(name, ctxInfo) {
   const list = await ev(`(${pageAudit.toString()})()`)
   for (const r of list) rows.push({ ...ctxInfo, state: name, ...r })
+  for (const r of await ev(`(${layoutAudit.toString()})()`)) layoutRows.push({ ...ctxInfo, state: name, ...r })
   states[`${ctxInfo.theme}/${ctxInfo.w}`] = (states[`${ctxInfo.theme}/${ctxInfo.w}`] ?? 0) + 1
 }
 const quiet = async (f) => { try { await f() } catch (e) { console.log('  step skipped:', String(e.message).slice(0, 90)) } }
@@ -164,6 +167,7 @@ for (const theme of THEMES) {
       if (w <= 800) await ev(`[...document.querySelectorAll('button')].find((x) => /^Close/.test(x.innerText.trim()) && x.getBoundingClientRect().width > 0)?.click()`)
       const spot = JSON.parse(await ev(`JSON.stringify((() => { const cv = document.querySelector('canvas.nw-grid-canvas'); if (!cv) return null; const r = cv.getBoundingClientRect(); const g = cv.getContext('2d'); const k = cv.width / r.width; for (let y = 250; y < innerHeight - 80; y += 12) for (let x = ${w >= 1000 ? 420 : 30}; x < ${w >= 1000 ? 900 : w - 30}; x += 12) { const d = g.getImageData(Math.round((x - r.left) * k), Math.round((y - r.top) * k), 1, 1).data; if (d[3] > 200) { const el = document.elementFromPoint(x, y); if (el && el.closest('.leaflet-container') && !el.closest('.nw-search, .nw-legend, .nw-locate, .nw-mapview, .leaflet-control, .nw-right, .nw-sidebar')) return { x, y } } } return null })())`))
       if (!spot) throw new Error('no square found')
+      await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: spot.x, y: spot.y }); await sleep(600); await snap('hover-square', c); await shot('hover-square')   // the hover card of a square (a Leaflet tooltip)
       await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: spot.x, y: spot.y })
       await b.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: spot.x, y: spot.y, button: 'right', buttons: 2, clickCount: 1 })
       await b.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: spot.x, y: spot.y, button: 'right', buttons: 0, clickCount: 1 })
@@ -185,7 +189,7 @@ for (const theme of THEMES) {
     // the landing slides
     await quiet(async () => {
       await ev(`localStorage.removeItem('nw_last_visit')`); await ev('location.reload()'); await sleep(3500)
-      for (let i = 0; i < 5; i++) { await sleep(900); await snap('landing-' + (i + 1), c); if (i < 4) { await ev(`document.querySelector('[data-role=ln-next]').click()`); await sleep(1300) } }
+      for (let i = 0; i < 3; i++) { await sleep(900); await snap("landing-" + (i + 1), c); if (i < 2) { await ev(`document.querySelector('[data-role=ln-next]').click()`); await sleep(1300) } }
     })
   }
 }
@@ -203,6 +207,11 @@ const group = (list) => {
   }
   return [...m.values()].sort((a, b2) => b2.n - a.n)
 }
+const BAD_LAYOUT = ['clipped', 'hscroll', 'sticks-out', 'overlap', 'see-through']
+const lay = layoutRows.filter((r) => BAD_LAYOUT.includes(r.kind))
+const layGroup = new Map()
+for (const r of lay) { const k = `${r.kind}  ${r.sel}`; const e = layGroup.get(k) ?? { n: 0, sample: r.text, w: r.w, sw: r.sw, where: new Set() }; e.n++; e.where.add(`${r.theme}/${r.w0 ?? r.w}/${r.state}`); layGroup.set(k, e) }
+const layLines = [...layGroup].sort((a, b2) => b2[1].n - a[1].n).slice(0, 40).map(([k, e]) => `${String(e.n).padStart(4)}  ${k}  (${e.w}/${e.sw})  e.g. "${e.sample}"  [${[...e.where].slice(0, 3).join('; ')}]`)
 const g1 = group(small)
 const g2 = group(weak)
 const line = (g) => `${String(g.n).padStart(4)}  ${g.sel}  (min ratio ${g.worst}, min size ${g.size}px)  e.g. "${g.sample}"  [${[...g.states].slice(0, 3).join('; ')}${g.states.size > 3 ? '…' : ''}]`
@@ -210,10 +219,11 @@ const report = [
   `text nodes audited: ${rows.length}  (themes ${THEMES.join(',')}  widths ${WIDTHS.join(',')})`,
   `below 12 px: ${small.length} nodes in ${g1.length} selectors`,
   `below AA contrast: ${weak.length} nodes in ${g2.length} selectors (${weak.filter((r) => r.grad).length} of them on a gradient: approximate)`,
-  '', '--- below 12 px', ...g1.slice(0, 40).map(line), '', '--- below AA', ...g2.slice(0, 60).map(line),
+  `layout problems (clipped text, scrollbars in panels, boxes sticking out, overlaps, see-through sticky bars): ${lay.length} in ${layGroup.size} groups`,
+  '', '--- below 12 px', ...g1.slice(0, 40).map(line), '', '--- below AA', ...g2.slice(0, 60).map(line), '', '--- layout', ...layLines,
 ].join('\n')
 writeFileSync(`${OUT}/contrast_audit.txt`, report + '\n')
 console.log(report)
-b.log.push({ ok: small.length === 0 && weak.length === 0, name: 'no text below 12 px and none below AA' })
+b.log.push({ ok: small.length === 0 && weak.length === 0 && lay.length === 0, name: 'no text below 12 px, none below AA, no layout problems' })
 if (!CI) b.log[0].ok = true
 await b.done('contrast_audit')

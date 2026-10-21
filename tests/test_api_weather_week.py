@@ -66,7 +66,7 @@ def mock_forecast(monkeypatch, rain=None, calls=None, fail=False, tmax=None):
 
 def at(i):
     """Another place for each call of one test: a fresh saved forecast of the same place (3 h) would otherwise answer instead of the new mock."""
-    return {"lat": 14.60 + 0.02 * i, "lon": 121.10 + 0.02 * i}
+    return {"lat": 14.62 + 0.05 * (i % 4), "lon": 121.08 + 0.05 * ((i // 4) % 4)}        # one cache cell is 0.05 degree wide (design v2): 16 different cells inside the area
 
 
 def week(client, purpose="urban", **q):
@@ -107,7 +107,7 @@ def test_a_given_point_is_used_and_validated(client, monkeypatch):
     calls = []
     mock_forecast(monkeypatch, calls=calls)
     j = week(client, lat=14.6811, lon=121.1234).json()
-    assert calls[0]["latitude"] == 14.68 and calls[0]["longitude"] == 121.12 and j["location"]["note"] == "the place you chose"
+    assert calls[0]["latitude"] == 14.7 and calls[0]["longitude"] == 121.1 and j["location"]["note"] == "the place you chose"
     assert week(client, lat=14.68).status_code == 422                            # both or neither
     assert week(client, lat=40.0, lon=100.0).status_code == 422                  # outside San Mateo
     assert client.get("/weather/week").status_code == 422 and client.get("/weather/week", params={"purpose": "fruit"}).status_code == 422
