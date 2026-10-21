@@ -585,3 +585,67 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 @media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .ln-contours-drift { animation: none; } }
 .ln-root { grid-template-columns: minmax(0, 1fr); } .ln-stage, .ln-slide { min-width: 0; } .ln-top, .ln-foot { min-width: 0; }
 @media (max-width: 480px) { .ln-foot { gap: 4px; padding-left: 8px; padding-right: 8px; } .ln-dot { width: 28px; } }
+
+/* ======================= DESIGN V2 (Phase 4): app shell ======================= */
+/* header: logo and name, a pill tab bar with a sliding highlight, ONE settings menu, a small status dot */
+.nw-root .nw-tabs-v2 { margin: 0 auto; }
+.nw-root .nw-tabs-v2 .cy-tab { min-height: 40px; font-size: var(--fs-sm); font-weight: 600; }
+.nw-root .nw-pill { background: transparent; padding: 0 6px; }
+.nw-root .nw-pill > span:not(.nw-dot) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (min-width: 1400px) { .nw-root .nw-pill { padding: 6px 14px; background: var(--c-surface-2); } .nw-root .nw-pill > span:not(.nw-dot) { position: static; width: auto; height: auto; clip: auto; } }
+@media (max-width: 1399px) { .nw-root .cy-tabs-slide .cy-tab[aria-selected='false'] .cy-tab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .nw-root .cy-tabs-slide .cy-tab { padding: 6px 12px; } }
+@media (max-width: 480px) { .nw-root .nw-tabs-v2 { max-width: calc(100vw - 190px); overflow-x: auto; scrollbar-width: none; } .nw-root .cy-tabs-slide .cy-tab { padding: 6px 10px; } }
+.set-wrap { position: relative; }
+.set-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 2500; width: min(320px, calc(100vw - 24px)); padding: 12px 14px 14px; background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-lg); box-shadow: var(--sh-3); display: grid; gap: 10px; animation: cy-rise var(--t-mid) var(--ease); }
+.set-title { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-muted); }
+.set-row { display: grid; gap: 6px; } .set-label { font-size: 12px; font-weight: 600; color: var(--c-muted); }
+.set-seg { display: flex; gap: 2px; padding: 3px; background: var(--c-surface-2); border-radius: var(--r-pill); }
+.set-segbtn { flex: 1; min-height: 40px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--c-muted); font-weight: 600; cursor: pointer; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.set-segbtn.is-on { background: var(--c-primary); color: var(--c-on-primary); } .set-segbtn:hover:not(.is-on) { color: var(--c-text); }
+.set-hint { margin: -4px 0 0; font-size: 12px; color: var(--c-muted); line-height: 1.4; }
+.set-links { display: grid; gap: 2px; border-top: 1px solid var(--c-line); padding-top: 8px; }
+.set-link { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: var(--c-text); font-weight: 600; border-radius: var(--r-sm); cursor: pointer; text-align: left; }
+.set-link:hover { background: var(--c-surface-2); } .set-link .nw-icon { color: var(--c-accent-text); }
+/* left panel: a vertical timeline; the open step is the current one, steps before it are done, steps after it are muted */
+.nw-root .nw-sidebar { padding-left: 20px; }
+.nw-root .nw-step { position: relative; margin-left: 34px; }
+.nw-root .nw-step::after { content: ''; position: absolute; left: -23px; top: 40px; bottom: -10px; width: 2px; background: var(--c-line); }
+.nw-root .nw-step:last-of-type::after { display: none; }
+.nw-root .nw-step .nw-step-n { position: absolute; left: -35px; top: 10px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--c-line); background: var(--c-surface); color: var(--c-muted); display: grid; place-items: center; font-size: 11px; font-weight: 700; z-index: 1; transition: border-color var(--t-mid) var(--ease), background var(--t-mid) var(--ease), transform var(--t-mid) var(--ease); }
+.nw-root .nw-step.is-open .nw-step-n { background: var(--c-surface); border-color: var(--c-primary); color: var(--c-primary); transform: scale(1.12); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-primary) 18%, transparent); }
+.nw-root .nw-step:has(~ .nw-step.is-open) .nw-step-n { background: var(--c-accent); border-color: var(--c-accent); color: transparent; }
+.nw-root .nw-step:has(~ .nw-step.is-open) .nw-step-n::after { content: ''; width: 5px; height: 10px; border: solid #10240f; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); display: block; }
+.nw-root .nw-step.is-open ~ .nw-step { opacity: 0.62; }
+.nw-root .nw-step.is-open ~ .nw-step:hover, .nw-root .nw-step.is-open ~ .nw-step:focus-within { opacity: 1; }
+/* hints: the small "?" buttons are hidden unless the switch is on */
+.hint-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin: 0 0 8px 34px; font-size: 13px; font-weight: 600; color: var(--c-muted); cursor: pointer; }
+.hint-switch input { position: absolute; opacity: 0; width: 44px; height: 44px; right: 0; cursor: pointer; }
+.hint-track { width: 38px; height: 22px; border-radius: 11px; background: var(--c-surface-3); position: relative; flex: none; transition: background var(--t-mid) var(--ease); }
+.hint-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--c-surface); box-shadow: var(--sh-1); transition: transform var(--t-mid) var(--ease); }
+.hint-switch input:checked + .hint-track { background: var(--c-primary); } .hint-switch input:checked + .hint-track .hint-knob { transform: translateX(16px); }
+.hint-switch input:focus-visible + .hint-track { outline: 3px solid var(--c-focus); outline-offset: 2px; }
+.nw-root.hints-off .nw-tip-btn, .nw-root.hints-off .nw-askhelp { display: none; }
+/* map: the panel toggle is a small tab on the panel edge (desktop) */
+@media (min-width: 801px) {
+  .nw-root .nw-toggle { top: 50%; transform: translateY(-50%); left: 0; width: 26px; min-width: 26px; min-height: 76px; padding: 0; font-size: 0; justify-content: center; border-radius: 0 var(--r-md) var(--r-md) 0; gap: 0; }
+  .nw-root.sidebar-open .nw-toggle { left: 350px; }
+  .nw-root .nw-toggle:hover { transform: translateY(-50%) translateX(2px); }
+}
+/* map: ONE dock at the bottom right: zoom, layers, my location, legend */
+.nw-root { --dock-right: 16px; }
+.nw-root.panel-open { --dock-right: 482px; }
+@media (max-width: 800px) { .nw-root.panel-open { --dock-right: 12px; } }
+.nw-root .leaflet-top.leaflet-right, .nw-root.panel-open .leaflet-top.leaflet-right { top: auto; bottom: 196px; right: calc(var(--dock-right) - 4px); }
+.nw-root .nw-mapview, .nw-root.panel-open .nw-mapview, .nw-root.sidebar-open .nw-mapview { top: auto; bottom: 132px; right: var(--dock-right); left: auto; }
+.nw-root .nw-mapview-menu { top: auto; bottom: 52px; }
+.nw-root .nw-locate { position: absolute; z-index: 1100; right: var(--dock-right); bottom: 76px; width: 44px; height: 44px; display: grid; place-items: center; background: var(--c-glass); color: var(--c-text); border: 0; border-radius: var(--r-md); box-shadow: var(--sh-2); cursor: pointer; transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.nw-root .nw-locate:hover { transform: translateY(-2px); box-shadow: var(--sh-3); } .nw-root .nw-locate:active { transform: scale(0.97); }
+.nw-root .nw-legend-btn, .nw-root.sidebar-open .nw-legend-btn { left: auto; right: var(--dock-right); bottom: 16px; }
+.nw-root .nw-search { left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 120px)); top: 72px; }
+.nw-root.sidebar-open .nw-search { left: calc(50% + 175px); }
+.nw-root.panel-open .nw-search { left: calc(50% - 220px); }
+.nw-root.panel-open.sidebar-open .nw-search { left: calc(50% - 45px); }
+@media (max-width: 800px) {
+  .nw-root .nw-search, .nw-root.sidebar-open .nw-search, .nw-root.panel-open .nw-search, .nw-root.panel-open.sidebar-open .nw-search { left: 12px; right: 12px; width: auto; transform: none; top: 124px; }
+  .nw-root .nw-locate { bottom: 76px; } .nw-root .leaflet-top.leaflet-right { bottom: 196px; top: auto; }
+}

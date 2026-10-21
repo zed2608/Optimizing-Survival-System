@@ -2,7 +2,10 @@ import { useCallback, useMemo, useState } from 'react'
 import '../v2/v2.css'
 import './new.css'
 import './canopy.css'
-import { toggleTheme, useTheme } from './theme.js'
+import SettingsMenu from './SettingsMenu.jsx'
+import HintsSwitch from './HintsSwitch.jsx'
+import { useHints } from './hints.js'
+import { Tabs } from './ui/ui.jsx'
 import ToastViewport from './ui/ToastViewport.jsx'
 import { toast } from './ui/toast.js'
 import Splash from './Splash.jsx'
@@ -23,7 +26,7 @@ import AreasPanel from './AreasPanel.jsx'
 import { decodeFieldCode, STATUS_LABEL } from './fieldLabels.js'
 import { featureAt, geometryBbox, polygonFromVertices } from './geo.js'
 import { continueState, describeArea, diagnosticText, geometryHectares, haText } from './areaInfo.js'
-import { LANGS, setLang, tr, useLang } from './i18n.js'
+import { tr, useLang } from './i18n.js'
 import { sitePhText } from './phEvidence.js'
 import FieldMenu from './FieldMenu.jsx'
 import { menuLines } from './pointMenu.js'
@@ -36,7 +39,6 @@ import PlanStep from './PlanStep.jsx'
 import { countText, countsSummary } from './counts.js'
 import FieldLegend from './FieldLegend.jsx'
 import ZoningLegend from './ZoningLegend.jsx'
-import { HelpBanner, HelpButton } from './HelpCenter.jsx'
 import GuidedTour from './tutorial/GuidedTour.jsx'
 import HelpPage from './tutorial/HelpPage.jsx'
 import ScoreSourceNotice from './ScoreSourceNotice.jsx'
@@ -95,7 +97,18 @@ export default function AppNew() {
   const [rowActive, setRowActive] = useState(null) // mode 1: the clicked table row {kind, name}
   const [planPrefill, setPlanPrefill] = useState(null)
   const lang = useLang()
-  const theme = useTheme()
+  const hints = useHints()
+  const locateMe = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      toast('warning', tr('map.noGeo', {}, lang))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => goTo(p.coords.latitude, p.coords.longitude),
+      () => toast('warning', tr('map.geoDenied', {}, lang)),
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }
   const [landing, setLanding] = useState(() => shouldShowLanding())
   const [firstVisit] = useState(() => shouldShowLanding())
   const closeLanding = () => {
@@ -692,7 +705,7 @@ export default function AppNew() {
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
     <PublicNotice health={healthData} />
     <ScoreSourceNotice health={healthData} />
-    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
+    <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${hints ? '' : 'hints-off'} ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
@@ -785,6 +798,9 @@ export default function AppNew() {
           <Icon name="legend" /> Legend
         </button>
       )}
+      <button type="button" className="nw-locate" onClick={locateMe} data-role="locate" aria-label={tr('map.locate', {}, lang)} title={tr('map.locate', {}, lang)}>
+        <Icon name="target" size={18} />
+      </button>
 
       {showZoning && <ZoningLegend api={zoning} onHide={() => setShowZoning(false)} onExpand={() => setLegendOpen(false)} />}
 
@@ -803,29 +819,9 @@ export default function AppNew() {
             <div className="nw-subtitle">MENRO · San Mateo, Rizal</div>
           </div>
         </div>
-        <div className="nw-tabs" role="tablist" aria-label="Views">
-          {TABS.map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={`nw-tab ${tab === t.id ? 'is-active' : ''}`} onClick={() => setTab(t.id)}>
-              <Icon name={t.icon} size={18} /> <span className="nw-tab-label">{t.label}</span>
-            </button>
-          ))}
-        </div>
+        <Tabs className="nw-tabs-v2" label="Views" value={tab} onChange={setTab} items={TABS.map((x) => ({ id: x.id, label: x.label, icon: <Icon name={x.icon} size={18} /> }))} />
         <div className="nw-topright">
-          <button type="button" className="nw-iconbtn nw-welcomebtn" onClick={() => setLanding(true)} data-role="welcome-open" aria-label={tr('ln.label', {}, lang)} title={tr('ln.label', {}, lang)}>
-            <Icon name="info" size={18} />
-          </button>
-          <button type="button" className="nw-iconbtn" onClick={toggleTheme} data-role="theme-toggle" aria-label={tr(theme === 'dark' ? 'theme.toLight' : 'theme.toDark', {}, lang)} title={tr(theme === 'dark' ? 'theme.toLight' : 'theme.toDark', {}, lang)}>
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
-          </button>
-          <div className="nw-lang" role="group" aria-label={tr('lang.label', {}, lang)} data-role="lang-toggle">
-            {LANGS.map((l) => (
-              <button key={l} type="button" className={`nw-lang-btn ${lang === l ? 'is-active' : ''}`} aria-pressed={lang === l} lang={l === 'tl' ? 'fil' : 'en'} onClick={() => setLang(l)} data-lang={l}>
-                <span className="nw-lang-full">{tr(`lang.${l}`, {}, l)}</span>
-                <span className="nw-lang-short">{l === 'tl' ? 'TL' : 'EN'}</span>
-              </button>
-            ))}
-          </div>
-          <HelpButton onClick={() => help.openHelp()} />
+          <SettingsMenu onAbout={() => setLanding(true)} onHelp={() => help.openHelp()} onTour={() => { setSidebarOpen(true); help.startTour('full') }} />
           <div className="nw-pill" role="status">
             <span className={`nw-dot nw-dot-${apiState}`} aria-hidden="true" />
             <span>{apiState === 'ok' ? 'API connected' : apiState === 'wait' ? 'Connecting…' : 'API offline'}</span>
@@ -881,7 +877,7 @@ export default function AppNew() {
         <Icon name={sidebarOpen ? 'left' : 'right'} /> {sidebarOpen ? 'Hide Control Panel' : 'Open Control Panel'}
       </button>
       <aside id="nw-sidebar" className="nw-sidebar" aria-label="Controls">
-        {!help.bannerOff && <HelpBanner onStart={() => { setSidebarOpen(true); help.startTour('full') }} onDismiss={help.dismissBanner} />}
+        <HintsSwitch />
         <SidebarStep
           n={1}
           id="goal"

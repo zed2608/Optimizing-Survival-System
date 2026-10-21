@@ -134,6 +134,18 @@ export default function SearchBar({ onChoose, note, onDismissNote, locate, inclu
     inputRef.current?.focus()
   }
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   const slots = showRecent ? recent.length : rows.length + (showHint ? 1 : 0)
   function onKeyDown(e) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -191,6 +203,7 @@ export default function SearchBar({ onChoose, note, onDismissNote, locate, inclu
           autoComplete="off"
           spellCheck="false"
           placeholder="Search barangay, species, point, coordinates…"
+          title="Ctrl K"
           value={text}
           maxLength={100}
           onChange={(e) => {
