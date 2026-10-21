@@ -264,7 +264,138 @@ const STUDIO_PLAN = {
   ],
 }
 
-export const TOURS = [GLOBAL, STUDIO_LEFT, STUDIO_MAP, STUDIO_POINT, STUDIO_PLAN]
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------- WEATHER
+const pageHead = (title, text) => S('head', 'p-head', title, text, null)
+const WEATHER = {
+  id: 'weather',
+  page: 'weather',
+  title: T('Weather', 'Panahon'),
+  blurb: T('The week ahead at one place, with advice for planting days.', 'Ang linggong darating sa isang lugar, may payo para sa mga araw ng pagtatanim.'),
+  sections: [
+    {
+      id: 'choose',
+      title: T('Place and purpose', 'Lugar at layunin'),
+      steps: [
+        pageHead(T('The Weather page', 'Ang pahina ng Panahon'), T('The next seven days at one place, a plain verdict for planting this week, and the species that suit the week. It is a planning aid, not a guarantee.', 'Ang susunod na pitong araw sa isang lugar, simpleng hatol para sa pagtatanim ngayong linggo, at ang mga species na angkop sa linggo. Gabay sa pagpaplano ito, hindi garantiya.')),
+        S('where', 'w-where', T('Where', 'Saan'), T('Pick the place: the centre of San Mateo, a barangay, the last point you clicked, or the middle of a plan.', 'Piliin ang lugar: gitna ng San Mateo, isang barangay, ang huling pinindot mong punto, o gitna ng plano.')),
+        S('purpose', 'w-purpose', T('Planting purpose', 'Layunin ng pagtatanim'), T('The purpose orders the species lists below.', 'Inaayos ng layunin ang mga listahan ng species sa ibaba.')),
+        S('view', 'w-view', T('Simple or Detailed', 'Simple o Detailed'), T('Simple gives short lines. Detailed adds each species\u2019 drought tolerance, months and sources.', 'Maikli ang Simple. Idinaragdag ng Detailed ang tolerance sa tagtuyot, mga buwan at sanggunian ng bawat species.')),
+      ],
+    },
+    {
+      id: 'week',
+      title: T('The week', 'Ang linggo'),
+      steps: [
+        S('hero', 'w-hero', T('Today at a glance', 'Ngayon sa isang tingin'), T('The sky picture shows today\u2019s rain amount and the temperatures. Only rain, the highest and lowest temperature are forecast; there is no wind or chance of rain here.', 'Ipinapakita ng larawan ng langit ang dami ng ulan ngayon at mga temperatura. Ulan, pinakamataas at pinakamababang temperatura lang ang tinataya; walang hangin o tsansa ng ulan dito.')),
+        S('strip', 'w-strip', T('The seven days', 'Ang pitong araw'), T('One column per day: the rain amount in millimetres, and the highest and lowest temperature.', 'Isang kolum bawat araw: ang dami ng ulan sa milimetro, at ang pinakamataas at pinakamababang temperatura.')),
+        S('rules', 'w-rules', T('Day words', 'Mga salita sa araw'), T('Dry is under 1 mm, light rain 1 to 10 mm, rainy 10 mm or more. Heavy rain above the limit shown makes the week \u201Cavoid\u201D.', 'Ang tuyo ay mas mababa sa 1 mm, magaang ulan 1 hanggang 10 mm, maulan 10 mm pataas. Ang malakas na ulan na lampas sa ipinakitang limit ay gagawing \u201Cavoid\u201D ang linggo.')),
+        S('verdict', 'w-verdict', T('The verdict', 'Ang hatol'), T('Good to plant, Plant with care, or Avoid this week, with the reasons and the numbers behind them. A dry week under 20 mm needs watering.', 'Good to plant, Plant with care, o Avoid this week, kasama ang dahilan at mga numero. Ang tuyong linggo na wala pang 20 mm ay kailangang diligan.')),
+        S('numbers', 'w-numbers', T('The week in numbers', 'Ang linggo sa numero'), T('Rain over seven days, the wettest and hottest day, and the limits the verdict uses. These limits are provisional.', 'Ulan sa pitong araw, ang pinakamaulan at pinakamainit na araw, at ang mga limit na ginagamit ng hatol. Pansamantala ang mga limit na ito.')),
+      ],
+    },
+    {
+      id: 'species',
+      title: T('Species for the week', 'Mga species para sa linggo'),
+      steps: [
+        S('best', 'w-best', T('In their best months', 'Nasa pinakamainam nilang buwan'), T('Species that are in their planting months this week and are not hit by a weather warning, best match first.', 'Mga species na nasa buwan ng pagtatanim ngayong linggo at hindi tinamaan ng babala ng panahon, pinakamataas ang tugma muna.')),
+        S('water', 'w-water', T('Only if you can water', 'Kung kaya mo lang magdilig'), T('Outside their best months but with High drought tolerance. You can plant them only if you are able to water.', 'Labas sa pinakamainam na buwan pero may High na tolerance sa tagtuyot. Puwede mo lang silang itanim kung kaya mong magdilig.'), null, { region: { x: 0, y: 0, w: 1, h: 0.2 } }),
+        S('source', 'w-source', T('Source and last update', 'Pinagmulan at huling update'), T('Where the forecast comes from. When the service is busy the page shows a saved copy and says \u201CLast updated \u2026, may be out of date\u201D; Try again loads it afresh.', 'Kung saan galing ang forecast. Kapag abala ang serbisyo, nagpapakita ang pahina ng naka-save na kopya at sinasabing \u201CLast updated \u2026, maaaring luma na\u201D; ang Try again ay nagloload ng bago.')),
+      ],
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------- CAMPAIGN LOGS
+const LOGS = {
+  id: 'logs',
+  page: 'history',
+  title: T('Campaign Logs', 'Campaign Logs'),
+  blurb: T('Your saved plans, their status and progress.', 'Ang mga naka-save mong plano, katayuan at progreso.'),
+  sections: [
+    {
+      id: 'logs',
+      title: T('The list of plans', 'Ang listahan ng plano'),
+      steps: [
+        pageHead(T('Campaign Logs', 'Campaign Logs'), T('Every plan you saved, newest first, with its dates, status and field kit. Nothing here changes a plan.', 'Lahat ng planong sine-save mo, pinakabago muna, may petsa, katayuan at field kit. Walang binabago sa plano rito.')),
+        S('filters', 'l-filters', T('Filter by status', 'Salain ayon sa katayuan'), T('Active, Upcoming, Concluded, or No dates: worked out from the dates saved with each plan.', 'Active, Upcoming, Concluded, o No dates: kinukuwenta mula sa petsang naka-save sa bawat plano.'), null, { optional: true }),
+        S('search', 'l-search', T('Search', 'Maghanap'), T('Type part of a campaign name, a unit or a plan id.', 'Mag-type ng bahagi ng pangalan ng kampanya, yunit o plan id.'), null, { optional: true }),
+        S('list', 'l-list', T('Your plans', 'Ang mga plano mo'), T('One card per saved plan. When there is none, this says so and offers a button to go and make one.', 'Isang card bawat naka-save na plano. Kapag wala, sasabihin ito at may button para gumawa.'), null, { region: { x: 0, y: 0, w: 1, h: 0.06 } }),
+        S('card', 'l-card', T('One plan', 'Isang plano'), T('The name, unit, dates and status chip, the plan id, whether a field kit was built, and a weather card for the planting days.', 'Ang pangalan, yunit, petsa at status chip, plan id, kung nagawa na ang field kit, at weather card para sa mga araw ng pagtatanim.'), null, { optional: true }),
+        S('open', 'l-open', T('Open on map', 'Buksan sa mapa'), T('Opens the plan in Active Studio, with its blocks on the map. Progress and top-up counts what the field team has planted.', 'Binubuksan ang plano sa Active Studio, kasama ang mga block sa mapa. Binibilang ng Progress and top-up ang naitanim ng field team.'), null, { optional: true }),
+        S('studio', 'l-studio', T('Go to Active Studio', 'Pumunta sa Active Studio'), T('With no plans yet, this button takes you to the studio to make the first one.', 'Kung wala pang plano, dadalhin ka ng button na ito sa studio para gumawa ng una.'), null, { optional: true }),
+      ],
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------- SYSTEM ANALYTICS
+const ANALYTICS = {
+  id: 'analytics',
+  page: 'analytics',
+  title: T('System Analytics', 'System Analytics'),
+  blurb: T('Counts of what exists, how to read each chart.', 'Mga bilang ng mga meron, paano basahin ang bawat chart.'),
+  sections: [
+    {
+      id: 'top',
+      title: T('Filters and numbers', 'Mga filter at numero'),
+      steps: [
+        pageHead(T('System Analytics', 'System Analytics'), T('Counts of what exists: suitable squares, soil pH estimates, plans and field checks. Nothing here is forecast and nothing here changes a score.', 'Mga bilang ng mga meron: angkop na parisukat, tantiya ng pH ng lupa, plano at field check. Walang tinataya rito at walang binabago sa iskor.')),
+        S('filters', 'an-filters', T('Filters', 'Mga filter'), T('Narrow the charts by barangay or species, and the activity by dates. Clear filters shows everything again.', 'Paliitin ang mga chart ayon sa barangay o species, at ang aktibidad ayon sa petsa. Ibinabalik ng Clear filters ang lahat.')),
+        S('kpis', 'an-kpis', T('Six big numbers', 'Anim na malalaking numero'), T('Squares scored, species, suitable squares, plans, trees planned and field checks. A suitable square has a site score of 0.50 or more for at least one species.', 'Mga parisukat na na-score, species, angkop na parisukat, plano, planong puno at field check. Angkop ang parisukat kung 0.50 pataas ang site score nito sa kahit isang species.')),
+      ],
+    },
+    {
+      id: 'charts',
+      title: T('The charts', 'Ang mga chart'),
+      steps: [
+        S('suit', 'an-c-suit', T('Site scores', 'Mga site score'), T('Bars of how many square-and-species pairs fall in each score range. A tall bar at zero means many pairs that the land rules out.', 'Mga bar ng dami ng pares ng parisukat-at-species sa bawat saklaw ng iskor. Ang mataas na bar sa zero ay maraming pares na hindi pinapayagan ng lupa.')),
+        S('brgy', 'an-c-brgy', T('By barangay', 'Ayon sa barangay'), T('Suitable squares compared with all squares of each barangay. Longer is more.', 'Angkop na parisukat kumpara sa lahat ng parisukat ng bawat barangay. Mas mahaba ay mas marami.')),
+        S('species', 'an-c-species', T('By species', 'Ayon sa species'), T('How many squares suit each species (top ten).', 'Ilang parisukat ang angkop sa bawat species (nangungunang sampu).')),
+        S('ph', 'an-c-ph', T('Soil pH estimates', 'Mga tantiya ng pH ng lupa'), T('How the estimated soil pH is spread over the squares. It is an estimate from SoilGrids, not a measurement.', 'Kung paano kumalat ang tinatayang pH ng lupa sa mga parisukat. Tantiya ito mula sa SoilGrids, hindi sukat.')),
+        S('verdict', 'an-c-verdict', T('pH verdicts', 'Mga hatol ng pH'), T('For each species and square: inside its pH range, outside, or \u201Cnot certain\u201D. Most are not certain because the estimate has a wide margin.', 'Para sa bawat species at parisukat: nasa saklaw ng pH, labas, o \u201Chindi tiyak\u201D. Karamihan ay hindi tiyak dahil malapad ang margin ng tantiya.')),
+        S('zone', 'an-c-zone', T('By zone', 'Ayon sa zone'), T('Squares by land-use zone, and how many are outside the zoning map or have no soil data.', 'Mga parisukat ayon sa zone ng gamit ng lupa, at ilan ang labas sa zoning map o walang datos ng lupa.')),
+        S('activity', 'an-c-activity', T('Activity by week', 'Aktibidad kada linggo'), T('Plans and field checks made each week. Empty until people use the system.', 'Mga planong ginawa at field check kada linggo. Walang laman hangga\u2019t hindi ginagamit ng tao ang sistema.')),
+        S('trees', 'an-c-trees', T('Trees planned by week', 'Planong puno kada linggo'), T('How many trees the plans of each week hold.', 'Ilang puno ang laman ng mga plano ng bawat linggo.')),
+        S('pvb', 'an-c-pvb', T('Planned and planted by barangay', 'Plano at naitanim ayon sa barangay'), T('Trees planned beside trees the field teams marked as planted.', 'Mga planong puno katabi ng mga puno na minarkahan ng field team bilang naitanim.')),
+        S('pvs', 'an-c-pvs', T('Planned and planted by species', 'Plano at naitanim ayon sa species'), T('The same comparison for each species.', 'Ang parehong paghahambing para sa bawat species.')),
+      ],
+    },
+    {
+      id: 'data',
+      title: T('Tables and download', 'Mga table at download'),
+      steps: [
+        S('table', 'an-c-suit-table', T('View table', 'Tingnan ang table'), T('Shows the numbers behind the chart as a table, for reading with a screen reader or copying.', 'Ipinapakita ang mga numero sa likod ng chart bilang table, para basahin gamit ang screen reader o kopyahin.')),
+        S('csv', 'an-c-suit-csv', T('Download CSV', 'I-download ang CSV'), T('Saves the numbers of that chart as a spreadsheet file.', 'Sine-save ang mga numero ng chart na iyon bilang spreadsheet file.')),
+        S('noforecast', 'an-noforecast', T('No forecast', 'Walang forecast'), T('No future is drawn here: forecasting needs survival records, and none exist yet.', 'Walang hinaharap na iginuguhit dito: kailangan ng talaan ng pagkabuhay para sa forecast, at wala pa nito.')),
+      ],
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------- HELP
+const HELP = {
+  id: 'help',
+  page: 'help',
+  title: T('Help and the user guide', 'Tulong at gabay'),
+  blurb: T('Questions, glossary, printing the guide.', 'Mga tanong, glossary, pag-print ng gabay.'),
+  sections: [
+    {
+      id: 'help',
+      title: T('The Help page', 'Ang Help page'),
+      steps: [
+        S('tour', 'help-tour', T('Tour of this page', 'Tour ng pahinang ito'), T('Starts the tour of the page you came from. Each page has its own tour.', 'Sinisimulan ang tour ng pahinang pinanggalingan mo. May sariling tour ang bawat pahina.')),
+        S('alltours', 'help-alltours', T('All tours', 'Lahat ng tour'), T('Opens the list of every tour, with a short tour for each section.', 'Binubuksan ang listahan ng bawat tour, may maikling tour para sa bawat seksyon.')),
+        S('print', 'help-print', T('Print this guide', 'I-print ang gabay'), T('Prints the whole guide on A4 sheets: the tours, the questions and the glossary.', 'Piniprint ang buong gabay sa A4: ang mga tour, mga tanong at glossary.')),
+        S('search', 'help-search', T('Search the questions', 'Hanapin ang mga tanong'), T('Type a word such as pH, check code or nursery to find the answer.', 'Mag-type ng salita tulad ng pH, check code o nursery para mahanap ang sagot.')),
+        S('faq', 'help-faq', T('Questions and answers', 'Mga tanong at sagot'), T('Tap a question to read its answer. They are grouped by topic.', 'I-tap ang tanong para mabasa ang sagot. Naka-grupo ayon sa paksa.'), null, { region: { x: 0, y: 0, w: 1, h: 0.08 } }),
+        S('glossary', 'help-glossary', T('Glossary', 'Glossary'), T('The words this system uses, in plain language.', 'Ang mga salitang ginagamit ng sistemang ito, sa simpleng wika.')),
+      ],
+    },
+  ],
+}
+
+export const TOURS = [GLOBAL, STUDIO_LEFT, STUDIO_MAP, STUDIO_POINT, STUDIO_PLAN, WEATHER, LOGS, ANALYTICS, HELP]
 export const getTour = (id) => TOURS.find((t) => t.id === id) ?? null
 export const tourSteps = (tour) => tour.sections.flatMap((s) => s.steps)
 // the tour that explains a page (the "?" and Help always start this one)

@@ -81,13 +81,13 @@ export default function HelpPage({ initialFaq, screen, onClose, onTour, onQuickT
       <div className="nw-helppage-bar">
         <h2>Help</h2>
         <div className="nw-helppage-btns">
-          <button type="button" className="nw-btn nw-btn-go" onClick={onTour}>
+          <button type="button" className="nw-btn nw-btn-go" onClick={onTour} data-tour="help-tour">
             <Icon name="target" /> Take the tour of this page
           </button>
-          <button type="button" className="nw-btn" onClick={onQuickTour}>
+          <button type="button" className="nw-btn" onClick={onQuickTour} data-tour="help-alltours">
             All tours
           </button>
-          <button type="button" className="nw-btn" onClick={() => window.print()}>
+          <button type="button" className="nw-btn" onClick={() => window.print()} data-tour="help-print">
             <Icon name="printer" /> Print this guide
           </button>
           <button type="button" className="nw-btn nw-btn-ghost" onClick={onClose} ref={closeRef}>
@@ -100,11 +100,11 @@ export default function HelpPage({ initialFaq, screen, onClose, onTour, onQuickT
         <label className="nw-label" htmlFor="nw-help-search">
           Search the questions
         </label>
-        <input id="nw-help-search" className="nw-input" type="search" placeholder="For example: check code, nursery, grey point" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
+        <input id="nw-help-search" data-tour="help-search" className="nw-input" type="search" placeholder="For example: check code, nursery, grey point" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
         <p className="muted nw-helppage-count" role="status">
           {shown.length === 0 ? 'No question matches. Try one other word.' : `${shown.length} of ${FAQ.length} questions`}
         </p>
-        <div className="nw-faqlist" ref={listRef}>
+        <div className="nw-faqlist" ref={listRef} data-tour="help-faq">
           {topics.map((t) => (
             <section key={t} aria-label={t}>
               <h3>{t}</h3>
@@ -125,7 +125,7 @@ export default function HelpPage({ initialFaq, screen, onClose, onTour, onQuickT
             </section>
           ))}
         </div>
-        <section aria-label="Glossary" className="nw-glossary">
+        <section aria-label="Glossary" className="nw-glossary" data-tour="help-glossary">
           <h3>Glossary</h3>
           <dl>
             {GLOSSARY.map((g) => (

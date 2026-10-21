@@ -508,7 +508,7 @@
 .nw-fchip { border: 1px solid var(--c-info); background: color-mix(in srgb, var(--c-text) 8%, transparent); color: var(--c-text); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .nw-fchip.is-active { background: var(--c-primary); color: var(--c-ok); border-color: var(--c-primary); }
 .nw-logbar .fc-input { max-width: 280px; }
-.nw-loglist { list-style: none; margin: 8px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.nw-loglist { list-style: none; margin: 8px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); gap: 12px; }
 .nw-logcard.v2.v2-embedded { border-radius: 8px; padding: 12px; background: var(--c-surface); border: 1px solid var(--line); }
 .nw-logcard-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .nw-logcard-head h3 { margin: 0; font-size: 1.05rem; }

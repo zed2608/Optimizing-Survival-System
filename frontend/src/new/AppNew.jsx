@@ -763,15 +763,23 @@ export default function AppNew() {
   }
   const startPageTour = () => runTour(PAGE_TOUR[tab] ?? 'global')
   useTourBridge({
-    page: tab,
+    page: help.helpPage ? 'help' : tab,
     snapshot: () => ({ planResult, tab, openStep, mode, purpose, selIds, combine, speciesSub, speciesHow, mainSpecies, where, tool, area, draft, markArea, spot, sidebarOpen, view, panelTab, hidden, cardId, legendOpen, detailed, start: win.raw.start, end: win.raw.end, helpPage: help.helpPage }),
     restore: (s) => {
       setPlanResult(s.planResult); setTab(s.tab); setOpenStep(s.openStep); setMode(s.mode); setPurpose(s.purpose); setSelIds(s.selIds); setCombine(s.combine); setSpeciesSub(s.speciesSub); setSpeciesHow(s.speciesHow)
       setMainSpecies(s.mainSpecies); setWhere(s.where); setTool(s.tool); setArea(s.area); setDraft(s.draft); setMarkArea(s.markArea); setSpot(s.spot); setSidebarOpen(s.sidebarOpen)
       setView(s.view); setPanelTab(s.panelTab); setHidden(s.hidden); setCardId(s.cardId); setLegendOpen(s.legendOpen); setDetailed(s.detailed); setFieldMenu(null)
       win.setRange(s.start, s.end)
+      if (s.helpPage) help.openHelp(s.helpPage.faq)
+      else help.closeHelp()
     },
-    setPage: (p) => setTab(p),
+    setPage: (p) => {
+      if (p === 'help') help.openHelp()
+      else {
+        help.closeHelp()
+        setTab(p)
+      }
+    },
     setSidebar: (v) => setSidebarOpen(v),
     setStep: (id) => setOpenStep(id),
     setMode: (m) => (m === mode ? undefined : changeMode(m)),
@@ -954,7 +962,7 @@ export default function AppNew() {
           transition={{ duration: motionAllowed() ? 0.15 : 0, ease: 'easeOut' }}
         >
           <div className="nw-page-in">
-            <header className="nw-page-head">
+            <header className="nw-page-head" data-tour="p-head">
               <h1 ref={pageTitle} tabIndex={-1}>
                 {tr(`page.${tab === 'history' ? 'history' : tab === 'weather' ? 'weather' : 'analytics'}.t`, {}, lang)}
               </h1>

@@ -131,6 +131,13 @@ async function runStep(my, dir) {
           if (my !== token) return
           if (step.region || inViewport(el) || el.getBoundingClientRect().height > innerHeight * 0.8) break
         }
+        // a panel that was still sliding (a step opening, another closing) can move the target after the passes above: look once more when it has settled
+        await sleep(350)
+        if (my !== token) return
+        if (!step.region && !inViewport(el) && el.getBoundingClientRect().height <= innerHeight * 0.8) {
+          el.scrollIntoView({ block: 'center', inline: 'nearest' })
+          await sleep(200)
+        }
       }
       if (my !== token) return
       if (!el) {

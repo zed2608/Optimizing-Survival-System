@@ -25,7 +25,8 @@ const rectOf = (el) => {
   return { left: r.left, top: r.top, width: r.width, height: r.height }
 }
 // a step may spotlight only a part of a big target (the map, a tall card): region = fractions {x, y, w, h} of the element's box
-const effectiveRegion = (rect, region, vp) => region ?? (vp.width < 640 && rect.height > vp.height * 0.5 ? { x: 0, y: 0, w: 1, h: Math.min(1, (vp.height * 0.38) / rect.height) } : null) // a tall target on a phone: only its top part is the spotlight, so the docked popover never covers it
+const capPhone = (rect, region, vp) => (region && vp.width < 640 && rect.height * region.h > vp.height * 0.38 ? { ...region, h: (vp.height * 0.38) / rect.height } : region) // on a phone no spotlight is taller than 38% of the screen, so the docked popover has room
+const effectiveRegion = (rect, region0, vp, region = capPhone(rect, region0, vp)) => region ?? (vp.width < 640 && rect.height > vp.height * 0.5 ? { x: 0, y: 0, w: 1, h: Math.min(1, (vp.height * 0.38) / rect.height) } : null) // a tall target on a phone: only its top part is the spotlight, so the docked popover never covers it
 const regionOf = (rect, region) => (region ? { left: rect.left + rect.width * region.x, top: rect.top + rect.height * region.y, width: rect.width * region.w, height: rect.height * region.h } : rect)
 const same = (a, b) => a && b && ['left', 'top', 'width', 'height'].every((k) => Math.abs(a[k] - b[k]) < 0.5)
 
