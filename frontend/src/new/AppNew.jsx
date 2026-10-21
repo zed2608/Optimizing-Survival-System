@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '../v2/v2.css'
 import './new.css'
 import './canopy.css'
@@ -56,8 +56,6 @@ import { matchText } from './plainWords.js'
 import { apiPost } from './apiPost.js'
 import { apiGet } from '../v2/api.js'
 import { MAP_CENTER } from '../v2/config.js'
-import AnalyticsPanel from './AnalyticsPanel.jsx'
-import CampaignLogs from './CampaignLogs.jsx'
 import PlantingWindow from './PlantingWindow.jsx'
 import PointPanel from './PointPanel.jsx'
 import ContextPanel from './ContextPanel.jsx'
@@ -76,7 +74,10 @@ import { useObserver } from './useObserver.js'
 import { usePost } from './usePost.js'
 import { useIncludeUnzoned, useLegendOpen, useMapDetail, useViewMode } from './useViewMode.js'
 import UnzonedToggle from './UnzonedToggle.jsx'
-import WeatherTab from './WeatherTab.jsx'
+// the three tab pages are loaded when first opened (the charts, the weather and the logs are not needed to plan): a smaller first download and less memory on a phone
+const AnalyticsPanel = lazy(() => import('./AnalyticsPanel.jsx'))
+const CampaignLogs = lazy(() => import('./CampaignLogs.jsx'))
+const WeatherTab = lazy(() => import('./WeatherTab.jsx'))
 import { useOnlySeason, usePlantingWindow } from './useWindow.js'
 import { RIGHT_PANEL_WIDTH, SIDEBAR_WIDTH } from './layout.js'
 
@@ -898,6 +899,7 @@ export default function AppNew() {
               <AskHelp id={tab === 'weather' ? 'weather' : 'logs-analytics'} />
               <p>{tr(`page.${tab === 'history' ? 'history' : tab === 'weather' ? 'weather' : 'analytics'}.d`, {}, lang)}</p>
             </header>
+          <Suspense fallback={<p className="nw-pageload" role="status">{tr('page.loading', {}, lang)}</p>}>
           {tab === 'history' ? (
             <CampaignLogs today={win.today} onOpen={openSavedPlan} onStudio={() => setTab('studio')} fieldVersion={fieldVersion} onTopUp={openTopUp} />
           ) : tab === 'weather' ? (
@@ -917,6 +919,7 @@ export default function AppNew() {
           ) : (
             <AnalyticsPanel />
           )}
+          </Suspense>
           </div>
         </motion.section>
       )}

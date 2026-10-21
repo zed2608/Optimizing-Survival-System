@@ -53,7 +53,7 @@ export default function SettingsMenu({ onAbout, onHelp, onTour }) {
           <div className="set-title">{t('set.title')}</div>
           <Seg label={t('set.theme')} value={theme} options={[['light', t('set.light')], ['dark', t('set.dark')]]} onChange={setTheme} />
           <Seg label={t('set.lang')} value={lang} options={LANGS.map((l) => [l, tr(`lang.${l}`, {}, l), l === 'tl' ? 'fil' : 'en'])} onChange={setLang} />
-          <Seg label={t('set.anim')} value={motion} options={[['auto', t('set.auto')], ['on', t('set.on')]]} onChange={setMotionMode} />
+          <Seg label={t('set.anim')} value={motion} options={[['auto', t('set.auto')], ['on', t('set.on')], ['off', t('set.off')]]} onChange={setMotionMode} />
           <p className="set-hint">{t('set.animHelp')}</p>
           <div className="set-links">
             <button type="button" className="set-link" onClick={run(onAbout)} data-role="welcome-open">
