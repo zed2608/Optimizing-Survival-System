@@ -1073,7 +1073,7 @@ def fetch_fc(d, lat, lon):
     """The forecast for a place. In public mode the place is rounded to 0.1 degree (about 11 km: a few cells cover San Mateo), so strangers cannot make many different Open-Meteo calls."""
     cache = d.work / d.cfg["cache_dir"]
     if pm.is_on():
-        return adv.fetch_forecast(lat, lon, cache, cfg={**adv.CFG, "cache_coord_decimals": 1})
+        return adv.fetch_forecast(lat, lon, cache, cfg={**adv.CFG, "cache_coord_decimals": 1, "cache_coord_step": 0.1})
     return adv.fetch_forecast(lat, lon, cache)
 
 
@@ -2763,7 +2763,7 @@ def advisory_seasonal(species_id: int, lat: float = Query(ge=-90, le=90), lon: f
                         "source_ids": {f: d.src_by_sf[(species_id, f)] for f in ("months_raw", "drought_tol") if (species_id, f) in d.src_by_sf}},
             "location": {"lat": lat, "lon": lon, "forecast_for_lat": round(lat, adv.CFG["cache_coord_decimals"]),
                          "forecast_for_lon": round(lon, adv.CFG["cache_coord_decimals"])},
-            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "forecast_fetched_at": fc["fetched_at"],
+            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "stale_note": fc.get("stale_note", ""), "forecast_fetched_at": fc["fetched_at"],
             "network_error": fc["network_error"], **out, "sources": sources_map(d, ids)}
 
 
@@ -2849,8 +2849,8 @@ def plan_advisory(plan_id: str, d=Depends(D)):
                          "max_daily_rain_date": wettest["date"] if wettest else None, "tmax_c_max": max(tmax) if tmax else None, "tmin_c_min": min(tmin) if tmin else None,
                          "missing_note": ("Some forecast values are missing and were not used." if len(known) < len(rows) or len(tmax) < len(rows) or len(tmin) < len(rows) else "")},
             "species": sp_out, "n_warnings": n_warn, "enso": enso, "thresholds": {"dry_spell_mm": adv.CFG["dry_spell_mm"], "dry_spell_days": k, "heavy_rain_mm": adv.CFG["heavy_rain_mm"]},
-            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "forecast_fetched_at": fc["fetched_at"], "network_error": fc["network_error"],
-            "forecast_source": adv.SOURCE, "disclaimer": adv.DISCLAIMER}
+            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "stale_note": fc.get("stale_note", ""), "forecast_fetched_at": fc["fetched_at"], "network_error": fc["network_error"],
+            "forecast_source": adv.source_of(fc), "disclaimer": adv.DISCLAIMER}
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -3022,7 +3022,7 @@ def weather_week(purpose: Purpose, lat: Optional[float] = Query(None, ge=-90, le
     enso = {"status": adv.CFG["enso_status"], "source": adv.CFG["enso_source"], "note": "Set by hand in the configuration; the weather forecast cannot tell us this.",
             "is_default": adv.CFG["enso_status"] == "none" and str(adv.CFG["enso_source"]).startswith("not set")}
     return {"purpose": purpose, "include_unzoned": bool(d.include_unzoned), "today": today.isoformat(),
-            "location": {"lat": lat, "lon": lon, "forecast_for_lat": round(lat, c["cache_coord_decimals"]), "forecast_for_lon": round(lon, c["cache_coord_decimals"]),
+            "location": {"lat": lat, "lon": lon, "forecast_for_lat": adv.snap_coord(lat, c), "forecast_for_lon": adv.snap_coord(lon, c),
                          "note": "the centre of San Mateo" if centre else "the place you chose"},
             "week": week, "verdict": verdict,
             "species": {"best_months": {"label": "In their best months this week", "items": items["best"], "count": len(items["best"]), "empty_reason": e_best},
@@ -3031,9 +3031,9 @@ def weather_week(purpose: Purpose, lat: Optional[float] = Query(None, ge=-90, le
                         "ranking": "Ranked by the municipal species score for this purpose (GET /rank/municipal).",
                         "week_months": [mn[m - 1] for m in season.months]},
             "enso": enso, "thresholds": {"dry_spell_mm": c["dry_spell_mm"], "dry_spell_days": n, "heavy_rain_mm": c["heavy_rain_mm"]},
-            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "forecast_fetched_at": fc["fetched_at"], "network_error": fc["network_error"],
+            "cached": fc["cached"], "cache_age_minutes": fc["cache_age_minutes"], "cache_stale": fc["stale"], "stale_note": fc.get("stale_note", ""), "forecast_fetched_at": fc["fetched_at"], "network_error": fc["network_error"],
             "habagat": habagat_weather_block(d, season.months),
-            "forecast_source": adv.SOURCE, "disclaimer": adv.DISCLAIMER, "sources": sources_map(d, ids)}
+            "forecast_source": adv.source_of(fc), "disclaimer": adv.DISCLAIMER, "sources": sources_map(d, ids)}
 
 
 # ---------------------------------------------------------------------------------------------------------------------
