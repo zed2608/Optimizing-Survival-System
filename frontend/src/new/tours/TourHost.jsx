@@ -24,6 +24,9 @@ const rectOf = (el) => {
   const r = el.getBoundingClientRect()
   return { left: r.left, top: r.top, width: r.width, height: r.height }
 }
+// a step may spotlight only a part of a big target (the map, a tall card): region = fractions {x, y, w, h} of the element's box
+const effectiveRegion = (rect, region, vp) => region ?? (vp.width < 640 && rect.height > vp.height * 0.5 ? { x: 0, y: 0, w: 1, h: Math.min(1, (vp.height * 0.38) / rect.height) } : null) // a tall target on a phone: only its top part is the spotlight, so the docked popover never covers it
+const regionOf = (rect, region) => (region ? { left: rect.left + rect.width * region.x, top: rect.top + rect.height * region.y, width: rect.width * region.w, height: rect.height * region.h } : rect)
 const same = (a, b) => a && b && ['left', 'top', 'width', 'height'].every((k) => Math.abs(a[k] - b[k]) < 0.5)
 
 export default function TourHost() {
@@ -127,7 +130,8 @@ export default function TourHost() {
   }, [ready])
 
   if (!active || !step) return null
-  const shownRect = ready.el ? rect : null
+  const eff = ready.el && rect ? effectiveRegion(rect, step.region, vp) : null
+  const shownRect = ready.el && rect ? regionOf(rect, eff) : null
   const pop = placePopover(step.target ? shownRect : null, size, vp)
   const band = freeBand(pop, vp)
   const pad = 6
@@ -136,7 +140,7 @@ export default function TourHost() {
   const anim = motionAllowed()
   const watch = pick(step.watch, lang)
   return createPortal(
-    <div className="tr-root" data-role="tour" data-tour-ui="true" data-step={step.id} data-target={step.target ?? ''} data-tour-id={ready.tourId} data-placement={pop.placement} data-band={`${Math.round(band.top)}-${Math.round(band.bottom)}`}>
+    <div className="tr-root" data-role="tour" data-tour-ui="true" data-step={step.id} data-target={step.target ?? ''} data-region={eff ? JSON.stringify(eff) : ''} data-tour-id={ready.tourId} data-placement={pop.placement} data-band={`${Math.round(band.top)}-${Math.round(band.bottom)}`}>
       <svg className="tr-dim" width={vp.width} height={vp.height} aria-hidden="true">
         <defs>
           <mask id="tr-mask">

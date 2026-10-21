@@ -11,5 +11,5 @@ export const EXAMPLE_VERTICES = [
   [EXAMPLE_POINT.lat + D_LAT, EXAMPLE_POINT.lon + D_LON],
   [EXAMPLE_POINT.lat + D_LAT, EXAMPLE_POINT.lon - D_LON],
 ]
-// the species of the example species card (Narra, species id 1: well known, with partners and sources)
-export const EXAMPLE_SPECIES_ID = 1
+// the species of the example species card: chosen because it has advice (4 items) and partners (3), so every section of the card is on screen
+export const EXAMPLE_SPECIES_ID = 17

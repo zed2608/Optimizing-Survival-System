@@ -12,7 +12,7 @@ export default function FieldStatusLine({ api, onOpen }) {
   const lang = useLang()
   const current = api.status === 'ok' ? api.data.current : null
   return (
-    <section className="nw-pcard fc fc-top" aria-label="Field check of this spot" data-role="field-status-line">
+    <section className="nw-pcard fc fc-top" aria-label="Field check of this spot" data-role="field-status-line" data-tour="r-field">
       <div className="nw-pcard-head">
         <h3>Field check</h3>
         {current ? <FieldChip cls={fieldClass(current.status, current.reason)} text={describe(current)} /> : api.status === 'ok' ? <span className="nw-chip">{tr('fc.none', {}, lang)}</span> : null}

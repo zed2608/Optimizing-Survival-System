@@ -16,7 +16,7 @@ export default function PhSiteCard({ ph, scope = 'square', speciesIds = [] }) {
   const value = parsePhInput(text)
   const all = evidence.status === 'ok' && evidence.data?.available ? evidence.data.species : null
   return (
-    <div className="nw-phline" data-role="ph-site" data-scope={scope}>
+    <div className="nw-phline" data-role="ph-site" data-scope={scope} data-tour={scope === 'square' ? 'r-ph' : undefined}>
       <p className="nw-plain" data-role="ph-site-text">
         {phLineText(ph, scope, lang)}{' '}
         <button type="button" className="nw-linkquiet" data-role="ph-tool-link" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>

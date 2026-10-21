@@ -937,3 +937,4 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .tm-sections { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .tm-n { color: var(--c-muted); font-size: 12px; }
 @media print { .tm-scrim { display: none !important; } }
+.tr-pop { box-sizing: border-box; }

@@ -14,7 +14,7 @@ export default function ViewSwitch({ value, onChange }) {
     }
   }
   return (
-    <div className="nw-viewswitch" role="radiogroup" aria-label="How much detail to show" onKeyDown={onKey}>
+    <div className="nw-viewswitch" role="radiogroup" aria-label="How much detail to show" onKeyDown={onKey} data-tour="r-view">
       {OPTIONS.map(([v, label]) => (
         <button key={v} id={`nw-view-${v}`} type="button" role="radio" aria-checked={value === v} className={`nw-viewbtn ${value === v ? 'is-active' : ''}`} onClick={() => onChange(v)}>
           {label}

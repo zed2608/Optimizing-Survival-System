@@ -67,6 +67,15 @@ const ui = {
     await sleep(250)
     return true
   },
+  // open a <details> (its summary is pressed only when it is closed)
+  openDetails: async (id) => {
+    const el = findTarget(id)
+    if (el && el.tagName === 'DETAILS' && !el.open) {
+      el.querySelector('summary')?.click()
+      await sleep(250)
+    }
+    return !!el
+  },
   sleep,
   waitFor: async (fn, ms = WAIT_MS) => {
     const t0 = Date.now()
@@ -114,12 +123,13 @@ async function runStep(my, dir) {
     if (step.target) {
       el = await ui.waitFor(() => findTarget(step.target), WAIT_MS)
       if (el) {
-        el.scrollIntoView({ block: 'center', inline: 'nearest' })
-        await sleep(120)
-        // a target taller than the screen cannot be fully inside: it counts when it fills the screen
-        if (!inViewport(el)) {
-          el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-          await sleep(120)
+        // line the target up: a target taller than most of the screen (or a step that shows a region of it) by its top, anything else centred. Panels that are still opening move things, so look again.
+        for (let k = 0; k < 5; k += 1) {
+          const tall = el.getBoundingClientRect().height > innerHeight * 0.8
+          el.scrollIntoView({ block: tall || step.region ? 'start' : 'center', inline: 'nearest' })
+          await sleep(k === 0 ? 220 : 160)
+          if (my !== token) return
+          if (step.region || inViewport(el) || el.getBoundingClientRect().height > innerHeight * 0.8) break
         }
       }
       if (my !== token) return

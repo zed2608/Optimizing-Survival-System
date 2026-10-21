@@ -29,7 +29,7 @@ export default function FieldMenu({ x, y, pointId, title, lines = [], api, obser
   return (
     <>
       <div className="nw-fmenu-backdrop" onClick={() => Date.now() - openedAt.current > 700 && onClose()} aria-hidden="true" />
-      <div className={`nw-fmenu ${narrow ? 'is-sheet' : ''}`} style={style} role="dialog" aria-label={`Field check: ${title}`}>
+      <div className={`nw-fmenu ${narrow ? 'is-sheet' : ''}`} data-tour="m-ctxmenu" style={style} role="dialog" aria-label={`Field check: ${title}`}>
         <div className="nw-fmenu-head">
           <strong>{title}</strong>
           <button type="button" className="nw-btn nw-btn-small" onClick={onClose}>

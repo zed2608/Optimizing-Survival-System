@@ -30,11 +30,11 @@ export default function MapViewMenu({ baseLayer, onBaseLayer, showField, onShowF
         if (e.key === 'Escape') setOpen(false)
       }}
     >
-      <button type="button" className="nw-mapview-btn" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="nw-mapview-btn" data-tour="m-mapview" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
         <Icon name="layers" /> Map view <Icon name={open ? 'up' : 'down'} size={14} />
       </button>
       {open && (
-        <div id={id} className="nw-mapview-menu" role="group" aria-label="Map view">
+        <div id={id} className="nw-mapview-menu" role="group" aria-label="Map view" data-tour="m-mapview-menu">
           <div className="nw-detailseg" role="radiogroup" aria-label="How much to show on the map">
             {[
               [false, 'Simple'],

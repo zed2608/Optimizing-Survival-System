@@ -168,6 +168,7 @@ export default function AppNew() {
   const [focusIds, setFocusIds] = useState(() => new Set()) // planned squares to circle on the map ("Show these on the map")
   const help = useHelpState()
   const [toursOpen, setToursOpen] = useState(false)
+  const [hasPlan, setHasPlan] = useState(false)
   const [planResult, setPlanResult] = useState(null) // the last plan created (it is also saved on the server)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
@@ -763,9 +764,9 @@ export default function AppNew() {
   const startPageTour = () => runTour(PAGE_TOUR[tab] ?? 'global')
   useTourBridge({
     page: tab,
-    snapshot: () => ({ tab, openStep, mode, purpose, selIds, combine, speciesSub, speciesHow, mainSpecies, where, tool, area, draft, markArea, spot, sidebarOpen, view, panelTab, hidden, cardId, legendOpen, detailed, start: win.raw.start, end: win.raw.end, helpPage: help.helpPage }),
+    snapshot: () => ({ planResult, tab, openStep, mode, purpose, selIds, combine, speciesSub, speciesHow, mainSpecies, where, tool, area, draft, markArea, spot, sidebarOpen, view, panelTab, hidden, cardId, legendOpen, detailed, start: win.raw.start, end: win.raw.end, helpPage: help.helpPage }),
     restore: (s) => {
-      setTab(s.tab); setOpenStep(s.openStep); setMode(s.mode); setPurpose(s.purpose); setSelIds(s.selIds); setCombine(s.combine); setSpeciesSub(s.speciesSub); setSpeciesHow(s.speciesHow)
+      setPlanResult(s.planResult); setTab(s.tab); setOpenStep(s.openStep); setMode(s.mode); setPurpose(s.purpose); setSelIds(s.selIds); setCombine(s.combine); setSpeciesSub(s.speciesSub); setSpeciesHow(s.speciesHow)
       setMainSpecies(s.mainSpecies); setWhere(s.where); setTool(s.tool); setArea(s.area); setDraft(s.draft); setMarkArea(s.markArea); setSpot(s.spot); setSidebarOpen(s.sidebarOpen)
       setView(s.view); setPanelTab(s.panelTab); setHidden(s.hidden); setCardId(s.cardId); setLegendOpen(s.legendOpen); setDetailed(s.detailed); setFieldMenu(null)
       win.setRange(s.start, s.end)
@@ -790,7 +791,20 @@ export default function AppNew() {
     openSpeciesCard: (id) => setCardId(id),
     closeSpeciesCard: () => setCardId(null),
     setLegend: (v) => setLegendOpen(v),
+    openLatestPlan: async () => {
+      const r = await apiGet('/plans?limit=1')
+      const id = (r.plans ?? r)?.[0]?.plan_id
+      if (id) await openSavedPlan(id)
+    },
   })
+  useEffect(() => {
+    if (!toursOpen) return undefined
+    let live = true
+    apiGet('/plans?limit=1').then((r) => live && setHasPlan(((r.plans ?? r) ?? []).length > 0), () => live && setHasPlan(false))
+    return () => {
+      live = false
+    }
+  }, [toursOpen])
 
   return (
     <HelpContext.Provider value={{ openHelp: help.openHelp }}>
@@ -846,7 +860,7 @@ export default function AppNew() {
 
       {/* legend of the colours (on the map) */}
       {legendOpen ? (
-        <div className="nw-legend v2 v2-embedded" role="group" aria-label="Map legend">
+        <div className="nw-legend v2 v2-embedded" role="group" aria-label="Map legend" data-tour="m-legend">
           <div className="nw-legend-head">
             <strong>{view === 'full' ? 'Overall score W' : 'Overall match'} · {purposeLabel(purpose)}</strong>
             <AskHelp id="colours" />
@@ -857,7 +871,7 @@ export default function AppNew() {
           <div className="nw-legend-sub">{legendSub}</div>
           <ColorLegend />
           {(mode === 'area' ? area : markArea)?.kind === 'polygon' && diag.status === 'ok' && diag.data.squares && (
-            <div className="nw-legend-area" data-role="legend-area-squares">
+            <div className="nw-legend-area" data-role="legend-area-squares" data-tour="m-legend-area">
               <span className="nw-legend-sq is-counted" aria-hidden="true" /> {tr('sq.counted', {}, lang)}
               <br />
               <span className="nw-legend-sq is-partial" aria-hidden="true" /> {tr('sq.partial', {}, lang)}
@@ -886,16 +900,16 @@ export default function AppNew() {
           <div className="nw-legend-note">{tr('sq.note', {}, lang)}</div>
         </div>
       ) : (
-        <button type="button" className="nw-legend-btn" aria-expanded="false" onClick={() => setLegendOpen(true)}>
+        <button type="button" className="nw-legend-btn" aria-expanded="false" onClick={() => setLegendOpen(true)} data-tour="m-legend-btn">
           <Icon name="legend" /> Legend
         </button>
       )}
-      <button type="button" className={`nw-locate ${locating ? 'is-busy' : ''}`} onClick={locateMe} data-role="locate" aria-busy={locating} aria-label={locating ? tr('geo.finding', {}, lang) : tr('map.locate', {}, lang)} title={tr('map.locate', {}, lang)}>
+      <button type="button" className={`nw-locate ${locating ? 'is-busy' : ''}`} onClick={locateMe} data-role="locate" data-tour="m-locate" aria-busy={locating} aria-label={locating ? tr('geo.finding', {}, lang) : tr('map.locate', {}, lang)} title={tr('map.locate', {}, lang)}>
         <Icon name="target" size={18} />
         {locating && <span className="nw-locate-text">{tr('geo.finding', {}, lang)}</span>}
       </button>
       {(locFailed || pickingMe) && (
-        <button type="button" className={`nw-locate-set ${pickingMe ? 'is-on' : ''}`} onClick={() => setPickingMe((v) => !v)} data-role="locate-set" aria-pressed={pickingMe}>
+        <button type="button" className={`nw-locate-set ${pickingMe ? 'is-on' : ''}`} onClick={() => setPickingMe((v) => !v)} data-role="locate-set" data-tour="m-locate-set" aria-pressed={pickingMe}>
           <Icon name="pin" size={16} /> {pickingMe ? tr('geo.setHint', {}, lang) : tr('geo.setOnMap', {}, lang)}
         </button>
       )}
@@ -1298,7 +1312,7 @@ export default function AppNew() {
           }}
         />
       )}
-      {toursOpen && <ToursMenu page={tab} onStart={runTour} onClose={() => setToursOpen(false)} hasPlan />}
+      {toursOpen && <ToursMenu page={tab} onStart={runTour} onClose={() => setToursOpen(false)} hasPlan={hasPlan} />}
       {cardId !== null && (
         <SpeciesCard
           speciesId={cardId}

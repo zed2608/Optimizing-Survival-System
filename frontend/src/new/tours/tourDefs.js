@@ -127,7 +127,144 @@ const STUDIO_LEFT = {
   ],
 }
 
-export const TOURS = [GLOBAL, STUDIO_LEFT]
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------- ACTIVE STUDIO: the map
+// on a phone the left panel covers the map controls: the map tour closes it first
+const mapOnly = async ({ bridge }) => { if (window.innerWidth < 900) await bridge.setSidebar(false) }
+const legendOpen = async (c) => { await mapOnly(c); await c.bridge.setLegend(true) }
+const legendClosed = async (c) => { await mapOnly(c); await c.bridge.setLegend(false) }
+const STUDIO_MAP = {
+  id: 'studio-map',
+  page: 'studio',
+  title: T('Studio: the map', 'Studio: ang mapa'),
+  blurb: T('Search, zoom, my location, layers, legend, colours, right-click.', 'Hanapin, zoom, aking lokasyon, layers, legend, kulay, right-click.'),
+  sections: [
+    {
+      id: 'search',
+      title: T('Search', 'Paghahanap'),
+      steps: [
+        S('search', 'm-search', T('Search the map', 'Hanapin sa mapa'), T('Type a barangay, a species, a point number, or coordinates such as 14.69, 121.12. Press Ctrl and K to jump here. Choosing a result moves the map and opens its panel.', 'Mag-type ng barangay, species, numero ng punto, o koordinato tulad ng 14.69, 121.12. Pindutin ang Ctrl at K para mapunta rito. Ililipat ng napili ang mapa at bubuksan ang panel nito.'), T('Places such as streets only work if the online place search is switched on.', 'Gumagana lang ang mga lugar tulad ng kalye kapag naka-on ang online na paghahanap ng lugar.'), { setup: async (c) => { await mapOnly(c) } }),
+      ],
+    },
+    {
+      id: 'controls',
+      title: T('Map controls', 'Mga control ng mapa'),
+      steps: [
+        S('zoom', 'm-zoom', T('Zoom', 'Zoom'), T('Plus and minus zoom the map. You can also pinch with two fingers, or scroll with the mouse. Zoom in far enough to see single 100 m squares.', 'Ang plus at minus ay nagza-zoom ng mapa. Puwede ring i-pinch ng dalawang daliri, o mag-scroll gamit ang mouse. Mag-zoom nang malapit para makita ang bawat 100 m na parisukat.'), null, { setup: mapOnly }),
+        S('locate', 'm-locate', T('My location', 'Aking lokasyon'), T('Moves the map to where you are, with a blue dot. It needs a secure (HTTPS) page and your permission. Your position stays in this browser and is never sent anywhere.', 'Inililipat ang mapa sa kinaroroonan mo, may asul na tuldok. Kailangan ng ligtas (HTTPS) na pahina at ng pahintulot mo. Nananatili sa browser na ito ang posisyon mo at hindi ipinapadala kahit saan.'), null, { setup: mapOnly }),
+        S('locateset', 'm-locate-set', T('Set my location on the map', 'Itakda ang lokasyon ko sa mapa'), T('If your device cannot find you, tap this and then tap the map where you are.', 'Kung hindi ka mahanap ng device mo, i-tap ito at i-tap ang mapa kung nasaan ka.'), null, { optional: true, setup: mapOnly }),
+        S('mapview', 'm-mapview', T('Map view', 'Map view'), T('Opens the map options: Simple or Detailed, the map type, and the extra layers.', 'Binubuksan ang mga opsyon ng mapa: Simple o Detailed, uri ng mapa, at mga dagdag na layer.'), null, { setup: async (c) => { await mapOnly(c); if (c.ui.exists('m-mapview-menu')) await c.ui.toggle('m-mapview') } }),
+        S('mapviewmenu', 'm-mapview-menu', T('Layers and detail', 'Mga layer at detalye'), T('Simple shows coloured squares, outlines and names. Detailed adds every field-check symbol, the tree codes and the grey squares. You can also switch the satellite picture, the zoning colours and the ground-cover layer.', 'Ang Simple ay may kulay na parisukat, outline at pangalan. Dinadagdagan ito ng Detailed ng bawat simbolo ng field check, code ng puno at abuhing parisukat. Puwede ring palitan ang satellite, kulay ng zoning at ground-cover layer.'), null, { setup: async (c) => { await mapOnly(c); if (!c.ui.exists('m-mapview-menu')) await c.ui.toggle('m-mapview') }, teardown: async ({ ui }) => { if (ui.exists('m-mapview-menu')) await ui.toggle('m-mapview') } }),
+        S('legendbtn', 'm-legend-btn', T('The legend button', 'Ang legend button'), T('Opens the legend: what the colours of the map mean.', 'Binubuksan ang legend: ang ibig sabihin ng mga kulay ng mapa.'), null, { setup: legendClosed }),
+        S('collapse', 'm-collapse', T('Hide the control panel', 'Itago ang control panel'), T('Hides or shows the left panel so the map has the whole screen. Your choices stay.', 'Itinatago o ipinapakita ang kaliwang panel para ang mapa ang sumakop sa buong screen. Nananatili ang mga pinili mo.'), null, { setup: mapOnly }),
+      ],
+    },
+    {
+      id: 'colours',
+      title: T('Colours and symbols', 'Mga kulay at simbolo'),
+      steps: [
+        S('legend', 'm-legend', T('What the colours mean', 'Ang ibig sabihin ng mga kulay'), T('Each square is a 100 m by 100 m piece of planting zone. Green (Good) means the species match is 55% or more, orange (Moderate) 35% to 55%, red (Poor) below 35%. Grey means not suitable here, or no value.', 'Ang bawat parisukat ay 100 m by 100 m na bahagi ng planting zone. Berde (Good): 55% pataas ang tugma ng species, kahel (Moderate): 35% hanggang 55%, pula (Poor): mas mababa sa 35%. Abo: hindi angkop dito, o walang halaga.'), T('A colour is advice about the land, not a promise that trees will live.', 'Ang kulay ay payo tungkol sa lupa, hindi pangako na mabubuhay ang mga puno.'), { setup: legendOpen }),
+        S('squares', 'm-map', T('The coloured squares', 'Ang mga kulay na parisukat'), T('Zoom in and the colours become squares. Hover or tap one to see its barangay, its score and its best species. Click it to open its panel on the right.', 'Mag-zoom in at magiging mga parisukat ang mga kulay. I-hover o i-tap ang isa para makita ang barangay, iskor at pinakamahusay na species nito. I-click para buksan ang panel nito sa kanan.'), null, { region: { x: 0.45, y: 0.5, w: 0.22, h: 0.22 }, setup: legendClosed }),
+        S('labels', 'm-map', T('Barangay names and outlines', 'Pangalan at outline ng barangay'), T('The thin lines are the barangay boundaries and the names sit inside them. The thick outline is the edge of the municipality.', 'Ang manipis na linya ay hangganan ng barangay at nasa loob nila ang pangalan. Ang makapal na outline ay gilid ng munisipyo.'), null, { region: { x: 0.55, y: 0.45, w: 0.25, h: 0.2 }, setup: legendClosed }),
+        S('fieldmarks', 'm-legend', T('Field-check symbols', 'Mga simbolo ng field check'), T('When people check a square on the ground, a mark is drawn on it. Every mark is the same violet; the SHAPE tells the status: a tick = planted, a ring = marked plantable, a question mark = needs recheck, a cross = not plantable. The words are always written next to it.', 'Kapag sinuri ng tao ang parisukat sa lupa, may marka itong iginuguhit. Iisang violet ang lahat ng marka; ang HUGIS ang nagsasabi ng katayuan: tsek = naitanim na, bilog = maaaring taniman, tandang pananong = kailangang suriin muli, ekis = hindi maaaring taniman. Laging nakasulat ang salita sa tabi.'), null, { setup: legendOpen }),
+        S('planblocks', 'm-legend', T('Planned blocks', 'Mga planong block'), T('After you make a plan, its blocks are drawn as shapes with the number of trees, one shape for each species. A dotted ring marks land outside the zoning map.', 'Pagkatapos gumawa ng plano, ang mga block nito ay iginuguhit bilang hugis na may bilang ng puno, isang hugis para sa bawat species. Ang may tuldok na bilog ay nagmamarka ng lupang labas sa zoning map.'), null, { setup: legendOpen }),
+      ],
+    },
+    {
+      id: 'menu',
+      title: T('Right-click menu', 'Right-click menu'),
+      steps: [
+        S('ctx', 'm-ctxmenu', T('Right-click or press and hold', 'Right-click o pindutin nang matagal'), T('A menu opens for the square you pressed: where it is, its zone, the species here, and the field-check buttons. This is the example point.', 'May menu para sa parisukat na pinindot mo: nasaan ito, ang zone nito, ang species dito, at ang mga button ng field check. Ito ang halimbawang punto.'), T('The tour only shows the menu. It never presses a field-check button.', 'Ipinapakita lang ng tour ang menu. Hindi nito pipindutin ang anumang button ng field check.'), { setup: async ({ bridge }) => { await bridge.setSidebar(true); await bridge.openExampleMenu() }, teardown: async ({ bridge }) => { await bridge.closeMenu() } }),
+      ],
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------- ACTIVE STUDIO: the point panel and the species card
+const examplePoint = async ({ bridge }) => { await bridge.setSidebar(true); await bridge.setMode('species'); await bridge.openExamplePoint() }
+const STUDIO_POINT = {
+  id: 'studio-point',
+  page: 'studio',
+  title: T('Studio: the point panel', 'Studio: ang panel ng punto'),
+  blurb: T('What a clicked square tells you (uses the Example point).', 'Ang sinasabi ng pinindot na parisukat (gamit ang Halimbawang punto).'),
+  sections: [
+    {
+      id: 'simple',
+      title: T('The simple view', 'Ang simpleng view'),
+      steps: [
+        S('panel', 'r-panel', T('The Example point', 'Ang Halimbawang punto'), T('This panel opens when you click a square. The tour uses a fixed Example point where many species fit, so it never depends on what you selected.', 'Bumubukas ang panel na ito kapag nag-click ka ng parisukat. Gumagamit ang tour ng nakatakdang Halimbawang punto kung saan maraming species ang angkop, kaya hindi ito umaasa sa pinili mo.'), null, { setup: async (c) => { await examplePoint(c); await c.bridge.setView('compact') } }),
+        S('view', 'r-view', T('Simple or Detailed', 'Simple o Detailed'), T('Simple uses plain words. Detailed shows the numbers, the month strips and where every value comes from.', 'Simpleng salita ang Simple. Ipinapakita ng Detailed ang mga numero, month strip at kung saan galing ang bawat halaga.'), null, { setup: async (c) => { await examplePoint(c); await c.bridge.setView('compact') } }),
+        S('header', 'r-header', T('Where this is', 'Kung nasaan ito'), T('The barangay of the square, with a short note about its land when there is one.', 'Ang barangay ng parisukat, may maikling tala tungkol sa lupa nito kung meron.'), null, { setup: examplePoint }),
+        S('verdict', 'r-verdict', T('The verdict', 'Ang hatol'), T('One sentence: how good this place is for the top species, the overall match in percent, and whether it is in its planting months. “Overall match” combines how well the site suits the species with how well the species suits your purpose.', 'Isang pangungusap: gaano kaganda ang lugar para sa nangungunang species, ang kabuuang tugma sa porsiyento, at kung nasa buwan ng pagtatanim ito. Pinagsasama ng “overall match” kung gaano kabagay ang lugar sa species at kung gaano kabagay ang species sa layunin mo.'), null, { setup: examplePoint }),
+        S('field', 'r-field', T('Field check', 'Field check'), T('What the field team saw here, if anyone has checked it: planted, marked plantable, needs recheck, or not plantable. The button opens the menu to record a check.', 'Ang nakita ng field team dito, kung may nag-check na: naitanim na, maaaring taniman, kailangang suriin muli, o hindi maaaring taniman. Binubuksan ng button ang menu para magtala ng check.'), T('A not-plantable mark can leave the square out of rankings and plans; the other marks never change a score.', 'Ang marka na hindi maaaring taniman ay puwedeng mag-alis sa parisukat sa mga ranggo at plano; hindi binabago ng ibang marka ang iskor.'), { setup: examplePoint }),
+        S('species', 'r-species', T('Best species for this spot', 'Pinakamahusay na species sa lugar na ito'), T('The species that suit this square, best first, and how many of the 45 suit it. Each row has a colour bar for the match, a season badge and a pH icon.', 'Ang mga species na angkop sa parisukat na ito, pinakamahusay muna, at ilan sa 45 ang angkop. May color bar ng tugma ang bawat row, season badge at pH icon.'), null, { setup: examplePoint }),
+        S('row', 'r-row', T('One species', 'Isang species'), T('Name (tap it for the species card), the match as Good, Moderate or Poor with its percent, and the season: In season, Partly, or Outside best months. Outside the best months you can still plant, but expect more watering and more losses.', 'Pangalan (i-tap para sa species card), ang tugma bilang Good, Moderate o Poor at porsiyento, at ang panahon: In season, Partly, o Outside best months. Sa labas ng pinakamainam na buwan puwede pa ring magtanim, pero asahan ang mas maraming dilig at pagkalugi.'), null, { setup: examplePoint }),
+        S('details', 'r-row-details', T('Details', 'Mga detalye'), T('Opens the extra lines of this species: the numbers, the month strip, the flags, and why the score is what it is.', 'Binubuksan ang dagdag na linya ng species na ito: mga numero, month strip, flag, at bakit ganoon ang iskor.'), null, { setup: examplePoint }),
+      ],
+    },
+    {
+      id: 'detailed',
+      title: T('The detailed view', 'Ang detalyadong view'),
+      steps: [
+        S('land', 'r-land', T('Land details', 'Detalye ng lupa'), T('Coordinates, elevation, slope, zoning, soil and satellite ground cover for the square. Anything that needs a permit or care is flagged.', 'Koordinato, taas, tarik, zoning, lupa at satellite ground cover ng parisukat. Namarkahan ang anumang nangangailangan ng permiso o pag-iingat.'), null, { setup: async (c) => { await examplePoint(c); await c.bridge.setView('full'); await c.ui.openDetails('r-land') } }),
+        S('ph', 'r-ph', T('Soil pH (an estimate)', 'pH ng lupa (tantiya)'), T('The pH of the soil here comes from SoilGrids, a world map with 250 m pixels. It is an ESTIMATE and “not certain”: measure on site with a pH kit before you rely on it. It is advice only and never changes a score.', 'Ang pH ng lupa rito ay galing sa SoilGrids, isang mapa ng mundo na may 250 m na pixel. TANTIYA lamang ito at “hindi tiyak”: sukatin sa mismong lugar gamit ang pH kit bago umasa. Payo lang ito at hindi nagbabago ng iskor.'), null, { setup: async (c) => { await examplePoint(c); await c.bridge.setView('full'); await c.ui.openDetails('r-land') } }),
+        S('scores', 'r-scores', T('The numbers', 'Ang mga numero'), T('S is site suitability, P is purpose fit, W is the overall score (W = S × P, and 0 when S is below 0.50). Confidence says how many of the facts behind it are sourced.', 'Ang S ay pagiging angkop ng lugar, ang P ay tugma sa layunin, ang W ang kabuuang iskor (W = S × P, at 0 kapag mas mababa sa 0.50 ang S). Sinasabi ng Confidence kung ilan sa mga datos sa likod nito ang may sanggunian.'), null, { setup: async (c) => { await examplePoint(c); await c.bridge.setView('full') } }),
+        S('months', 'r-months', T('The month strip', 'Ang month strip'), T('Twelve letters from January to December. Filled letters are the best planting months of this species; a ring marks the months of your dates.', 'Labindalawang titik mula Enero hanggang Disyembre. Ang may kulay ay pinakamainam na buwan ng pagtatanim ng species; ang bilog ay ang mga buwan ng petsa mo.'), null, { setup: async (c) => { await examplePoint(c); await c.bridge.setView('full') } }),
+        S('whybtn', 'r-why-btn', T('Why this score?', 'Bakit ganito ang iskor?'), T('Opens the breakdown: each term, its weight and its source.', 'Binubuksan ang breakdown: bawat termino, timbang at sanggunian.'), null, { setup: async (c) => { await examplePoint(c); await c.bridge.setView('full') } }),
+        S('rf', 'r-rf', T('The Random Forest line', 'Ang linya ng Random Forest'), T('The site suitability comes from a Random Forest, a computer model that learned from the expert rules. Hard limits such as zone, elevation and steep slope always apply first. It does not measure real survival.', 'Ang pagiging angkop ng lugar ay galing sa Random Forest, isang computer model na natuto mula sa mga patakaran ng eksperto. Laging nauuna ang mahihigpit na limitasyon tulad ng zone, taas at matarik na dalisdis. Hindi nito sinusukat ang tunay na pagkabuhay.'), null, { setup: async (c) => { await examplePoint(c); await c.bridge.setView('full'); if (!c.ui.exists('r-rf')) await c.ui.toggle('r-why-btn') } }),
+      ],
+    },
+    {
+      id: 'card',
+      title: T('The species card', 'Ang species card'),
+      steps: [
+        S('card', 'c-card', T('The species card', 'Ang species card'), T('Opens from any species name. It lists what is known about one species, each value with its source link and rank. A missing value says Data Unavailable.', 'Bumubukas mula sa pangalan ng anumang species. Inililista nito ang alam tungkol sa isang species, bawat halaga may link ng sanggunian at ranggo. Ang kulang na halaga ay nagsasabing Data Unavailable.'), null, { setup: async ({ bridge }) => { await bridge.openSpeciesCard(EXAMPLE_SPECIES_ID) }, teardown: async ({ bridge }) => { await bridge.closeSpeciesCard() } }),
+        S('timing', 'c-timing', T('Planting stage and timing', 'Yugto at panahon ng pagtatanim'), T('Germination, propagation, depth, method and spacing, and the planting months with a month strip for your dates.', 'Pagsibol, pagpaparami, lalim, paraan at layo, at ang buwan ng pagtatanim na may month strip para sa petsa mo.'), null, { region: { x: 0, y: 0, w: 1, h: 0.4 }, setup: async ({ bridge }) => { await bridge.openSpeciesCard(EXAMPLE_SPECIES_ID) }, teardown: async ({ bridge }) => { await bridge.closeSpeciesCard() } }),
+        S('partners', 'c-partners', T('Works well with', 'Kasamang species'), T('Species that grow well beside this one, with the reason in one line. A partner named in the sources says so; the rules are provisional.', 'Mga species na mahusay tumubo sa tabi nito, may dahilan sa isang linya. Sinasabi kapag pinangalanan ang kapartner sa mga sanggunian; pansamantala ang mga patakaran.'), null, { setup: async ({ bridge }) => { await bridge.openSpeciesCard(EXAMPLE_SPECIES_ID) }, teardown: async ({ bridge }) => { await bridge.closeSpeciesCard() } }),
+        S('advice', 'c-advice', T('Ways to improve survival', 'Mga paraan para tumaas ang pagkabuhay'), T('Short advice for this species, for example about watering, shade or grafted stock. It is advice only, still to be confirmed by the agriculturist.', 'Maikling payo para sa species na ito, halimbawa tungkol sa pagdidilig, lilim o grafted na punla. Payo lang ito, kailangan pang kumpirmahin ng agriculturist.'), null, { setup: async ({ bridge }) => { await bridge.openSpeciesCard(EXAMPLE_SPECIES_ID) }, teardown: async ({ bridge }) => { await bridge.closeSpeciesCard() } }),
+      ],
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------- ACTIVE STUDIO: a saved plan (needs one)
+const planOpen = async ({ bridge, ui }) => { await bridge.setSidebar(true); if (!ui.exists('r-plan-tabs')) await bridge.openLatestPlan() }
+const planTab = (tab, tabId = tab) => async (c) => { await planOpen(c); if (!c.ui.exists(`r-${tab}`)) await c.ui.toggle(`r-ptab-${tabId}`) }
+const STUDIO_PLAN = {
+  id: 'studio-plan',
+  page: 'studio',
+  requires: 'plan',
+  title: T('Studio: a saved plan', 'Studio: isang naka-save na plano'),
+  blurb: T('The plan panel: Plan, Field kit, Progress (opens your latest saved plan).', 'Ang plan panel: Plan, Field kit, Progress (binubuksan ang pinakabagong naka-save mong plano).'),
+  sections: [
+    {
+      id: 'plan',
+      title: T('Plan', 'Plano'),
+      steps: [
+        S('numbers', 'r-plan-numbers', T('The plan in three numbers', 'Ang plano sa tatlong numero'), T('Trees, blocks and hectares. A block is one 100 m square planted at the species spacing.', 'Mga puno, block at ektarya. Ang block ay isang 100 m na parisukat na tinatamnan ayon sa layo ng species.'), null, { setup: planOpen }),
+        S('tabs', 'r-plan-tabs', T('Three tabs', 'Tatlong tab'), T('Plan shows what to plant where. Field kit builds the files and the planter link for the team. Progress counts what has been planted.', 'Ipinapakita ng Plan kung ano ang itatanim at saan. Gumagawa ang Field kit ng mga file at planter link para sa pangkat. Binibilang ng Progress ang naitanim na.'), null, { setup: planOpen }),
+        S('notes', 'r-plan-notes', T('Good to know', 'Mabuting malaman'), T('Short notes that need attention: zoning, steep slopes, satellite ground cover, the season.', 'Mga maikling tala na kailangan ng pansin: zoning, matarik na dalisdis, satellite ground cover, panahon.'), null, { setup: planTab('plan-notes', 'plan'), optional: true }),
+      ],
+    },
+    {
+      id: 'kit',
+      title: T('Field kit', 'Field kit'),
+      steps: [
+        S('kit', 'r-kit', T('The field kit', 'Ang field kit'), T('Build the kit to get points for a GPS app, a Google Earth file, the point list, a printed map and instructions. The tour only shows it: it will not build anything.', 'Buuin ang kit para makakuha ng mga punto para sa GPS app, Google Earth file, listahan ng punto, naka-print na mapa at tagubilin. Ipinapakita lang ito ng tour: wala itong bubuuin.'), null, { setup: planTab('kit') }),
+        S('planter', 'r-planter', T('Planter link', 'Planter link'), T('A page for the planting team to open on a phone. The link works for a limited time and can be switched off. A QR code appears once the link exists.', 'Isang pahina para sa planting team na bubuksan sa phone. May limitadong oras ang link at puwedeng patayin. Lalabas ang QR code kapag may link na.'), null, { setup: planTab('kit') }),
+      ],
+    },
+    {
+      id: 'progress',
+      title: T('Progress', 'Progreso'),
+      steps: [
+        S('progress', 'r-progress', T('Progress', 'Progreso'), T('Counted from the saved field checks of this plan: planted, partly done, problem and to do, with a button to plan a top-up for trees that could not be planted.', 'Binibilang mula sa mga naka-save na field check ng planong ito: naitanim, bahagya, may problema at gagawin pa, may button para magplano ng dagdag sa mga punong hindi naitanim.'), null, { setup: planTab('progress') }),
+      ],
+    },
+  ],
+}
+
+export const TOURS = [GLOBAL, STUDIO_LEFT, STUDIO_MAP, STUDIO_POINT, STUDIO_PLAN]
 export const getTour = (id) => TOURS.find((t) => t.id === id) ?? null
 export const tourSteps = (tour) => tour.sections.flatMap((s) => s.steps)
 // the tour that explains a page (the "?" and Help always start this one)

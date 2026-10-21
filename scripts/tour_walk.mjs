@@ -16,7 +16,7 @@ const THEMES = arg('--themes', 'light,dark').split(',')
 const WIDTHS = arg('--widths', '360,1280').split(',').map(Number)
 const ONLY = arg('--tours', '') ? arg('--tours', '').split(',') : null
 const SHOTS = process.argv.includes('--no-shots') ? null : arg('--shots', 'reports/overnight/r1_shots/tours')
-const READ_ONLY_POSTS = [/\/rank\/area/, /\/areas\/rank/, /\/plan-event\/preview/, /\/companions/, /\/search\//, /\/squares\//, /\/grid\/diagnostic/]
+const READ_ONLY_POSTS = [/\/area\/diagnostic/, /\/rank\/area/, /\/areas\/rank/, /\/plan-event\/preview/, /\/companions/, /\/search\//, /\/squares\//, /\/grid\/diagnostic/]
 const PAGE_TAB = { studio: 0, weather: 1, history: 2, analytics: 3 }
 
 const b = await launch({ out: SHOTS ?? '.' })
@@ -44,6 +44,7 @@ async function walk(theme, w, tour, section) {
   await ev('location.reload()'); await sleep(3500)
   const page = tour.page === 'any' ? 'studio' : tour.page
   if (page !== 'help') await gotoPage(page)
+  if (tour.id === 'studio-plan') await ev(`fetch('/plan-event?season_filter=mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purpose: 'urban', n_saplings: 60, seed: 3, campaign: { name: 'Tour plan', unit: 'QA' } }) }).then((r) => r.status)`) // the plan this tour opens is made BEFORE the tour (a tour never creates one)
   const before = await summary()
   await ev('window.__net = []')
   await ev(`window.__tours.start(${JSON.stringify(tour.id)}, ${JSON.stringify(section ?? undefined)})`)
@@ -52,16 +53,17 @@ async function walk(theme, w, tour, section) {
   for (let guard = 0; guard < steps.length + 4; guard++) {
     // wait for a step to be on screen
     let st = null
-    for (let k = 0; k < 60; k++) { st = await ev(`(() => { const r = document.querySelector('[data-role=tour]'); if (!r) return null; return JSON.stringify({ step: r.dataset.step, target: r.dataset.target, placement: r.dataset.placement }) })()`); if (st) break; await sleep(100) }
+    for (let k = 0; k < 60; k++) { st = await ev(`(() => { const r = document.querySelector('[data-role=tour]'); if (!r) return null; return JSON.stringify({ step: r.dataset.step, target: r.dataset.target, placement: r.dataset.placement, region: r.dataset.region ? JSON.parse(r.dataset.region) : null }) })()`); if (st) break; await sleep(100) }
     if (!st) break
     const s = JSON.parse(st)
     n += 1
     seen.push(s.step)
+    await sleep(350) // the popover has finished its fade
     const g = JSON.parse(await ev(`(() => {
       const t = '${s.target}' ? [...document.querySelectorAll('[data-tour="${s.target}"]')].find((e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2 }) : null
       const pop = document.querySelector('.tr-pop').getBoundingClientRect()
       const out = { hasTarget: !!t, vw: innerWidth, vh: innerHeight, pop: [pop.left, pop.top, pop.right, pop.bottom] }
-      if (t) { const r = t.getBoundingClientRect(); out.rect = [r.left, r.top, r.right, r.bottom]; out.inside = r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; out.fills = r.height >= innerHeight - 20 || r.width >= innerWidth - 20 }
+      if (t) { let r = t.getBoundingClientRect(); const reg = ${JSON.stringify(s.region)}; if (reg) r = { left: r.left + r.width * reg.x, top: r.top + r.height * reg.y, right: r.left + r.width * (reg.x + reg.w), bottom: r.top + r.height * (reg.y + reg.h) }; out.rect = [r.left, r.top, r.right, r.bottom]; out.inside = r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; out.fills = !reg && (r.bottom - r.top >= innerHeight - 20 || r.right - r.left >= innerWidth - 20) }
       const tab = document.querySelector('[role=tab][aria-selected=true].cy-tab')?.innerText?.trim() ?? ''
       out.tab = tab
       out.studioTarget = !!document.querySelector('.nw-sidebar') && ${JSON.stringify(tour.page)} !== 'studio'

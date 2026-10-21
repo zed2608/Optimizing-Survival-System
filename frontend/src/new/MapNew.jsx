@@ -61,6 +61,16 @@ function GoTo({ target }) {
   return null
 }
 
+// The zoom buttons are made by Leaflet, not React: they get their tour target here.
+function TourTags() {
+  const map = useMap()
+  useEffect(() => {
+    map.getContainer().querySelector('.leaflet-control-zoom')?.setAttribute('data-tour', 'm-zoom')
+    map.getContainer().setAttribute('data-tour', 'm-map')
+  }, [map])
+  return null
+}
+
 // Where the person is (My location, or the place they tapped): a blue dot with a ring. In memory only.
 function MeMarker({ me }) {
   const map = useMap()
@@ -109,6 +119,7 @@ export default function MapNew({ myLoc = null, bbox, boundaries, grid, clearGrid
       <GoTo target={goTarget} />
       <PulseRing spot={spot} />
       <MeMarker me={myLoc} />
+      <TourTags />
       <FitTarget target={fitTarget} />
       <ZoningLayer zoning={zoning} visible={zoningOn} />
       <BoundaryLayers boundaries={boundaries} />

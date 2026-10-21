@@ -5,7 +5,7 @@ import { motionAllowed } from './motionPref.js'
 // ranking and "Why this score?" accordion. The caller passes the content (children) of the active tab.
 export default function RightPanel({ title, subtitle, tabs, activeTab, onTab, onClose, children }) {
   return (
-    <motion.aside className="nw-right" aria-label={title} initial={motionAllowed() ? { opacity: 0, x: 48 } : false} animate={{ opacity: 1, x: 0 }} transition={motionAllowed() ? { type: 'spring', stiffness: 260, damping: 30 } : { duration: 0 }}>
+    <motion.aside className="nw-right" data-tour="r-panel" aria-label={title} initial={motionAllowed() ? { opacity: 0, x: 48 } : false} animate={{ opacity: 1, x: 0 }} transition={motionAllowed() ? { type: 'spring', stiffness: 260, damping: 30 } : { duration: 0 }}>
       <div className="nw-right-head">
         <div>
           <h2>{title}</h2>
@@ -16,7 +16,7 @@ export default function RightPanel({ title, subtitle, tabs, activeTab, onTab, on
         </button>
       </div>
       {tabs.length > 1 && (
-        <div className="nw-right-tabs" role="tablist" aria-label="Panel views">
+        <div className="nw-right-tabs" role="tablist" aria-label="Panel views" data-tour="r-tabs">
           {tabs.map((t) => (
             <button key={t.id} type="button" role="tab" aria-selected={activeTab === t.id} className={`nw-rtab ${activeTab === t.id ? 'is-active' : ''}`} onClick={() => onTab(t.id)}>
               {t.label}

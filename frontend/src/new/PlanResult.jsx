@@ -96,7 +96,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
       <section className="nw-pcard nw-planhead" aria-label="Plan">
         <h2 className="nw-loc-title">{c.name ?? 'Planting plan'}</h2>
         <p className="nw-plan-sentence">{planSentence(result)}</p>
-        <div className="nw-bignums" role="group" aria-label="The plan in three numbers">
+        <div className="nw-bignums" role="group" aria-label="The plan in three numbers" data-tour="r-plan-numbers">
           <div className="nw-bignum">
             <strong><CountUp value={s.saplings_placed} /></strong>
             <span>Trees{s.saplings_placed < s.n_saplings_requested ? ` (of ${s.n_saplings_requested})` : ''}</span>
@@ -187,9 +187,9 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
         </section>
       )}
 
-      <div className="nw-ptabs" role="tablist" aria-label="Plan sections">
+      <div className="nw-ptabs" role="tablist" aria-label="Plan sections" data-tour="r-plan-tabs">
         {TABS.filter((t) => blocks || t.id !== 'progress').map((t) => (
-          <button key={t.id} type="button" role="tab" id={`nw-ptab-${t.id}`} aria-selected={tab === t.id} aria-controls={`nw-ppanel-${t.id}`} className={`nw-ptab ${tab === t.id ? 'is-active' : ''}`} onClick={() => setTab(t.id)}>
+          <button key={t.id} type="button" role="tab" id={`nw-ptab-${t.id}`} data-tour={`r-ptab-${t.id}`} aria-selected={tab === t.id} aria-controls={`nw-ppanel-${t.id}`} className={`nw-ptab ${tab === t.id ? 'is-active' : ''}`} onClick={() => setTab(t.id)}>
             <Icon name={t.icon} size={16} /> {t.label}
           </button>
         ))}
@@ -198,7 +198,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
       {tab === 'plan' && (
         <div role="tabpanel" id="nw-ppanel-plan" aria-labelledby="nw-ptab-plan">
           {shownNotes.length > 0 && (
-            <section className="nw-pcard" aria-label="Good to know">
+            <section className="nw-pcard" aria-label="Good to know" data-tour="r-plan-notes">
               <h3>Good to know</h3>
               <ul className="nw-notelist">
                 {shownNotes.map((n) => (
@@ -340,7 +340,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
 
       {tab === 'kit' && (
         <div role="tabpanel" id="nw-ppanel-kit" aria-labelledby="nw-ptab-kit">
-          <section className="nw-pcard" aria-label="Field kit">
+          <section className="nw-pcard" aria-label="Field kit" data-tour="r-kit">
             <div className="nw-pcard-head">
               <h3>Field kit</h3>
             </div>
@@ -351,7 +351,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
 
       {tab === 'progress' && blocks && (
         <div role="tabpanel" id="nw-ppanel-progress" aria-labelledby="nw-ptab-progress">
-          <section className="nw-pcard" aria-label="Progress">
+          <section className="nw-pcard" aria-label="Progress" data-tour="r-progress">
             <div className="nw-pcard-head">
               <h3>Progress</h3>
               <HelpTip label="About progress">Counted from the saved field checks of this plan: mark each block Planted (with the number of trees), Can't plant here or Needs recheck in its point panel, or import the filled blocks.csv.</HelpTip>
