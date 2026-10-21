@@ -938,3 +938,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .tm-n { color: var(--c-muted); font-size: 12px; }
 @media print { .tm-scrim { display: none !important; } }
 .tr-pop { box-sizing: border-box; }
+
+/* R1: the plan tables inside the narrow right panel never push the panel wider (fixed columns, long words wrap) */
+.nw-root .nw-right-body .nw-table { table-layout: fixed; width: 100%; }
+.nw-root .nw-right-body .nw-table th, .nw-root .nw-right-body .nw-table td { overflow-wrap: anywhere; }
