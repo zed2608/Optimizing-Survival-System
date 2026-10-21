@@ -1,3 +1,4 @@
+import { getLang, tr } from './i18n.js'
 import { useEffect, useRef } from 'react'
 import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
@@ -56,7 +57,7 @@ function Fact({ label, rows = [], text, large = false, extra = null, note = '' }
             </ul>
           ) : (
             <div className="muted nw-fact-src">
-              Source: <span className="unavailable">Data Unavailable (walang nakasulat na sanggunian)</span>
+              Source: <span className="unavailable">{tr('x.noSourceShort', {}, getLang())}</span>
             </div>
           ))}
       </dd>
@@ -112,7 +113,13 @@ function ClimateReference({ cref, cv, sitePh = null, phRef = null }) {
               <div>
                 <span className="muted">San Mateo: </span>
                 <Two t={r.reference} />
-                {r.statusWords && <span className="nw-draft"> {r.statusWords.en} / {r.statusWords.fil}</span>}
+                {r.statusWords && (
+                  <span className="nw-draft">
+                    {' '}
+                    {r.statusWords.en}
+                    <span className="nw-fil"> / {r.statusWords.fil}</span>
+                  </span>
+                )}
               </div>
               {r.scope && <div className="muted" data-role="ph-scope"><Two t={r.scope} /></div>}
               {r.attribution && (

@@ -439,9 +439,9 @@ export default function AppNew() {
     setHidden(false)
     setNotice('')
     if (it.type === 'plan_point') {
-      setSearchNote({ title: `${it.point_ref} · ${it.species}`, lines: [`Plan ${it.plan_id}`, `Puntos ${it.point_id}${it.barangay_display ? ' · ' + it.barangay_display : ''}`] })
+      setSearchNote({ title: `${it.point_ref} · ${it.species}`, lines: [`Plan ${it.plan_id}`, `${tr('search.pointLabel', { id: it.point_id }, lang)}${it.barangay_display ? ' · ' + it.barangay_display : ''}`] })
     } else if (it.type === 'grid_point') {
-      setSearchNote({ title: `Puntos ${it.point_id}`, lines: [it.note ?? `${it.barangay_display || 'Outside the barangay outlines'} · ${it.zone}`] })
+      setSearchNote({ title: tr('search.pointLabel', { id: it.point_id }, lang), lines: [it.note ?? `${it.barangay_display || 'Outside the barangay outlines'} · ${it.zone}`] })
     } else if (it.type === 'place') {
       setSearchNote({ title: it.name || it.display_name, lines: [it.display_name], attribution: it.attribution })
     } else {

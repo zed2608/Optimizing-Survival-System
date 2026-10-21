@@ -2,6 +2,7 @@ import { CRITERION_LABEL, PART_LABEL, TERM_LABEL, flagInfo, humanize } from '../
 import { fmt, pct } from '../scale.js'
 import SourceLink from './SourceLink.jsx'
 import { otherInputText } from '../../new/inputWords.js'
+import { getLang, tr } from '../../new/i18n.js'
 
 // A value, or the words Data Unavailable. A missing value is never hidden.
 function Val({ v, digits = 2, suffix = '' }) {
@@ -14,7 +15,7 @@ function Sources({ list, other = [] }) {
   if (!list || list.length === 0) {
     return (
       <span className="unavailable" data-role="no-source">
-        Data Unavailable: {other.length > 0 ? `walang nakasulat na sanggunian; ang input na ito ay ${other.map(otherInputText).join('; ')}.` : 'walang nakasulat na sanggunian para sa input na ito sa dataset ng species.'}
+        {other.length > 0 ? tr('x.noSourceWhy', { what: other.map((o) => otherInputText(o)).join('; ') }, getLang()) : tr('x.noSourceInput', {}, getLang())}
       </span>
     )
   }
@@ -38,7 +39,7 @@ function siteInput(term, point) {
 }
 
 function PartValue({ value }) {
-  return value === null || value === undefined ? <span className="unavailable">Data Unavailable: blangko ang species table para dito (bilang neutral 0.5)</span> : <>{fmt(value)}</>
+  return value === null || value === undefined ? <span className="unavailable">{tr('x.blankPart', {}, getLang())}</span> : <>{fmt(value)}</>
 }
 
 // The full explanation of one species at one place: every term and criterion with its value, weight and sources.
@@ -82,7 +83,7 @@ export default function Explanation({ item, point }) {
                 </th>
                 <td>
                   <Val v={t.value} />
-                  {t.value === null && <span className="muted block">hindi nabilang: kulang ang input (hindi ito ginamit sa score)</span>}
+                  {t.value === null && <span className="muted block">{tr('x.notCounted', {}, getLang())}</span>}
                 </td>
                 <td>{pct(t.weight) ?? <span className="unavailable">Data Unavailable</span>}</td>
                 <td>
