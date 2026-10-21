@@ -793,3 +793,55 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 /* field-check buttons: the violet mark stays (border), the fill follows the theme surface and the text its paired token */
 .nw-root .fc-bigbtn { background: var(--c-surface); color: var(--c-text); }
 .nw-root .fc-b-verified_plantable, .nw-root .fc-b-not_plantable, .nw-root .fc-b-other, .nw-root .fc-b-needs_recheck { background: color-mix(in srgb, #8b5cf6 14%, var(--c-surface)); color: var(--c-text); }
+
+/* ======================= phone stability: Animations Off, and the light path on small screens =======================
+   Off removes every animation, transition and blur. Auto on a small or touch screen also drops the blur layers (the glass tokens are already almost opaque) and stops endless animations;
+   On keeps everything. The page may be zoomed by pinch (no maximum-scale in the viewport) and the page itself never traps touches: the map keeps its own gestures. */
+:root[data-motion='off'] *, :root[data-motion='off'] *::before, :root[data-motion='off'] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+:root[data-motion='off'] * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+@media (max-width: 640px), (pointer: coarse) {
+  :root:not([data-motion='on']) * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  :root:not([data-motion='on']) *, :root:not([data-motion='on']) *::before, :root:not([data-motion='on']) *::after { animation-iteration-count: 1 !important; }
+}
+.nw-pageload { padding: 24px; color: var(--c-muted); font-size: 14px; }
+
+/* ======================= map hover cards (Leaflet tooltips and popups): surface + text tokens, AA in both themes ======================= */
+.leaflet-tooltip.nw-point-tip, .leaflet-tooltip:not(.nw-brgy-label), .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line); box-shadow: var(--sh-2); }
+.leaflet-tooltip.nw-point-tip { opacity: 1; border-radius: var(--r-sm); font-size: 13px; line-height: 1.35; padding: 6px 10px; }
+.leaflet-tooltip-top.nw-point-tip::before, .leaflet-tooltip-top:not(.nw-brgy-label)::before { border-top-color: var(--c-surface); }
+.leaflet-tooltip-bottom.nw-point-tip::before, .leaflet-tooltip-bottom:not(.nw-brgy-label)::before { border-bottom-color: var(--c-surface); }
+.leaflet-tooltip-left.nw-point-tip::before { border-left-color: var(--c-surface); }
+.leaflet-tooltip-right.nw-point-tip::before { border-right-color: var(--c-surface); }
+.leaflet-tooltip.nw-point-tip *, .leaflet-popup-content { color: inherit; }
+.leaflet-popup-content a, .leaflet-tooltip.nw-point-tip a { color: var(--c-link); }
+
+/* ======================= overlaps and pale-on-pale fixes (seen on the real site at 1280) ======================= */
+.nw-root .nw-estimate, .nw-root .nw-created { background: var(--c-ok-bg); color: var(--c-ok); border-color: var(--c-ok); font-size: 13px; }
+.nw-root .nw-created { border-left-width: 6px; }
+.nw-root .nw-created strong, .nw-root .nw-created li { color: inherit; }
+.nw-root .nw-tip-body { background: var(--c-info-bg); color: var(--c-info); border: 1px solid var(--c-info); }
+.nw-root .nw-right-hint { background: var(--c-surface-2); color: var(--c-text); }
+.nw-root .nw-right-tabs { background: var(--c-surface); border-bottom: 1px solid var(--c-line); position: relative; z-index: 2; flex: none; }
+.nw-root .nw-right-head { flex: none; }
+.nw-root .nw-right-body { min-width: 0; overflow-x: hidden; }
+/* the planting window: two date boxes that always fit the card (they wrap under each other when the card is narrow) */
+.nw-root .nw-dates { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.nw-root .nw-dates > *, .nw-root .nw-dates .nw-input, .nw-root .nw-sidebar .nw-input { min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
+.nw-root .nw-dates .nw-input { color-scheme: inherit; }
+/* month strips: they wrap instead of making the list scroll sideways */
+.nw-root .nw-months { flex-wrap: wrap; max-width: 100%; row-gap: 2px; }
+.nw-root .nw-checklist { overflow-x: hidden; }
+.nw-root .nw-check { min-width: 0; flex-wrap: wrap; row-gap: 4px; }
+.nw-root .nw-check > span { min-width: 0; overflow-wrap: anywhere; }
+.nw-root .nw-sidebar, .nw-root .nw-step, .nw-root .nw-step-body { min-width: 0; }
+
+/* ======================= landing "About this project": slogan, three problem tiles, three answer steps, one closing line ======================= */
+.ln-about { gap: 16px; }
+.ln-about .ln-slogan { font-size: clamp(30px, 6vw, 60px); max-width: 18ch; }
+.ln-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.ln-tiles li { display: grid; gap: 6px; align-content: start; padding: 14px 16px; background: var(--c-danger-bg); color: var(--c-text); border: 1px solid var(--c-line); border-radius: var(--r-lg); }
+.ln-tiles h3 { margin: 0; font-size: 17px; color: var(--c-danger); }
+.ln-tiles p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--c-text); }
+.ln-about .ln-steps li { background: var(--c-ok-bg); }
+.ln-about .ln-steps p { color: var(--c-text); }
+.ln-closing { font-family: var(--font-serif); font-style: italic; font-weight: 500; font-size: clamp(22px, 3.6vw, 34px); color: var(--c-text) !important; line-height: 1.2; max-width: 30ch; }

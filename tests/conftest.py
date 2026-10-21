@@ -30,3 +30,14 @@ def points_layout_unless_blocks(request, monkeypatch):
     if rp is not None:
         monkeypatch.setitem(rp.CFG, "layout_mode", "points")
     yield
+
+
+@pytest.fixture(autouse=True)
+def _forecast_state_is_fresh(monkeypatch):
+    """The forecast fetcher keeps a memory cache, one lock per place and cooldowns; every test starts clean and the backoff costs no time."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "pipeline"))
+    import advisory
+    advisory.reset_state()
+    monkeypatch.setattr(advisory, "_sleep", lambda s: None)
+    yield
+    advisory.reset_state()

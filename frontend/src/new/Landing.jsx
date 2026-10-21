@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import Icon from './Icon.jsx'
-import SpotlightCard from './SpotlightCard.jsx'
 import { Badge, Eyebrow } from './ui/ui.jsx'
 import { PROJECT_CREDITS } from './projectCredits.js'
 import { useMotionAllowed } from './motionPref.js'
 import { tr, useLang } from './i18n.js'
 
-const N_SLIDES = 5
+const N_SLIDES = 3
 const pad = (n) => String(n).padStart(2, '0')
 
 // Slowly drifting contour lines, drawn from a few sine waves (no image, no library). Decoration only.
@@ -82,17 +81,15 @@ export default function Landing({ onClose }) {
     primary.current?.focus()
   }, [i])
   const dist = ok ? 36 : 0
-  const steps = [
-    ['layers', 's1'],
-    ['tree', 's2'],
-    ['map', 's3'],
-    ['check', 's4'],
+  const problems = [
+    ['tree', 1],
+    ['mappin', 2],
+    ['calendar', 3],
   ]
-  const cards = [
-    ['map', 'c1'],
-    ['clipboard', 'c2'],
-    ['cloud', 'c3'],
-    ['bars', 'c4'],
+  const steps = [
+    ['layers', 1],
+    ['sprout', 2],
+    ['clipboard', 3],
   ]
   const C = PROJECT_CREDITS
   return (
@@ -142,61 +139,42 @@ export default function Landing({ onClose }) {
               </div>
             )}
             {i === 1 && (
-              <div className="ln-text">
-                <Eyebrow items={[t('ln.p.e')]} />
-                <h2>{t('ln.p.h')}</h2>
-                <p>{t('ln.p.p1')}</p>
-                <p>{t('ln.p.p2')}</p>
-              </div>
-            )}
-            {i === 2 && (
-              <div className="ln-text">
-                <Eyebrow items={[t('ln.how.e')]} />
-                <h2>{t('ln.how.h')}</h2>
+              <div className="ln-text ln-about" data-role="ln-about">
+                <h2 className="ln-slogan">{t('ln.a.slogan')}</h2>
+                <Eyebrow items={[t('ln.a.pe')]} />
+                <ul className="ln-tiles">
+                  {problems.map(([icon, k], n) => (
+                    <motion.li key={k} initial={ok ? { opacity: 0, y: 12 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: ok ? 0.35 : 0, delay: ok ? 0.1 + n * 0.12 : 0 }}>
+                      <span className="ln-stepicon">
+                        <Icon name={icon} size={22} />
+                      </span>
+                      <h3>{t(`ln.a.t${k}`)}</h3>
+                      <p>{t(`ln.a.l${k}`)}</p>
+                    </motion.li>
+                  ))}
+                </ul>
+                <Eyebrow items={[t('ln.a.ae')]} />
                 <ol className="ln-steps">
                   {steps.map(([icon, k], n) => (
-                    <motion.li
-                      key={k}
-                      initial={ok ? { opacity: 0, y: 14 } : false}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: ok ? 0.4 : 0, delay: ok ? 0.15 + n * 0.22 : 0 }}
-                    >
+                    <motion.li key={k} initial={ok ? { opacity: 0, y: 12 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: ok ? 0.35 : 0, delay: ok ? 0.45 + n * 0.12 : 0 }}>
                       <span className="ln-stepno">{pad(n + 1)}</span>
                       <span className="ln-stepicon">
                         <Icon name={icon} size={22} />
                       </span>
                       <div>
-                        <h3>{t(`ln.${k}.t`)}</h3>
-                        <p>{t(`ln.${k}.p`)}</p>
+                        <h3>{t(`ln.a.s${k}`)}</h3>
+                        <p>{t(`ln.a.d${k}`)}</p>
                       </div>
                     </motion.li>
                   ))}
                 </ol>
-              </div>
-            )}
-            {i === 3 && (
-              <div className="ln-text">
-                <Eyebrow items={[t('ln.get.e')]} />
-                <h2>{t('ln.get.h')}</h2>
-                <div className="ln-cards">
-                  {cards.map(([icon, k], n) => (
-                    <motion.div key={k} initial={ok ? { opacity: 0, y: 16 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: ok ? 0.4 : 0, delay: ok ? 0.1 + n * 0.1 : 0 }}>
-                      <SpotlightCard className="ln-card">
-                        <span className="ln-stepicon">
-                          <Icon name={icon} size={22} />
-                        </span>
-                        <h3>{t(`ln.${k}.t`)}</h3>
-                        <p>{t(`ln.${k}.p`)}</p>
-                      </SpotlightCard>
-                    </motion.div>
-                  ))}
-                </div>
+                <p className="ln-closing">{t('ln.a.close')}</p>
                 <p className="ln-note" data-role="ln-advisory">
-                  {t('ln.get.note')}
+                  {t('ln.a.foot')}
                 </p>
               </div>
             )}
-            {i === 4 && (
+            {i === 2 && (
               <div className="ln-text ln-credits">
                 <Eyebrow items={[t('ln.cr.e')]} />
                 <h2>{t('ln.cr.h')}</h2>

@@ -39,7 +39,7 @@ export function pageAudit() {
     const text = n.textContent.replace(/\s+/g, ' ').trim()
     if (!text) continue
     const e = n.parentElement
-    if (!e || seen.has(e) || e.closest('svg, script, style, noscript, .leaflet-container, .sr-only, canvas, [aria-hidden="true"]')) continue
+    if (!e || seen.has(e) || e.closest('svg, script, style, noscript, .sr-only, canvas, [aria-hidden="true"]') || (e.closest('.leaflet-container') && !e.closest('.leaflet-tooltip, .leaflet-popup'))) continue
     if (e.closest('button:disabled, input:disabled, [aria-disabled="true"]')) continue
     const r = e.getBoundingClientRect()
     if (r.width < 1 || r.height < 1 || r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) continue
