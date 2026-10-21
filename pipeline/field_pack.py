@@ -187,12 +187,29 @@ def leaflet_css():
     return re.sub(r"url\(images/[^)]*\)", "none", css)
 
 
+CSS_NL = chr(10)
+FONT_FACES = (("Inter Variable", "normal", "inter-latin-wght-normal.woff2"), ("Fraunces Variable", "italic", "fraunces-latin-wght-italic.woff2"))
+
+
+def design_css():
+    """The Canopy design tokens (a generated copy of the dashboard's token block, scripts/sync_fieldpack_tokens.py) and the two fonts as data: addresses, so that the page still asks for no file."""
+    import base64
+    faces = []
+    for family, style, name in FONT_FACES:
+        path = PACK_DIR / "vendor" / "fonts" / name
+        if path.exists():
+            data = base64.b64encode(path.read_bytes()).decode("ascii")
+            faces.append(f"@font-face {{ font-family: '{family}'; font-style: {style}; font-weight: 100 900; font-display: swap; src: url(data:font/woff2;base64,{data}) format('woff2'); }}")
+    tokens = (PACK_DIR / "tokens.css").read_text(encoding="utf-8")
+    return CSS_NL.join(faces) + CSS_NL + tokens
+
+
 def render_page(pack):
     """The single HTML file: css, data, core.js, strings.js and app.js inlined."""
     tpl = (PACK_DIR / "template.html").read_text(encoding="utf-8")
     data = json.dumps(pack, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\!--")
     parts = {"LEAFLET_CSS": leaflet_css(), "LEAFLET_JS": (LEAFLET_DIR / "leaflet.js").read_text(encoding="utf-8"),
-             "CSS": (PACK_DIR / "app.css").read_text(encoding="utf-8"), "DATA": data, "CORE": (PACK_DIR / "core.js").read_text(encoding="utf-8"),
+             "CSS": design_css() + CSS_NL + (PACK_DIR / "app.css").read_text(encoding="utf-8"), "DATA": data, "CORE": (PACK_DIR / "core.js").read_text(encoding="utf-8"),
              "STRINGS": (PACK_DIR / "strings.js").read_text(encoding="utf-8"), "APP": (PACK_DIR / "app.js").read_text(encoding="utf-8")}
     for k, v in parts.items():
         tpl = tpl.replace(f"/*__{k}__*/", v)
