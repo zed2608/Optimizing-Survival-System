@@ -1034,6 +1034,8 @@
       { id: 'b5', title: 'tb5Title', text: 'tb5', targets: ['.treeicon.st-active', '.treeicon'], before: () => tourSheet('collapsed') },
       { id: 'b6', title: 'tb6Title', text: 'tb6', targets: ['[data-tour="sheet"]'], before: () => tourSheet('normal') },
       { id: 'b7', title: 'tb7Title', text: 'tb7', targets: ['[data-tour="buttons"]'], before: () => tourSheet('normal') },
+      { id: 'b9', title: 'tb9Title', text: 'tb9', targets: ['[data-tour="gps"]'], before: () => tourSheet('normal') },
+      { id: 'b10', title: 'tb10Title', text: 'tb10', targets: ['.detailsbtn'], before: () => tourSheet('normal') },
       { id: 'b8', title: 'tb8Title', text: 'tb8', targets: ['.topbar [data-tour="toolbox"]'] },
     ],
   }

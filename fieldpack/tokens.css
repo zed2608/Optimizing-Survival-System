@@ -53,3 +53,8 @@
     --sh-3: 0 12px 32px rgba(0, 0, 0, 0.6);
   }
 }
+
+/* print: always black on white, whatever the theme (the print rules below only use tokens) */
+@media print {
+  :root, :root[data-theme='dark'] { color-scheme: light; --c-bg: #fff; --c-surface: #fff; --c-surface-2: #fff; --c-surface-3: #eee; --c-text: #000; --c-muted: #333; --c-line: #999; --c-link: #000; --c-glass: #fff; --c-glass-strong: #fff; }
+}
