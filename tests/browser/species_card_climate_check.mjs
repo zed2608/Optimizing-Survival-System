@@ -1,3 +1,4 @@
+// OBSOLETE after design-v2 (R1): written for the earlier dashboard (old selectors, SVG clipping rule, top-tab size). Kept for reference; it needs a rewrite for the Canopy UI.
 // Stage C1 in headless Edge against a real service: the Species card section "Climate and soil (reference only)" at a desktop and a phone width.
 //   node tests/browser/species_card_climate_check.mjs <base address> <access cookie value> <expected rainfall from the file> <folder for pictures>
 import { launch } from './cdp_lib.mjs'

@@ -14,7 +14,7 @@ export default function FieldLegend() {
           <span className="nw-fieldmark" style={{ color: fieldColor(k) }}>
             <Icon name={fieldIcon(k)} />
           </span>{' '}
-          <span className="nw-fieldkey-text">{fieldLabel(k)}</span>
+          <span className="nw-fieldkey-text">{fieldLabel(k, lang)}</span>
         </li>
       ))}
     </ul>

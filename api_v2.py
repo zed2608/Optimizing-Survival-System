@@ -3447,10 +3447,23 @@ def field_check_add(req: FieldCheckIn, d=Depends(D)):
         raise HTTPException(422, str(ex))
     refresh_field(d)
     return {"check_id": check_id, "saved": {**ev, "source": "dashboard", "check_id": check_id}, "current": field_view(d, req.point_id),
-            "effect": ("The point is now left out of rankings and plans." if req.point_id in d.field_ex_ids else
-                       "Saved. This does not change any score." if req.status == "verified_plantable" else
-                       f"Saved: {req.trees_planted} trees planted in this block (plan {req.plan_id})." if req.status == "planted" else "Saved."),
+            "effect": field_effect_text(d, req),
             "limits": FIELD_LIMITS[:1]}
+
+
+def field_effect_text(d, req):
+    """What a saved field check does, in plain words, for the mode the service is in. Scores are never changed by a check; the exclusion switch decides whether a not-plantable square is left out."""
+    if req.status == "not_plantable":
+        if req.point_id in d.field_ex_ids:
+            return "Saved. This square is now left out of the rankings, the map colours and new plans (its scores are not changed). A new check with a note brings it back."
+        return "Saved: recorded only. In this demo a not-plantable mark does not change the rankings or the plans."
+    if req.status == "verified_plantable":
+        return "Saved. This only adds a badge; it never changes a score or a ranking."
+    if req.status == "needs_recheck":
+        return "Saved. This only adds a warning; the rankings and the plans do not change."
+    if req.status == "planted":
+        return f"Saved: {req.trees_planted} trees planted in this block (plan {req.plan_id})."
+    return "Saved."
 
 
 @app.get("/analytics/summary")

@@ -1,4 +1,5 @@
 import { FIELD_TABLE as table } from './fieldStatusTable.js'
+import { getLang, tr } from './i18n.js'
 
 // The colours and icons of the field-check statuses: ONE module for the map, the legend, the panels, the progress tab (and, through fieldStatus.json, the field map PDF).
 // One violet for every mark (UX round 5, C). The shape tells the status apart: planted = a check; plantable (verified) = a ring; needs recheck = a question mark;
@@ -12,4 +13,9 @@ export function fieldClass(status, reason) {
 }
 export const fieldColor = (cls) => (FIELD_CLASSES[cls] ?? FIELD_CLASSES.not_plantable).color
 export const fieldIcon = (cls) => (FIELD_CLASSES[cls] ?? FIELD_CLASSES.not_plantable).icon
-export const fieldLabel = (cls) => (FIELD_CLASSES[cls] ?? FIELD_CLASSES.not_plantable).label
+// the words follow the language toggle (messages.js fk.l.*); the English label of fieldStatus.json is the fallback (and what the field map PDF prints)
+export const fieldLabel = (cls, lang = getLang()) => {
+  const c = FIELD_CLASSES[cls] ? cls : 'not_plantable'
+  const t = tr(`fk.l.${c}`, {}, lang)
+  return t === `fk.l.${c}` ? FIELD_CLASSES[c].label : t
+}

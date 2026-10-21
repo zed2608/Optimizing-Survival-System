@@ -1,3 +1,4 @@
+// OBSOLETE after design-v2 (R1): written for the earlier dashboard (old selectors, SVG clipping rule, top-tab size). Kept for reference; it needs a rewrite for the Canopy UI.
 // C4 (overnight 2026-10-15) in headless Edge against a real service: the dashboard (#/new) on a phone, 360 and 390 px wide: no sideways scroll, nothing clipped by the right edge, and the main buttons at least 44 px tall.
 //   node tests/browser/responsive_check.mjs <base address> <access cookie value> <folder for pictures>
 import { launch } from './cdp_lib.mjs'
