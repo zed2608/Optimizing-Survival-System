@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import Callout from './ui/Callout.jsx'
 import { useApi } from '../v2/useApi.js'
 import { ChartCard, GroupBars, HBars, VBars } from './charts/Charts.jsx'
 import { PALETTE } from './charts/palette.js'
@@ -74,9 +75,9 @@ export default function AnalyticsPanel() {
         {t('an.reset')}
       </button>
       {dateBad && (
-        <p className="nw-warn" role="alert">
+        <Callout tone="error" role="alert">
           {t('an.dateBad')}
-        </p>
+        </Callout>
       )}
     </section>
   )

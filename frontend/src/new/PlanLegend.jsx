@@ -9,7 +9,7 @@ export default function PlanLegend({ species, visible, nUnconfirmed = 0, blocks 
         {species.map((s) => (
           <li key={s.species_id}>
             <svg viewBox="-1.5 -1.5 3 3" width="18" height="18" aria-hidden="true">
-              <path d={shapePath(s.kind)} fill={shapeColor(s.kind)} stroke="#0f172a" strokeWidth="0.22" />
+              <path d={shapePath(s.kind)} fill={shapeColor(s.kind)} style={{ stroke: "var(--c-text)" }} strokeWidth="0.22" />
             </svg>
             <span className="nw-plan-code">{s.code}</span> {s.common_name} <span className="nw-plan-count">× {s.count}{blocks && s.blocks != null ? ` trees, ${s.blocks} blocks` : ''}</span>
           </li>
@@ -18,7 +18,7 @@ export default function PlanLegend({ species, visible, nUnconfirmed = 0, blocks 
       {nUnconfirmed > 0 && (
         <div className="nw-plan-legend-unz">
           <svg viewBox="-2 -2 4 4" width="20" height="20" aria-hidden="true">
-            <circle r="1.4" fill="none" stroke="#0f172a" strokeWidth="0.5" strokeDasharray="0.45 0.55" />
+            <circle r="1.4" fill="none" style={{ stroke: "var(--c-text)" }} strokeWidth="0.5" strokeDasharray="0.45 0.55" />
           </svg>{' '}
           Dotted ring = land outside our zoning map (CLUP: Forest Reserve, Watershed) <span className="nw-plan-count">× {nUnconfirmed}</span>
         </div>

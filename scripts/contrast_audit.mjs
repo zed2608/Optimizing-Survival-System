@@ -7,7 +7,7 @@
 // With --ci the exit code is 1 when anything is below 12 px or below AA. The server must serve the built dashboard and the API (public mode, a temporary state folder).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { launch, sleep } from '../tests/browser/cdp_lib.mjs'
-import { layoutAudit } from './layout_lib.mjs'
+import { layoutAudit, purityAudit } from './layout_lib.mjs'
 import { pageAudit } from './contrast_lib.mjs'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
@@ -31,6 +31,7 @@ async function snap(name, ctxInfo) {
   const list = await ev(`(${pageAudit.toString()})()`)
   for (const r of list) rows.push({ ...ctxInfo, state: name, ...r })
   for (const r of await ev(`(${layoutAudit.toString()})()`)) layoutRows.push({ ...ctxInfo, state: name, ...r })
+  for (const r of await ev(`(${purityAudit.toString()})(${JSON.stringify(ctxInfo.theme)})`)) layoutRows.push({ ...ctxInfo, state: name, ...r })
   states[`${ctxInfo.theme}/${ctxInfo.w}`] = (states[`${ctxInfo.theme}/${ctxInfo.w}`] ?? 0) + 1
 }
 const quiet = async (f) => { try { await f() } catch (e) { console.log('  step skipped:', String(e.message).slice(0, 90)) } }
@@ -45,7 +46,7 @@ for (const theme of THEMES) {
     const shot = (n) => b.shot(`audit_${n}_${w}_${theme}`)
     await snap('studio-goal', c)
     for (const [n, re] of [['purpose', '/Planting purpose/'], ['window', '/Planting window/'], ['species', '/^Species/'], ['plan', '/^Plan(?!ting)/']]) {
-      await quiet(async () => { await clickText(re, '.nw-step-toggle'); await sleep(500); await snap('step-' + n, c) })
+      await quiet(async () => { await clickText(re, '.nw-step-toggle'); await sleep(500); await snap('step-' + n, c); await shot('step-' + n) })
     }
     await quiet(async () => {
       await clickText('/Show all species/'); await sleep(400)
@@ -97,10 +98,36 @@ for (const theme of THEMES) {
       await clickText('/^More/', 'button'); await sleep(500); await snap('more', c); await shot('more')
       for (const s of ['Known limits', 'Field checks', 'Data credits', 'Dataset version']) { await quiet(async () => { await clickText(new RegExp('^' + s), 'button'); await sleep(500); await snap('more-' + s, c) }) }
     })
+    // STATES (R1 W2): toast, no connection (error / empty), slow connection (loading), a plan's panel tabs (Plan / Field kit / Progress), the "no species in season" notice (the default dates are in October)
+    const net = (o) => b.send('Network.emulateNetworkConditions', { offline: !!o.offline, latency: o.latency ?? 0, downloadThroughput: o.down ?? -1, uploadThroughput: -1 })
+    await quiet(async () => {
+      await b.send('Network.enable')
+      await ev(`document.querySelectorAll('[role=tab].cy-tab')[0].click()`); await sleep(600)
+      await ev(`document.querySelector('[data-role=locate]')?.click()`); await sleep(1200); await snap('state-toast', c); await shot('state-toast')
+      for (let k = 0; k < 40 && (await ev(`document.querySelectorAll('.cy-toast').length`)) > 0; k++) await sleep(1000)   // wait until the toast has gone (the location retry may add a second one)
+    })
+    await quiet(async () => {
+      await net({ offline: true })
+      for (const [n, i] of [['logs', 2], ['analytics', 3]]) { await ev(`document.querySelectorAll('[role=tab].cy-tab')[${i}].click()`); await sleep(2500); await snap('state-offline-' + n, c); await shot('state-offline-' + n) }
+      await net({})
+    })
+    await quiet(async () => {
+      await net({ latency: 6000, down: 20000 })
+      await ev(`document.querySelectorAll('[role=tab].cy-tab')[3].click()`); await sleep(500); await snap('state-loading', c); await shot('state-loading')
+      await net({})
+      await sleep(1500)
+    })
+    await quiet(async () => {
+      await ev(`document.querySelectorAll('[role=tab].cy-tab')[0].click()`); await sleep(500)
+      await ev(`fetch('/plan-event?season_filter=mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purpose: 'urban', n_saplings: 60, seed: 3, campaign: { name: 'Audit plan', unit: 'QA' } }) }).then((r) => r.status)`)
+      await ev(`document.querySelectorAll('[role=tab].cy-tab')[2].click()`); await sleep(2500)
+      await clickText('/Open on map/'); await sleep(2500); await snap('state-plan-open', c); await shot('state-plan-open')
+      for (const tab of ['Field kit', 'Progress', 'Plan']) { await quiet(async () => { await clickText(new RegExp('^' + tab + '$'), '[role=tab], button'); await sleep(900); await snap('state-plan-' + tab, c); await shot('state-plan-' + tab) }) }
+    })
     // the landing slides
     await quiet(async () => {
       await ev(`localStorage.removeItem('nw_last_visit')`); await ev('location.reload()'); await sleep(3500)
-      for (let i = 0; i < 5; i++) { await sleep(900); await snap('landing-' + (i + 1), c); if (i < 4) { await ev(`document.querySelector('[data-role=ln-next]').click()`); await sleep(1300) } }
+      for (let i = 0; i < 3; i++) { await sleep(900); await snap('landing-' + (i + 1), c); if (i < 2) { await ev(`document.querySelector('[data-role=ln-next]').click()`); await sleep(1300) } }
     })
   }
 }
@@ -118,7 +145,7 @@ const group = (list) => {
   }
   return [...m.values()].sort((a, b2) => b2.n - a.n)
 }
-const BAD_LAYOUT = ['clipped', 'hscroll', 'sticks-out', 'overlap', 'see-through']
+const BAD_LAYOUT = ['clipped', 'hscroll', 'sticks-out', 'overlap', 'see-through', 'impure-light', 'impure-dark']
 const lay = layoutRows.filter((r) => BAD_LAYOUT.includes(r.kind))
 const layGroup = new Map()
 for (const r of lay) { const k = `${r.kind}  ${r.sel}`; const e = layGroup.get(k) ?? { n: 0, sample: r.text, w: r.w, sw: r.sw, where: new Set() }; e.n++; e.where.add(`${r.theme}/${r.w0 ?? r.w}/${r.state}`); layGroup.set(k, e) }

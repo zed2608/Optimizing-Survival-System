@@ -16,6 +16,13 @@
   --c-link: #1d5f99; --c-focus: #1f6fb2;
   --c-warn-bg: #fdf0d4; --c-warn: #8a4b00; --c-danger-bg: #fde8e6; --c-danger: #a8261b; --c-ok-bg: #e3f1e5; --c-ok: #1d5f2c; --c-info-bg: #e5eef7; --c-info: #1d4f80;
   --c-glass: rgba(255, 253, 248, 0.9); --c-glass-strong: rgba(255, 253, 248, 0.94); --c-scrim: rgba(31, 42, 36, 0.35);
+  --c-shadow: #000; --c-scrim-base: #020617; --c-field: #8b5cf6; --c-count: #22d3ee;   /* reserved colours: shadows, the scrim, the ONE violet of field checks, the cyan of counted squares (the same in both themes) */
+  /* semantic pairs (surface + on-surface + border), the same names in both themes: components use these */
+  --c-on-surface: var(--c-text); --c-surface-raised: var(--c-surface); --c-surface-sunken: var(--c-surface-2); --c-border: var(--c-line);
+  --c-info-surface: var(--c-info-bg); --c-on-info: var(--c-info); --c-info-border: color-mix(in srgb, var(--c-info) 45%, var(--c-surface));
+  --c-warning-surface: var(--c-warn-bg); --c-on-warning: var(--c-warn); --c-warning-border: color-mix(in srgb, var(--c-warn) 45%, var(--c-surface));
+  --c-success-surface: var(--c-ok-bg); --c-on-success: var(--c-ok); --c-success-border: color-mix(in srgb, var(--c-ok) 45%, var(--c-surface));
+  --c-danger-surface: var(--c-danger-bg); --c-on-danger: var(--c-danger); --c-danger-border: color-mix(in srgb, var(--c-danger) 45%, var(--c-surface));
   --sh-1: 0 1px 2px rgba(31, 42, 36, 0.1), 0 2px 8px rgba(31, 42, 36, 0.08);
   --sh-2: 0 4px 14px rgba(31, 42, 36, 0.16), 0 1px 3px rgba(31, 42, 36, 0.1);
   --sh-3: 0 12px 32px rgba(31, 42, 36, 0.22);

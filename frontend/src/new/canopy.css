@@ -36,6 +36,13 @@
   --c-link: #1d5f99; --c-focus: #1f6fb2;
   --c-warn-bg: #fdf0d4; --c-warn: #8a4b00; --c-danger-bg: #fde8e6; --c-danger: #a8261b; --c-ok-bg: #e3f1e5; --c-ok: #1d5f2c; --c-info-bg: #e5eef7; --c-info: #1d4f80;
   --c-glass: rgba(255, 253, 248, 0.9); --c-glass-strong: rgba(255, 253, 248, 0.94); --c-scrim: rgba(31, 42, 36, 0.35);
+  --c-shadow: #000; --c-scrim-base: #020617; --c-field: #8b5cf6; --c-count: #22d3ee;   /* reserved colours: shadows, the scrim, the ONE violet of field checks, the cyan of counted squares (the same in both themes) */
+  /* semantic pairs (surface + on-surface + border), the same names in both themes: components use these */
+  --c-on-surface: var(--c-text); --c-surface-raised: var(--c-surface); --c-surface-sunken: var(--c-surface-2); --c-border: var(--c-line);
+  --c-info-surface: var(--c-info-bg); --c-on-info: var(--c-info); --c-info-border: color-mix(in srgb, var(--c-info) 45%, var(--c-surface));
+  --c-warning-surface: var(--c-warn-bg); --c-on-warning: var(--c-warn); --c-warning-border: color-mix(in srgb, var(--c-warn) 45%, var(--c-surface));
+  --c-success-surface: var(--c-ok-bg); --c-on-success: var(--c-ok); --c-success-border: color-mix(in srgb, var(--c-ok) 45%, var(--c-surface));
+  --c-danger-surface: var(--c-danger-bg); --c-on-danger: var(--c-danger); --c-danger-border: color-mix(in srgb, var(--c-danger) 45%, var(--c-surface));
   --sh-1: 0 1px 2px rgba(31, 42, 36, 0.1), 0 2px 8px rgba(31, 42, 36, 0.08);
   --sh-2: 0 4px 14px rgba(31, 42, 36, 0.16), 0 1px 3px rgba(31, 42, 36, 0.1);
   --sh-3: 0 12px 32px rgba(31, 42, 36, 0.22);
@@ -745,7 +752,6 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .nw-root .nw-card, .nw-root .nw-card-head, .nw-root .nw-card-body, .nw-root .nw-card-foot, .nw-root .nw-card-sec, .nw-root .nw-fact, .nw-root .nw-pcard, .nw-root .nw-opt-head { background: var(--c-surface); color: var(--c-text); border-color: var(--c-line); }
 .nw-root .nw-card-sec.is-big { background: var(--c-ok-bg); color: var(--c-text); border-color: var(--c-ok); }
 .nw-root .nw-card-sec.is-big h3 { color: var(--c-ok); }
-.nw-root .nw-card-note, .nw-root .nw-legend-warn { background: var(--c-warn-bg); color: var(--c-text); border-color: var(--c-warn); }
 .nw-root .nw-card-sci, .nw-root .nw-fact dt, .nw-root .nw-fact .muted, .nw-root .nw-fact-src, .nw-root .nw-fact-src.muted { color: var(--c-muted); }
 .nw-root .nw-fact dt { text-transform: none; letter-spacing: 0; font-size: 13px; }
 .nw-root .nw-fact-val, .nw-root .nw-card-head h2, .nw-root .nw-card-sec h3 { color: var(--c-text); }
@@ -816,9 +822,6 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .leaflet-popup-content a, .leaflet-tooltip.nw-point-tip a { color: var(--c-link); }
 
 /* ======================= overlaps and pale-on-pale fixes (seen on the real site at 1280) ======================= */
-.nw-root .nw-estimate, .nw-root .nw-created { background: var(--c-ok-bg); color: var(--c-ok); border-color: var(--c-ok); font-size: 13px; }
-.nw-root .nw-created { border-left-width: 6px; }
-.nw-root .nw-created strong, .nw-root .nw-created li { color: inherit; }
 .nw-root .nw-tip-body { background: var(--c-info-bg); color: var(--c-info); border: 1px solid var(--c-info); }
 .nw-root .nw-right-hint { background: var(--c-surface-2); color: var(--c-text); }
 .nw-root .nw-right-tabs { background: var(--c-surface); border-bottom: 1px solid var(--c-line); position: relative; z-index: 2; flex: none; }
@@ -845,3 +848,26 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .ln-about .ln-steps li { background: var(--c-ok-bg); }
 .ln-about .ln-steps p { color: var(--c-text); }
 .ln-closing { font-family: var(--font-serif); font-style: italic; font-weight: 500; font-size: clamp(22px, 3.6vw, 34px); color: var(--c-text) !important; line-height: 1.2; max-width: 30ch; }
+
+/* ======================= Callout: the one coloured box (info / warning / error / success / empty) ======================= */
+.cy-callout { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--c-info-border); border-radius: var(--r-md); background: var(--c-info-surface); color: var(--c-on-info); font-size: 13px; line-height: 1.45; margin: 8px 0; }
+.cy-callout-icon { display: inline-grid; place-items: center; min-height: 20px; }
+.cy-callout-body { display: grid; gap: 6px; min-width: 0; }
+.cy-callout-title { font-weight: 700; font-size: 14px; }
+.cy-callout-text { overflow-wrap: anywhere; }
+.cy-callout-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.cy-callout.is-warning { border-color: var(--c-warning-border); background: var(--c-warning-surface); color: var(--c-on-warning); }
+.cy-callout.is-error { border-color: var(--c-danger-border); background: var(--c-danger-surface); color: var(--c-on-danger); }
+.cy-callout.is-success { border-color: var(--c-success-border); background: var(--c-success-surface); color: var(--c-on-success); }
+.cy-callout.is-empty { border: 1px dashed var(--c-border); background: var(--c-surface-sunken); color: var(--c-on-surface); }
+.cy-callout.is-error .cy-callout-title { text-decoration: none; }
+.cy-callout a { color: inherit; text-decoration: underline; }
+/* a Callout that spans the top of the page (the demo notice, the score-source notice) */
+.cy-callout.is-banner { margin: 0; border-radius: 0; border-width: 0 0 1px 0; grid-template-columns: auto 1fr; justify-items: start; align-items: center; padding: 6px 16px; }
+.cy-callout.is-banner .cy-callout-body { grid-auto-flow: column; justify-content: start; align-items: center; gap: 8px; }
+
+/* result tables on a phone: the columns share the width and long words wrap instead of widening the panel */
+@media (max-width: 640px) {
+  .nw-root .nw-table { table-layout: fixed; width: 100%; }
+  .nw-root .nw-table th, .nw-root .nw-table td { overflow-wrap: anywhere; padding-left: 3px; padding-right: 3px; vertical-align: top; }
+}

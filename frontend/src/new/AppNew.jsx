@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Callout from './ui/Callout.jsx'
 import '../v2/v2.css'
 import './new.css'
 import './canopy.css'
@@ -819,9 +820,9 @@ export default function AppNew() {
             </div>
           )}
           {noneSuitable && (
-            <div className="nw-legend-warn" role="status">
+            <Callout tone="warning" className="nw-legend-warn">
               {allRemoved ? 'No chosen species can be planted in your dates.' : `No point is suitable for this selection${combine === 'all' && selIds.length > 1 ? ': try “Suits at least one”' : ''}.`}
-            </div>
+            </Callout>
           )}
           {fieldForMap && (
             <FieldLegend />
@@ -1068,9 +1069,9 @@ export default function AppNew() {
                 blocked={cont.ok ? '' : cont.reason}
               />
               {notice && (
-                <p className="nw-hint nw-warn" role="status">
+                <Callout tone="warning">
                   {notice}
-                </p>
+                </Callout>
               )}
             </>
           )}

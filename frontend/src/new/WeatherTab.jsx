@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import Callout from './ui/Callout.jsx'
 import Icon from './Icon.jsx'
 import { useApi } from '../v2/useApi.js'
 import { PURPOSE_SHORT } from './labelsNew.js'
@@ -172,15 +173,15 @@ export default function WeatherTab({ purpose, onPurpose, view, onView, loc, onLo
       {d && (
         <>
           {d.cached && (
-            <p className="notice nw-wnotice" role="status">
+            <Callout tone={d.network_error ? 'warning' : 'info'} className="nw-wnotice">
               {d.network_error ? 'The weather service could not be reached, so this is a saved forecast, ' : 'This is a saved forecast, '}
               {ageText(d.cache_age_minutes)} old.{d.stale_note ? ` ${d.stale_note}` : ''}
-            </p>
+            </Callout>
           )}
           <h2 className="nw-wtitle">
             The next {d.week.n_days} days · {place ? place.label : d.location.note}
           </h2>
-          {d.week.short_note && <p className="notice">{d.week.short_note}</p>}
+          {d.week.short_note && <Callout tone="info">{d.week.short_note}</Callout>}
           <WeatherHero day={d.week.days[0]} heavy={heavy} dateLabel={`${weekday(d.week.days[0].date)} ${formatDay(d.week.days[0].date)}`} habagat={d.habagat} />
           <WeekStrip days={d.week.days} heavy={heavy} weekday={weekday} dayLabel={formatDay} />
           <WeatherRules heavy={heavy} />

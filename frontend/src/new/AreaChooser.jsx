@@ -1,4 +1,5 @@
 import { tr, useLang } from './i18n.js'
+import Callout from './ui/Callout.jsx'
 const TOOLS = [
   { id: 'point', label: 'Click a point', help: 'Click a dot on the map to see its species.' },
   { id: 'barangay', label: 'Click a barangay', help: 'Click inside a barangay outline.' },
@@ -95,9 +96,9 @@ export default function AreaChooser({ tool, onTool, barangays, zones, area, onAr
         </div>
       )}
       {blocked && (
-        <p className="nw-hint nw-warn" role="alert" data-role="area-blocked">
+        <Callout tone="warning" data-role="area-blocked" role="alert">
           {blocked}
-        </p>
+        </Callout>
       )}
     </div>
   )

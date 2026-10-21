@@ -1,4 +1,5 @@
 import Segmented from './Segmented.jsx'
+import Callout from './ui/Callout.jsx'
 import SpeciesChooser from './SpeciesChooser.jsx'
 import UnzonedToggle from './UnzonedToggle.jsx'
 import Icon from './Icon.jsx'
@@ -195,9 +196,9 @@ export default function SpeciesFlow({
             </div>
           )}
           {notice && (
-            <p className="nw-hint nw-warn" role="status">
+            <Callout tone="warning">
               {notice}
-            </p>
+            </Callout>
           )}
           <p className="nw-hint">{t('mark.rightCard')}</p>
           <Nav steps={steps} sub={3} setSub={setSub} lang={lang} nextLabel={t('flow.next3')} />

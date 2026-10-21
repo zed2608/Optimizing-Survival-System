@@ -1,4 +1,5 @@
 import { getLang, tr } from './i18n.js'
+import Callout from './ui/Callout.jsx'
 import { useEffect, useRef } from 'react'
 import Icon from './Icon.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
@@ -211,7 +212,7 @@ export default function SpeciesCard({ speciesId, window: win, onClose, onFindAre
         </button>
       </div>
       <div className="nw-card-body">
-        <p className="nw-card-note">Data comes from the sources linked below; values marked draft are not yet signed off by the agriculturist.</p>
+        <Callout tone="info">Data comes from the sources linked below; values marked draft are not yet signed off by the agriculturist.</Callout>
         {api.status === 'loading' && <Loading what="Loading the species information" />}
         {api.status === 'error' && <ErrorBox error={api.error} onRetry={api.retry} title="Could not load the species information" brief />}
         {d && (

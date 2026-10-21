@@ -1,4 +1,5 @@
 import { COUNT_DEFAULT, COUNT_MAX, COUNT_PRESETS, countText, countsSummary } from './counts.js'
+import Callout from './ui/Callout.jsx'
 import Icon from './Icon.jsx'
 
 // Step 5, "I have species": one row per chosen species with a number box, minus and plus buttons and the presets 10, 20, 50; the total line; the blocks estimate.
@@ -47,14 +48,14 @@ export default function CountsForm({ rows, counts, onChange, est }) {
         Total {total} trees
       </p>
       {!valid && rows.length > 0 && (
-        <p className="nw-error" role="alert">
+        <Callout tone="error" role="alert">
           Trees: 1 to 2000.
-        </p>
+        </Callout>
       )}
       {est && valid && (
-        <p className="nw-estimate" role="status">
+        <Callout tone="success" className="nw-estimate">
           About {est.blocks_about} block{est.blocks_about === 1 ? '' : 's'} (about {est.hectares_about} ha)
-        </p>
+        </Callout>
       )}
     </div>
   )

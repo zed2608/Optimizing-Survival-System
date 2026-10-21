@@ -247,7 +247,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
                     <tr key={p.species_id}>
                       <th scope="row">
                         <svg viewBox="-1.5 -1.5 3 3" width="16" height="16" aria-hidden="true">
-                          <path d={shapePath(sp?.kind ?? 0)} fill={shapeColor(sp?.kind ?? 0)} stroke="#0f172a" strokeWidth="0.22" />
+                          <path d={shapePath(sp?.kind ?? 0)} fill={shapeColor(sp?.kind ?? 0)} style={{ stroke: "var(--c-text)" }} strokeWidth="0.22" />
                         </svg>{' '}
                         {sp?.code}
                       </th>
