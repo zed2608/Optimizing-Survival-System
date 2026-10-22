@@ -171,7 +171,7 @@ def test_no_text_says_the_creek_rule_is_not_used():
 
 
 def test_the_help_says_how_the_wetness_factor_is_used():
-    t = (ROOT / "frontend/src/new/tutorial/tutorialContent.js").read_text(encoding="utf-8")
+    t = (ROOT / "frontend/src/new/tutorial/tutorialContent.js").read_text(encoding="utf-8") + (ROOT / "frontend/src/new/tours/tourDefs.js").read_text(encoding="utf-8")   # the questions and the tour (since R1 the tour text lives in tourDefs.js)
     assert t.count("soft wetness factor (50 metres)") >= 2 and t.count("MENRO has not answered the waterways question, so this layer is not checked") >= 2
     g = (ROOT / "docs/USER_GUIDE.md").read_text(encoding="utf-8")
     assert g.count("soft wetness factor (50 metres)") >= 2 and "slope, height, soil, zone and rain" not in g and "zone and rain" not in t

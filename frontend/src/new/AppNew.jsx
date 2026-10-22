@@ -831,7 +831,7 @@ export default function AppNew() {
   }, [toursOpen])
 
   return (
-    <HelpContext.Provider value={{ openHelp: help.openHelp }}>
+    <HelpContext.Provider value={{ openHelp: help.openHelp, startPageTour }}>
     <PublicNotice health={healthData} />
     <ScoreSourceNotice health={healthData} />
     <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${tab !== 'studio' ? 'tab-page' : ''} lang-${lang} ${hints ? '' : 'hints-off'} ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>

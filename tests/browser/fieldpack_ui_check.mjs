@@ -352,9 +352,9 @@ for (const [W, H] of SIZES) {
 const TARGETS = {
   l1: ['[data-tour="l-title"]'], l2: ['[data-tour="l-how"]'], l3: ['[data-tour="l-start"]'], l4: ['[data-tour="toolbox"]'],
   h1: ['[data-tour="h-blocks"]'], h2: ['#observer'], h3: ['[data-tour="h-results"]'],
-  b1: ['#map'], b2: ['.me .dot', '[data-tour="me"]'], b3: ['.me .cone', '[data-tour="rotate"]'], b4: ['.starticon'], b5: ['.treeicon.st-active', '.treeicon'], b6: ['[data-tour="sheet"]'], b7: ['[data-tour="buttons"]'], b8: ['.topbar [data-tour="toolbox"]'],
+  b1: ['#map'], b2: ['.me .dot', '[data-tour="me"]'], b3: ['.me .cone', '[data-tour="rotate"]'], b4: ['.starticon'], b5: ['.treeicon.st-active', '.treeicon'], b6: ['[data-tour="sheet"]'], b7: ['[data-tour="buttons"]'], b8: ['.topbar [data-tour="toolbox"]'], b9: ['[data-tour="gps"]'], b10: ['.detailsbtn'], b11: ['.tour-shape', '.tour-ground'], b12: ['[data-tour="sheet"]'],
 }
-const TOTAL = { landing: 4, home: 3, block: 8 }
+const TOTAL = { landing: 4, home: 3, block: 12 }
 // walk a whole tour with Next: every step must light up an element that is on the screen
 async function walkTour(tag, screen, w, { minShown = 1, expectAll = false } = {}) {
   const shown = []
@@ -369,7 +369,8 @@ async function walkTour(tag, screen, w, { minShown = 1, expectAll = false } = {}
     shown.push(s.id)
     check(tag + `step ${s.id} (${s.count}): it highlights a real element that is on the screen and not covered`, !!mm && mm.onScreen && mm.hit, match + ' hole ' + JSON.stringify(s.hole.map(Math.round)))
     check(tag + `step ${s.id}: title and text are there, ${TOTAL[screen]} dots, the right dot is lit, buttons 48 px`, s.title.length > 2 && s.text.length > 10 && s.dots === TOTAL[screen] && s.on >= 0 && Math.min(...s.btns) >= 47.5 && !/\[|\{/.test(s.title + s.text), s.count + ' ' + s.btns.join(','))
-    { const area = s.hole[2] * s.hole[3]; const allowed = s.hole[3] > 0.45 * s.vh ? 0.12 * area : 0; check(tag + `step ${s.id}: the card does not hide the highlighted thing (a target taller than half the screen may be covered by up to 12%)`, Number(s.covers) <= allowed, 'overlap ' + s.covers + ' of ' + Math.round(area) + ' px2') }
+    { // b11 is the planting shape drawn on the map: the card may cover part of it (the map stays visible around it)
+      const area = s.hole[2] * s.hole[3]; const allowed = s.id === 'b11' ? 0.45 * area : s.hole[3] > 0.45 * s.vh ? 0.12 * area : 0; check(tag + `step ${s.id}: the card does not hide the highlighted thing (a target taller than half the screen may be covered by up to 12%)`, Number(s.covers) <= allowed, 'overlap ' + s.covers + ' of ' + Math.round(area) + ' px2') }
     await noBadText(tag + `tour step ${s.id}`)
     const nextLabel = await ev(`document.querySelector('.tour-btns .good').textContent`)
     await tapSel('.tour-btns .good')
@@ -417,7 +418,7 @@ for (const lang of ['en', 'fil']) {
     })()
     check(tag + 'after the tour the panel is back in the state it had (collapsed)', (await ev(`document.querySelector('.sheet').dataset.state`)) === 'collapsed')
     if (lvl === 1 && H === 640) {
-      check(tag + 'the block tour shows all 8 steps at normal text size (the blue dot and cone fall back to their buttons without GPS)', shown.length === 8, shown.join(','))
+      check(tag + 'the block tour shows all 12 steps at normal text size (the blue dot and cone fall back to their buttons without GPS)', shown.length === 12, shown.join(','))
       // skipping marks it done
       await tap(w.back); await sleep(300)
       await b.fresh(PAGE, { lang, size: lvl, tours: false })

@@ -60,7 +60,7 @@ def test_the_a1e_screen_in_the_browser(site):
     """Arrow, distance and word to each tree; panel collapsed / normal / expanded and its drag handle; the prototype chip; text size 85% to 150%; the word limits of every panel state in both languages;
     the layout at three phone sizes (no sideways scroll, buttons of 48 px or more, the main button visible); every tour step lights up a real element."""
     r = subprocess.run(["node", str(ROOT / "tests" / "browser" / "fieldpack_ui_check.mjs"), page(site, "normal"), str(site["out"])], capture_output=True, text=True, timeout=1500)
-    assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-1000:]
+    assert r.returncode == 0, "; ".join(l for l in r.stdout.splitlines() if l.startswith("FAIL"))[:3000] + r.stdout[-600:] + r.stderr[-1000:]
     assert " 0 failed" in r.stdout and "WORD LIMITS:" in r.stdout and "steps were shown" in r.stdout
 
 

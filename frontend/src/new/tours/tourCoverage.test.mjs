@@ -50,3 +50,16 @@ test('step ids are unique inside a tour', () => {
     assert.equal(new Set(ids).size, ids.length, t.id)
   }
 })
+
+test('the printed guide (docs/USER_GUIDE.md and the Print button) holds every tour, section and step, the questions and the glossary', async () => {
+  const { buildGuide } = await import('../../../../scripts/build_user_guide.mjs')
+  const g = buildGuide()
+  for (const t of TOURS) {
+    assert.ok(g.includes(`### ${t.title.en}`), `tour ${t.id}`)
+    for (const s of t.sections) {
+      assert.ok(g.includes(`#### ${s.title.en}`), `${t.id}/${s.id}`)
+      for (const x of s.steps) assert.ok(g.includes(x.title.en) && g.includes(x.text.en), `${t.id}/${x.id}`)
+    }
+  }
+  assert.ok(g.includes('## Questions and answers') && g.includes('## Glossary'))
+})
