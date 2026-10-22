@@ -527,10 +527,10 @@
       map = L.map(ui.mapEl, { zoomControl: false, attributionControl: false, maxZoom: 22, zoomSnap: 0.5, doubleClickZoom: false })
       L.polygon(block.square, { color: '#000', weight: 2, fill: false, dashArray: '2 6' }).addTo(map)
       if (block.layout === 'spaced') { // the shape the user selected in the dashboard (dashed) and the plantable ground of this block, not a square
-        if (pack.area && pack.area.selected) for (const ring of pack.area.selected) L.polygon(ring, { color: '#1f6fb2', weight: 2, fill: false, dashArray: '6 6', interactive: false }).addTo(map)
+        if (pack.area && pack.area.selected) for (const ring of pack.area.selected) L.polygon(ring, { color: '#1f6fb2', weight: 2, fill: false, dashArray: '6 6', interactive: false, className: 'tour-shape' }).addTo(map)
         const rings = block.areas && block.areas.length ? block.areas : [block.square]
-        ml.area = L.featureGroup(rings.map((ring) => L.polygon(ring, { color: '#1f2a24', weight: 2, fillColor: '#1d5f2c', fillOpacity: 0.14, interactive: false }))).addTo(map)
-      } else ml.area = L.polygon(block.area, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: 0.08 }).addTo(map)
+        ml.area = L.featureGroup(rings.map((ring) => L.polygon(ring, { color: '#1f2a24', weight: 2, fillColor: '#1d5f2c', fillOpacity: 0.14, interactive: false, className: 'tour-ground' }))).addTo(map)
+      } else ml.area = L.polygon(block.area, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: 0.08, className: 'tour-ground' }).addTo(map)
       ml.start = L.marker(block.start, { icon: startIcon(), keyboard: false, interactive: false, zIndexOffset: 800 }).addTo(map)
       const k = activeTree(block)
       for (const tr of block.trees) {
@@ -1028,10 +1028,12 @@
     ],
     block: [
       { id: 'b1', title: 'tb1Title', text: 'tb1', targets: ['#map'], before: () => tourSheet('collapsed', true) },
+      { id: 'b11', title: 'tb11Title', text: 'tb11', targets: ['.tour-shape', '.tour-ground'], before: () => tourSheet('collapsed', true) },
       { id: 'b2', title: 'tb2Title', text: 'tb2', targets: ['.me .dot', '[data-tour="me"]'], before: () => tourSheet('collapsed') },
       { id: 'b3', title: 'tb3Title', text: 'tb3', targets: ['.me .cone', '[data-tour="rotate"]'], before: () => tourSheet('collapsed') },
       { id: 'b4', title: 'tb4Title', text: 'tb4', targets: ['.starticon'], before: () => tourSheet('collapsed', true) },
       { id: 'b5', title: 'tb5Title', text: 'tb5', targets: ['.treeicon.st-active', '.treeicon'], before: () => tourSheet('collapsed') },
+      { id: 'b12', title: 'tb12Title', text: 'tb12', targets: ['[data-tour="sheet"]'], before: () => tourSheet('normal') },
       { id: 'b6', title: 'tb6Title', text: 'tb6', targets: ['[data-tour="sheet"]'], before: () => tourSheet('normal') },
       { id: 'b7', title: 'tb7Title', text: 'tb7', targets: ['[data-tour="buttons"]'], before: () => tourSheet('normal') },
       { id: 'b9', title: 'tb9Title', text: 'tb9', targets: ['[data-tour="gps"]'], before: () => tourSheet('normal') },
