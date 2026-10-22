@@ -10,6 +10,7 @@ import ViewSwitch from './ViewSwitch.jsx'
 import { formatDay } from './season.js'
 import { weatherError } from './weatherText.js'
 import WeatherHero, { WeekStrip, WeatherRules } from './WeatherHero.jsx'
+import { pct } from '../v2/scale.js'
 import { EmptyState, Skeleton } from './ui/ui.jsx'
 import { tr, useLang } from './i18n.js'
 
@@ -40,7 +41,7 @@ function SpeciesRow({ item, pos, full, sources, onInfo }) {
           <span className="sr-only"> (species information)</span>
         </button>
         <span className="chip" title="Species score for this purpose (rank in the municipality)">
-          <strong>{item.species_score.toFixed(2)}</strong>
+          <strong>{pct(item.species_score) ?? 'Data Unavailable'}</strong>
           <span className="chip-word">Species score</span>
         </span>
       </div>

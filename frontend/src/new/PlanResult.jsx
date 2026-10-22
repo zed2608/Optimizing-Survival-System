@@ -2,7 +2,7 @@ import CountUp from './ui/CountUp.jsx'
 import { useMemo, useState } from 'react'
 import AskHelp from './tutorial/AskHelp.jsx'
 import Icon from './Icon.jsx'
-import { fmt, pct } from '../v2/scale.js'
+import { pct } from '../v2/scale.js'
 import HelpTip from './HelpTip.jsx'
 import KitControls from './KitControls.jsx'
 import MatchChip from './MatchChip.jsx'
@@ -137,7 +137,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
               <span className="nw-chip fc-verified_plantable">{blocks ? `Trees ${s.saplings_placed} of ${s.n_saplings_requested}` : `Placed ${s.saplings_placed} of ${s.n_saplings_requested}`}</span>
               {blocks && lay && <span className="nw-chip">{lay.blocks} blocks</span>}
               {blocks && lay && <span className="nw-chip">{lay.hectares_used} ha</span>}
-              <span className="nw-chip">Mean score W {fmt(s.mean_W)}</span>
+              <span className="nw-chip">Mean score W {pct(s.mean_W)}</span>
             </div>
             <div className="nw-loc-line">Area: {s.area_choice?.display_name ?? 'whole municipality'}</div>
             {(s.field_checks?.excluded_points ?? 0) > 0 && <div className="nw-loc-line">{s.field_checks.excluded_points} squares excluded by field checks</div>}
@@ -260,7 +260,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
                           {p.spacing_m} m · {p.rows} rows × {p.trees_per_row} ({p.capacity} per full block)
                         </td>
                       )}
-                      {full && <td>{st ? `${fmt(st.S / st.n)} / ${fmt(st.P / st.n)} / ${fmt(st.W / st.n)}` : '-'}</td>}
+                      {full && <td>{st ? `${pct(st.S / st.n)} / ${pct(st.P / st.n)} / ${pct(st.W / st.n)}` : '-'}</td>}
                     </tr>
                   )
                 })}
@@ -324,7 +324,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
                     {it.point_ref}
                   </button>{' '}
                   {it.species} · {blocks ? `${it.trees_planned} trees · ` : ''}
-                  {full ? `W ${fmt(it.W)}` : `match ${Math.round(it.W * 100)}%`} · {it.barangay_display || 'outside barangays'}
+                  {full ? `W ${pct(it.W)}` : `match ${pct(it.W)}`} · {it.barangay_display || 'outside barangays'}
                 </li>
               ))}
               {rows.length === 0 && <li className="muted">No planned point matches.</li>}

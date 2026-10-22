@@ -8,6 +8,7 @@ export default function SeasonNotice({ onShowAll, onChangeDates, text = '' }) {
   return (
     <Callout
       tone="warning"
+      className="is-banner"
       data-role="season-notice"
       actions={
         <>

@@ -23,7 +23,7 @@ import GroundLegend from './GroundLegend.jsx'
 import { GROUND_GROUPS, GROUND_STYLE } from './groundStyle.js'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { purposeLabel } from '../v2/labels.js'
-import { LEVEL_WORD, fmt, wLevel } from '../v2/scale.js'
+import { LEVEL_WORD, pct, wLevel } from '../v2/scale.js'
 import { useApi } from '../v2/useApi.js'
 import AreaChooser from './AreaChooser.jsx'
 import AreaResultPanel from './AreaResultPanel.jsx'
@@ -321,7 +321,7 @@ export default function AppNew() {
       const label = { all: 'Limiting species', any: 'Best of the selected', single: 'Species', best: 'Best species' }[g.mode]
       const lines = [
         `Barangay: ${b >= 0 ? g.barangays_display[b] : 'Data Unavailable'}`,
-        w > 0 ? (view === 'full' ? `Score W ${w.toFixed(2)} (${LEVEL_WORD[wLevel(w, true)]})` : `Overall match ${matchText(w)}`) : view === 'full' ? 'Not suitable here (score 0)' : 'Not suitable here',
+        w > 0 ? (view === 'full' ? `Score W ${pct(w)} (${LEVEL_WORD[wLevel(w, true)]})` : `Overall match ${matchText(w)}`) : view === 'full' ? 'Not suitable here (score 0)' : 'Not suitable here',
         sname ? `${label}: ${sname}` : null,
       ]
       if (g.mode === 'all' || g.mode === 'any') lines.push(`${c.n_eligible_species[i]} of ${g.species_ids.length} selected species suit this point`)
@@ -632,6 +632,12 @@ export default function AppNew() {
       showPlanResult(r)
       sparkBurst(document.querySelector('[data-role="create-plan"]'))
       toast('success', tr('toast.planCreated', { name: campaignName.trim() }, lang))
+      // the Plan step's own fields go back to their defaults once the plan is safely created (the result itself, and the rest of the sidebar - goal, purpose, dates,
+      // species, area - stay as they are: only this one step's form is "used up" by a successful create)
+      setCampaignName('')
+      setCampaignUnit('')
+      setNSaplings('100')
+      setCounts({})
     } catch (e) {
       setCreateError(e.message)
       toast('error', tr('toast.planFailed', { msg: e.message }, lang))
@@ -679,7 +685,7 @@ export default function AppNew() {
       planResult
         ? (i) => {
             const it = planResult.plan[i]
-            return [`${it.point_ref} · ${it.species}`, ...(it.trees_planned != null ? [`${it.trees_planned} trees · ${it.rows} rows of ${it.trees_per_row} · ${it.spacing_m} m apart`] : []), view === 'full' ? `S ${fmt(it.S)} · P ${fmt(it.P)} · W ${fmt(it.W)}` : `Overall match ${matchText(it.W)}`, `Barangay: ${it.barangay_display || 'outside the barangay outlines'}`, it.flags.includes('zoning_unconfirmed') ? 'Zoning: not on the zoning map (not confirmed)' : `Zone: ${it.zone}`]
+            return [`${it.point_ref} · ${it.species}`, ...(it.trees_planned != null ? [`${it.trees_planned} trees · ${it.rows} rows of ${it.trees_per_row} · ${it.spacing_m} m apart`] : []), view === 'full' ? `S ${pct(it.S)} · P ${pct(it.P)} · W ${pct(it.W)}` : `Overall match ${matchText(it.W)}`, `Barangay: ${it.barangay_display || 'outside the barangay outlines'}`, it.flags.includes('zoning_unconfirmed') ? 'Zoning: not on the zoning map (not confirmed)' : `Zone: ${it.zone}`]
           }
         : null,
     [planResult, view],
@@ -762,7 +768,9 @@ export default function AppNew() {
     startTour(t, { section })
   }
   const startPageTour = () => runTour(PAGE_TOUR[tab] ?? 'global')
-  // first visit: once the landing is closed, the short tour of the header and the global controls starts by itself, with "Don't show again" (it is remembered in the browser when the tour ends or is skipped)
+  // first visit: once the landing is closed, the short tour of the header and the global controls starts by itself. The "seen" flag is set the moment it STARTS (not only when it
+  // finishes or is skipped with the checkbox), so it never auto-triggers again once a first-time visitor has been shown it, whatever they do with it (close the tab, press Escape,
+  // Skip, or let it finish) - the manual "Tours" menu still opens any tour at any time, flag or no flag.
   useEffect(() => {
     if (landing || !firstVisit) return undefined
     let seen = null
@@ -774,7 +782,13 @@ export default function AppNew() {
     if (seen === '1') return undefined
     const id = setTimeout(() => {
       const t = getTour('global')
-      if (t) startTour(t, { auto: true })
+      if (!t) return
+      try {
+        window.localStorage.setItem('nw_tour_done', '1')
+      } catch {
+        /* storage refused: the choice is not remembered, the tour may be offered again */
+      }
+      startTour(t, { auto: true })
     }, 900)
     return () => clearTimeout(id)
   }, [landing, firstVisit])
@@ -878,9 +892,13 @@ export default function AppNew() {
       <div className="nw-toasts v2 v2-embedded">
         {grid.status === 'loading' && <Loading what={tr('grid.loading', {}, lang)} />}
         {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title={tr('grid.error', {}, lang)} />}
-        {fewSpecies && seasonNotice(true)}
         {boundaries.status === 'error' && !boundaries.error.network && <ErrorBox error={boundaries.error} onRetry={boundaries.retry} title="Could not load the outlines" brief />}
       </div>
+
+      {/* the "not in best months" notice: hugs the top edge of the map as a slim banner (V1.1 fix 5), not a card sitting over the middle of the view. It shares the
+          nw-toasts class so it inherits all its responsive rules (hidden on a phone once the panel covers the map, pushed behind the panel on a narrow screen -
+          the panel shows the same notice itself, moved clear of the panel when there is room) - only its top offset and padding are overridden, right below. */}
+      {fewSpecies && <div className="nw-toasts nw-season-banner v2 v2-embedded">{seasonNotice(true)}</div>}
 
       {/* legend of the colours (on the map) */}
       {legendOpen ? (

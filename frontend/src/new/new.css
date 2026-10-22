@@ -96,6 +96,25 @@
 .nw-toasts.v2.v2-embedded { position: absolute; top: 140px; left: 50%; transform: translateX(-50%); z-index: 1050; background: transparent; width: min(460px, 92vw); }
 .nw-root.sidebar-open .nw-toasts.v2.v2-embedded { left: calc(50% + 175px); }
 .nw-toasts .status { box-shadow: 0 8px 20px color-mix(in srgb, var(--c-shadow) 35%, transparent); background-color: var(--c-surface); }
+/* v1.1 fix 5: the "not in best months" notice used to live inside .nw-toasts at top: 140px, centred over the middle of the map - a modal-style card blocking the
+   view. Docking it to the TOP edge instead turned out not to work: the topbar (0-56px) and the search box (72-118px, both full width across the map) leave only
+   a 16px gap between them, nowhere near enough room on a desktop width. The bottom edge is genuinely free of persistent UI instead - the legend/locate/map-view
+   stack docks to the RIGHT (right: var(--dock-right)), not the centre, and the only thing that ever sits bottom-centre is the area-drawing bar, which only shows
+   for the few seconds someone is actively drawing. It is now its own element that shares the nw-toasts class (so every one of its responsive rules still applies:
+   hidden on a phone once a panel covers the map, pushed behind the right panel and z-indexed under it on a narrower screen since the panel shows the same notice
+   itself, recentred in the free part of the map when there is room) but docks to the BOTTOM edge, as a slim banner, instead of sitting centred part-way down the
+   map. Only the top/bottom offset and padding are overridden here (and again below, after each later .nw-toasts rule that changes top, so this keeps winning). */
+.nw-season-banner.v2.v2-embedded { top: auto; bottom: 16px; width: min(680px, 92vw); }
+/* is-banner's own layout (icon, text and the two buttons in one row, not stacked) is what keeps this slim; its flat full-bleed-to-the-page-edge look is not
+   wanted on a floating map overlay, so this restores the normal rounded, bordered, shadowed Callout chrome over it. */
+.nw-season-banner .cy-callout.is-banner { border-radius: var(--r-md); border-width: 1px; padding: 5px 14px; gap: 6px; box-shadow: 0 8px 20px color-mix(in srgb, var(--c-shadow) 35%, transparent); font-size: 13px; line-height: 1.3; }
+.nw-season-banner .cy-callout.is-banner .cy-callout-icon { min-height: 0; align-self: center; }
+@media (max-width: 480px) {
+  /* too narrow for the text and both buttons side by side (is-banner's column flow): fall back to the normal stacked layout (text, then the buttons), tighter still */
+  .nw-season-banner .cy-callout.is-banner { padding: 3px 10px; font-size: 12px; line-height: 1.22; }
+  .nw-season-banner .cy-callout.is-banner .cy-callout-body { grid-auto-flow: row; gap: 2px; }
+  .nw-season-banner .cy-callout.is-banner .cy-callout-actions { margin-top: 0; gap: 6px; }
+}
 .nw-legend.v2.v2-embedded {
   position: absolute; left: 24px; bottom: 24px; z-index: 900; width: 330px; padding: 10px 12px; border-radius: 8px; box-shadow: 0 8px 20px color-mix(in srgb, var(--c-shadow) 40%, transparent);
   background: color-mix(in srgb, var(--c-text) 95%, transparent); font-size: 13px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -928,6 +947,11 @@ a.nw-btn-big { background: var(--nw-tint, var(--c-surface)); color: var(--c-text
   .nw-search-list { min-width: 0; }
   .nw-toasts.v2.v2-embedded, .nw-root.sidebar-open .nw-toasts.v2.v2-embedded { top: 180px; left: 12px; right: 12px; width: auto; transform: none; }
   .nw-root.sidebar-open .nw-toasts.v2.v2-embedded { left: 362px; }
+  /* v1.1 fix 5: on a phone the season banner docks to the BOTTOM edge too (not the same 180px row the other map messages use). Stacking above the right-edge
+     column (legend button, map-view button, locate button, each about 44px tall) kept running into the next one up, so it dodges that column SIDEWAYS instead:
+     narrower, inset clear of the whole right-edge stack (its left edge sits around 210px of 360), low on the screen. The text wraps onto more lines at this
+     narrower width, which is fine here - there is plenty of clear space above it before the topbar. */
+  .nw-season-banner.v2.v2-embedded, .nw-root.sidebar-open .nw-season-banner.v2.v2-embedded { top: auto; bottom: 8px; left: 12px; right: calc(var(--dock-right) + 140px); width: auto; transform: none; }
   .nw-root .leaflet-top.leaflet-right { top: 184px; }
   .nw-legend-btn, .nw-root.sidebar-open .nw-legend-btn { left: 12px; bottom: 12px; }
   .nw-root.sidebar-open .nw-legend-btn { left: 362px; }

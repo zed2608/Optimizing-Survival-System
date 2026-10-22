@@ -85,6 +85,10 @@
   --nw-tint: color-mix(in srgb, var(--c-text) 6%, transparent); --nw-tint-2: color-mix(in srgb, var(--c-text) 11%, transparent); --nw-hair: var(--c-line);
   --nw-text: var(--c-text); --nw-muted: var(--c-muted); --nw-card: var(--c-surface); --nw-card-bg: var(--c-bg); --nw-ink: var(--c-text); --nw-ink-muted: var(--c-muted);
   --ink: var(--c-text); --muted: var(--c-muted); --line: var(--c-line); --bg: var(--c-bg); --card: var(--c-surface); --brand: var(--c-primary); --focus: var(--c-focus);
+  /* light-mode fallback for --good/--moderate/--poor/--none (v2.css derives the same tokens from these on .v2; the dark override below used to be the ONLY definition of
+     these four reachable from .nw-root, so anything using them outside a .v2 wrapper had no colour at all in light mode): the same semantic tokens v2.css itself uses. */
+  --good: var(--c-ok); --good-bg: var(--c-ok-bg); --moderate: var(--c-warn); --moderate-bg: var(--c-warn-bg); --poor: var(--c-danger); --poor-bg: var(--c-danger-bg);
+  --none: var(--c-muted); --none-bg: var(--c-surface-2);
 }
 :root[data-theme='dark'] .nw-root .v2, :root[data-theme='dark'] .nw-root {
   --good: #7fdc95; --good-bg: #1c3a26; --moderate: #ffb074; --moderate-bg: #402a17; --poor: #ff9a98; --poor-bg: #44211f; --none: #b9c1c6; --none-bg: #2a3530;

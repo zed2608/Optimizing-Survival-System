@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Explanation from '../v2/components/Explanation.jsx'
 import FlagList from './FlagList.jsx'
-import { fmt, pct } from '../v2/scale.js'
+import { pct } from '../v2/scale.js'
 import SeasonBadge, { SeasonDetail } from './SeasonBadge.jsx'
 import HelpTip from './HelpTip.jsx'
 import Icon from './Icon.jsx'
@@ -39,15 +39,15 @@ export default function RowDetails({ item, point, full }) {
       <dl className="scores" data-tour={item.rank === 1 ? 'r-scores' : undefined}>
         <div>
           <dt>Site suitability (S)</dt>
-          <dd>{fmt(item.S) ?? 'Data Unavailable'}</dd>
+          <dd>{pct(item.S) ?? 'Data Unavailable'}</dd>
         </div>
         <div>
           <dt>Purpose fitness (P)</dt>
-          <dd>{fmt(item.P) ?? 'Data Unavailable'}</dd>
+          <dd>{pct(item.P) ?? 'Data Unavailable'}</dd>
         </div>
         <div>
           <dt>Overall score (W)</dt>
-          <dd>{fmt(item.W) ?? 'Data Unavailable'}</dd>
+          <dd>{pct(item.W) ?? 'Data Unavailable'}</dd>
         </div>
         <div>
           <dt>Confidence</dt>
@@ -58,7 +58,7 @@ export default function RowDetails({ item, point, full }) {
       {full && (
         <div className="nw-opt-head">
           <span className="muted nw-grow">S, P and W are the numbers behind Site fit, Purpose fit and Overall match.</span>
-          <HelpTip label="About S, P and W">S = site suitability: how well the place suits the species (0 to 1). P = purpose fitness: how well the species suits the goal. W = S × P, and 0 when S is below 0.50. Good is 0.55 or more, Fair 0.35 or more, Poor below that.</HelpTip>
+          <HelpTip label="About S, P and W">S = site suitability: how well the place suits the species, shown as a percentage. P = purpose fitness: how well the species suits the goal. W = S × P, and 0 when S is below 50%. Good is 55% or more, Fair 35% or more, Poor below that.</HelpTip>
         </div>
       )}
       <SeasonBadge season={item.season} />
@@ -71,10 +71,10 @@ export default function RowDetails({ item, point, full }) {
       {item.habagat && (
         <div className="nw-habagat" role="note">
           <Icon name="rain" size={14} /> Heavy rain and flooding (Habagat) can wash out seedlings here in Jul-Sep. The overall match is lowered by 20% (multiplier {item.habagat.multiplier}
-          {full ? `: W ${fmt(item.habagat.W_before)} becomes ${fmt(item.habagat.W_after)}` : ''}). Site fit and who is suitable do not change. <ProvisionalTag />
+          {full ? `: W ${pct(item.habagat.W_before)} becomes ${pct(item.habagat.W_after)}` : ''}). Site fit and who is suitable do not change. <ProvisionalTag />
         </div>
       )}
-      {!item.eligible && <div className="muted">Not suitable here: site suitability is below 0.50.</div>}
+      {!item.eligible && <div className="muted">Not suitable here: site suitability is below 50%.</div>}
       <button type="button" className="btn btn-small" aria-expanded={why} onClick={() => setWhy((w) => !w)} data-tour={item.rank === 1 ? 'r-why-btn' : undefined}>
         {why ? 'Hide why this score' : 'Why this score?'}
         <span className="sr-only"> for {item.common_name}</span>

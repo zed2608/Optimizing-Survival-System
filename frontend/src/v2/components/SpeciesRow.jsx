@@ -1,7 +1,7 @@
 import Explanation from './Explanation.jsx'
 import FlagBadges from './FlagBadges.jsx'
 import ScoreChip from './ScoreChip.jsx'
-import { fmt, pct, wLevel } from '../scale.js'
+import { pct, wLevel } from '../scale.js'
 
 // One species in the ranking: name, scores, flags and an accordion button for the explanation.
 export default function SpeciesRow({ item, point, open, onToggle }) {
@@ -18,11 +18,11 @@ export default function SpeciesRow({ item, point, open, onToggle }) {
           <dl className="scores">
             <div>
               <dt>Site suitability (S)</dt>
-              <dd>{fmt(item.S) ?? 'Data Unavailable'}</dd>
+              <dd>{pct(item.S) ?? 'Data Unavailable'}</dd>
             </div>
             <div>
               <dt>Purpose fitness (P)</dt>
-              <dd>{fmt(item.P) ?? 'Data Unavailable'}</dd>
+              <dd>{pct(item.P) ?? 'Data Unavailable'}</dd>
             </div>
             <div>
               <dt>Confidence</dt>
@@ -30,7 +30,7 @@ export default function SpeciesRow({ item, point, open, onToggle }) {
             </div>
           </dl>
           <FlagBadges flags={item.flags} />
-          {!item.eligible && <p className="muted">Not suitable here: site suitability is below 0.50, so the overall score is 0.</p>}
+          {!item.eligible && <p className="muted">Not suitable here: site suitability is below 50%, so the overall score is 0.</p>}
         </div>
         <button type="button" className="btn btn-small" aria-expanded={open} aria-controls={panelId} onClick={onToggle}>
           {open ? 'Hide explanation' : 'Why this score?'}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ErrorBox, Loading } from './Status.jsx'
 import ColorLegend from './ColorLegend.jsx'
 import SpeciesRow from './SpeciesRow.jsx'
-import { fmt } from '../scale.js'
+import { pct } from '../scale.js'
 import { DIRECTION, friendlyNotRankable, purposeLabel } from '../labels.js'
 
 function ViableSuggestion({ status, onGo }) {
@@ -22,7 +22,7 @@ function ViableSuggestion({ status, onGo }) {
     <div className="suggestion" role="status">
       <p>
         {v.already_viable ? 'This spot is already suitable.' : <>The nearest suitable spot is about <strong>{Math.round(v.distance_m)} m to the {DIRECTION[v.direction] ?? v.direction}</strong>.</>}{' '}
-        Best species there: <strong>{v.best_species.common_name}</strong> (overall score {fmt(v.best_species.W)}).
+        Best species there: <strong>{v.best_species.common_name}</strong> (overall score {pct(v.best_species.W)}).
       </p>
       <button type="button" className="btn" onClick={() => onGo(v.point.lat, v.point.lon)}>
         Go to this spot and rank the species

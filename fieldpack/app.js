@@ -1081,6 +1081,9 @@
     closeTour(false)
     const steps = TOURS[screen]
     if (!steps) return
+    // the "seen" flag is set the moment the tour starts (not only when it finishes or Skip is pressed), so a visitor who starts it and then navigates away, presses Back, or
+    // switches language mid-tour never has it auto-offered again on this screen; manually re-opening it from Help still works regardless of the flag.
+    if (!(prefs.tour && prefs.tour[screen])) { prefs.tour = Object.assign({}, prefs.tour, { [screen]: true }); savePrefs() }
     const tr = { screen, steps, idx: 0, token: 0, el: null, prevSheet: sheetState }
     tr.hole = h('div', { class: 'tour-hole', 'aria-hidden': 'true' })
     tr.count = h('div', { class: 'tour-count' })
