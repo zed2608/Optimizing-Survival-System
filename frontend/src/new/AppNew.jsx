@@ -892,9 +892,13 @@ export default function AppNew() {
       <div className="nw-toasts v2 v2-embedded">
         {grid.status === 'loading' && <Loading what={tr('grid.loading', {}, lang)} />}
         {grid.status === 'error' && <ErrorBox error={grid.error} onRetry={grid.retry} title={tr('grid.error', {}, lang)} />}
-        {fewSpecies && seasonNotice(true)}
         {boundaries.status === 'error' && !boundaries.error.network && <ErrorBox error={boundaries.error} onRetry={boundaries.retry} title="Could not load the outlines" brief />}
       </div>
+
+      {/* the "not in best months" notice: hugs the top edge of the map as a slim banner (V1.1 fix 5), not a card sitting over the middle of the view. It shares the
+          nw-toasts class so it inherits all its responsive rules (hidden on a phone once the panel covers the map, pushed behind the panel on a narrow screen -
+          the panel shows the same notice itself, moved clear of the panel when there is room) - only its top offset and padding are overridden, right below. */}
+      {fewSpecies && <div className="nw-toasts nw-season-banner v2 v2-embedded">{seasonNotice(true)}</div>}
 
       {/* legend of the colours (on the map) */}
       {legendOpen ? (
