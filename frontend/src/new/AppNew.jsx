@@ -632,6 +632,12 @@ export default function AppNew() {
       showPlanResult(r)
       sparkBurst(document.querySelector('[data-role="create-plan"]'))
       toast('success', tr('toast.planCreated', { name: campaignName.trim() }, lang))
+      // the Plan step's own fields go back to their defaults once the plan is safely created (the result itself, and the rest of the sidebar - goal, purpose, dates,
+      // species, area - stay as they are: only this one step's form is "used up" by a successful create)
+      setCampaignName('')
+      setCampaignUnit('')
+      setNSaplings('100')
+      setCounts({})
     } catch (e) {
       setCreateError(e.message)
       toast('error', tr('toast.planFailed', { msg: e.message }, lang))
