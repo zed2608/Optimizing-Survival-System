@@ -37,9 +37,15 @@ await must('Next: mark on the map', await clickText(/^Next: Mark on the map/)); 
 if (w <= 800) await clickText(/^Open the map to mark/)
 await sleep(600)
 const rect = JSON.parse(await ev(`JSON.stringify(document.querySelector('.leaflet-container').getBoundingClientRect())`))
-const x = rect.left + rect.width * 0.5, y = rect.top + rect.height * 0.45
-await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }); await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }); await sleep(2500)
-if (w <= 800) await clickText(/^Open Control Panel/, '.nw-toggle')
+// mark a square: try a few spots of the map until the page counts one marked point
+const marked = () => ev(`[...document.querySelectorAll('button')].some((x) => /Plan on this one square/.test(x.textContent))`) // exactly one point marked: the sidebar then offers this button (a second tap would make an area and remove it)
+for (const [fx, fy] of w <= 800 ? [[0.5, 0.62], [0.35, 0.7], [0.65, 0.7]] : [[0.5, 0.45], [0.45, 0.5], [0.55, 0.4]]) { // on a phone the notice card covers the upper middle of the map, so the taps go lower; one tap per spot, stop at the first that marks a square
+  const x = rect.left + rect.width * fx, y = rect.top + rect.height * fy
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }); await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }); await sleep(1800)
+  if (await marked()) break
+}
+if (w <= 800) { await clickText(/^Open Control Panel/, '.nw-toggle'); await sleep(1500) } // the phone path: the map was shown to mark the square, the panel is opened again
 await must('the clicked square is offered for planning', await ev(`[...document.querySelectorAll('button')].some((x) => /^Plan on this one square/.test(x.innerText.trim()))`))
 await must('Plan on this one square', await clickText(/^Plan on this one square/)); await sleep(2500)
 await must('Next: create plan', await clickText(/^Next: Create plan/)); await sleep(500)
