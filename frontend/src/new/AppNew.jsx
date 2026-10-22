@@ -762,7 +762,9 @@ export default function AppNew() {
     startTour(t, { section })
   }
   const startPageTour = () => runTour(PAGE_TOUR[tab] ?? 'global')
-  // first visit: once the landing is closed, the short tour of the header and the global controls starts by itself, with "Don't show again" (it is remembered in the browser when the tour ends or is skipped)
+  // first visit: once the landing is closed, the short tour of the header and the global controls starts by itself. The "seen" flag is set the moment it STARTS (not only when it
+  // finishes or is skipped with the checkbox), so it never auto-triggers again once a first-time visitor has been shown it, whatever they do with it (close the tab, press Escape,
+  // Skip, or let it finish) - the manual "Tours" menu still opens any tour at any time, flag or no flag.
   useEffect(() => {
     if (landing || !firstVisit) return undefined
     let seen = null
@@ -774,7 +776,13 @@ export default function AppNew() {
     if (seen === '1') return undefined
     const id = setTimeout(() => {
       const t = getTour('global')
-      if (t) startTour(t, { auto: true })
+      if (!t) return
+      try {
+        window.localStorage.setItem('nw_tour_done', '1')
+      } catch {
+        /* storage refused: the choice is not remembered, the tour may be offered again */
+      }
+      startTour(t, { auto: true })
     }, 900)
     return () => clearTimeout(id)
   }, [landing, firstVisit])
