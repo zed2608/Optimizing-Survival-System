@@ -5,7 +5,8 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { FAQ, GLOSSARY, SCREENS, SECTIONS, TOUR_STEPS } from '../frontend/src/new/tutorial/tutorialContent.js'
+import { FAQ, GLOSSARY } from '../frontend/src/new/tutorial/tutorialContent.js'
+import { guideStepCount, guideTours } from '../frontend/src/new/tours/guideText.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const out = join(root, 'docs', 'USER_GUIDE.md')
@@ -16,35 +17,35 @@ export function buildGuide() {
   L.push('')
   L.push('San Mateo, Rizal. Municipal Environment and Natural Resources Office (MENRO).')
   L.push('')
-  L.push('This guide is built from the same text as the in-app tour and the Help page (`frontend/src/new/tutorial/tutorialContent.js`). Do not edit it by hand: change that file and run `node scripts/build_user_guide.mjs`.')
+  L.push('This guide is built from the same text as the in-app tour and the Help page (`frontend/src/new/tours/tourDefs.js` for the tours, `frontend/src/new/tutorial/tutorialContent.js` for the questions). Do not edit it by hand: change that file and run `node scripts/build_user_guide.mjs`.')
   L.push('')
   L.push('## Contents')
   L.push('')
-  L.push('1. [The tour, step by step](#the-tour-step-by-step)')
+  L.push('1. [The tours, step by step](#the-tours-step-by-step)')
   L.push('2. [Questions and answers](#questions-and-answers)')
   L.push('3. [Glossary](#glossary)')
   L.push('')
-  L.push('## The tour, step by step')
+  L.push('## The tours, step by step')
   L.push('')
-  let n = 0
-  for (const sec of SECTIONS) {
-    const steps = TOUR_STEPS.filter((s) => s.section === sec.id)
-    if (!steps.length) continue
-    L.push(`### ${sec.title}`)
+  for (const tour of guideTours()) {
+    L.push(`### ${tour.title}`)
     L.push('')
-    for (const s of steps) {
-      n += 1
-      L.push(`**${n}. ${s.title}** (${SCREENS[s.screen].name})`)
+    L.push(tour.blurb)
+    L.push('')
+    let n = 0
+    for (const sec of tour.sections) {
+      L.push(`#### ${sec.title}`)
       L.push('')
-      L.push(s.text)
-      L.push('')
-      if (s.watch) {
-        L.push(`*Watch for:* ${s.watch}`)
+      for (const s of sec.steps) {
+        n += 1
+        L.push(`**${n}. ${s.title}**`)
         L.push('')
-      }
-      if (s.later) {
-        L.push(`*${s.later}*`)
+        L.push(s.text)
         L.push('')
+        if (s.watch) {
+          L.push(`*Watch for:* ${s.watch}`)
+          L.push('')
+        }
       }
     }
   }
@@ -83,6 +84,6 @@ if (process.argv[1]?.endsWith('build_user_guide.mjs')) {
     console.log('docs/USER_GUIDE.md is up to date')
   } else {
     writeFileSync(out, text, 'utf8')
-    console.log(`wrote ${out} (${text.length} characters, ${TOUR_STEPS.length} tour steps, ${FAQ.length} answers)`)
+    console.log(`wrote ${out} (${text.length} characters, ${guideStepCount()} tour steps, ${FAQ.length} answers)`)
   }
 }

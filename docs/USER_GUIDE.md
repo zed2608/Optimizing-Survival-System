@@ -2,201 +2,613 @@
 
 San Mateo, Rizal. Municipal Environment and Natural Resources Office (MENRO).
 
-This guide is built from the same text as the in-app tour and the Help page (`frontend/src/new/tutorial/tutorialContent.js`). Do not edit it by hand: change that file and run `node scripts/build_user_guide.mjs`.
+This guide is built from the same text as the in-app tour and the Help page (`frontend/src/new/tours/tourDefs.js` for the tours, `frontend/src/new/tutorial/tutorialContent.js` for the questions). Do not edit it by hand: change that file and run `node scripts/build_user_guide.mjs`.
 
 ## Contents
 
-1. [The tour, step by step](#the-tour-step-by-step)
+1. [The tours, step by step](#the-tours-step-by-step)
 2. [Questions and answers](#questions-and-answers)
 3. [Glossary](#glossary)
 
-## The tour, step by step
+## The tours, step by step
 
-### Welcome
+### Header and settings
 
-**1. Welcome** (the map screen)
+The top bar: pages, settings, connection.
 
-This system helps you decide which trees to plant, and where. It looks at the land, the soil, the zoning and the planting months, and it makes a plan you can print for the field team.
+#### Top bar
 
-*Watch for:* It only suggests. People decide, and the field team checks every spot on the ground. It does not replace the agriculturist, MENRO or a DENR permit.
+**1. Whose tool this is**
 
-### The map and its dots
+This is the LGU San Mateo badge. The tool was made to help MENRO decide which trees to plant, and where.
 
-**2. The map and its dots** (the map screen)
+**2. Four pages**
 
-Each coloured square is a 100 metre piece of San Mateo. Green is a Good match for the trees you are looking at. Orange is Moderate. Red is Poor. Grey means no tree suits that square.
+Active Studio is the map where you plan. The cloud shows the Weather for the week. The clipboard lists your saved plans (Campaign Logs). The bars count what exists (System Analytics).
 
-*Watch for:* Some areas have no colour at all. Cemetery and quarry land is never scored. Land outside the zoning map is scored, but it carries a warning.
+*Watch for:* A tour always explains the page you are on.
 
-**3. The legend** (the map screen)
+**3. Settings**
 
-The Legend button explains the colours and the field-check symbols that are on the map right now.
+This button opens one menu: theme, language, animations, and the Welcome, Tours and Help links.
 
-*Watch for:* The colours follow the overall match: Good is 55% or more, Moderate is 35% up to 55%, Poor is under 35%.
+**4. Light or dark**
 
-**4. The Zoning layer** (the map screen)
+Choose the light or the dark look. Dark is easier on the eyes at night and saves battery on some phones.
 
-Open Map view and tick Zoning to colour the land by its zone. A list shows each zone and how many squares it has.
+**5. Language**
 
-*Watch for:* The colours follow the LGU style file. A zone that needs a permit says so when you click a point.
+English is the default. Pick Taglish to read the whole screen in Filipino.
 
-### Search
+**6. Animations**
 
-**5. Search** (the map screen)
+Auto follows your device. On always shows motion. Off removes every animation and blur: use it on a slow phone.
 
-Type a barangay, a species, a point number or map coordinates. Choose a barangay to see the best species for it. Choose a species to see where it grows. Choose a point number or coordinates to open that spot.
+**7. Welcome**
 
-*Watch for:* Wait a moment after two letters for the suggestions. A bad coordinate is refused with a reason. It is never guessed.
+Plays the short introduction slides again.
 
-### Two ways to use the system
+**8. Tours**
 
-**6. Two ways to use it** (the map screen)
+Opens the list of tours: one for every page and a short one for every section.
 
-Choose “I have species” to find where your species can grow. Choose “I have an area” to find which species suit an area you pick on the map.
+**9. Help**
 
-*Watch for:* Everything else in the left panel follows from this first choice.
+Questions and answers, a glossary of the words used, and a guide you can print.
 
-### Clicking a point
+**10. Connection**
 
-**7. Clicking a point** (the map screen)
+Green means the planning service answers. If it says offline, check your connection: the map keeps what it already loaded.
 
-Click any square to open its panel. The first card gives a short verdict, such as “Good place for Kamagong: overall match 77%”. Below it are the field check status and the list of best species. To make a field check, right-click the square on the map (on a phone, press and hold it). Choose Detailed at the top for the numbers behind the verdict.
+**11. Demo notice**
 
-*Watch for:* The tour opens an example point for you. Check the card for warnings before you trust a spot.
+This public demo uses provisional data that the agriculturist has not signed off. What you enter here is reset regularly.
 
-**8. Zone, soil and warnings** (the map screen)
+### Studio: the control panel
 
-The top of the panel shows the zone and its condition. A small Needs permission badge means the land needs a permit or the owner’s consent. Under it you see the soil and what the satellite shows on the ground, such as grass, trees or bare soil.
+Goal, purpose, dates, species or area, plan.
 
-*Watch for:* Soil and satellite ground cover are guides. Plain warnings, such as Check first, a steep slope caution or a heavy metals note, always come from a rule that is explained when you tap the question mark next to it.
+#### Goal and purpose
 
-### The species card
+**1. The control panel**
 
-**9. The species card** (the map screen)
+You work from top to bottom: goal, purpose, planting window, species or area, plan. One step is open at a time and a closed step shows your choice in one line.
 
-Tap the small i next to a species to open its card. It shows the months to plant, how the tree grows, and the source of every fact. It also shows a Works well with list of partner species, and notes from the agriculturist.
+**2. Show hints**
 
-*Watch for:* Partner species and agriculturist notes are marked Provisional. They are starting guides, not final advice.
+Turn this on to see a small ? next to the main controls. Each ? explains that control in a sentence.
 
-*You open a species card by tapping the small i next to a species in the Species step.*
+**3. Step 1: Goal**
 
-**10. Ways to improve survival** (the map screen)
+Choose what you want to know. This is the first question of the system.
 
-The species card and the plan result have a section called Ways to improve survival. It gives short tips, such as mulching, a windbreak, or asking the nursery for grafted stock. Press its title to open it.
+**4. Two ways in**
 
-*Watch for:* The tips never change a score. They come from the MAO interview or from general practice, and the agriculturist still has to confirm them.
+“I have species” shows where the species you pick can grow. “I have an area” ranks the best species for an area you choose.
 
-*You see this section in the species card and in the plan result, when a tip applies.*
+**5. Step 2: Planting purpose**
 
-**11. Filter the species list** (the map screen)
+The purpose changes which species rank best.
 
-In “I have species”, the funnel icon at the right end of the species search box (with a number when filters are on) opens the filters: a Purpose filter, such as fruit-bearing or timber, and an Available in LGU nursery tick box that keeps only the species on the nursery list.
+**6. Three purposes**
 
-*Watch for:* The nursery list does not say how many seedlings are ready. Stock quantities are unknown.
+Urban greening: shade and low root-damage risk. Tree planting: conservation and livelihood. Watershed: holding soil on slopes and by waterways.
 
-*You see these filters in the Species step when you choose “I have species”.*
+#### Planting window
 
-### Planning an event
+**7. Step 3: Planting window**
 
-**12. Planning an event: five steps** (the map screen)
+Your start and end dates. They never remove a species and never change a score: they only add a label (In season, Outside best months) and the order.
 
-The left panel has five steps: Goal, Purpose, Planting window, Species or Area, and Plan. Work down them in order. Each closed step shows a one-line summary of your choice. In “I have species”, step 4 is a short walk of its own with a stepper (1 of 4): Choose species, Where to look, Mark on the map (one click is a point; three or more clicks and Finish area make an area), then Create plan. Next stays off until the step is done, and it says why. A finished step can be clicked to go back.
+**8. Start and end**
 
-*Watch for:* Each species has its own best months. Set your dates in step 3, or press “Jump to the next planting season”.
+Pick the first and last day you could plant. Up to 366 days, and the start cannot be in the past.
 
-**13. Step 5: the Plan** (the map screen)
+**9. The month strip**
 
-Name the campaign and say how many trees. With “I have species” you set the number of trees for each species. With “I have an area” the system picks a mix, or you press “Choose my own species and counts”. Then press Create plan.
+Twelve letters, January to December. A ring marks the months your dates touch. Species list their own best months, so you can compare.
 
-*Watch for:* The button stays off and tells you why until the name, the area and the dates are fine. A plan with only one or two species carries a pest-risk warning.
+**10. Jump to the next season**
 
-### The plan result
+Sets the dates to the 60 days with the most species in their best months. Most species are in season from May to September.
 
-**14. The plan result** (the map screen)
+#### Species (I have species)
 
-After you create a plan you see three big numbers: Trees, Blocks and Hectares. A block is one 100 metre square planted close together at the right spacing for its species.
+**11. Step 4: Species**
 
-*Watch for:* If fewer trees were placed than you asked for, the result says why.
+With “I have species” this step has four small steps: choose species, where to look, mark on the map, create the plan.
 
-*You see this after you press Create plan.*
+**12. The four small steps**
 
-**15. Check first and Good to know** (the map screen)
+The numbers show where you are. A finished step shows a tick and your choice; tap it to go back.
 
-The Check first box lists trees on land that needs a closer look, such as ground that looks bare, built-up or wet from the satellite, or land outside the zoning map. “Show these on the map” circles them. Good to know lists up to three plain notes, each with a Why? tip.
+**13. One species or several**
 
-*Watch for:* Two warnings can appear. A heavy metals note shows when food-bearing trees fall on landfill or mining land. A heavy rain note shows when your dates touch July to September in Maly, Dulong Bayan I and II, or Santa Ana.
+Choose one species, or several that grow well together. For several, the system suggests companions of your main species.
 
-*You see these boxes in the plan result, only when something needs your attention.*
+**14. Find a species**
 
-### The field kit
+Type part of a common or scientific name. The funnel next to it opens the filters.
 
-**16. The field kit** (the map screen)
+**15. Filter by trait**
 
-On the Field kit tab, press Build field kit, then Download kit. The kit has a printed map (PDF), a sheet to fill in (blocks), the same blocks in the older list format, and files for a map app (GPX and KML). A README explains how to lay out a block.
+Narrow the list by a trait such as fruit-bearing, timber or ornamental, or to species the LGU nursery has. The traits are provisional.
 
-*Watch for:* Every file carries the plan name and a check code. The check code is eight characters made from the plan itself. A sheet with the wrong code is refused when you bring it back.
+**16. The species list**
 
-*You see the kit after you create a plan, on the Field kit tab.*
+Tick the species you want. The “i” opens its card. The badge says if it is in season, partly, or outside its best months for your dates.
 
-**17. Using the kit on the ground** (the map screen)
+**17. Where to look**
 
-The team walks to the START point of a block. They plant the numbered trees row by row, from tree 1 up to the number written on the page, and leave the rest empty. Then they write down how many trees they really planted.
+Look in the whole municipality, or only one barangay or one zone.
 
-*Watch for:* If a house, road, creek or tree is in the way, move the block a little and write down the real position. Never plant on paved or built land.
+**18. Mark on the map**
 
-### Field checks and progress
+Click corners on the map to draw the area where you want to plant, then finish it. Or use one point. The best places inside it are listed on the right.
 
-**18. Field checks** (the map screen)
+**19. Create the plan**
 
-To make a field check, right-click a square on the map (on a phone, press and hold it): a menu opens where the team records what it saw. The point panel shows the latest mark. Every status is one violet mark, and the shape tells them apart: Planted (check), Marked plantable by an observer (ring), Needs recheck (question mark) and Not plantable (cross). The reason (water, paved, building, rock) is written next to the mark, not shown by a colour.
+The last small step lists your choices and takes you to Step 5, the plan.
 
-*Watch for:* You type your name once. A saved check is never edited. A change is a new check, and clearing a Not plantable mark needs a note.
+#### Area (I have an area)
 
-*You see the latest field check when you click a point; the menu opens with a right-click or a long press.*
+**20. Step 4: Area**
 
-**19. Progress and top-up** (the map screen)
+With “I have an area” you choose the area and the system ranks the species for it.
 
-The Progress tab counts the trees planted, the trees remaining and the blocks with a problem. A block that is only partly planted counts only the trees really planted. If trees were lost to problem blocks, press Plan top-up to plan new blocks for them.
+**21. Three ways to choose**
 
-*Watch for:* A square marked Not plantable is left out of new plans, because the field team found it cannot be planted. A top-up never uses a square of the first plan.
+Click a point, pick a barangay or zone from a list, or draw a shape on the map.
 
-*You see Progress after you create a plan, on the Progress tab.*
+**22. Draw an area**
 
-**20. Campaign Logs** (Campaign Logs)
+Click corners on the map. Finish area closes the shape and locks it. Undo removes the last corner. Start again clears it.
 
-Campaign Logs lists every saved plan, with its dates and its status: Active, Upcoming or Concluded. You can open a plan on the map, see its progress, and plan a top-up.
+**23. What the area holds**
 
-*Watch for:* Plans are saved on the server, so you can come back to them later.
+This example area has been chosen for you. The summary counts its squares. A square is COUNTED when its centre is inside, or at least half of it is covered; a square only touched is listed apart.
 
-### The Weather tab
+*Watch for:* The dashed grey line on the map marks squares that were only touched.
 
-**21. The Weather tab** (the Weather tab)
+#### Plan
 
-The Weather tab shows the coming week for San Mateo, a barangay, the last point you clicked or the middle of a plan. It says Good to plant, Plant with care, or Avoid this week, and it lists the species that suit the week.
+**24. Step 5: Plan**
 
-*Watch for:* The weather never changes a score or a best month. Species outside their best months are listed apart, as Only if you can water. A species hit by a weather warning is held back.
+Turn your choices into a planting plan: how many trees, in which blocks. A block is one 100 m grid square planted at the species spacing.
 
-### Data and limits
+**25. Campaign name**
 
-**22. System Analytics** (System Analytics)
+The name of the planting event, saved with the plan.
 
-System Analytics shows simple counts: how many map squares there are, how many field checks were saved, how many plans exist, and which version of the species data is in use.
+**26. Assigned unit**
 
-*Watch for:* The plan totals use the newest 100 plans. The page says so when there are more.
+The team that will do the planting. Optional.
 
-**23. Data and limits** (the map screen)
+**27. Number of trees**
 
-Most of the data is Provisional. The zoning rules come from answers written on a form by the MPDC (provisional). The planting-month notes, the nursery list and the warnings come from the MAO interview. The species data is not yet signed off by the licensed agriculturist.
+How many trees in total, 1 to 2000. Or give each species its own number if you chose your own species.
 
-*Watch for:* Distance to creeks and rivers is used as a soft wetness factor (50 metres), but MENRO has not answered the waterways question, so this layer is not checked. The system supports decisions. It does not replace the agriculturist, MENRO or a DENR permit.
+**28. What the plan will use**
 
-### Finish
+The area, the dates and the species, and how many suitable squares are available.
 
-**24. You are ready** (the map screen)
+**29. Create plan**
 
-You can open this help again at any time. Press Help at the top right. There you can search the questions, read the short glossary, take the tour again, or print the guide.
+This button saves the plan on the server. The tour only shows it: it will not press it.
 
-*Watch for:* Next to the main controls, a small question mark opens the matching answer.
+*Watch for:* After a plan is made, Make another plan starts again and the plan stays saved in Campaign Logs.
+
+#### The More list
+
+**30. More**
+
+Known limits, data credits, the dataset version and the field checks live here.
+
+**31. Known limits**
+
+What the system does not know or does not do, in plain words. Read this before you trust a result.
+
+*Watch for:* Distance to creeks and rivers is used as a soft wetness factor (50 metres), but MENRO has not answered the waterways question, so this layer is not checked.
+
+**32. Data credits**
+
+Where each kind of data comes from, with its licence.
+
+**33. Dataset version**
+
+The version of the species data. It is a review release: the agriculturist has not signed it off.
+
+**34. Field checks**
+
+What the field team saw on the ground: counts, a download of all checks, and an import of a filled sheet.
+
+### Studio: the map
+
+Search, zoom, my location, layers, legend, colours, right-click.
+
+#### Search
+
+**1. Search the map**
+
+Type a barangay, a species, a point number, or coordinates such as 14.69, 121.12. Press Ctrl and K to jump here. Choosing a result moves the map and opens its panel.
+
+*Watch for:* Places such as streets only work if the online place search is switched on.
+
+#### Map controls
+
+**2. Zoom**
+
+Plus and minus zoom the map. You can also pinch with two fingers, or scroll with the mouse. Zoom in far enough to see single 100 m squares.
+
+**3. My location**
+
+Moves the map to where you are, with a blue dot. It needs a secure (HTTPS) page and your permission. Your position stays in this browser and is never sent anywhere.
+
+**4. Set my location on the map**
+
+If your device cannot find you, tap this and then tap the map where you are.
+
+**5. Map view**
+
+Opens the map options: Simple or Detailed, the map type, and the extra layers.
+
+**6. Layers and detail**
+
+Simple shows coloured squares, outlines and names. Detailed adds every field-check symbol, the tree codes and the grey squares. You can also switch the satellite picture, the zoning colours and the ground-cover layer.
+
+**7. The legend button**
+
+Opens the legend: what the colours of the map mean.
+
+**8. Hide the control panel**
+
+Hides or shows the left panel so the map has the whole screen. Your choices stay.
+
+#### Colours and symbols
+
+**9. What the colours mean**
+
+Each square is a 100 m by 100 m piece of planting zone. Green (Good) means the species match is 55% or more, orange (Moderate) 35% to 55%, red (Poor) below 35%. Grey means not suitable here, or no value.
+
+*Watch for:* A colour is advice about the land, not a promise that trees will live.
+
+**10. The coloured squares**
+
+Zoom in and the colours become squares. Hover or tap one to see its barangay, its score and its best species. Click it to open its panel on the right.
+
+**11. Barangay names and outlines**
+
+The thin lines are the barangay boundaries and the names sit inside them. The thick outline is the edge of the municipality.
+
+**12. Field-check symbols**
+
+When people check a square on the ground, a mark is drawn on it. Every mark is the same violet; the SHAPE tells the status: a tick: planted, a ring: marked plantable, a question mark: needs recheck, a cross: not plantable. The words are always written next to it.
+
+**13. Planned blocks**
+
+After you make a plan, its blocks are drawn as shapes with the number of trees, one shape for each species. A dotted ring marks land outside the zoning map.
+
+#### Right-click menu
+
+**14. Right-click or press and hold**
+
+A menu opens for the square you pressed: where it is, its zone, the species here, and the field-check buttons. This is the example point.
+
+*Watch for:* The tour only shows the menu. It never presses a field-check button.
+
+### Studio: the point panel
+
+What a clicked square tells you (uses the Example point).
+
+#### The simple view
+
+**1. The Example point**
+
+This panel opens when you click a square. The tour uses a fixed Example point where many species fit, so it never depends on what you selected.
+
+**2. Simple or Detailed**
+
+Simple uses plain words. Detailed shows the numbers, the month strips and where every value comes from.
+
+**3. Where this is**
+
+The barangay of the square, with a short note about its land when there is one.
+
+**4. The verdict**
+
+One sentence: how good this place is for the top species, the overall match in percent, and whether it is in its planting months. “Overall match” combines how well the site suits the species with how well the species suits your purpose.
+
+**5. Field check**
+
+What the field team saw here, if anyone has checked it: planted, marked plantable, needs recheck, or not plantable. The button opens the menu to record a check.
+
+*Watch for:* A not-plantable mark can leave the square out of rankings and plans; the other marks never change a score.
+
+**6. Best species for this spot**
+
+The species that suit this square, best first, and how many of the 45 suit it. Each row has a colour bar for the match, a season badge and a pH icon.
+
+**7. One species**
+
+Name (tap it for the species card), the match as Good, Moderate or Poor with its percent, and the season: In season, Partly, or Outside best months. Outside the best months you can still plant, but expect more watering and more losses.
+
+**8. Details**
+
+Opens the extra lines of this species: the numbers, the month strip, the flags, and why the score is what it is.
+
+#### The detailed view
+
+**9. Land details**
+
+Coordinates, elevation, slope, zoning, soil and satellite ground cover for the square. Anything that needs a permit or care is flagged.
+
+**10. Soil pH (an estimate)**
+
+The pH of the soil here comes from SoilGrids, a world map with 250 m pixels. It is an ESTIMATE and “not certain”: measure on site with a pH kit before you rely on it. It is advice only and never changes a score.
+
+**11. The numbers**
+
+S is site suitability, P is purpose fit, W is the overall score (S times P, and 0 when S is below 0.50). Confidence says how many of the facts behind it are sourced.
+
+**12. The month strip**
+
+Twelve letters from January to December. Filled letters are the best planting months of this species; a ring marks the months of your dates.
+
+**13. Why this score?**
+
+Opens the breakdown: each term, its weight and its source.
+
+**14. The Random Forest line**
+
+The site suitability comes from a Random Forest, a computer model that learned from the expert rules. Hard limits such as zone, elevation and steep slope always apply first. It does not measure real survival.
+
+#### The species card
+
+**15. The species card**
+
+Opens from any species name. It lists what is known about one species, each value with its source link and rank. A missing value says Data Unavailable.
+
+**16. Planting stage and timing**
+
+Germination, propagation, depth, method and spacing, and the planting months with a month strip for your dates.
+
+**17. Works well with**
+
+Species that grow well beside this one, with the reason in one line. A partner named in the sources says so; the rules are provisional.
+
+**18. Ways to improve survival**
+
+Short advice for this species, for example about watering, shade or grafted stock. It is advice only, still to be confirmed by the agriculturist.
+
+### Studio: a saved plan
+
+The plan panel: Plan, Field kit, Progress (opens your latest saved plan).
+
+#### Plan
+
+**1. The plan in three numbers**
+
+Trees, blocks and hectares. A block is one 100 m square planted at the species spacing.
+
+**2. Three tabs**
+
+Plan shows what to plant where. Field kit builds the files and the planter link for the team. Progress counts what has been planted.
+
+**3. Good to know**
+
+Short notes that need attention: zoning, steep slopes, satellite ground cover, the season.
+
+#### Field kit
+
+**4. The field kit**
+
+Build the kit to get points for a GPS app, a Google Earth file, the point list, a printed map and instructions. The tour only shows it: it will not build anything.
+
+**5. Planter link**
+
+A page for the planting team to open on a phone. The link works for a limited time and can be switched off. A QR code appears once the link exists.
+
+#### Progress
+
+**6. Progress**
+
+Counted from the saved field checks of this plan: planted, partly done, problem and to do, with a button to plan a top-up for trees that could not be planted.
+
+### Weather
+
+The week ahead at one place, with advice for planting days.
+
+#### Place and purpose
+
+**1. The Weather page**
+
+The next seven days at one place, a plain verdict for planting this week, and the species that suit the week. It is a planning aid, not a guarantee.
+
+**2. Where**
+
+Pick the place: the centre of San Mateo, a barangay, the last point you clicked, or the middle of a plan.
+
+**3. Planting purpose**
+
+The purpose orders the species lists below.
+
+**4. Simple or Detailed**
+
+Simple gives short lines. Detailed adds each species’ drought tolerance, months and sources.
+
+#### The week
+
+**5. Today at a glance**
+
+The sky picture shows today’s rain amount and the temperatures. Only rain, the highest and lowest temperature are forecast; there is no wind or chance of rain here.
+
+**6. The seven days**
+
+One column per day: the rain amount in millimetres, and the highest and lowest temperature.
+
+**7. Day words**
+
+Dry is under 1 mm, light rain 1 to 10 mm, rainy 10 mm or more. Heavy rain above the limit shown makes the week “avoid”.
+
+**8. The verdict**
+
+Good to plant, Plant with care, or Avoid this week, with the reasons and the numbers behind them. A dry week under 20 mm needs watering.
+
+**9. The week in numbers**
+
+Rain over seven days, the wettest and hottest day, and the limits the verdict uses. These limits are provisional.
+
+#### Species for the week
+
+**10. In their best months**
+
+Species that are in their planting months this week and are not hit by a weather warning, best match first.
+
+**11. Only if you can water**
+
+Outside their best months but with High drought tolerance. You can plant them only if you are able to water.
+
+**12. Source and last update**
+
+Where the forecast comes from. When the service is busy the page shows a saved copy and says “Last updated …, may be out of date”; Try again loads it afresh.
+
+### Campaign Logs
+
+Your saved plans, their status and progress.
+
+#### The list of plans
+
+**1. Campaign Logs**
+
+Every plan you saved, newest first, with its dates, status and field kit. Nothing here changes a plan.
+
+**2. Filter by status**
+
+Active, Upcoming, Concluded, or No dates: worked out from the dates saved with each plan.
+
+**3. Search**
+
+Type part of a campaign name, a unit or a plan id.
+
+**4. Your plans**
+
+One card per saved plan. When there is none, this says so and offers a button to go and make one.
+
+**5. One plan**
+
+The name, unit, dates and status chip, the plan id, whether a field kit was built, and a weather card for the planting days.
+
+**6. Open on map**
+
+Opens the plan in Active Studio, with its blocks on the map. Progress and top-up counts what the field team has planted.
+
+**7. Go to Active Studio**
+
+With no plans yet, this button takes you to the studio to make the first one.
+
+### System Analytics
+
+Counts of what exists, how to read each chart.
+
+#### Filters and numbers
+
+**1. System Analytics**
+
+Counts of what exists: suitable squares, soil pH estimates, plans and field checks. Nothing here is forecast and nothing here changes a score.
+
+**2. Filters**
+
+Narrow the charts by barangay or species, and the activity by dates. Clear filters shows everything again.
+
+**3. Six big numbers**
+
+Squares scored, species, suitable squares, plans, trees planned and field checks. A suitable square has a site score of 0.50 or more for at least one species.
+
+#### The charts
+
+**4. Site scores**
+
+Bars of how many square-and-species pairs fall in each score range. A tall bar at zero means many pairs that the land rules out.
+
+**5. By barangay**
+
+Suitable squares compared with all squares of each barangay. Longer is more.
+
+**6. By species**
+
+How many squares suit each species (top ten).
+
+**7. Soil pH estimates**
+
+How the estimated soil pH is spread over the squares. It is an estimate from SoilGrids, not a measurement.
+
+**8. pH verdicts**
+
+For each species and square: inside its pH range, outside, or “not certain”. Most are not certain because the estimate has a wide margin.
+
+**9. By zone**
+
+Squares by land-use zone, and how many are outside the zoning map or have no soil data.
+
+**10. Activity by week**
+
+Plans and field checks made each week. Empty until people use the system.
+
+**11. Trees planned by week**
+
+How many trees the plans of each week hold.
+
+**12. Planned and planted by barangay**
+
+Trees planned beside trees the field teams marked as planted.
+
+**13. Planned and planted by species**
+
+The same comparison for each species.
+
+#### Tables and download
+
+**14. View table**
+
+Shows the numbers behind the chart as a table, for reading with a screen reader or copying.
+
+**15. Download CSV**
+
+Saves the numbers of that chart as a spreadsheet file.
+
+**16. No forecast**
+
+No future is drawn here: forecasting needs survival records, and none exist yet.
+
+### Help and the user guide
+
+Questions, glossary, printing the guide.
+
+#### The Help page
+
+**1. Tour of this page**
+
+Starts the tour of the page you came from. Each page has its own tour.
+
+**2. All tours**
+
+Opens the list of every tour, with a short tour for each section.
+
+**3. Print this guide**
+
+Prints the whole guide on A4 sheets: the tours, the questions and the glossary.
+
+**4. Search the questions**
+
+Type a word such as pH, check code or nursery to find the answer.
+
+**5. Questions and answers**
+
+Tap a question to read its answer. They are grouped by topic.
+
+**6. Glossary**
+
+The words this system uses, in plain language.
 
 ## Questions and answers
 

@@ -1,35 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ASK_TIPS, FAQ, GLOSSARY, SCREENS, SECTIONS, TOUR_STEPS, allVisibleText, faqAnswer } from './tutorialContent.js'
+import { ASK_TIPS, FAQ, GLOSSARY, allVisibleText, faqAnswer } from './tutorialContent.js'
+import { guideTours } from '../tours/guideText.js'
 import { matchFaq } from './faqSearch.js'
 
-test('every tour step has the fields the tour needs', () => {
-  const ids = new Set()
-  for (const s of TOUR_STEPS) {
-    assert.ok(s.id && !ids.has(s.id), `unique id ${s.id}`)
-    ids.add(s.id)
-    assert.ok(s.title.length > 2 && s.text.length > 20, `${s.id} has a title and a text`)
-    assert.ok(SECTIONS.some((x) => x.id === s.section), `${s.id} has a known section`)
-    assert.ok(SCREENS[s.screen], `${s.id} has a known screen`)
-    assert.ok(s.target === null || typeof s.target === 'string', `${s.id} target`)
-    if (s.missing === 'center') assert.ok(s.later && s.later.length > 10, `${s.id} says when the element appears`)
-    assert.ok(s.text.split(/[.!?]/).filter(Boolean).length <= 6, `${s.id} is not long-winded`)
+test('the guide is built from the tour registry: every tour has sections and every step a title and a text', () => {
+  const tours = guideTours()
+  assert.ok(tours.length >= 9)
+  for (const t of tours) {
+    assert.ok(t.sections.length >= 1 && t.title && t.blurb, t.id)
+    for (const sec of t.sections) for (const s of sec.steps) {
+      assert.ok(s.title.length > 2 && s.text.length > 20, `${t.id}/${s.id} has a title and a text`)
+      assert.ok(s.text.split(/[.!?]/).filter(Boolean).length <= 6, `${t.id}/${s.id} is not long-winded`)
+    }
   }
-})
-
-test('every part of the tour (a to m) has at least one step, in order', () => {
-  assert.equal(SECTIONS.length, 13)
-  let last = -1
-  for (const s of TOUR_STEPS) {
-    const k = SECTIONS.findIndex((x) => x.id === s.section)
-    assert.ok(k >= last, `${s.id} is in order`)
-    last = k
-  }
-  for (const sec of SECTIONS) assert.ok(TOUR_STEPS.some((s) => s.section === sec.id), `${sec.id} has a step`)
-})
-
-test('every screen has a quick-tour step', () => {
-  for (const k of Object.keys(SCREENS)) assert.ok(TOUR_STEPS.some((s) => s.screen === k), k)
 })
 
 test('at least 25 help answers, each with a question and an answer', () => {
@@ -54,7 +38,7 @@ test('the question mark tips point to real answers', () => {
 test('no visible text has an underscore or an equals sign, or talks about things that are not built', () => {
   for (const t of allVisibleText()) {
     assert.ok(!/[_=]/.test(t), `underscore or equals sign in: ${t.slice(0, 60)}`)
-    assert.ok(!/offline|phone app|log in|login|password|mobile app/i.test(t), `not built: ${t.slice(0, 60)}`)
+    assert.ok(!/offline|phone app|log in|login|password|mobile app/i.test(t.replace(/If it says offline/g, '')), `not built: ${t.slice(0, 60)}`) // "If it says offline" is the planning-service light of the header
   }
 })
 

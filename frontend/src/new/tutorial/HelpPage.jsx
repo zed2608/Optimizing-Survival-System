@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Icon from '../Icon.jsx'
 import { matchFaq } from './faqSearch.js'
-import { FAQ, GLOSSARY, SCREENS, SECTIONS, TOUR_STEPS, faqAnswer } from './tutorialContent.js'
+import { FAQ, GLOSSARY, SCREENS, faqAnswer } from './tutorialContent.js'
+import { guideTours } from '../tours/guideText.js'
 
 // The whole guide as one clean page, shown only when printing (the "Print this guide" button).
 function PrintGuide() {
@@ -9,27 +10,29 @@ function PrintGuide() {
     <section className="nw-printguide" aria-hidden="true">
       <h1>Tree Planting Decision Support: user guide</h1>
       <p>San Mateo, Rizal. Municipal Environment and Natural Resources Office (MENRO).</p>
-      <h2>The tour, step by step</h2>
-      {SECTIONS.map((sec) => {
-        const steps = TOUR_STEPS.filter((s) => s.section === sec.id)
-        if (!steps.length) return null
-        return (
-          <div key={sec.id}>
-            <h3>{sec.title}</h3>
-            {steps.map((s) => (
-              <div key={s.id} className="nw-print-step">
-                <h4>{s.title}</h4>
-                <p>{s.text}</p>
-                {s.watch && (
-                  <p>
-                    <strong>Watch for:</strong> {s.watch}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )
-      })}
+      <h2>The tours, step by step</h2>
+      {guideTours().map((tour) => (
+        <div key={tour.id}>
+          <h3>{tour.title}</h3>
+          <p>{tour.blurb}</p>
+          {tour.sections.map((sec) => (
+            <div key={sec.id}>
+              <h4>{sec.title}</h4>
+              {sec.steps.map((s) => (
+                <div key={s.id} className="nw-print-step">
+                  <h5>{s.title}</h5>
+                  <p>{s.text}</p>
+                  {s.watch && (
+                    <p>
+                      <strong>Watch for:</strong> {s.watch}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
       <h2>Questions and answers</h2>
       {FAQ.map((f) => (
         <div key={f.id} className="nw-print-step">
