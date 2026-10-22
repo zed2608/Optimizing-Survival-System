@@ -5,7 +5,7 @@ import ScoreChip from './ScoreChip.jsx'
 import SourceLink from './SourceLink.jsx'
 import { MUNICIPAL_LIMIT } from '../config.js'
 import { purposeLabel } from '../labels.js'
-import { fmt, pct } from '../scale.js'
+import { pct } from '../scale.js'
 import { useApi } from '../useApi.js'
 
 function SourceList({ title, ids, map }) {
@@ -70,7 +70,7 @@ export default function MunicipalTab({ purpose }) {
                     {r.common_name}
                     <FlagBadges flags={r.flags} />
                   </th>
-                  <td>{fmt(r.species_score) ?? <span className="unavailable">Data Unavailable</span>}</td>
+                  <td>{pct(r.species_score) ?? <span className="unavailable">Data Unavailable</span>}</td>
                   <td>
                     <ScoreChip w={r.mean_W_where_eligible} label="Average overall score where suitable" />
                   </td>
@@ -78,7 +78,7 @@ export default function MunicipalTab({ purpose }) {
                     {pct(r.share_of_points_eligible) ?? <span className="unavailable">Data Unavailable</span>}
                     <span className="muted block">{r.eligible_points} of {api.data.legal_points} points</span>
                   </td>
-                  <td>{fmt(r.P) ?? <span className="unavailable">Data Unavailable</span>}</td>
+                  <td>{pct(r.P) ?? <span className="unavailable">Data Unavailable</span>}</td>
                   <td>
                     Purpose: {pct(r.p_confidence) ?? <span className="unavailable">Data Unavailable</span>}
                     <span className="block">Site: {pct(r.mean_site_confidence) ?? <span className="unavailable">Data Unavailable</span>}</span>

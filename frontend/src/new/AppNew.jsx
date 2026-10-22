@@ -23,7 +23,7 @@ import GroundLegend from './GroundLegend.jsx'
 import { GROUND_GROUPS, GROUND_STYLE } from './groundStyle.js'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { purposeLabel } from '../v2/labels.js'
-import { LEVEL_WORD, fmt, wLevel } from '../v2/scale.js'
+import { LEVEL_WORD, pct, wLevel } from '../v2/scale.js'
 import { useApi } from '../v2/useApi.js'
 import AreaChooser from './AreaChooser.jsx'
 import AreaResultPanel from './AreaResultPanel.jsx'
@@ -321,7 +321,7 @@ export default function AppNew() {
       const label = { all: 'Limiting species', any: 'Best of the selected', single: 'Species', best: 'Best species' }[g.mode]
       const lines = [
         `Barangay: ${b >= 0 ? g.barangays_display[b] : 'Data Unavailable'}`,
-        w > 0 ? (view === 'full' ? `Score W ${w.toFixed(2)} (${LEVEL_WORD[wLevel(w, true)]})` : `Overall match ${matchText(w)}`) : view === 'full' ? 'Not suitable here (score 0)' : 'Not suitable here',
+        w > 0 ? (view === 'full' ? `Score W ${pct(w)} (${LEVEL_WORD[wLevel(w, true)]})` : `Overall match ${matchText(w)}`) : view === 'full' ? 'Not suitable here (score 0)' : 'Not suitable here',
         sname ? `${label}: ${sname}` : null,
       ]
       if (g.mode === 'all' || g.mode === 'any') lines.push(`${c.n_eligible_species[i]} of ${g.species_ids.length} selected species suit this point`)
@@ -679,7 +679,7 @@ export default function AppNew() {
       planResult
         ? (i) => {
             const it = planResult.plan[i]
-            return [`${it.point_ref} · ${it.species}`, ...(it.trees_planned != null ? [`${it.trees_planned} trees · ${it.rows} rows of ${it.trees_per_row} · ${it.spacing_m} m apart`] : []), view === 'full' ? `S ${fmt(it.S)} · P ${fmt(it.P)} · W ${fmt(it.W)}` : `Overall match ${matchText(it.W)}`, `Barangay: ${it.barangay_display || 'outside the barangay outlines'}`, it.flags.includes('zoning_unconfirmed') ? 'Zoning: not on the zoning map (not confirmed)' : `Zone: ${it.zone}`]
+            return [`${it.point_ref} · ${it.species}`, ...(it.trees_planned != null ? [`${it.trees_planned} trees · ${it.rows} rows of ${it.trees_per_row} · ${it.spacing_m} m apart`] : []), view === 'full' ? `S ${pct(it.S)} · P ${pct(it.P)} · W ${pct(it.W)}` : `Overall match ${matchText(it.W)}`, `Barangay: ${it.barangay_display || 'outside the barangay outlines'}`, it.flags.includes('zoning_unconfirmed') ? 'Zoning: not on the zoning map (not confirmed)' : `Zone: ${it.zone}`]
           }
         : null,
     [planResult, view],
