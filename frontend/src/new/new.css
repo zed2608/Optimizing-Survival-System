@@ -731,6 +731,12 @@
 .nw-topup .nw-check { color: var(--nw-ink); padding: 0; }
 .nw-logprogress { margin: 8px 0; }
 .nw-logprogress > summary { cursor: pointer; font-weight: 600; }
+/* round 22: survival monitoring (PlanResult's Survival tab, SurvivalPanel.jsx) */
+.nw-subhead { font-size: 13px; font-weight: 700; margin: 14px 0 4px; }
+.nw-survival-form { display: grid; gap: 8px; margin: 8px 0 14px; padding: 10px 12px; background: var(--c-surface-2); border-radius: var(--r-md); }
+.nw-survival-form .nw-row { margin-bottom: 0; }
+.nw-survival-form .nw-row > div { flex: 1; min-width: 140px; }
+.nw-survival-form textarea.nw-input { resize: vertical; }
 
 /* ===== Round 14: plain-language panels, tree counts per species, partners, help and tour ===== */
 /* layout rules: one body size (14 px), one heading size (16 px), short lines, the same card style as the sidebar */

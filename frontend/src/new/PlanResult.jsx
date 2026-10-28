@@ -8,6 +8,7 @@ import KitControls from './KitControls.jsx'
 import MatchChip from './MatchChip.jsx'
 import PlanPh from './PlanPh.jsx'
 import PlanProgress from './PlanProgress.jsx'
+import SurvivalPanel from './SurvivalPanel.jsx'
 import PlanWeather from './PlanWeather.jsx'
 import AdviceSection from './AdviceSection.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'plan', label: 'Plan', icon: 'clipboard' },
   { id: 'kit', label: 'Field kit', icon: 'printer' },
   { id: 'progress', label: 'Progress', icon: 'bars' },
+  { id: 'survival', label: 'Survival', icon: 'tree' },
 ]
 const MAX_NOTES = 3 // "Good to know": at most this many bullets in the Simple view
 
@@ -188,7 +190,7 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
       )}
 
       <div className="nw-ptabs" role="tablist" aria-label="Plan sections" data-tour="r-plan-tabs">
-        {TABS.filter((t) => blocks || t.id !== 'progress').map((t) => (
+        {TABS.filter((t) => blocks || !['progress', 'survival'].includes(t.id)).map((t) => (
           <button key={t.id} type="button" role="tab" id={`nw-ptab-${t.id}`} data-tour={`r-ptab-${t.id}`} aria-selected={tab === t.id} aria-controls={`nw-ppanel-${t.id}`} className={`nw-ptab ${tab === t.id ? 'is-active' : ''}`} onClick={() => setTab(t.id)}>
             <Icon name={t.icon} size={16} /> {t.label}
           </button>
@@ -357,6 +359,18 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
               <HelpTip label="About progress">Counted from the saved field checks of this plan: mark each block Planted (with the number of trees), Can't plant here or Needs recheck in its point panel, or import the filled blocks.csv.</HelpTip>
             </div>
             <PlanProgress planId={result.plan_id} version={fieldVersion} full={full} onTopUp={onTopUp} onOpenPlan={onOpenPlan} />
+          </section>
+        </div>
+      )}
+
+      {tab === 'survival' && blocks && (
+        <div role="tabpanel" id="nw-ppanel-survival" aria-labelledby="nw-ptab-survival">
+          <section className="nw-pcard" aria-label="Survival" data-tour="r-survival">
+            <div className="nw-pcard-head">
+              <h3>Survival</h3>
+              <ProvisionalTag />
+            </div>
+            <SurvivalPanel planId={result.plan_id} full={full} />
           </section>
         </div>
       )}
