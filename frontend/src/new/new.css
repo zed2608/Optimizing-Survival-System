@@ -115,6 +115,15 @@
   .nw-season-banner .cy-callout.is-banner .cy-callout-body { grid-auto-flow: row; gap: 2px; }
   .nw-season-banner .cy-callout.is-banner .cy-callout-actions { margin-top: 0; gap: 6px; }
 }
+/* v1.2 fix: SeasonNotice is reused inline in the Step 1 sidebar (SpeciesFlow, "Choose species") with the same is-banner class
+   it uses as the floating map toast above. is-banner's row layout (canopy.css: grid-auto-flow: column, forcing icon + text +
+   both buttons onto one line) assumes the toast's ~680px width; squeezed into the ~280px sidebar it wrapped word-by-word and
+   grew tall enough to push the whole species list off screen. Scoped to this wrapper only (never the floating banner, which
+   keeps its own .nw-season-banner rules above), it falls back to the plain stacked Callout layout: icon beside the text,
+   the two buttons on their own row below. */
+.nw-season-inline .cy-callout.is-banner { grid-template-columns: auto 1fr; border-radius: var(--r-md); border-width: 1px; margin: 0 0 12px; padding: 10px 12px; }
+.nw-season-inline .cy-callout.is-banner .cy-callout-body { grid-auto-flow: row; justify-content: start; gap: 6px; }
+.nw-season-inline .cy-callout.is-banner .cy-callout-actions { margin-top: 4px; }
 .nw-legend.v2.v2-embedded {
   position: absolute; left: 24px; bottom: 24px; z-index: 900; width: 330px; padding: 10px 12px; border-radius: 8px; box-shadow: 0 8px 20px color-mix(in srgb, var(--c-shadow) 40%, transparent);
   background: color-mix(in srgb, var(--c-text) 95%, transparent); font-size: 13px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -187,7 +196,11 @@
 .nw-btn-small { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
 .nw-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .nw-btn-go { background: linear-gradient(135deg, var(--c-primary) 0%, var(--c-primary) 100%); border-color: transparent; }
-.nw-checklist { max-height: 210px; overflow-y: auto; background: color-mix(in srgb, var(--c-shadow) 25%, transparent); border: 1px solid color-mix(in srgb, var(--c-text) 6%, transparent); border-radius: 8px; padding: 6px 10px; margin-bottom: 14px; }
+/* v1.2 fix: this box used color-mix(...--c-shadow...) for its background, which is pure black mixed at 25% opacity - on the light
+   theme's pale card that reads as a flat grey wash, not the "white species list" the light theme otherwise shows. --c-surface-2 is
+   the same recessed-panel token the tabs, pills and other sunken boxes already use in both themes, so this box now actually matches.
+   max-height was also only 210px (about 2 rows of a 45-species list before scrolling) - raised so several more rows show at once. */
+.nw-checklist { max-height: 420px; overflow-y: auto; background: var(--c-surface-2); border: 1px solid color-mix(in srgb, var(--c-text) 6%, transparent); border-radius: 8px; padding: 6px 10px; margin-bottom: 14px; }
 .nw-check { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 5px 0; color: var(--c-text); cursor: pointer; }
 .nw-check input { accent-color: var(--c-primary); transform: scale(1.1); }
 .nw-combine { margin-top: 6px; }

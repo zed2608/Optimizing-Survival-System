@@ -1149,7 +1149,7 @@ export default function AppNew() {
                 onOpenMap={() => setSidebarOpen(false)}
                 notice={notice}
                 selNames={selNames}
-                seasonNotice={fewSpecies ? seasonNotice(false) : null}
+                seasonNotice={fewSpecies ? <div className="nw-season-inline">{seasonNotice(false)}</div> : null}
               />
             </>
           ) : (
