@@ -4,14 +4,19 @@ import { motionAllowed } from '../motionPref.js'
 import { downloadCsv, toCsv } from './csv.js'
 import { PALETTE } from './palette.js'
 import { tr, useLang } from '../i18n.js'
+import Icon from '../Icon.jsx'
 
 // Hand-rolled SVG charts for System Analytics (no library). Colour-blind-safe palette (Okabe-Ito blue, orange, bluish green); every chart has a title, labelled axes, a text summary for screen readers,
 // a "View as table" and a client-side CSV download. No 3D, nothing decorative that hides a number.
 const fmtN = (v) => (typeof v === 'number' ? v.toLocaleString('en-US') : String(v))
 
-// The frame of one chart: heading, one sentence, the chart, an optional table and the CSV button.
-export function ChartCard({ title, note, children, rows, columns, filename, summary, tourId }) {
+// The frame of one chart: a one-line summary row, closed by default (panel round: "keep Analytics to one screen, not endlessly
+// scrollable; click an item to reveal its details"); clicking the row opens the chart, its note, the "View as table" toggle and
+// the CSV button underneath. All ten cards closed add up to one short, scannable list instead of ten full-size charts stacked
+// and scrolling past the fold; opening one never moves the others.
+export function ChartCard({ title, note, children, rows, columns, filename, summary, tourId, defaultOpen = false }) {
   const lang = useLang()
+  const [open, setOpen] = useState(defaultOpen)
   const [table, setTable] = useState(false)
   const id = useId()
   return (
@@ -19,48 +24,57 @@ export function ChartCard({ title, note, children, rows, columns, filename, summ
       className="cy-card an-chart"
       aria-label={title}
       data-tour={tourId}
+      data-open={open}
       initial={motionAllowed() ? { opacity: 0, y: 26 } : false}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '0px 0px -40px 0px' }}
       transition={motionAllowed() ? { duration: 0.5, ease: [0.2, 0.7, 0.2, 1] } : { duration: 0 }}
     >
-      <header className="an-chart-head">
-        <h3>{title}</h3>
-        <div className="an-chart-tools">
-          <button type="button" className="cy-btn cy-btn-quiet" data-tour={tourId ? `${tourId}-table` : undefined} aria-expanded={table} aria-controls={id} onClick={() => setTable((v) => !v)}>
-            {tr(table ? 'an.hideTable' : 'an.viewTable', {}, lang)}
-          </button>
-          <button type="button" className="cy-btn" disabled={!rows?.length} onClick={() => downloadCsv(filename, toCsv(rows, columns))} data-role="csv" data-tour={tourId ? `${tourId}-csv` : undefined}>
-            {tr('an.csv', {}, lang)}
-          </button>
-        </div>
-      </header>
-      {note && <p className="muted an-note">{note}</p>}
-      <div role="img" aria-label={summary ?? title}>
-        {children}
-      </div>
-      {table && (
-        <div className="an-table-wrap" id={id}>
-          <table className="an-table">
-            <thead>
-              <tr>
-                {columns.map((c) => (
-                  <th key={c.label} scope="col">
-                    {c.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i}>
-                  {columns.map((c) => (
-                    <td key={c.label}>{fmtN(typeof c.get === 'function' ? c.get(r) : r[c.key])}</td>
+      <button type="button" className="an-chart-toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
+        <span className="an-chart-toggle-text">
+          <h3>{title}</h3>
+          {!open && summary && <span className="an-chart-summary muted">{summary}</span>}
+        </span>
+        <Icon name={open ? 'up' : 'down'} size={16} />
+      </button>
+      {open && (
+        <div className="an-chart-body" id={id}>
+          <div className="an-chart-tools">
+            <button type="button" className="cy-btn cy-btn-quiet" data-tour={tourId ? `${tourId}-table` : undefined} aria-expanded={table} onClick={() => setTable((v) => !v)}>
+              {tr(table ? 'an.hideTable' : 'an.viewTable', {}, lang)}
+            </button>
+            <button type="button" className="cy-btn" disabled={!rows?.length} onClick={() => downloadCsv(filename, toCsv(rows, columns))} data-role="csv" data-tour={tourId ? `${tourId}-csv` : undefined}>
+              {tr('an.csv', {}, lang)}
+            </button>
+          </div>
+          {note && <p className="muted an-note">{note}</p>}
+          <div role="img" aria-label={summary ?? title}>
+            {children}
+          </div>
+          {table && (
+            <div className="an-table-wrap">
+              <table className="an-table">
+                <thead>
+                  <tr>
+                    {columns.map((c) => (
+                      <th key={c.label} scope="col">
+                        {c.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={i}>
+                      {columns.map((c) => (
+                        <td key={c.label}>{fmtN(typeof c.get === 'function' ? c.get(r) : r[c.key])}</td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </motion.section>

@@ -405,10 +405,17 @@
 :root[data-theme='dark'] .an-kpi-n { color: var(--c-accent-text); }
 .an-kpi-l { font-size: var(--fs-sm); font-weight: 600; margin-top: 4px; }
 .an-kpi-s { font-size: var(--fs-xs); color: var(--c-muted); margin-top: 2px; }
-.an-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: var(--sp-4); }
-.an-chart { display: grid; gap: var(--sp-2); align-content: start; }
-.an-chart-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); }
-.an-chart-head h3 { margin: 0; font-size: var(--fs-md); }
+/* v1.2 fix: a stacked single-column list of closed rows, not the old 12-column masonry of ten always-open charts (panel round:
+   "keep Analytics to one screen, not endlessly scrollable; click an item to reveal its details"). Each row is one line (title +
+   a short summary) until clicked; opening one does not resize or move the others. */
+.an-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); }
+.an-chart { display: grid; gap: 0; align-content: start; padding: 0; }
+.an-chart-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); width: 100%; background: none; border: 0; padding: var(--sp-3) var(--sp-4); margin: 0; cursor: pointer; color: inherit; font: inherit; text-align: left; border-radius: var(--r-md); }
+.an-chart-toggle:hover { background: var(--c-surface-2); }
+.an-chart-toggle-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); min-width: 0; }
+.an-chart-toggle-text h3 { margin: 0; font-size: var(--fs-md); }
+.an-chart-summary { font-size: var(--fs-xs); }
+.an-chart-body { display: grid; gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-3); }
 .an-chart-tools { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
 .an-note { margin: 0; font-size: var(--fs-xs); line-height: 1.45; }
 .an-svg { width: 100%; height: auto; display: block; }
@@ -704,13 +711,9 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 /* ======================= DESIGN V2 (Phase 6): analytics as a bento grid ======================= */
 .nw-root .an-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .nw-root .an-kpis .an-kpi:first-child { grid-column: span 2; }
-.nw-root .an-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
-.nw-root .an-grid > .an-chart { grid-column: span 6; }
-.nw-root .an-grid > .an-chart:nth-child(1) { grid-column: span 7; } .nw-root .an-grid > .an-chart:nth-child(2) { grid-column: span 5; grid-row: span 2; }
-.nw-root .an-grid > .an-chart:nth-child(3) { grid-column: span 7; } .nw-root .an-grid > .an-chart:nth-child(4) { grid-column: span 5; }
-.nw-root .an-grid > .an-chart:nth-child(5) { grid-column: span 7; } .nw-root .an-grid > .an-chart:nth-child(6) { grid-column: span 5; }
-.nw-root .an-grid > .an-chart:nth-child(7) { grid-column: span 7; } .nw-root .an-grid > .an-chart:nth-child(8) { grid-column: span 5; }
-@media (max-width: 1000px) { .nw-root .an-grid > .an-chart, .nw-root .an-grid > .an-chart:nth-child(n) { grid-column: 1 / -1; grid-row: auto; } .nw-root .an-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nw-root .an-kpis .an-kpi:first-child { grid-column: 1 / -1; } }
+/* .an-grid itself is the single-column accordion list set above (Phase 6 analytics section); the old 12-column masonry of
+   always-open charts is gone with it, so there is nothing left to override here per chart. */
+@media (max-width: 1000px) { .nw-root .an-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nw-root .an-kpis .an-kpi:first-child { grid-column: 1 / -1; } }
 .nw-root .an-kpi { background: linear-gradient(160deg, var(--c-surface), color-mix(in srgb, var(--c-accent) 8%, var(--c-surface))); }
 /* weather hero: the date replaces the repeated place line */
 .wx-hero-where { font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px; }
