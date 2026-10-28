@@ -302,7 +302,7 @@
 .nw-chev { flex: none; color: var(--c-muted); font-size: 12px; }
 .nw-step-body { padding: 4px 12px 12px; }
 .nw-tip-btn { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--c-text) 35%, transparent); background: color-mix(in srgb, var(--c-text) 6%, transparent); color: var(--c-text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; }
-.nw-tip-btn[aria-expanded='true'] { background: var(--c-info); color: var(--c-info); border-color: var(--c-info); }
+.nw-tip-btn[aria-expanded='true'] { background: var(--c-info); color: var(--c-on-primary); border-color: var(--c-info); }
 .nw-tip-body { flex-basis: 100%; margin: 0 0 8px 12px; padding: 8px 10px; background: color-mix(in srgb, var(--c-info) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-info) 45%, transparent); border-radius: 8px; font-size: 12px; line-height: 1.45; color: var(--c-on-primary); }
 .nw-btn-wide { width: 100%; margin-top: 8px; }
 .nw-label { text-transform: none; font-size: 12px; letter-spacing: 0; }
