@@ -6,13 +6,16 @@ import { useApi } from '../v2/useApi.js'
 import { apiPost } from './apiPost.js'
 import { formatDay } from './season.js'
 
-const ROUND_WORDS = { '3_month': '3 months', '6_month': '6 months', '1_year': '1 year', '5_year': '5 years', '10_year': '10 years', '50_year': '50 years', other: 'Other check' }
+// Exported too: PlantingHistoryCard.jsx (the per-map-point "who planted it and how is it doing" card, reachable by clicking
+// any point - not just a point inside the plan presently open) reuses these same words and the same LogForm, so the labels
+// and the save flow read identically whether you got here through a saved plan's Survival tab or through the map.
+export const ROUND_WORDS = { '3_month': '3 months', '6_month': '6 months', '1_year': '1 year', '5_year': '5 years', '10_year': '10 years', '50_year': '50 years', other: 'Other check' }
 const STATE_WORDS = { done: 'Checked', due: 'Due now', overdue: 'Overdue', upcoming: 'Upcoming' }
 const STATE_ICON = { done: 'check', due: 'warn', overdue: 'warn', upcoming: 'calendar' }
-const STATUS_WORDS = { survived: 'Survived', dead: 'Dead', not_found: 'Not found' }
-const CAUSE_WORDS = { drought: 'Drought', pest_disease: 'Pest or disease', flooding: 'Flooding', typhoon_wind: 'Typhoon / wind', vandalism: 'Vandalism', construction: 'Construction', unknown: 'Unknown', other: 'Other' }
+export const STATUS_WORDS = { survived: 'Survived', dead: 'Dead', not_found: 'Not found' }
+export const CAUSE_WORDS = { drought: 'Drought', pest_disease: 'Pest or disease', flooding: 'Flooding', typhoon_wind: 'Typhoon / wind', vandalism: 'Vandalism', construction: 'Construction', unknown: 'Unknown', other: 'Other' }
 
-function Schedule({ rows }) {
+export function Schedule({ rows }) {
   return (
     <ul className="nw-counts nw-pcounts" aria-label="Monitoring schedule">
       {rows.map((r) => (
@@ -25,7 +28,7 @@ function Schedule({ rows }) {
   )
 }
 
-function LogForm({ planId, blocks, onSaved }) {
+export function LogForm({ planId, blocks, onSaved }) {
   const [pointId, setPointId] = useState(blocks[0]?.point_id ?? '')
   const [roundLabel, setRoundLabel] = useState('3_month')
   const [status, setStatus] = useState('survived')

@@ -12,6 +12,7 @@ import BlockLayout from './BlockLayout.jsx'
 import ChosenHere from './ChosenHere.jsx'
 import HelpTip from './HelpTip.jsx'
 import LocationCard from './LocationCard.jsx'
+import PlantingHistoryCard from './PlantingHistoryCard.jsx'
 import RowDetails from './RowDetails.jsx'
 import { BEST_MONTHS_NOTE } from './season.js'
 import FieldStatusLine from './FieldStatusLine.jsx'
@@ -136,6 +137,7 @@ export default function PointPanel({
       )}
       {pointId ? <FieldStatusLine api={fieldApi} onOpen={onOpenFieldMenu} /> : null}
       {chosen && selIds.length > 0 && <ChosenHere api={chosen} selIds={selIds} combine={combine} onlySeason={onlySeason} full={full} point={point} onInfo={onInfo} />}
+      {pointId ? <PlantingHistoryCard pointId={pointId} /> : null}
 
       {rank.data.limiting_factors && <WhyNone lf={rank.data.limiting_factors} ground={point.ground_cover} />}
 

@@ -3681,6 +3681,42 @@ def field_check_history(point_id: int, d=Depends(D)):
             "exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"])}
 
 
+@app.get("/points/{point_id}/history")
+def point_history(point_id: int, d=Depends(D)):
+    """Everything on record for ONE map point, found by clicking it, whatever plan (if any) is currently open: the field-check
+    timeline (who checked it, when, what they saw - including who marked it planted and with how many trees, from the
+    append-only field_checks events), and, for every plan that ever marked this point planted, that planting's own
+    survival-check history and due/overdue schedule (from the append-only survival_checks events). A point that was never
+    checked, or planted but never yet survival-checked, returns empty lists rather than a guess - golden rule 1, never invent
+    data. This is the one lookup the map's point panel uses so that clicking ANY planted or not-plantable point shows its
+    planting and survival story, not just a point that happens to belong to the plan presently open on screen."""
+    if point_id not in d.point_index:
+        raise HTTPException(404, f"point_id {point_id} is not a point of the planting grid")
+    field_history = fv.history(d.field_db, point_id)
+    plan_ids = sorted({e["plan_id"] for e in field_history if e["status"] == "planted" and e["plan_id"]})
+    plantings = []
+    for pid in plan_ids:
+        try:
+            plan, summary = load_plan(d, pid)
+        except HTTPException:
+            continue
+        if not fv.is_blocks_plan(plan):
+            continue
+        block = next((b for b in block_progress(d, pid, plan) if b["point_id"] == point_id and b["trees_planted"] > 0), None)
+        if block is None:
+            continue
+        events = sv.history(d.survival_db, pid, point_id)
+        plantings.append({
+            "plan_id": pid, "campaign": campaign_info(summary), "species_id": block["species_id"], "species": block["species"],
+            "trees_planted": block["trees_planted"], "planted_by": block["observer"], "planted_observed_at": block["observed_at"],
+            "planted_note": block["note"], "survival_history": events, "survival_schedule": sv.due_schedule(block["observed_at"], sv.rounds_by_label(events)),
+        })
+    plantings.sort(key=lambda p: p["planted_observed_at"] or "")
+    return {"point_id": point_id, "current": field_view(d, point_id), "field_history": field_history, "plantings": plantings,
+            "note": "Each entry in plantings is one plan that confirmed planting this point in the field; a point planted more "
+                    "than once over time (replanted after an earlier planting died, say) lists each planting separately, oldest first."}
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # survival monitoring (added round 22): periodic re-checks of what was actually planted, over years. Append-only events in
 # data/field/survival_checks.db, see pipeline/survival.py. A dead tree is never erased; a replacement is a new, separate event.
