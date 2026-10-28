@@ -27,7 +27,7 @@
 .nw-brandrow { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .nw-brand {
   background: linear-gradient(135deg, var(--c-primary) 0%, var(--c-primary) 100%); padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 14px;
-  letter-spacing: 0.6px; box-shadow: 0 4px 15px color-mix(in srgb, var(--c-primary) 40%, transparent); color: var(--c-ok); white-space: nowrap;
+  letter-spacing: 0.6px; box-shadow: 0 4px 15px color-mix(in srgb, var(--c-primary) 40%, transparent); color: var(--c-on-primary); white-space: nowrap;
 }
 .nw-title { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; color: var(--c-text); }
 .nw-subtitle { font-size: 12px; color: var(--c-muted); font-weight: 400; }
@@ -549,7 +549,7 @@
 .nw-logbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; background: transparent !important; margin-bottom: 8px; }
 .nw-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .nw-fchip { border: 1px solid var(--c-info); background: color-mix(in srgb, var(--c-text) 8%, transparent); color: var(--c-text); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-.nw-fchip.is-active { background: var(--c-primary); color: var(--c-ok); border-color: var(--c-primary); }
+.nw-fchip.is-active { background: var(--c-primary); color: var(--c-on-primary); border-color: var(--c-primary); }
 .nw-logbar .fc-input { max-width: 280px; }
 .nw-loglist { list-style: none; margin: 8px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); gap: 12px; }
 .nw-logcard.v2.v2-embedded { border-radius: 8px; padding: 12px; background: var(--c-surface); border: 1px solid var(--line); }
@@ -1067,7 +1067,7 @@ select.nw-input option, select.nw-input optgroup { background: var(--c-info); co
 .nw-flowsteps li.is-current { color: var(--c-text); font-weight: 600; }
 .nw-flowsteps li.is-done { color: var(--c-ok); }
 .nw-flowno { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: color-mix(in srgb, var(--c-text) 12%, transparent); font-size: 12px; }
-.nw-flowsteps li.is-current .nw-flowno { background: var(--c-primary); color: var(--c-ok); }
+.nw-flowsteps li.is-current .nw-flowno { background: var(--c-primary); color: var(--c-on-primary); }
 .nw-flowtitle { margin: 4px 0 8px; font-size: 14px; color: var(--c-text); }
 .nw-root.pick-species .nw-search { display: none; }
 
@@ -1083,7 +1083,7 @@ select.nw-input option, select.nw-input optgroup { background: var(--c-info); co
 .nw-funnel { position: absolute; right: 0; top: 0; width: 44px; height: 44px; display: grid; place-items: center; background: transparent; border: 0; color: var(--c-text); cursor: pointer; border-radius: 8px; }
 .nw-funnel[aria-expanded="true"] { color: var(--c-ok); background: color-mix(in srgb, var(--c-ok-bg) 12%, transparent); }
 .nw-funnel:focus-visible { outline: 2px solid var(--c-primary); outline-offset: -2px; }
-.nw-funnel-badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--c-primary); color: var(--c-ok); font-size: 12px; font-weight: 600; line-height: 16px; text-align: center; box-sizing: border-box; }
+.nw-funnel-badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--c-primary); color: var(--c-on-primary); font-size: 12px; font-weight: 600; line-height: 16px; text-align: center; box-sizing: border-box; }
 
 /* UX round 4: the stepper of the goal "I have species" (current step, check + summary on finished steps, click a finished step to go back; narrow screens show only the current title) */
 .nw-stepper { list-style: none; margin: 0 0 10px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
@@ -1095,7 +1095,7 @@ select.nw-input option, select.nw-input optgroup { background: var(--c-info); co
 .nw-stepper li.is-current .nw-stepbtn { color: var(--c-text); font-weight: 600; background: color-mix(in srgb, var(--c-primary) 14%, transparent); }
 .nw-stepper li.is-done .nw-stepbtn { color: var(--c-ok); }
 .nw-stepper .nw-flowno svg { width: 12px; height: 12px; }
-.nw-stepper li.is-done .nw-flowno { background: var(--c-primary); color: var(--c-ok); }
+.nw-stepper li.is-done .nw-flowno { background: var(--c-primary); color: var(--c-on-primary); }
 .nw-steptext { display: flex; flex-direction: column; min-width: 0; width: 100%; }
 .nw-steptitle, .nw-stepsum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nw-stepsum { font-size: 12px; opacity: 0.85; }
@@ -1116,7 +1116,7 @@ select.nw-input option, select.nw-input optgroup { background: var(--c-info); co
 /* UX round 4 (Phase 2): the English / Taglish switch in the header */
 .nw-lang { display: inline-flex; border-radius: 8px; background: color-mix(in srgb, var(--c-text) 8%, transparent); padding: 2px; }
 .nw-lang-btn { min-height: 44px; min-width: 44px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--c-text); font-size: 12px; cursor: pointer; }
-.nw-lang-btn.is-active { background: var(--c-primary); color: var(--c-ok); font-weight: 600; }
+.nw-lang-btn.is-active { background: var(--c-primary); color: var(--c-on-primary); font-weight: 600; }
 .nw-lang-btn:focus-visible { outline: 2px solid var(--c-primary); outline-offset: -2px; }
 @media (max-width: 800px) { .nw-lang-btn { padding: 0 6px; font-size: 12px; } }
 

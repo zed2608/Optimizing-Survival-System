@@ -80,6 +80,24 @@
 }
 /* TOKENS:END */
 /* ---- the older token set (--nw-*) and the v2 cards read the same colours ---------------------------------------------------------------- */
+/* Defined on :root (not just .nw-root/.nw-root .v2): TourHost portals its popover straight to document.body via createPortal, which
+   is a SIBLING of .nw-root in the DOM, not a descendant - so a --nw-* custom property scoped only to .nw-root never reaches it, and any
+   `var(--nw-accent-strong)` used with no fallback silently resolves to the property's initial value (transparent for a background,
+   nothing for a color) instead of green. That is exactly why the tour's primary "Next" button rendered with no visible background in
+   light mode: var(--nw-accent-strong) was undefined there, so background: var(--nw-accent-strong) painted nothing over the near-white
+   popover, leaving white-on-nothing text. Redefining the same aliases on :root makes them reachable from anywhere in the page,
+   portaled or not, while the .nw-root block below keeps working exactly as before (same values, harmless to repeat). */
+:root {
+  --nw-accent: var(--c-accent); --nw-accent-strong: var(--c-primary); --nw-radius: var(--r-sm); --nw-gap: var(--sp-2);
+  --nw-tint: color-mix(in srgb, var(--c-text) 6%, transparent); --nw-tint-2: color-mix(in srgb, var(--c-text) 11%, transparent); --nw-hair: var(--c-line);
+  --nw-text: var(--c-text); --nw-muted: var(--c-muted); --nw-card: var(--c-surface); --nw-card-bg: var(--c-bg); --nw-ink: var(--c-text); --nw-ink-muted: var(--c-muted);
+  --ink: var(--c-text); --muted: var(--c-muted); --line: var(--c-line); --bg: var(--c-bg); --card: var(--c-surface); --brand: var(--c-primary); --focus: var(--c-focus);
+  --good: var(--c-ok); --good-bg: var(--c-ok-bg); --moderate: var(--c-warn); --moderate-bg: var(--c-warn-bg); --poor: var(--c-danger); --poor-bg: var(--c-danger-bg);
+  --none: var(--c-muted); --none-bg: var(--c-surface-2);
+}
+:root[data-theme='dark'] {
+  --good: #7fdc95; --good-bg: #1c3a26; --moderate: #ffb074; --moderate-bg: #402a17; --poor: #ff9a98; --poor-bg: #44211f; --none: #b9c1c6; --none-bg: #2a3530;
+}
 .nw-root, .nw-root .v2 {
   --nw-accent: var(--c-accent); --nw-accent-strong: var(--c-primary); --nw-radius: var(--r-sm); --nw-gap: var(--sp-2);
   --nw-tint: color-mix(in srgb, var(--c-text) 6%, transparent); --nw-tint-2: color-mix(in srgb, var(--c-text) 11%, transparent); --nw-hair: var(--c-line);
