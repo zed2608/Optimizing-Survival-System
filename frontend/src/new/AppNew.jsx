@@ -903,8 +903,12 @@ export default function AppNew() {
 
       {/* the "not in best months" notice: hugs the top edge of the map as a slim banner (V1.1 fix 5), not a card sitting over the middle of the view. It shares the
           nw-toasts class so it inherits all its responsive rules (hidden on a phone once the panel covers the map, pushed behind the panel on a narrow screen -
-          the panel shows the same notice itself, moved clear of the panel when there is room) - only its top offset and padding are overridden, right below. */}
-      {fewSpecies && <div className="nw-toasts nw-season-banner v2 v2-embedded">{seasonNotice(true)}</div>}
+          the panel shows the same notice itself, moved clear of the panel when there is room) - only its top offset and padding are overridden, right below.
+          Round 23 fix: the species-pick sidebar step (seasonNotice prop below, wrapped in .nw-season-inline) already shows this same notice inline whenever it is
+          open, so showing the floating one too was a visible duplicate - and with the sidebar AND the results panel both open, the "top: 250px" + "bottom: 16px"
+          rules that apply together at that width stretch this toast into a tall, mostly-empty box (reported as a "large blank shape" appearing over the map the
+          moment a species is picked). Suppress the floating toast whenever the sidebar is already telling the same story. */}
+      {fewSpecies && !(sidebarOpen && mode === 'species' && openStep === 'pick') && <div className="nw-toasts nw-season-banner v2 v2-embedded">{seasonNotice(true)}</div>}
 
       {/* legend of the colours (on the map) */}
       {legendOpen ? (

@@ -1047,11 +1047,16 @@ select.nw-input option, select.nw-input optgroup { background: var(--c-info); co
 @media (min-width: 1240px) {
   .nw-root.panel-open.sidebar-open .nw-search { top: 126px; width: calc(100vw - 464px - 565px - 12px); }
   .nw-root.panel-open.sidebar-open .nw-toasts.v2.v2-embedded { top: 250px; }
+  /* round 23 fix: .nw-season-banner also carries .nw-toasts, so the rule above set its "top" while its own .nw-season-banner.v2.v2-embedded rule (above, in the
+     map-overlays block) still set "bottom: 16px" - with no explicit height, an absolutely positioned box with both set stretches to fill the gap between them,
+     showing as a large mostly-empty box over the map. The season banner anchors to the bottom edge only; it never wants this top offset. */
+  .nw-root.panel-open.sidebar-open .nw-season-banner.v2.v2-embedded { top: auto; }
 }
 @media (min-width: 1001px) and (max-width: 1239px) {
   .nw-root.panel-open.sidebar-open .nw-search { top: 126px; }
   .nw-root.panel-open.sidebar-open .nw-right { margin-top: 118px; }
   .nw-root.panel-open.sidebar-open .nw-toasts.v2.v2-embedded { top: 250px; }
+  .nw-root.panel-open.sidebar-open .nw-season-banner.v2.v2-embedded { top: auto; }
 }
 .nw-fmenu-where { padding: 8px 12px; font-size: 12px; color: var(--c-text); border-bottom: 1px solid color-mix(in srgb, var(--c-surface) 12%, transparent); }
 .nw-fmenu-actions { padding: 8px 12px; border-bottom: 1px solid color-mix(in srgb, var(--c-surface) 12%, transparent); }
