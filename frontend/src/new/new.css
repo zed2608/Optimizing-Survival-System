@@ -318,7 +318,10 @@
 .nw-months { display: inline-flex; gap: 2px; vertical-align: middle; }
 .nw-mo { width: 14px; height: 16px; font-size: 12px; font-weight: 600; line-height: 14px; text-align: center; border: 1px solid color-mix(in srgb, var(--c-text) 28%, transparent); border-radius: 3px; color: var(--c-muted); }
 .nw-months-large .nw-mo { width: 20px; height: 24px; font-size: 12px; line-height: 22px; }
-.nw-mo.is-filled { background: var(--c-primary); border-color: var(--c-primary); color: var(--c-ok); }
+/* v1.2 fix: was color: var(--c-ok) on a background of var(--c-primary) - in the light theme those are two nearly identical
+   dark greens (#1d5f2c on #1f5d3a), so the letter all but disappears into the filled cell ("the month ... is blocked").
+   --c-on-primary is the token already used correctly for this exact background by the .v2-embedded variant below. */
+.nw-mo.is-filled { background: var(--c-primary); border-color: var(--c-primary); color: var(--c-on-primary); }
 .nw-mo.is-ring { box-shadow: 0 0 0 2px var(--c-info); position: relative; }
 .v2-embedded .nw-mo { border-color: var(--c-line); color: var(--c-muted); }
 .v2-embedded .nw-mo.is-filled { background: var(--c-primary); border-color: var(--c-primary); color: var(--c-on-primary); }
