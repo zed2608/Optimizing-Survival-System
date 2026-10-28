@@ -3,6 +3,7 @@
 
 export const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
 export const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+export const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 export const MAX_DAYS = 366 // the longest window (the API refuses more)
 export const DEFAULT_DAYS = 30 // the default window: today until 30 days later
 export const FEW_SPECIES = 10 // with this many species or fewer left by the season filter, a notice offers "Show all species" / "Change dates"
@@ -92,6 +93,12 @@ export function formatRange(start, end) {
 
 export function monthsText(months) {
   return months.length ? months.map((m) => MONTH_SHORT[m - 1]).join(', ') : 'none'
+}
+
+// Full month names spelled out ("January, February"), for the one place (the planting-window strip) where the
+// panel asked to see the words instead of only the single-letter J F M A... cells. Everywhere else keeps monthsText.
+export function monthsTextFull(months) {
+  return months.length ? months.map((m) => MONTH_FULL[m - 1]).join(', ') : 'none'
 }
 
 export const SEASON_WORDS = {

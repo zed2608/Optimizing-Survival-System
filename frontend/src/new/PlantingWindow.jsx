@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import MonthStrip from './MonthStrip.jsx'
-import { addDays, bestSeasonWindow, formatSpan, MAX_DAYS, monthsText, parseMonths, windowMonths } from './season.js'
+import { addDays, bestSeasonWindow, formatSpan, MAX_DAYS, monthsText, monthsTextFull, parseMonths, windowMonths } from './season.js'
 
 // Step 3: the planting window (start and end date), the 12-month strip of the months it covers, the
 // button that jumps to the next planting season (the best window of NEXT_SEASON_DAYS days that starts today or later).
@@ -50,7 +50,7 @@ export default function PlantingWindow({ win, species }) {
       <div className="nw-strip-row" data-tour="s-months">
         <MonthStrip ring={months} size="large" label={`Months your dates cover: ${monthsText(months)}.`} />
       </div>
-      <p className="nw-hint">Ringed months are covered.</p>
+      <p className="nw-hint nw-months-spelled">Covers: {monthsTextFull(months)}.</p>
       <button type="button" className="nw-btn nw-btn-wide" onClick={jump} disabled={!list} data-tour="s-jump">
         Jump to the next planting season
       </button>
