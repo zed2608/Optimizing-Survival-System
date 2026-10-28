@@ -724,7 +724,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 @media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .an-svg rect { animation: none; } }
 
 /* ======================= FIX ROUND: the tabs are full pages ======================= */
-/* Campaign Logs, Weather and System Analytics fill the whole area under the header: a solid page, a centred container that scrolls inside the page, nothing of the studio visible behind it. */
+/* Campaign Logs, Weather and System Analytics fill the whole area under the header: a solid page, a centred container that scrolls inside the page, nothing of Plan & Map visible behind it. */
 .nw-root .nw-page { position: absolute; z-index: 1050; top: 56px; left: 0; right: 0; bottom: 0; background: var(--c-bg); color: var(--c-text); overflow-y: auto; overscroll-behavior: contain; }
 .nw-page-in { width: 100%; max-width: 1200px; margin: 0 auto; padding: 24px 24px 48px; box-sizing: border-box; }
 @media (max-width: 800px) { .nw-page-in { padding: 16px 16px 40px; } }

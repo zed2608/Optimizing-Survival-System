@@ -6,7 +6,7 @@ import { TOURS } from './tourDefs.js'
 // The list of every tour (R1 W3), grouped by page: the tour of a whole page, and a short "explain this" tour for every section. A tour that needs a saved plan says so and is greyed out when there is none.
 const PAGE_NAME = {
   any: { en: 'Every page', tl: 'Lahat ng pahina' },
-  studio: { en: 'Active Studio', tl: 'Active Studio' },
+  studio: { en: 'Plan & Map', tl: 'Plan & Map' },
   weather: { en: 'Weather', tl: 'Panahon' },
   history: { en: 'Campaign Logs', tl: 'Campaign Logs' },
   analytics: { en: 'System Analytics', tl: 'System Analytics' },

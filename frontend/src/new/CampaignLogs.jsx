@@ -48,9 +48,9 @@ export default function CampaignLogs({ today, onOpen, onStudio, fieldVersion = 0
     return (
       <div className="v2 v2-embedded nw-logs nw-empty" data-tour="l-list">
         <h3>No plans saved yet</h3>
-        <p className="nw-plain">Make a plan in step 5 of Active Studio. It will appear here.</p>
+        <p className="nw-plain">Make a plan in step 5 of Plan &amp; Map. It will appear here.</p>
         <button type="button" className="btn btn-primary" onClick={onStudio} data-tour="l-studio">
-          Go to Active Studio
+          Go to Plan &amp; Map
         </button>
       </div>
     )

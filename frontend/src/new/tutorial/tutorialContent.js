@@ -5,7 +5,7 @@ import { guideTours } from '../tours/guideText.js'
 
 // The screens of the dashboard. A tour step belongs to one of them; "Quick tour of this screen" runs only the steps of the open one.
 export const SCREENS = {
-  studio: { tab: 'Active Studio', name: 'the map screen' },
+  studio: { tab: 'Plan & Map', name: 'the map screen' },
   weather: { tab: 'Weather', name: 'the Weather tab' },
   history: { tab: 'Campaign Logs', name: 'Campaign Logs' },
   analytics: { tab: 'System Analytics', name: 'System Analytics' },

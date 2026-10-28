@@ -304,6 +304,10 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
                 {blocks ? 'Planned blocks' : 'Planned points'} ({rows.length})
               </h3>
             </div>
+            <p className="muted nw-spatial-note">
+              Each sapling slot below was matched to a specific square by spatial optimization (the Hungarian algorithm, weighing every eligible square against every slot) - not chosen by hand.{' '}
+              <HelpTip label="About spatial optimization">The matching step is what makes this a spatial optimization: it pairs sapling slots to legal, suitable squares so the combined score across the whole plan is as high as possible, instead of filling squares in the order they were found.</HelpTip>
+            </p>
             <label className="sr-only" htmlFor="nw-plan-search">
               Search planned points
             </label>

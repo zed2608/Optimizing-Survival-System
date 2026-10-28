@@ -88,7 +88,7 @@ import { RIGHT_PANEL_WIDTH, SIDEBAR_WIDTH } from './layout.js'
 const POINT_LIMIT = 45 // species asked for in a point ranking and an area ranking (the panels show 5, 10 or all)
 
 const TABS = [
-  { id: 'studio', label: 'Active Studio', icon: 'map' },
+  { id: 'studio', label: 'Plan & Map', icon: 'map' },
   { id: 'weather', label: 'Weather', icon: 'cloud' },
   { id: 'history', label: 'Campaign Logs', icon: 'clipboard' },
   { id: 'analytics', label: 'System Analytics', icon: 'bars' },
@@ -743,7 +743,7 @@ export default function AppNew() {
     ? `${selIds.length === 1 ? selNames[0] : `${selIds.length} species`} · ${selIds.length === 1 ? 'one species' : combine === 'all' ? 'must suit all' : 'suits at least one'}`
     : 'Best species at each point'
 
-  // the tabs are full pages: Esc goes back to the studio, and the page title takes the focus when a tab opens
+  // the tabs are full pages: Esc goes back to Plan & Map, and the page title takes the focus when a tab opens
   useEffect(() => {
     if (tab === 'studio') return undefined
     // the page mounts after the old one has faded out: focus the title of the page that is really there
