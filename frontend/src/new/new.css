@@ -8,6 +8,14 @@
 .nw-root a { color: var(--c-link); }
 .nw-root :focus-visible { outline: 3px solid var(--c-info); outline-offset: 2px; }
 .nw-map { position: absolute; inset: 0; }
+/* v1.2: while the municipality outlines are still loading (the first paint, or a slow connection), the map area used to be
+   whatever the page background happens to be until Leaflet mounts and paints its own tiles - on a narrow/mobile view that
+   showed as an unexplained plain block under the floating season notice. This names it instead, in the same dark tone
+   MapNew already uses as the map's own placeholder background, so the moment reads as "loading", not "broken". */
+.nw-map-loading { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: #0b1220; color: #e8ecf1; font-size: 14px; }
+/* explicit colours, not the theme's --c-line/--brand: this overlay's background is the fixed dark navy above in every theme,
+   so a theme-token border (dark green in dark mode) could land low-contrast on it the same way the month-strip letters did. */
+.nw-map-loading .spinner { width: 28px; height: 28px; border-width: 3px; border-color: #3a4a5c; border-top-color: #8ccf6d; }
 
 /* TOP GLASS NAVIGATION BAR */
 .nw-topbar {

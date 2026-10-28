@@ -850,6 +850,12 @@ export default function AppNew() {
     <ScoreSourceNotice health={healthData} />
     <div style={noticeH ? { '--nw-notice-h': `${noticeH}px` } : undefined} className={`nw-root ${tab !== 'studio' ? 'tab-page' : ''} lang-${lang} ${hints ? '' : 'hints-off'} ${mode === 'species' && openStep === 'pick' && speciesSub === 1 ? 'pick-species' : ''} ${scoreFallback || sandbox ? 'has-notice' : ''} ${showPanel ? 'panel-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''} ${showGround ? 'has-ground' : ''} ${showZoning ? 'has-zoning' : ''}`}>
       <div className="nw-map">
+        {boundaries.status === 'loading' && (
+          <div className="nw-map-loading" role="status" aria-live="polite">
+            <span className="spinner" aria-hidden="true" />
+            <span>Loading map…</span>
+          </div>
+        )}
         <MapNew
           bbox={boundaries.data?.bbox ?? null}
           boundaries={boundaries.data}
