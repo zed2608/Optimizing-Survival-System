@@ -51,7 +51,7 @@ const GLOBAL = {
 const STUDIO_LEFT = {
   id: 'studio-panel',
   page: 'studio',
-  title: T('Studio: the control panel', 'Studio: ang control panel'),
+  title: T('Plan & Map: the control panel', 'Plan & Map: ang control panel'),
   blurb: T('Goal, purpose, dates, species or area, plan.', 'Layunin, gamit, petsa, species o lugar, plano.'),
   sections: [
     {
@@ -136,7 +136,7 @@ const legendClosed = async (c) => { await mapOnly(c); await c.bridge.setLegend(f
 const STUDIO_MAP = {
   id: 'studio-map',
   page: 'studio',
-  title: T('Studio: the map', 'Studio: ang mapa'),
+  title: T('Plan & Map: the map', 'Plan & Map: ang mapa'),
   blurb: T('Search, zoom, my location, layers, legend, colours, right-click.', 'Hanapin, zoom, aking lokasyon, layers, legend, kulay, right-click.'),
   sections: [
     {
@@ -185,7 +185,7 @@ const examplePoint = async ({ bridge }) => { await bridge.setSidebar(true); awai
 const STUDIO_POINT = {
   id: 'studio-point',
   page: 'studio',
-  title: T('Studio: the point panel', 'Studio: ang panel ng punto'),
+  title: T('Plan & Map: the point panel', 'Plan & Map: ang panel ng punto'),
   blurb: T('What a clicked square tells you (uses the Example point).', 'Ang sinasabi ng pinindot na parisukat (gamit ang Halimbawang punto).'),
   sections: [
     {
@@ -234,7 +234,7 @@ const STUDIO_PLAN = {
   id: 'studio-plan',
   page: 'studio',
   requires: 'plan',
-  title: T('Studio: a saved plan', 'Studio: isang naka-save na plano'),
+  title: T('Plan & Map: a saved plan', 'Plan & Map: isang naka-save na plano'),
   blurb: T('The plan panel: Plan, Field kit, Progress (opens your latest saved plan).', 'Ang plan panel: Plan, Field kit, Progress (binubuksan ang pinakabagong naka-save mong plano).'),
   sections: [
     {
