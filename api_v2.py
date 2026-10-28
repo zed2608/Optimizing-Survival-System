@@ -33,6 +33,7 @@ import advisory as adv  # noqa: E402
 import analytics as an  # noqa: E402  (System Analytics: counts of what exists, nothing forecast)
 import advice as sva  # noqa: E402  (ways to improve survival: advice only, no score is touched)
 import field_verify as fv  # noqa: E402
+import survival as sv  # noqa: E402  (post-planting survival monitoring: round 22, append-only, never touches a score)
 import field_kit as fk  # noqa: E402
 import kit_spaced as ks  # noqa: E402
 import field_pack as fpk  # noqa: E402  (the Field Pack page, stage A2)
@@ -99,6 +100,7 @@ API_CFG = {
     "field_exclude_not_plantable": True,            # THE SWITCH: points whose latest field check is not_plantable are left out of rankings and plans
     "field_list_default_limit": 100,                # GET /field-checks
     "field_list_max_limit": 1000,
+    "survival_db": os.environ.get("OS_SURVIVAL_DB") or "data/field/survival_checks.db",   # post-planting survival checks (append-only events, git-ignored)
     # ---- GET /grid/context: the map squares that are not planting zones ----
     "context_zone_reasons": {                       # zone name (as in the land-use layer) -> reason code; a square with no zone is "outside_zoning"
         "Special Reserved Zone": "special_reserved", "Medium Industrial Zone": "industrial", "Light Industrial Zone": "industrial",
@@ -1043,6 +1045,8 @@ def load_data(cfg=None):
     d.field_db = ROOT / cfg["field_db"]
     fv.connect(d.field_db).close()                                    # creates data/field/ and the table on the first start
     refresh_field(d)
+    d.survival_db = ROOT / cfg["survival_db"]
+    sv.connect(d.survival_db).close()                                 # creates the survival_checks table on the first start
     d.views = {True: d, False: d}
     if d.zoning_on:
         d.views[False] = confirmed_view(d)
@@ -1083,9 +1087,10 @@ def refuse(status, message, headers=None):
 
 
 def reset_sandbox(d):
-    """Empty the throwaway state (plans, kits, cache, saved field checks) and rebuild everything that depends on it."""
+    """Empty the throwaway state (plans, kits, cache, saved field checks, survival checks) and rebuild everything that depends on it."""
     pm.empty_state(d.work)
     fv.connect(d.field_db).close()
+    sv.connect(d.survival_db).close()
     for v in {id(x): x for x in (d, *getattr(d, "views", {}).values())}.values():
         v.plan_index_cache.clear()
     refresh_field(d)
@@ -3674,6 +3679,133 @@ def field_check_history(point_id: int, d=Depends(D)):
         raise HTTPException(404, f"point_id {point_id} is not a point of the planting grid")
     return {"point_id": point_id, "current": field_view(d, point_id), "history": fv.history(d.field_db, point_id), "left_out_of_rankings": point_id in d.field_ex_ids,
             "exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"])}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# survival monitoring (added round 22): periodic re-checks of what was actually planted, over years. Append-only events in
+# data/field/survival_checks.db, see pipeline/survival.py. A dead tree is never erased; a replacement is a new, separate event.
+# Scored only for plans made in blocks mode (status=planted + trees_planted exist only there; see round 10a), since that is
+# the only place the real "planted" date and tree count - as confirmed in the field, not just requested by the plan - exist.
+# ---------------------------------------------------------------------------------------------------------------------
+def survival_plan_context(d, plan_id):
+    """(plan, summary, blocks) for one plan's survival tracking, or a plain-words HTTPException if the plan cannot be tracked
+    (points-mode plans have no confirmed per-block planting date or count to track against)."""
+    plan, summary = load_plan(d, plan_id)
+    if not fv.is_blocks_plan(plan):
+        raise HTTPException(400, "This plan was made in points mode. Survival monitoring tracks confirmed blocks (trees actually marked planted in the field), which only exist for plans in blocks.")
+    blocks = [b for b in block_progress(d, plan_id, plan) if b["trees_planted"] > 0]
+    if not blocks:
+        raise HTTPException(400, "No block of this plan has been marked planted yet (see GET /plans/{plan_id}/progress), so there is nothing to monitor yet.")
+    return plan, summary, blocks
+
+
+class SurvivalCheckIn(BaseModel):
+    plan_id: str
+    point_id: int
+    round_label: Literal["3_month", "6_month", "1_year", "5_year", "10_year", "50_year", "other"]
+    status: Literal["survived", "dead", "not_found"]
+    trees_total: int = Field(ge=0, description="trees really planted at this block (from the plan's confirmed count; may differ from the plan's request)")
+    trees_alive: int = Field(ge=0)
+    trees_dead: int = Field(ge=0)
+    cause: Optional[Literal["drought", "pest_disease", "flooding", "typhoon_wind", "vandalism", "construction", "unknown", "other"]] = Field(
+        None, description="required when trees_dead > 0")
+    replaces_check_id: Optional[int] = Field(None, description="an earlier dead-tree check_id this event's replanting addresses; the earlier event is kept, never overwritten")
+    note: Optional[str] = Field(None, description=f"up to {sv.CFG['note_max_chars']} characters")
+    observer: str = Field(description="who made the check (a name only: there is no login yet)")
+    observed_at: Optional[str] = Field(None, description="ISO date/time of the visit (default: now)")
+    gps_lat: Optional[float] = None
+    gps_lon: Optional[float] = None
+    gps_accuracy_m: Optional[float] = None
+
+
+@app.post("/survival-checks", status_code=201)
+def survival_check_add(req: SurvivalCheckIn, d=Depends(D)):
+    """Save one survival check as a new event. Nothing is ever updated or deleted: a dead tree stays in history, and a later
+    replacement is saved as its own event (optionally pointing back at the dead one with replaces_check_id)."""
+    _plan, _summary, blocks = survival_plan_context(d, req.plan_id)
+    block = next((b for b in blocks if b["point_id"] == req.point_id), None)
+    if block is None:
+        raise HTTPException(422, f"point_id {req.point_id} is not a confirmed-planted block of plan {req.plan_id} (see GET /plans/{req.plan_id}/progress).")
+    if req.replaces_check_id is not None:
+        prev = next((e for e in sv.history(d.survival_db, req.plan_id, req.point_id) if e["check_id"] == req.replaces_check_id), None)
+        if prev is None:
+            raise HTTPException(422, f"replaces_check_id {req.replaces_check_id} is not a survival check of this block.")
+        if prev["status"] != "dead":
+            raise HTTPException(422, "replaces_check_id must point to a check whose status was dead.")
+    body = req.model_dump()
+    body.setdefault("species_id", block["species_id"])
+    try:
+        ev = sv.validate_event(body, trees_total_known=block["trees_planted"])
+        check_id = sv.add_event(d.survival_db, ev, source="dashboard")
+    except sv.SurvivalCheckError as ex:
+        raise HTTPException(422, str(ex))
+    return {"check_id": check_id, "saved": {**ev, "source": "dashboard", "check_id": check_id},
+            "history": sv.history(d.survival_db, req.plan_id, req.point_id)}
+
+
+@app.get("/plans/{plan_id}/survival")
+def plan_survival(plan_id: str, d=Depends(D)):
+    """The survival-monitoring state of a blocks plan: which rounds (3 months, 6 months, 1/5/10/50 years) are due, upcoming or
+    overdue, the current status of every confirmed-planted block, and a plan-wide summary. The schedule is anchored on the
+    EARLIEST block's confirmed planting date (most plans are planted over a short campaign); a block planted noticeably later
+    may show a round as due slightly before its own anniversary - a provisional simplification, not a per-block calendar."""
+    _plan, _summary, blocks = survival_plan_context(d, plan_id)
+    trees_by_point = {b["point_id"]: b["trees_planted"] for b in blocks}
+    current = sv.current_for_plan(d.survival_db, plan_id)
+    planted_at = min(b["observed_at"] for b in blocks)
+    rows = []
+    for b in blocks:
+        events = sv.history(d.survival_db, plan_id, b["point_id"])
+        rounds = sv.rounds_by_label(events)
+        rows.append({"point_id": b["point_id"], "species_id": b["species_id"], "species": b["species"], "trees_planted": b["trees_planted"],
+                     "planted_observed_at": b["observed_at"], "current": current.get(b["point_id"]), "schedule": sv.due_schedule(b["observed_at"], rounds)})
+    return {"plan_id": plan_id, "campaign_planted_at": planted_at, "summary": sv.plan_summary(d.survival_db, plan_id, trees_by_point),
+            "schedule_overall": sv.due_schedule(planted_at, sv.rounds_by_label([e for b in blocks for e in sv.history(d.survival_db, plan_id, b["point_id"])])),
+            "blocks": rows, "statuses": list(sv.STATUSES), "round_labels": list(sv.ROUND_LABELS), "causes": list(sv.CAUSES),
+            "note": "Nothing here is a reminder or notification: it is what the dashboard and a report can show about which checks are due. "
+                    "A block with no check yet is not assumed to have survived or died."}
+
+
+@app.get("/plans/{plan_id}/survival/{point_id}")
+def plan_survival_point(plan_id: str, point_id: int, d=Depends(D)):
+    """The full survival-check history of one confirmed-planted block, oldest first - including a dead-tree event that was later replaced."""
+    _plan, _summary, blocks = survival_plan_context(d, plan_id)
+    block = next((b for b in blocks if b["point_id"] == point_id), None)
+    if block is None:
+        raise HTTPException(404, f"point_id {point_id} is not a confirmed-planted block of plan {plan_id}.")
+    events = sv.history(d.survival_db, plan_id, point_id)
+    return {"plan_id": plan_id, "point_id": point_id, "species_id": block["species_id"], "species": block["species"], "trees_planted": block["trees_planted"],
+            "planted_observed_at": block["observed_at"], "history": events, "schedule": sv.due_schedule(block["observed_at"], sv.rounds_by_label(events))}
+
+
+@app.get("/plans/{plan_id}/report")
+def plan_report(plan_id: str, d=Depends(D)):
+    """A report for one plan: What, When and Where it planted, its survival status and replacement history, and a forward-looking
+    note on tree aging - the minimum content the defense panel asked a report to have, framed as what an LGU would use to justify
+    a budget request. Works for any plan; the survival and aging sections are empty (not guessed) until blocks are confirmed planted."""
+    plan, summary = load_plan(d, plan_id)
+    campaign = campaign_info(summary)
+    what_when_where = {
+        "campaign": campaign, "purpose": summary.get("purpose"), "layout_mode": "blocks" if fv.is_blocks_plan(plan) else "points",
+        "species": sorted(plan.species.unique().tolist()) if "species" in plan.columns else sorted(plan.species_id.unique().tolist()),
+        "n_species": int(plan.species_id.nunique()), "trees_requested": int(plan.trees_planned.sum()) if fv.is_blocks_plan(plan) else int(len(plan)),
+        "barangays": sorted({barangay_display_of(d, int(pid)) for pid in plan.point_id.astype(int) if barangay_display_of(d, int(pid))}),
+    }
+    survival = None
+    try:
+        _plan2, _summary2, blocks = survival_plan_context(d, plan_id)
+        trees_by_point = {b["point_id"]: b["trees_planted"] for b in blocks}
+        survival = {"summary": sv.plan_summary(d.survival_db, plan_id, trees_by_point),
+                    "schedule_overall": sv.due_schedule(min(b["observed_at"] for b in blocks),
+                                                        sv.rounds_by_label([e for b in blocks for e in sv.history(d.survival_db, plan_id, b["point_id"])]))}
+    except HTTPException as ex:
+        survival = {"available": False, "reason": ex.detail}
+    return {"plan_id": plan_id, "what_when_where": what_when_where, "survival": survival,
+            "aging": {"status": "not tracked yet", "note": "What happens to these trees over the long term (pruning, removal, replacement at maturity) is not yet "
+                      "recorded here. This is a placeholder for a future monitoring cycle, not a finding: no 10-year or 50-year data can exist for a 2026 planting.",
+                      "provisional": True},
+            "framing": "Planned, confirmed-planted and (where checked) surviving tree counts, by campaign and barangay: the figures an LGU would cite to justify a budget request.",
+            "generated_at": sv.iso(sv.now_utc())}
 
 
 # ---------------------------------------------------------------------------------------------------------------------
