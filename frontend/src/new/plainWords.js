@@ -100,6 +100,7 @@ const WHY = [
   [/^Heavy rain and flooding \(Habagat\)/i, 'In the lowland barangays (Maly, Dulong Bayan I and II, Santa Ana) heavy rain and flooding in July to September can wash out young seedlings, so the overall match is lowered by 20%. This is the MAO figure and is provisional.'],
   [/^Plant both male and female/i, 'These species have separate male and female trees. Seeds and fruit only form when both grow near each other.'],
   [/^These species suit each other|^Some of these species|^No partner rule/i, 'These are starting rules from the species data (height, shade, water, roots and planting months). The agriculturist will check them.'],
+  [/spread out|same species.*squares apart/i, 'Planting too much of one species close together makes it easier for one pest or disease to spread through the whole patch. The matching step checks for this and re-solves to spread species out where an equally suitable square is available nearby - this is a real part of the optimization, not just how ties are broken.'],
 ]
 export function whyWarning(text) {
   const t = String(text ?? '')

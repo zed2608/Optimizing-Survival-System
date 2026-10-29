@@ -34,6 +34,10 @@ CFG = {
     "site_crs": "EPSG:32651",       # UTM 51N, the CRS of utm_e / utm_n
     "scores_db": "scores/site_scores.db",
     "scores_csv": "scores/site_scores.csv",
+    # round 25 (panel feedback: "spatial optimization" was not visibly used in the matching) - see assign_spatial below.
+    "cluster_radius_m": 150.0,      # two assigned points of the SAME species closer than this are a "cluster" the spatial pass tries to break up
+    "cluster_weight": 0.15,         # cost added per offending neighbour, per iteration (cost is in [0, 1], so this is a real nudge, not a rounding error)
+    "cluster_max_iters": 3,         # re-solves at most this many times; stops early once no cluster remains
 }
 # =====================================================================================================================
 
@@ -237,6 +241,69 @@ def assign_random(W, feasible, quotas, seed=None, respect_feasible=True):
             continue
         i = int(rng.choice(ok)); used[i] = True; pts.append(i); sps.append(int(j))
     return _result(pts, sps, quotas)
+
+
+def spatial_cluster_counts(xy, point_idx, species_idx, radius_m):
+    """For every assigned (point, species) pair, how many OTHER assigned points of the SAME species lie within radius_m
+    (UTM metres) of it. xy indexes by the same point axis as point_idx. Used by assign_spatial to find and penalize
+    same-species clustering; also useful on its own to report how clustered a finished plan is."""
+    point_idx = np.asarray(point_idx, dtype=int); species_idx = np.asarray(species_idx, dtype=int)
+    counts = np.zeros(len(point_idx), dtype=int)
+    for sp in np.unique(species_idx):
+        idx = np.where(species_idx == sp)[0]
+        if len(idx) < 2:
+            continue
+        pts = xy[point_idx[idx]]
+        for a, b in cKDTree(pts).query_pairs(radius_m):
+            counts[idx[a]] += 1
+            counts[idx[b]] += 1
+    return counts
+
+
+def assign_spatial(W, feasible, quotas, xy, seed=None, big_cost=None, tiebreak=None, method="hungarian",
+                    cluster_radius_m=None, cluster_weight=None, max_iters=None):
+    """assign_hungarian / assign_greedy, with an actual geographic term in the optimization itself rather than only a
+    tie-break: slots of the SAME species that would land within cluster_radius_m of each other (a planting-pattern
+    "cluster" that concentrates one species' pest/disease risk in one spot - the same concern behind the system's own
+    "mostly one species" palette warning) are penalized and the problem is re-solved, so the chosen assignment itself
+    - not merely how ties are broken - spreads same-species plantings out spatially where an equally-suitable
+    alternative point exists.
+
+    Why iterative, not a single solve: linear_sum_assignment (the Hungarian algorithm) can only minimize a SEPARABLE
+    cost - one independent number per (slot, point) cell. "Not too close to another slot of the same species" is a
+    PAIRWISE condition between two slots' choices, which makes the true problem a quadratic assignment problem (not
+    tractable at this scale). This function approximates it the standard way such side constraints are added to a
+    linear assignment: solve once, measure which cells produced a violation, raise the cost of exactly those cells,
+    and re-solve - a bounded sequence of ordinary linear assignments that moves toward (but is not guaranteed to
+    reach) a spatially-diversified optimum. Each re-solve stays a real linear_sum_assignment call, so the matching
+    benchmark's Hungarian-vs-greedy comparison is unaffected by this function (it is not used there).
+
+    Returns (result, report). report = {iterations, cluster_radius_m, cluster_weight, violations_before,
+    violations_after, history: [{iteration, violations, mean_neighbors}, ...]} - violations_before/after are the
+    number of assigned points that have at least one same-species neighbour within cluster_radius_m, before any
+    penalty pass and in the best iteration found (kept even if a later iteration regresses)."""
+    radius = CFG["cluster_radius_m"] if cluster_radius_m is None else cluster_radius_m
+    weight = CFG["cluster_weight"] if cluster_weight is None else cluster_weight
+    iters = max(1, CFG["cluster_max_iters"] if max_iters is None else max_iters)
+    solve = {"hungarian": assign_hungarian, "greedy": assign_greedy}[method]
+    extra = np.zeros_like(W, dtype=float)
+    best, best_violations, history = None, None, []
+    for it in range(iters):
+        kw = {"tiebreak": tiebreak} if method == "greedy" else {"tiebreak": tiebreak, "big_cost": big_cost}
+        res = solve(np.where(feasible, W - extra, W), feasible, quotas, seed=seed, **kw)
+        counts = spatial_cluster_counts(xy, res["point_idx"], res["species_idx"], radius)
+        violations = int((counts > 0).sum())
+        history.append({"iteration": it, "violations": violations, "mean_neighbors": round(float(counts.mean()), 4) if len(counts) else 0.0})
+        if best_violations is None or violations < best_violations:
+            best, best_violations = res, violations
+        if violations == 0:
+            break
+        for k in range(len(res["point_idx"])):
+            if counts[k] > 0:
+                extra[res["point_idx"][k], res["species_idx"][k]] += weight * counts[k]
+    report = {"iterations": len(history), "cluster_radius_m": radius, "cluster_weight": weight,
+              "violations_before": history[0]["violations"], "violations_after": best_violations, "history": history}
+    return best, report
 
 
 def check_assignment(xy, S, spacing_min_m, result, quotas, s_min=None, max_species_quota=None, max_genus_quota=None, genera=None):

@@ -85,6 +85,13 @@ export default function PlanResult({ result, speciesInfo, view, onView, onOpenPo
     notes.push({ key: 'habagat', icon: 'rain', text: t, why: whyWarning(t), raw: t, prov: true })
   }
   ;(s.palette_warnings ?? []).filter((w) => !/^Heavy rain and flooding \(Habagat\)/.test(w)).forEach((w) => notes.push({ key: w, icon: 'warn', text: plainWarning(w), why: whyWarning(w), raw: w }))
+  const sd = s.spatial_diversity ?? null
+  if (sd && sd.violations_before > 0) {                                   // round 25: the matching step's own spatial-diversity pass (not just a tie-break)
+    const t = sd.violations_after < sd.violations_before
+      ? `Trees of the same species were spread out across the area: ${sd.violations_before} squares would have had a same-species neighbour nearby, down to ${sd.violations_after}.`
+      : `${sd.violations_after} squares have a same-species neighbour nearby; this area is full enough that the plan could not spread them out any further.`
+    notes.push({ key: 'spatial', icon: 'layers', text: t, why: whyWarning('spread out same species squares apart'), raw: t, prov: true })
+  }
   if (both.length > 0) {
     const t = `Plant both male and female trees of: ${both.join(', ')}.`
     notes.push({ key: 'sexes', icon: 'tree', text: t, why: whyWarning(t), raw: t })

@@ -383,8 +383,58 @@ This round builds (a) and (b).
   real build. Needs a live Render deploy plus a connected-browser check (`/site-eval` end to end, the area-ranking spread note, the new point
   panel card) before the defense, and `python -m pytest tests` / `npm run build && npm run lint` run properly in an environment that has them.
 
+## Round 25: a real spatial term in the matching objective ("spatial optimization" was not visibly used) (added 2026-10-29; provisional)
+The lead panelist's point, analyzed and fixed on request: the thesis title claims a "spatial optimization" framework, but before this
+round the Hungarian/greedy assignment's actual cost was `1 - W` - pure suitability, no geography. The only spatial thing in the whole
+pipeline was a minor tie-break by distance to the area's centroid (blocks mode only, and only between squares already tied on W) plus
+some unrelated geometry (block layout inside one square, distance-to-water baked into S before matching runs). The panelist is right that
+this does not amount to spatial optimization. This round adds one.
+- **What it does.** `pipeline/matching.py` `assign_spatial(W, feasible, quotas, xy, ...)`: solves the ordinary Hungarian/greedy assignment,
+  then checks whether any two assigned slots of the SAME species ended up within `cluster_radius_m` (default 150 m - the orthogonal +
+  diagonal neighbours of a 100 m grid cell) of each other - a real planting-pattern cluster that concentrates one species' pest/disease
+  risk in one spot (the same concern already behind the system's "mostly one species" palette warning). Every such cell gets its cost
+  raised by `cluster_weight` (default 0.15) x its neighbour count, and the WHOLE problem is re-solved from scratch, up to
+  `cluster_max_iters` times (default 3) or until no violation remains. The BEST iterate found (fewest violations; ties kept at iteration
+  0) is returned, so this can never make a plan's clustering worse than plain Hungian/greedy, only equal or better.
+- **Why iterative, not one solve.** `scipy.optimize.linear_sum_assignment` can only minimize a cost that is independent per (slot, point)
+  cell. "Not too close to another slot of the same species" is a condition BETWEEN two slots' choices - a quadratic assignment problem,
+  not tractable at this scale. Repeatedly penalizing the cells that caused a violation and re-solving the ordinary linear assignment is
+  the standard way such pairwise side-constraints are approximated on top of a linear solver (a Lagrangian-style penalty relaxation).
+  Each pass is still a real `linear_sum_assignment` call.
+- **Wired in** (`pipeline/run_plan.py`, `CFG["spatial_diversity"]` = True by default, both the blocks-mode and points-mode solve in
+  `make_plan`): every REAL plan now calls `mt.assign_spatial` instead of a bare `mt.assign_hungarian`/`assign_greedy`. The benchmark
+  function (`run_benchmark`, `matching_benchmark.csv`) is UNCHANGED for its existing hungarian/greedy/random rows (so every number
+  already cited in `docs/defense/SCARCITY_BENCHMARK.md` stays valid without a re-run) - it gained one ADDITIONAL row, method `spatial`,
+  with two new columns `cluster_violations_before`/`cluster_violations_after` reporting exactly what the spatial pass bought on the
+  real whole-municipality benchmark; this needs the real scored data to run (not available in this sandbox) and SHOULD be run before
+  citing its numbers. The plan summary (`/plan-event`, `/plans/{id}`, both layout modes) gains a `spatial_diversity` block: `violations_before`/`violations_after`/`iterations`/`cluster_radius_m` plus a one-sentence `note` ("N such squares before, M after - this changes which squares are
+  actually chosen, not only how ties are broken").
+- **Tested honestly with synthetic data** (no pytest/fastapi here, same sandbox limit as rounds 22-24; `python3 -c` scripts against
+  synthetic numpy arrays): a sparse case (20 points in a line, 2 species x 5 trees, 50% of points used) went from 7 same-species-adjacent
+  violations to 4, trading about 5% of total W for it - a genuine, visible spatial/suitability trade-off. A DENSE worst case (60 points
+  on a 10x6 grid, 3 species wanting 40 of the 60 points - more than half the area) plateaued at its baseline (26 violations, no
+  improvement) at the 150 m default radius: with that much of the area claimed, there is often no reachable assignment with fewer
+  same-species-adjacent pairs, so the heuristic honestly returns the unpenalized result rather than a false improvement; the same case
+  DID improve (21 -> 13) at a tighter 120 m radius (orthogonal neighbours only, excluding the diagonal). This plateau behaviour - never
+  worse than plain Hungarian, not guaranteed to be better when an area is heavily saturated - is the honest limit of a penalty heuristic
+  on a problem that is not truly linear, and is worth saying plainly if asked at the defense.
+- **Verification note:** `pipeline/matching.py` and `pipeline/run_plan.py` were checked with `python3 -m py_compile` and the synthetic
+  tests above; `tests/test_matching.py` only calls `assign_hungarian`/`assign_greedy` directly (unaffected). No test currently exercises
+  `assign_spatial` or asserts on the new `spatial_diversity` summary block - that needs adding (`tests/test_matching.py` style: a small
+  synthetic grid, assert `violations_after <= violations_before` and that `check_assignment` still reports zero correctness violations)
+  before the defense. Because `make_plan` now calls a different (though behaviourally equivalent when zero clustering occurs - iteration
+  0 is bit-identical to the old call) solver by default, **any existing test that pins an exact plan's point IDs or `total_W` for a
+  plan with enough same-species density to trigger a violation may need its expected numbers refreshed** - run `python -m pytest tests`
+  in a real environment before relying on this for the defense; `matching_benchmark.csv`'s own hungarian/greedy/random numbers are not
+  affected since `run_benchmark` never goes through `make_plan`.
+
 ## Current status and next tasks
-LATEST (round 24, 2026-10-29): an area-ranking spread indicator (min/max/varies-a-lot per species across an area, not just a flat average) and
+LATEST (round 25, 2026-10-29): a real spatial term in the matching objective itself (`mt.assign_spatial`, see the round 25 section above) -
+same-species slots that would cluster within ~150 m of each other are penalized and re-solved, so plans are now measurably more spatially
+diversified, not merely tie-broken by distance. Answers the lead panelist's "I can't see spatial optimization being used." Needs: a real
+test added for `assign_spatial`, a full `python -m pytest tests` run to catch any plan test whose pinned numbers shifted, and (time
+permitting) a re-run of `matching_benchmark.csv` to get real whole-municipality `cluster_violations_before/after` numbers for the defense.
+EARLIER (round 24, 2026-10-29): an area-ranking spread indicator (min/max/varies-a-lot per species across an area, not just a flat average) and
 a manual planting-site evaluation ("what-if": type measured elevation/slope/soil and see the ranking recomputed for that one spot, unsaved,
 rules-score only) answering three more panel points (see the round 24 section above); not yet re-verified live (no browser tool available this
 turn) or with a real test run (sandbox limits as in rounds 22-23).

@@ -42,6 +42,9 @@ CFG = {
     "field_db": "data/field/field_checks.db",   # saved field checks (same file as api_v2.py); points whose latest check is not_plantable are left out
     "layout_mode": "blocks",        # LAYOUT_MODE: "blocks" (n_saplings = total trees, planted in blocks at the species spacing) or "points" (one tree per 100 m square, the plan of before)
     "include_unzoned": True,        # INCLUDE_UNZONED: also plan on squares outside every zoning polygon (zoning_status unconfirmed); they carry the flag zoning_unconfirmed
+    # round 25 (panel feedback: "spatial optimization" was not visibly used) - mt.assign_spatial instead of a plain mt.assign_hungarian/assign_greedy call;
+    # "method" (hungarian/greedy) still chooses the underlying linear-assignment solver re-solved at each pass. False reproduces the exact plan of before (used by the benchmark).
+    "spatial_diversity": True,
 }
 # =====================================================================================================================
 
@@ -246,8 +249,12 @@ def _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, pale
     centre = xy.mean(axis=0)
     dist = np.hypot(xy[:, 0] - centre[0], xy[:, 1] - centre[1])
     tb = dist / dist.max() if dist.max() > 0 else np.zeros(len(dist))
-    fn = {"hungarian": mt.assign_hungarian, "greedy": mt.assign_greedy}[method]
-    res = fn(W, feas, blocks_q, seed, tiebreak=tb)
+    spatial_report = None
+    if CFG["spatial_diversity"]:
+        res, spatial_report = mt.assign_spatial(W, feas, blocks_q, xy, seed=seed, tiebreak=tb, method=method)
+    else:
+        fn = {"hungarian": mt.assign_hungarian, "greedy": mt.assign_greedy}[method]
+        res = fn(W, feas, blocks_q, seed, tiebreak=tb)
     pi, si = res["point_idx"], res["species_idx"]
     sites = ctx.sites.iloc[area_idx[pi]].reset_index(drop=True)
     sid = sids[si]
@@ -312,6 +319,12 @@ def _finish_blocks(ctx, area_idx, species_df, members, sp, Sm, Pm, W, feas, pale
                          "usable_side_m": round(side * bc["usable_share"] ** 0.5, 2), "per_species": per,
                          "centre_utm": [round(float(centre[0]), 1), round(float(centre[1]), 1)],
                          "tiebreak": "squares whose W is practically equal are ordered by their distance to the centre of the chosen area (weight 1e-6 in the cost), so that the blocks sit together"}
+    if spatial_report is not None:
+        summary["spatial_diversity"] = {**spatial_report,
+            "note": (f"Squares that would have placed the same species within {spatial_report['cluster_radius_m']:.0f} m of each other "
+                     f"(concentrating one species' pest/disease risk in one spot) are penalized and the assignment is re-solved; this run "
+                     f"re-solved {spatial_report['iterations']} time(s): {spatial_report['violations_before']} such squares before, "
+                     f"{spatial_report['violations_after']} after. This changes which squares are actually chosen, not only how ties are broken.")}
     summary.update({"saplings_allocated": palette["allocated"], "saplings_unallocated": palette["unallocated"], "saplings_placed": trees_placed,
                     "saplings_unmatched": int(trees_q.sum()) - trees_placed, "blocks_placed": n_blocks, "blocks_requested": int(blocks_q.sum()),
                     "unused_candidate_points": int(len(area_idx) - len(plan)),
@@ -425,8 +438,13 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
         if explicit:
             summary["species_counts"] = counts_report(summary, species_counts, dict(zip(species_df.species_id.astype(int), species_df.common_name)))
         return plan_b, summary
-    fn = {"hungarian": mt.assign_hungarian, "greedy": mt.assign_greedy}[method]
-    res = fn(W, feas, palette["quota"], seed)
+    spatial_report = None
+    if CFG["spatial_diversity"]:
+        xy_pts = ctx.sites.iloc[area_idx][["utm_e", "utm_n"]].to_numpy(dtype=float)
+        res, spatial_report = mt.assign_spatial(W, feas, palette["quota"], xy_pts, seed=seed, method=method)
+    else:
+        fn = {"hungarian": mt.assign_hungarian, "greedy": mt.assign_greedy}[method]
+        res = fn(W, feas, palette["quota"], seed)
     pi, si = res["point_idx"], res["species_idx"]
     sites = ctx.sites.iloc[area_idx[pi]].reset_index(drop=True)
     sid = sp.species_id.to_numpy()[si]
@@ -467,6 +485,12 @@ def make_plan(ctx, purpose, n_saplings, zone=None, bbox=None, trees=None, seed=N
             "unmatched": int(res["unmatched_by_species"][j]), "species_score": round(palette["score"][j], 4),
             "eligible_points_in_area": palette["eligible_points"][j], "needs_both_sexes": palette["needs_both_sexes"][j],
             "spacing_min_m": float(sp.spacing_min_m.iloc[j])})
+    if spatial_report is not None:
+        summary["spatial_diversity"] = {**spatial_report,
+            "note": (f"Points that would have placed the same species within {spatial_report['cluster_radius_m']:.0f} m of each other "
+                     f"(concentrating one species' pest/disease risk in one spot) are penalized and the assignment is re-solved; this run "
+                     f"re-solved {spatial_report['iterations']} time(s): {spatial_report['violations_before']} such points before, "
+                     f"{spatial_report['violations_after']} after. This changes which points are actually chosen, not only how ties are broken.")}
     summary.update({"saplings_allocated": palette["allocated"], "saplings_unallocated": palette["unallocated"],
                     "saplings_placed": int(len(plan)), "saplings_unmatched": res["unmatched_saplings"],
                     "unused_candidate_points": int(len(area_idx) - len(plan)),
@@ -564,6 +588,20 @@ def run_benchmark(ctx, out_dir, layout_modes=("points", "blocks")):
                 row = {"purpose": purpose, "layout_mode": layout, "method": name, "n_saplings": n, "n_repeats": reps, "palette_species": len(m), **d.to_dict()}
                 row["violations_total"] = sum(row[k] for k in ("viol_below_threshold", "viol_point_reused", "viol_over_quota", "viol_spacing"))
                 rows.append(row)
+            # round 25: "spatial" = assign_spatial on top of the same Hungarian solve - not a new baseline method, a direct measurement of what the spatial-diversity
+            # pass costs (total_W) and buys (cluster_violations_before -> _after: assigned points with a same-species neighbour within mt.CFG["cluster_radius_m"]).
+            t0 = time.perf_counter(); res, sr_ = mt.assign_spatial(W, feas, q, xy, seed=CFG["seed"], method="hungarian"); dt = time.perf_counter() - t0
+            v = mt.check_assignment(xy, Sm, sp.spacing_min_m.to_numpy(), res, q, max_species_quota=sp_cap, max_genus_quota=g_cap, genera=sp.genus.to_numpy())
+            pi, si = res["point_idx"], res["species_idx"]
+            tw = float(W[pi, si].sum())
+            row = {"purpose": purpose, "layout_mode": layout, "method": "spatial", "n_saplings": n, "n_repeats": 1, "palette_species": len(m),
+                   "total_W": tw, "mean_W_per_placed": tw / len(pi) if len(pi) else np.nan, "placed": len(pi), "unmatched_saplings": res["unmatched_saplings"],
+                   "viol_below_threshold": v["below_threshold"], "viol_point_reused": v["point_reused"],
+                   "viol_over_quota": v["over_quota"] + v.get("over_species_cap", 0) + v.get("over_genus_cap", 0), "viol_spacing": v["spacing_conflicts"],
+                   "runtime_s": dt, "cluster_violations_before": sr_["violations_before"], "cluster_violations_after": sr_["violations_after"],
+                   "cluster_iterations": sr_["iterations"]}
+            row["violations_total"] = sum(row[k] for k in ("viol_below_threshold", "viol_point_reused", "viol_over_quota", "viol_spacing"))
+            rows.append(row)
     out = pd.DataFrame(rows)
     for c in ("total_W", "mean_W_per_placed"):
         out[c] = out[c].round(4)
