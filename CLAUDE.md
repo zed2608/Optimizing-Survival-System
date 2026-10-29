@@ -419,21 +419,24 @@ this does not amount to spatial optimization. This round adds one.
   worse than plain Hungarian, not guaranteed to be better when an area is heavily saturated - is the honest limit of a penalty heuristic
   on a problem that is not truly linear, and is worth saying plainly if asked at the defense.
 - **Verification note:** `pipeline/matching.py` and `pipeline/run_plan.py` were checked with `python3 -m py_compile` and the synthetic
-  tests above; `tests/test_matching.py` only calls `assign_hungarian`/`assign_greedy` directly (unaffected). No test currently exercises
-  `assign_spatial` or asserts on the new `spatial_diversity` summary block - that needs adding (`tests/test_matching.py` style: a small
-  synthetic grid, assert `violations_after <= violations_before` and that `check_assignment` still reports zero correctness violations)
-  before the defense. Because `make_plan` now calls a different (though behaviourally equivalent when zero clustering occurs - iteration
-  0 is bit-identical to the old call) solver by default, **any existing test that pins an exact plan's point IDs or `total_W` for a
-  plan with enough same-species density to trigger a violation may need its expected numbers refreshed** - run `python -m pytest tests`
-  in a real environment before relying on this for the defense; `matching_benchmark.csv`'s own hungarian/greedy/random numbers are not
-  affected since `run_benchmark` never goes through `make_plan`.
+  tests above. `tests/test_matching.py` now also has real pytest coverage for `spatial_cluster_counts`/`assign_spatial` (added right
+  after this round, same file, 3 tests: same-species-only radius counting, a line-of-points case asserting `violations_after <=
+  violations_before` plus a passing `check_assignment` and `total_W` never exceeding the plain Hungarian optimum, and a no-op case at a
+  radius smaller than the grid spacing reproducing the plain solve exactly) - verified standalone with `python3 -c` against
+  `pipeline/matching.py` directly (still no pytest/fastapi in this sandbox), not yet run under the real `pytest`. The new
+  `spatial_diversity` summary block itself is still not asserted on anywhere. Because `make_plan` now calls a different (though
+  behaviourally equivalent when zero clustering occurs - iteration 0 is bit-identical to the old call) solver by default, **any existing
+  test that pins an exact plan's point IDs or `total_W` for a plan with enough same-species density to trigger a violation may need its
+  expected numbers refreshed** - run `python -m pytest tests` in a real environment before relying on this for the defense;
+  `matching_benchmark.csv`'s own hungarian/greedy/random numbers are not affected since `run_benchmark` never goes through `make_plan`.
 
 ## Current status and next tasks
 LATEST (round 25, 2026-10-29): a real spatial term in the matching objective itself (`mt.assign_spatial`, see the round 25 section above) -
 same-species slots that would cluster within ~150 m of each other are penalized and re-solved, so plans are now measurably more spatially
-diversified, not merely tie-broken by distance. Answers the lead panelist's "I can't see spatial optimization being used." Needs: a real
-test added for `assign_spatial`, a full `python -m pytest tests` run to catch any plan test whose pinned numbers shifted, and (time
-permitting) a re-run of `matching_benchmark.csv` to get real whole-municipality `cluster_violations_before/after` numbers for the defense.
+diversified, not merely tie-broken by distance. Answers the lead panelist's "I can't see spatial optimization being used." A pytest test
+for `assign_spatial` has been added to `tests/test_matching.py` (verified standalone with python3 -c, not yet under real pytest). Still
+needed: a full `python -m pytest tests` run to catch any plan test whose pinned numbers shifted, and (time permitting) a re-run of
+`matching_benchmark.csv` to get real whole-municipality `cluster_violations_before/after` numbers for the defense.
 EARLIER (round 24, 2026-10-29): an area-ranking spread indicator (min/max/varies-a-lot per species across an area, not just a flat average) and
 a manual planting-site evaluation ("what-if": type measured elevation/slope/soil and see the ranking recomputed for that one spot, unsaved,
 rules-score only) answering three more panel points (see the round 24 section above); not yet re-verified live (no browser tool available this
