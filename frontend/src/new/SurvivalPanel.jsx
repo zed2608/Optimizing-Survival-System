@@ -28,6 +28,29 @@ export function Schedule({ rows }) {
   )
 }
 
+// The panel's "survival threshold" ask: is this plan meeting the benchmark rate (currently 85% at 1 year - DENR's own
+// National Greening Program requirement, used here as a provisional starting point; see GET /plans/{id}/survival's
+// `threshold.basis`), shown plainly with the caveat that it's not yet confirmed for this project's own species and sites.
+export function ThresholdLine({ t }) {
+  if (!t) return null
+  const label = ROUND_WORDS[t.round_label] ?? t.round_label
+  return (
+    <p className={`nw-threshold ${t.met === true ? 'is-met' : t.met === false ? 'is-below' : 'is-pending'}`}>
+      <Icon name={t.met === true ? 'check' : t.met === false ? 'warn' : 'calendar'} />{' '}
+      {t.measured_pct == null ? (
+        <>
+          Survival threshold ({t.threshold_pct}% at {label}): not yet due or checked. {t.note}
+        </>
+      ) : (
+        <>
+          Survival at {label}: <strong>{t.measured_pct}%</strong> against a {t.threshold_pct}% threshold — {t.met ? 'meets it' : 'below it'}.
+        </>
+      )}
+      <HelpTip label="About this threshold">{t.basis} It is one provisional benchmark to report against, not a measured standard for San Mateo's species or sites.</HelpTip>
+    </p>
+  )
+}
+
 export function LogForm({ planId, blocks, onSaved }) {
   const [pointId, setPointId] = useState(blocks[0]?.point_id ?? '')
   const [roundLabel, setRoundLabel] = useState('3_month')
@@ -200,6 +223,7 @@ export default function SurvivalPanel({ planId, full = false }) {
           </li>
         )}
       </ul>
+      <ThresholdLine t={d.threshold} />
       <h4 className="nw-subhead">Overall schedule</h4>
       <Schedule rows={d.schedule_overall} />
       {!showForm ? (

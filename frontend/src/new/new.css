@@ -348,6 +348,14 @@
 .v2-embedded .nw-season-unknown { color: var(--c-muted); border-color: var(--c-info); background: var(--c-surface-2); }
 .nw-check-sp { align-items: flex-start; }
 .nw-check-sp input { margin-top: 3px; }
+
+/* Survival-rate threshold line (round 23, signed Revision Form item: "identify threshold survival of trees"). Three states:
+   met (ok), below (danger), pending/not-yet-due (muted, no colour claim since there is nothing to judge yet). */
+.nw-threshold { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; line-height: 1.4; padding: 8px 10px; border-radius: 8px; margin: 8px 0; border: 1px solid var(--c-border); }
+.nw-threshold.is-met { color: var(--c-ok); background: var(--c-ok-bg); border-color: var(--c-primary); }
+.nw-threshold.is-below { color: var(--c-danger); background: var(--c-danger-bg); border-color: var(--c-danger); }
+.nw-threshold.is-pending { color: var(--c-muted); background: var(--c-surface-2); }
+.nw-threshold strong { font-weight: 700; }
 .nw-check-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .nw-seasondetail { background: var(--c-surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
 .nw-seasondetail h4 { margin: 0 0 4px; }

@@ -47,6 +47,17 @@ CFG = {
     ],
     "due_window_days": 30,                                   # a round counts as "due" from this many days before its date
     "overdue_grace_days": 14,                                # ... and "overdue" once this many days have passed it
+    # The defense panel's "identify threshold survival of trees" ask (signed Revision Form, item 1). 85% is the figure DENR
+    # itself states as the survival-rate requirement for the National Greening Program - field officers "are required to
+    # meet the 85-percent survival rate of planted tree seedlings" (philstar.com, "Underperforming environ officers face
+    # ax", 7 Nov 2019: https://www.philstar.com/science-and-environment/2019/11/07/1966513/underperforming-environ-officers-face-ax).
+    # That source does not pin the figure to a specific monitoring age; "1_year" is chosen here because it matches the
+    # panel's own wording ("survived at 1 year") and is the conventional point in reforestation practice to call a planting
+    # "established" (past first-dry-season transplant shock, before longer-horizon mortality). This is a PROVISIONAL,
+    # literature-grounded starting point, not a number this project measured or that the agriculturist has confirmed for
+    # San Mateo's species and sites - said so wherever it is reported (see threshold_summary()).
+    "success_threshold_pct": 85.0,
+    "success_threshold_round": "1_year",
 }
 # =====================================================================================================================
 
@@ -354,6 +365,44 @@ def due_schedule(planted_at, current, *, today=None):
         out.append({"round_label": r["label"], "months": r["months"], "due_date": due.date().isoformat(), "state": state,
                     "check_id": current[r["label"]]["check_id"] if done else None})
     return out
+
+
+def checks_at_round(db_path, plan_id, round_label):
+    """{point_id: latest event} restricted to ONE round_label - the survival check(s) logged specifically at that monitoring
+    round, as opposed to current_for_plan()'s "whatever the latest check was, whichever round". Used by threshold_summary()
+    to measure the rate AT the benchmark round even if some points already have a later check too."""
+    con = connect(db_path)
+    try:
+        rows = con.execute("SELECT *, ROW_NUMBER() OVER (PARTITION BY point_id ORDER BY check_id DESC) AS rn FROM survival_checks "
+                           "WHERE plan_id=? AND round_label=? ORDER BY point_id", (str(plan_id), round_label)).fetchall()
+    finally:
+        con.close()
+    return {r["point_id"]: _row(r) for r in rows if r["rn"] == 1}
+
+
+def threshold_summary(db_path, plan_id, trees_by_point, cfg=None):
+    """The panel's "threshold survival" ask: is this plan meeting the accepted survival-rate benchmark
+    (CFG['success_threshold_pct'], measured at CFG['success_threshold_round']) - see the CFG comment for where that number
+    comes from and why it is provisional. Never guesses a rate for a point not yet checked at that round: a plan that
+    simply hasn't reached its 1-year mark yet is reported as "not yet due" (points_at_round=0, measured_pct=None, met=None),
+    never as failing the threshold."""
+    c = CFG if cfg is None else cfg
+    round_label = c["success_threshold_round"]
+    at_round = checks_at_round(db_path, plan_id, round_label)
+    trees_total = sum(int(e["trees_total"]) for e in at_round.values())
+    trees_alive = sum(int(e["trees_alive"]) for e in at_round.values())
+    points_at_round, points_planned = len(at_round), len(trees_by_point)
+    rate = round(100.0 * trees_alive / trees_total, 1) if trees_total else None
+    return {
+        "round_label": round_label, "threshold_pct": c["success_threshold_pct"],
+        "basis": "DENR National Greening Program survival-rate requirement (85%); provisional, not yet confirmed by the agriculturist for this project's species and sites.",
+        "points_at_round": points_at_round, "points_planned": points_planned,
+        "trees_checked_at_round": trees_total, "trees_alive_at_round": trees_alive,
+        "measured_pct": rate, "met": None if rate is None else rate >= c["success_threshold_pct"],
+        "note": (f"No point of this plan has a {round_label} survival check recorded yet; the threshold cannot be evaluated until at least one does."
+                 if points_at_round == 0 else
+                 f"{points_at_round} of {points_planned} planned points have a {round_label} check recorded; the rate above covers only those, not the whole plan."),
+    }
 
 
 def rounds_by_label(events):

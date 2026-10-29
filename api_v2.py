@@ -145,6 +145,9 @@ LIMITS = [
     "The map's default satellite view is an aerial imagery basemap (Esri World Imagery), not a live feed: no publicly available satellite service streams real-time video, and imagery coverage dates vary by area and are not published per tile. "
     "Rankings, field checks and survival checks are answered live on every request (never a stale batch run the user waits on); the site-suitability scores themselves are precomputed offline on purpose (see scripts/rebuild_scores.py) and refreshed when the data or model changes, not on every click.",
     "{SATELLITE_LIMIT}",
+    f"Survival checks (POST /survival-checks) only exist for blocks-mode plans confirmed planted in the field; the monitoring rounds (3 months, 6 months, 1/5/10/50 years) and cause-of-death list are provisional, "
+    f"not yet confirmed by the agriculturist or MENRO. The {sv.CFG['success_threshold_pct']:.0f}% survival-rate threshold shown on a plan's report, measured at the {sv.CFG['success_threshold_round'].replace('_', ' ')} round, "
+    "is DENR's own stated National Greening Program requirement, not a figure measured for this project's species or sites - it is a starting benchmark, pending the agriculturist's confirmation, not a verified standard for San Mateo.",
 ]
 FIELD_LIMITS = LIMITS[-2:]
 
@@ -3829,6 +3832,7 @@ def plan_survival(plan_id: str, d=Depends(D)):
         rows.append({"point_id": b["point_id"], "species_id": b["species_id"], "species": b["species"], "trees_planted": b["trees_planted"],
                      "planted_observed_at": b["observed_at"], "current": current.get(b["point_id"]), "schedule": sv.due_schedule(b["observed_at"], rounds)})
     return {"plan_id": plan_id, "campaign_planted_at": planted_at, "summary": sv.plan_summary(d.survival_db, plan_id, trees_by_point),
+            "threshold": sv.threshold_summary(d.survival_db, plan_id, trees_by_point),
             "schedule_overall": sv.due_schedule(planted_at, sv.rounds_by_label([e for b in blocks for e in sv.history(d.survival_db, plan_id, b["point_id"])])),
             "blocks": rows, "statuses": list(sv.STATUSES), "round_labels": list(sv.ROUND_LABELS), "causes": list(sv.CAUSES),
             "note": "Nothing here is a reminder or notification: it is what the dashboard and a report can show about which checks are due. "
@@ -3865,6 +3869,7 @@ def plan_report(plan_id: str, d=Depends(D)):
         _plan2, _summary2, blocks = survival_plan_context(d, plan_id)
         trees_by_point = {b["point_id"]: b["trees_planted"] for b in blocks}
         survival = {"summary": sv.plan_summary(d.survival_db, plan_id, trees_by_point),
+                    "threshold": sv.threshold_summary(d.survival_db, plan_id, trees_by_point),
                     "schedule_overall": sv.due_schedule(min(b["observed_at"] for b in blocks),
                                                         sv.rounds_by_label([e for b in blocks for e in sv.history(d.survival_db, plan_id, b["point_id"])]))}
     except HTTPException as ex:
