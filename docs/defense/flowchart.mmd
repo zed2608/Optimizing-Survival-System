@@ -1,0 +1,37 @@
+%% Optimizing Survival - one whole-program flowchart (panel §6 spec, 2026-10-29)
+%% - exactly one Start and one End
+%% - the algorithm itself is ONE predefined-process box (subroutine shape) that loops back into the main program after it runs
+%% - one flowchart only, not fragmented by module
+flowchart TD
+    START(["Start"])
+    SHOW["Show the San Mateo map,<br/>barangay / species / point search"]
+    PICK["User picks: Goal (species-first or area-first),<br/>Purpose, Planting window, Species or Area"]
+    VALID{"Input complete<br/>and valid?"}
+    WARN["Show a plain-words message:<br/>what is missing or wrong"]
+    ALGO[["Run the suitability and matching algorithm:<br/>expert-rule MCA, then Random Forest S,<br/>then weighted bipartite Hungarian matching<br/>with the spatial-diversity penalty"]]
+    SHOWRESULT["Show the ranked species / suitability map<br/>/ suggested mix, with its 'why this score' breakdown"]
+    WANTPLAN{"Create a planting plan,<br/>field kit, or survival report?"}
+    PLAN["Generate the plan, field kit and the<br/>survival-monitoring schedule;<br/>save the plan record"]
+    AGAIN{"Run another query?"}
+    END_(["End"])
+
+    START --> SHOW
+    SHOW --> PICK
+    PICK --> VALID
+    VALID -- "no" --> WARN
+    WARN --> PICK
+    VALID -- "yes" --> ALGO
+    ALGO -- "loops back into<br/>the main program" --> SHOWRESULT
+    SHOWRESULT --> WANTPLAN
+    WANTPLAN -- "yes" --> PLAN
+    PLAN --> AGAIN
+    WANTPLAN -- "no" --> AGAIN
+    AGAIN -- "yes" --> SHOW
+    AGAIN -- "no" --> END_
+
+    classDef startend fill:#2e7d32,stroke:#1b5e20,color:#fff,font-weight:bold
+    classDef algo fill:#1565c0,stroke:#0d47a1,color:#fff,font-weight:bold
+    classDef decision fill:#f9a825,stroke:#f57f17,color:#000
+    class START,END_ startend
+    class ALGO algo
+    class VALID,WANTPLAN,AGAIN decision
