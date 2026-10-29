@@ -3461,7 +3461,7 @@ def site_eval(req: SiteEvalRequest, d=Depends(HD)):
     tex = None if (not req.soil_texture or req.soil_texture.strip().lower() == "unknown") else req.soil_texture.strip().lower()
     if tex is not None and tex not in ss.WHAT_IF_SOIL_TEXTURES:
         raise HTTPException(422, f"soil_texture must be one of {ss.WHAT_IF_SOIL_TEXTURES}, 'unknown', or left out; got {req.soil_texture!r}.")
-    ctx = d.ctx
+    ctx, cfg = d.ctx, d.cfg
     smode = d.score_run.get("slope_mode", ss.SLOPE_MODE)
     gm = d.score_run.get("slope_graded_margin_fraction") or ss.SLOPE_GRADED_MARGIN_FRACTION
     soil_mode = d.score_run.get("soil_gate_mode", ss.SOIL_GATE_MODE)
