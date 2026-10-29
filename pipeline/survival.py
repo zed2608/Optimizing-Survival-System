@@ -365,3 +365,11 @@ def rounds_by_label(events):
         if lbl not in out or e["check_id"] > out[lbl]["check_id"]:
             out[lbl] = e
     return out
+
+
+def order_plantings(plantings):
+    """Pure helper for GET /points/{point_id}/history (api_v2.py): sort a point's plantings (one dict per plan that
+    confirmed planting it, each with a `planted_observed_at` ISO string) oldest first, so a point planted more than once -
+    replanted after an earlier planting died, say - lists its history in the order it actually happened. A missing or
+    empty date sorts first rather than raising, since golden rule 1 says never guess a date that was not recorded."""
+    return sorted(plantings, key=lambda p: p.get("planted_observed_at") or "")

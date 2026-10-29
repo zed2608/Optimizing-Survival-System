@@ -278,6 +278,14 @@ def history(db_path, point_id):
         con.close()
 
 
+def planted_plan_ids(history_rows):
+    """Pure helper for GET /points/{point_id}/history (api_v2.py): which plan_ids ever marked this point's field-check
+    history 'planted', oldest first by plan_id. A point planted, then later marked not_plantable, then re-planted under a
+    different plan still lists every plan that planted it - this never drops a planting just because its field status moved
+    on. Takes the list history() returns (or an equivalent list of dicts); no I/O, so it is tested without a database."""
+    return sorted({r["plan_id"] for r in history_rows if r["status"] == "planted" and r["plan_id"]})
+
+
 def n_events(db_path):
     con = connect(db_path)
     try:

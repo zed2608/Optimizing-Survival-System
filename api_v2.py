@@ -3695,7 +3695,7 @@ def point_history(point_id: int, d=Depends(D)):
     if point_id not in d.point_index:
         raise HTTPException(404, f"point_id {point_id} is not a point of the planting grid")
     field_history = fv.history(d.field_db, point_id)
-    plan_ids = sorted({e["plan_id"] for e in field_history if e["status"] == "planted" and e["plan_id"]})
+    plan_ids = fv.planted_plan_ids(field_history)
     plantings = []
     for pid in plan_ids:
         try:
@@ -3713,7 +3713,7 @@ def point_history(point_id: int, d=Depends(D)):
             "trees_planted": block["trees_planted"], "planted_by": block["observer"], "planted_observed_at": block["observed_at"],
             "planted_note": block["note"], "survival_history": events, "survival_schedule": sv.due_schedule(block["observed_at"], sv.rounds_by_label(events)),
         })
-    plantings.sort(key=lambda p: p["planted_observed_at"] or "")
+    plantings = sv.order_plantings(plantings)
     return {"point_id": point_id, "current": field_view(d, point_id), "field_history": field_history, "plantings": plantings,
             "note": "Each entry in plantings is one plan that confirmed planting this point in the field; a point planted more "
                     "than once over time (replanted after an earlier planting died, say) lists each planting separately, oldest first."}
