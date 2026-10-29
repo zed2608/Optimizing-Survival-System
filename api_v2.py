@@ -52,6 +52,7 @@ import field_status as fst  # noqa: E402
 import rebuild_site_grid as rsg  # noqa: E402
 import run_plan as rp  # noqa: E402
 import score_sites as ss  # noqa: E402
+import satellite as sat  # noqa: E402  (recent satellite/radar map layer: round 23, optional, needs COPERNICUS_CLIENT_ID/SECRET)
 
 # =====================================================================================================================
 # CONFIG - every tunable number lives here. PROVISIONAL unless stated.
@@ -141,8 +142,9 @@ LIMITS = [
     "{UNZONED_LIMIT}",
     "Field checks (marked plantable by an observer / not plantable / needs recheck) carry a name only (the mark of one person): there is no login yet, they are not an expert check, and anyone with access to the dashboard can add one.",
     "While the field-check switch is on, points whose latest check is 'not plantable' are left out of rankings and plans; 'marked plantable by an observer' only adds a badge and never changes a score.",
-    "The map's satellite view is an aerial imagery basemap (Esri World Imagery), not a live feed: no publicly available satellite service streams real-time video, and imagery coverage dates vary by area and are not published per tile. "
+    "The map's default satellite view is an aerial imagery basemap (Esri World Imagery), not a live feed: no publicly available satellite service streams real-time video, and imagery coverage dates vary by area and are not published per tile. "
     "Rankings, field checks and survival checks are answered live on every request (never a stale batch run the user waits on); the site-suitability scores themselves are precomputed offline on purpose (see scripts/rebuild_scores.py) and refreshed when the data or model changes, not on every click.",
+    "{SATELLITE_LIMIT}",
 ]
 FIELD_LIMITS = LIMITS[-2:]
 
@@ -196,7 +198,12 @@ def limits_of(d):
     caps = pal.block_table(d.ctx.species).capacity.dropna()                      # what one cell really holds in the default blocks layout (from the species table, never typed here)
     block = (f"Each point is a ~100 m grid cell, and a cell holds at most one planting block of one species. A block holds {int(caps.min())} to {int(caps.max())} trees, depending on the planting distance "
              "of the species; a plan in the points layout places one tree per cell.") if len(caps) else "Each point is a ~100 m grid cell, and a cell holds at most one planting block of one species."
-    fill = {"{BLOCK_LIMIT}": block, "{DATASET_LIMIT}": dset, "{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil, "{S_LIMIT}": rp.s_limit_text(d.ctx)}
+    sat_st = sat.status()
+    satlim = ("An optional 'recent satellite photo' and 'radar change view' layer (Map view menu) can be turned on: Sentinel-2 (optical) shows the most recent CLOUD-FREE pass, which in this climate "
+              "can genuinely be weeks old even though the satellite revisits every ~5 days; Sentinel-1 (radar) updates every revisit (about 6-12 days) regardless of cloud, but looks grayscale and speckled, "
+              "not like a normal photo. Neither is a live video feed; each tile is labelled with how it was produced.") if sat_st["available"] else \
+             "The 'recent satellite photo' / 'radar change view' layer (Sentinel-2 / Sentinel-1, via Copernicus) is not set up on this deployment (no Sentinel Hub credentials); the dashboard only offers the default basemap."
+    fill = {"{BLOCK_LIMIT}": block, "{DATASET_LIMIT}": dset, "{PLANTING}": f"{n_plant:,}", "{OTHER}": f"{n_total - n_plant:,}", "{TOTAL}": f"{n_total:,}", "{UNZONED_LIMIT}": un, "{SOIL_LIMIT}": soil, "{S_LIMIT}": rp.s_limit_text(d.ctx), "{SATELLITE_LIMIT}": satlim}
     out = []
     for t in LIMITS:
         for k, v in fill.items():
@@ -1492,6 +1499,7 @@ def health(d=Depends(D)):
                              "squares": int(d.landcover.share_tree.notna().sum()) if d.landcover is not None else 0},
             "field_checks": {"events": d.field_n_events, "points_checked": len(d.field_current), "left_out_of_rankings": len(d.field_ex_ids),
                              "exclude_not_plantable": bool(d.cfg["field_exclude_not_plantable"])},
+            "satellite": sat.status(),
             "public_mode": public_block(d)}
 
 
@@ -3118,6 +3126,29 @@ def geo_zones(d=Depends(D)):
 def geo_zoning(d=Depends(D)):
     """GeoJSON of every land-use zone with its MPDC rule, its condition text and its number of grid squares, for the optional Zoning overlay (provisional: MPDC form of 7 Oct 2026)."""
     return _cached_json(d.zoning_body, d)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Satellite / radar map layer (round 23, provisional). Optional: if the Sentinel Hub credentials below are not set, the
+# dashboard simply doesn't offer this layer (satellite_status says so) rather than showing a broken one.
+# ---------------------------------------------------------------------------------------------------------------------
+@app.get("/satellite/status")
+def satellite_status():
+    """Whether the satellite/radar layer can be offered right now (credentials present), for the Map view menu to decide whether to show it at all. Never spends a Sentinel Hub request to answer this."""
+    return sat.status()
+
+
+@app.get("/satellite-tile/{layer}/{z}/{x}/{y}.png")
+def satellite_tile(layer: Literal["optical", "radar"], z: int, x: int, y: int, d=Depends(D)):
+    """One map tile of the Sentinel-2 ('optical') or Sentinel-1 ('radar') layer, proxied and disk-cached so a map session
+    does not spend the free Sentinel Hub quota one tile at a time. 503 with a plain message (never a fabricated image) if
+    credentials are not set or the Copernicus service fails; the frontend falls back to the default basemap underneath."""
+    cache = d.work / d.cfg["cache_dir"] / "satellite"
+    try:
+        png, meta = sat.fetch_tile(layer, z, x, y, cache)
+    except sat.SatelliteUnavailable as ex:
+        raise HTTPException(503, f"Satellite imagery is not available right now: {ex}")
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "public, max-age=3600", "X-Satellite-Cached": str(meta["cached"]).lower()})
 
 
 @app.get("/areas/rank")

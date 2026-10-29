@@ -4,7 +4,7 @@ import HelpTip from './HelpTip.jsx'
 
 // One small "Map view" button at the top right of the map. Its menu holds the map type (satellite or street map) and the field-checked points layer.
 // Escape or a click elsewhere closes it.
-export default function MapViewMenu({ baseLayer, onBaseLayer, showField, onShowField, showOther, onShowOther, showPlan = true, onShowPlan = () => {}, hasPlan = false, detailed = false, onDetailed = () => {}, showGround = false, onShowGround = () => {}, showZoning = false, onShowZoning = () => {} }) {
+export default function MapViewMenu({ baseLayer, onBaseLayer, showField, onShowField, showOther, onShowOther, showPlan = true, onShowPlan = () => {}, hasPlan = false, detailed = false, onDetailed = () => {}, showGround = false, onShowGround = () => {}, showZoning = false, onShowZoning = () => {}, satellite = null }) {
   const id = useId()
   const [open, setOpen] = useState(false)
   const box = useRef(null)
@@ -52,14 +52,24 @@ export default function MapViewMenu({ baseLayer, onBaseLayer, showField, onShowF
               Map type <HelpTip label="About the satellite view">This is an aerial imagery basemap (Esri World Imagery), not a live feed - satellites don't provide real-time video. Coverage dates vary by area and the provider doesn't publish an exact capture date per tile, so a change on the ground (a new building, a cleared lot, a tree that grew in) may not show here yet. Use it to judge terrain and existing cover, not as today's picture.</HelpTip>
             </legend>
             {[
-              ['satellite', 'Satellite'],
-              ['street', 'Street map'],
-            ].map(([v, l]) => (
+              ['satellite', 'Satellite', null],
+              ['street', 'Street map', null],
+              ...(satellite?.available
+                ? [
+                    ['optical', 'Recent satellite photo', satellite.layers?.optical?.note],
+                    ['radar', 'Radar change view', satellite.layers?.radar?.note],
+                  ]
+                : []),
+            ].map(([v, l, note]) => (
               <label key={v} className="nw-mapview-row">
                 <input type="radio" name="nw-basemap" checked={baseLayer === v} onChange={() => onBaseLayer(v)} />
                 <span>{l}</span>
+                {note ? <HelpTip label={`About ${l.toLowerCase()}`}>{note}</HelpTip> : null}
               </label>
             ))}
+            {!satellite?.available && (
+              <p className="nw-mapview-note">A recent-satellite-photo and radar view can be added here once Sentinel Hub credentials are set up for this deployment.</p>
+            )}
           </fieldset>
           <label className="nw-mapview-row nw-mapview-check">
             <input id="nw-show-field" type="checkbox" checked={showField} onChange={(e) => onShowField(e.target.checked)} />

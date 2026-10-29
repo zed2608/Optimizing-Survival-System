@@ -14,3 +14,12 @@ services:
         value: "1"
       - key: OS_RESET_HOURS
         value: "24"
+      # Satellite map layer (round 23, provisional): a free Copernicus Data Space Ecosystem / Sentinel Hub OAuth client,
+      # created by the team in their Copernicus dashboard. `sync: false` means Render does NOT read a value for these from
+      # this file (and none is ever written here) - set the real Client ID / Client Secret once in the Render dashboard's
+      # Environment tab for this service. Leaving them unset is fine: the satellite layer then just reports itself as
+      # unavailable (pipeline/satellite.py's status()) rather than failing.
+      - key: COPERNICUS_CLIENT_ID
+        sync: false
+      - key: COPERNICUS_CLIENT_SECRET
+        sync: false

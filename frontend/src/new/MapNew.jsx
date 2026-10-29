@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import L from 'leaflet'
 import { MapContainer, TileLayer, useMap, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { MAP_BOUNDS, MAP_CENTER } from '../v2/config.js'
+import { API_BASE, MAP_BOUNDS, MAP_CENTER } from '../v2/config.js'
 import { motionAllowed } from './motionPref.js'
 import BoundaryLayers from './BoundaryLayers.jsx'
 import DrawLayer from './DrawLayer.jsx'
@@ -11,6 +11,11 @@ import GridLayer from './GridLayer.jsx'
 import HighlightLayer from './HighlightLayer.jsx'
 import ZoningLayer from './ZoningLayer.jsx'
 import { RIGHT_PANEL_WIDTH, SIDEBAR_WIDTH } from './layout.js'
+
+// Shown in place of a Sentinel tile that failed (not yet credentialed, or Copernicus had no fresh pass for that square)
+// rather than Leaflet's broken-image icon tiled across the map - the dark container background then shows through, which
+// reads as "nothing here yet" rather than an error.
+const TRANSPARENT_TILE = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='
 
 const MARGIN = 0.06 // panning may go this much (share of the size) beyond the municipality
 const TOP_PAD = 84 // room for the top bar when fitting
@@ -93,10 +98,16 @@ function PulseRing({ spot }) {
   return null
 }
 
-// Satellite (default) or street map (chosen in the sidebar Options), zoom buttons, the outlines + names, and the grid layer.
+// Satellite (default), street map, or the optional recent-imagery layers (Map view menu), zoom buttons, the outlines + names, and the grid layer.
+// 'optical' (Sentinel-2) and 'radar' (Sentinel-1) are proxied through our own backend (round 23) - see pipeline/satellite.py and
+// GET /satellite-tile/{layer}/{z}/{x}/{y}.png in api_v2.py - rather than requested from Copernicus directly, since that endpoint needs a
+// short-lived OAuth token this page never holds. Served only at zoom 9-16 (maxNativeZoom): Leaflet reuses and stretches the z16 tile
+// beyond that rather than asking for a zoom the backend does not serve.
 const BASE_LAYERS = {
   satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri &mdash; World Imagery' },
   street: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' },
+  optical: { url: `${API_BASE}/satellite-tile/optical/{z}/{x}/{y}.png`, attribution: 'Sentinel-2 (Copernicus Data Space Ecosystem / ESA) via Sentinel Hub', maxNativeZoom: 16, minNativeZoom: 9 },
+  radar: { url: `${API_BASE}/satellite-tile/radar/{z}/{x}/{y}.png`, attribution: 'Sentinel-1 (Copernicus Data Space Ecosystem / ESA) via Sentinel Hub', maxNativeZoom: 16, minNativeZoom: 9 },
 }
 
 export default function MapNew({ myLoc = null, bbox, boundaries, grid, clearGrid, labeler, selected, spot, onPick, onContext, meta, goTarget, fitTarget, highlight, draft, drawing, areaSquares = null, field, baseLayer = 'satellite', contextCols = null, contextVisible = true, contextLabeler = null, safeArea = null, planItems = null, planVisible = true, planLabeler = null, detailed = false, ground = null, groundOn = false, zoning = null, zoningOn = false }) {
@@ -113,7 +124,7 @@ export default function MapNew({ myLoc = null, bbox, boundaries, grid, clearGrid
       className={drawing ? 'nw-drawing' : ''}
       style={{ height: '100%', width: '100%', background: '#0b1220' }}
     >
-      <TileLayer key={baseLayer} url={base.url} attribution={base.attribution} maxZoom={19} />
+      <TileLayer key={baseLayer} url={base.url} attribution={base.attribution} maxZoom={19} maxNativeZoom={base.maxNativeZoom} minNativeZoom={base.minNativeZoom} errorTileUrl={base.maxNativeZoom ? TRANSPARENT_TILE : undefined} />
       <ZoomControl position="topright" />
       <FitToMunicipality bbox={bbox} />
       <GoTo target={goTarget} />

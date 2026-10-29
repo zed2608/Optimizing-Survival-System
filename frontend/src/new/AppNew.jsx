@@ -891,7 +891,7 @@ export default function AppNew() {
         />
       </div>
 
-      <MapViewMenu showGround={showGround} onShowGround={setShowGround} showZoning={showZoning} onShowZoning={setShowZoning} detailed={detailed} onDetailed={setDetailed} baseLayer={baseLayer} onBaseLayer={setBaseLayer} showField={showField} onShowField={setShowField} showOther={showOther} onShowOther={setShowOther} showPlan={showPlan} onShowPlan={setShowPlan} hasPlan={!!planResult} />
+      <MapViewMenu showGround={showGround} onShowGround={setShowGround} showZoning={showZoning} onShowZoning={setShowZoning} detailed={detailed} onDetailed={setDetailed} baseLayer={baseLayer} onBaseLayer={setBaseLayer} showField={showField} onShowField={setShowField} showOther={showOther} onShowOther={setShowOther} showPlan={showPlan} onShowPlan={setShowPlan} hasPlan={!!planResult} satellite={healthData?.satellite ?? null} />
       <SearchBar locate={locate} onChoose={onSearchChoose} note={searchNote} onDismissNote={() => setSearchNote(null)} includeUnzoned={includeUnzoned} />
 
       {/* messages over the map */}
