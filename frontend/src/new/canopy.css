@@ -946,6 +946,11 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 .tr-never { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--c-muted); min-height: 32px; }
 .tr-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
 .tr-btns .nw-btn { min-height: 44px; }
+/* .tr-pop sits on var(--c-surface) with no colour of its own on .nw-btn (the base rule's color: var(--c-on-primary) assumes a strong/dark
+   button background); without this, Back and Skip render as near-invisible light text on a near-white tint. Same fix as .nw-dialog / .nw-tour-card / .nw-helppage. */
+.tr-pop .nw-btn { color: var(--c-text); background: var(--c-surface-2); border-color: var(--c-line); }
+.tr-pop .nw-btn-go { color: var(--c-on-primary); background: var(--nw-accent-strong, var(--c-primary)); }
+.tr-pop .nw-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 @media print { .tr-root { display: none !important; } }
 
 /* the Tours menu */
