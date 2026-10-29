@@ -153,6 +153,57 @@ def test_exclusion_zone_drops_points_within_five_metres_only_when_trees_are_give
     assert list(mt.exclusion_keep_mask(s2, lonlat)) == [False, True]
 
 
+# ---- assign_spatial (round 25: a real spatial term in the matching objective, not just a tie-break) -------------------
+def test_spatial_cluster_counts_finds_only_same_species_neighbours_within_radius():
+    xy = np.array([[0.0, 0.0], [100.0, 0.0], [1000.0, 0.0], [1050.0, 0.0]])
+    point_idx = np.array([0, 1, 2, 3])
+    species_idx = np.array([0, 0, 0, 1])                                      # pts 0,1 same species and close; pt 2 same species but far; pt 3 different species
+    counts = mt.spatial_cluster_counts(xy, point_idx, species_idx, radius_m=150.0)
+    assert list(counts) == [1, 1, 0, 0]
+
+
+def test_assign_spatial_never_increases_violations_and_never_beats_hungarian_on_total_w(grid):
+    # a line of points 60 m apart (within the 150 m default cluster radius of several neighbours at once) so that the
+    # plain Hungarian solve, which only maximizes total W, is very likely to pack same-species picks next to each other.
+    n = 20
+    xy = np.array([[296000.0 + 60.0 * i, 1620000.0] for i in range(n)])
+    rng = np.random.default_rng(11)
+    S = rng.uniform(0.5, 1.0, (n, 2))
+    P = np.array([0.9, 0.85])
+    W, F = mt.weights(S, P)
+    q = np.array([5, 5])                                                      # half the points used: room to spread out, not so much that it is pigeonholed
+    plain = mt.assign_hungarian(W, F, q, seed=0)
+    plain_counts = mt.spatial_cluster_counts(xy, plain["point_idx"], plain["species_idx"], radius_m=150.0)
+    plain_violations = int((plain_counts > 0).sum())
+
+    res, report = mt.assign_spatial(W, F, q, xy, seed=0, method="hungarian")
+    assert report["violations_before"] == plain_violations                     # iteration 0 reproduces the plain solve exactly
+    assert report["violations_after"] <= report["violations_before"]           # the spatial pass is never worse than plain Hungarian
+    assert report["iterations"] >= 1
+
+    # the returned assignment must still be a correct one: no point reused, no quota exceeded, nothing below threshold
+    v = mt.check_assignment(xy, S, np.full(2, 10.0), res, q)
+    assert v["below_threshold"] == 0 and v["point_reused"] == 0 and v["over_quota"] == 0
+    assert (res["placed"] <= q).all() and res["placed"].sum() == len(res["point_idx"])
+
+    # total W can only drop (never rise) relative to the unpenalized optimum, since assign_spatial trades some W for fewer clusters
+    total = lambda r: W[r["point_idx"], r["species_idx"]].sum()
+    assert total(res) <= total(plain) + 1e-9
+
+
+def test_assign_spatial_is_a_noop_when_there_is_nothing_to_cluster(grid):
+    xy, S, P, W, F = grid                                                     # the module-level grid: 400 points, 100 m apart, 4 species
+    q = np.array([30, 25, 20, 15])
+    res, report = mt.assign_spatial(W, F, q, xy, seed=1, method="hungarian", cluster_radius_m=1.0)  # radius smaller than the grid spacing
+    assert report["violations_before"] == 0 and report["violations_after"] == 0 and report["iterations"] == 1
+    plain = mt.assign_hungarian(W, F, q, seed=1)
+    assert total_w(W, res) == pytest.approx(total_w(W, plain))                 # identical to the plain solve: nothing was penalized
+
+
+def total_w(W, res):
+    return float(W[res["point_idx"], res["species_idx"]].sum())
+
+
 # ---- real data (skipped when the Day 1 / Day 2 outputs are not there) ---------------------------------------------------
 needs_data = pytest.mark.skipif(not (PROCESSED / "scores" / "site_scores.db").exists() or not (PROCESSED / "purpose_scores.csv").exists(),
                                 reason="run score_sites.py and score_purposes.py first")
