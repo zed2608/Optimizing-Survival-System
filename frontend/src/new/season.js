@@ -153,6 +153,10 @@ export function formatSpan(start, end) {
 // Shown with every explanation of the season: the planting months are the best months from the species sources, not a ban.
 export const BEST_MONTHS_NOTE = 'Best months come from the species sources. You can still plant outside them, but expect more watering and more losses.'
 
+// The single-letter month strip (J F M A M J J A S O N D) was flagged at the defense as unclear on its own; this spells the
+// order out in words everywhere the strip's meaning is explained, so a reader never has to guess which letter is which month.
+export const MONTH_STRIP_NOTE = 'Month strip (January to December, left to right): filled = planting months, ringed = your dates.'
+
 // "1 May - 29 Jun 2027" (both years when the span crosses a year end): the same wording as the planning service uses.
 export function formatSpanYear(start, end) {
   if (start.slice(0, 4) !== end.slice(0, 4)) return `${formatDay(start, true)} - ${formatDay(end, true)}`

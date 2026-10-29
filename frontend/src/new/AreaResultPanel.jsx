@@ -10,7 +10,7 @@ import { fmt, pct } from '../v2/scale.js'
 import ColorLegend from '../v2/components/ColorLegend.jsx'
 import HelpTip from './HelpTip.jsx'
 import ViewSwitch from './ViewSwitch.jsx'
-import { BEST_MONTHS_NOTE } from './season.js'
+import { BEST_MONTHS_NOTE, MONTH_STRIP_NOTE } from './season.js'
 import RowIcons from './RowIcons.jsx'
 import ScoreBar from './ui/ScoreBar.jsx'
 import { useApi } from '../v2/useApi.js'
@@ -81,7 +81,7 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
             {r.species_with_suitable_points} of {r.species_total} species suitable somewhere here
           </p>
           <HelpTip label="About this list">
-            {r.area.legal_points} planting squares; {r.area.points_with_a_suitable_species} have at least one suitable species. Month strip: filled = planting months, ringed = your dates.
+            {r.area.legal_points} planting squares; {r.area.points_with_a_suitable_species} have at least one suitable species. {MONTH_STRIP_NOTE}
           </HelpTip>
         </div>
         {r.area.not_plantable_points > 0 && (
@@ -188,7 +188,11 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
                   </div>
                 </dl>
                 <SeasonBadge season={s.season} />
-                {full && s.season && <div className="muted">Month strip: filled = planting months, ringed = your dates. {BEST_MONTHS_NOTE}</div>}
+                {full && s.season && (
+                  <div className="muted">
+                    {MONTH_STRIP_NOTE} {BEST_MONTHS_NOTE}
+                  </div>
+                )}
                 <FlagBadges flags={s.flags} />
                 <details open={full || undefined}>
                   <summary>

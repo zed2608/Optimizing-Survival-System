@@ -14,7 +14,7 @@ import HelpTip from './HelpTip.jsx'
 import LocationCard from './LocationCard.jsx'
 import PlantingHistoryCard from './PlantingHistoryCard.jsx'
 import RowDetails from './RowDetails.jsx'
-import { BEST_MONTHS_NOTE } from './season.js'
+import { BEST_MONTHS_NOTE, MONTH_STRIP_NOTE } from './season.js'
 import FieldStatusLine from './FieldStatusLine.jsx'
 import PhSiteCard from './PhSiteCard.jsx'
 import RowIcons from './RowIcons.jsx'
@@ -147,7 +147,9 @@ export default function PointPanel({
           <HelpTip label="About this list">
             <div>Each point stands for a 100 m × 100 m square. Colours: green good, orange moderate, red poor, grey not suitable.</div>
             <ColorLegend />
-            <div>Month strip: filled = planting months, ringed = your dates. {BEST_MONTHS_NOTE}</div>
+            <div>
+              {MONTH_STRIP_NOTE} {BEST_MONTHS_NOTE}
+            </div>
           </HelpTip>
         </div>
         <div className="nw-count-line">

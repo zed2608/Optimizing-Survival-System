@@ -7,7 +7,7 @@ import HelpTip from './HelpTip.jsx'
 import Icon from './Icon.jsx'
 import ProvisionalTag from './ProvisionalTag.jsx'
 import { matchText, SCORE_WORDS } from './plainWords.js'
-import { BEST_MONTHS_NOTE } from './season.js'
+import { BEST_MONTHS_NOTE, MONTH_STRIP_NOTE } from './season.js'
 
 // What a species row's "Details" holds: S, P, overall W, confidence, the season (12-month strip), flags and "Why this score?" (every term with its weight and source link).
 // In the Full view the strip explanation is written out in place and the breakdown starts open; in Compact the same things are one tap or one "?" away.
@@ -64,7 +64,7 @@ export default function RowDetails({ item, point, full }) {
       <SeasonBadge season={item.season} />
       {full && item.season && (
         <div className="muted">
-          Month strip: filled = planting months, ringed = your dates. {BEST_MONTHS_NOTE}
+          {MONTH_STRIP_NOTE} {BEST_MONTHS_NOTE}
         </div>
       )}
       <FlagList flags={item.flags} />

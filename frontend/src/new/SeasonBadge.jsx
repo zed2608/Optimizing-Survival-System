@@ -1,9 +1,13 @@
 import MonthStrip from './MonthStrip.jsx'
 import Icon from './Icon.jsx'
+import HelpTip from './HelpTip.jsx'
 import { BEST_MONTHS_NOTE, monthsTextFull, SEASON_WORDS } from './season.js'
 
 // The season of one species for the chosen dates: a badge with WORDS and a symbol (never colour alone) and the 12-month strip
 // (planting months filled, window months ringed). `season` is the season object of the API ({status, window_months, species_months, months_in_window}).
+// The strip's single letters (J F M A M J J A S O N D) were flagged at the defense as unclear on their own, but spelling every
+// row out in words would add back the text-overload this app is also trying to cut - so the compact strip stays, with a small
+// "?" (the same per-row info pattern already used elsewhere) that spells the months out in full on demand.
 export default function SeasonBadge({ season, strip = true, best = strip, className = '' }) {
   if (!season) return null
   const w = SEASON_WORDS[season.status] ?? SEASON_WORDS.unknown
@@ -12,7 +16,15 @@ export default function SeasonBadge({ season, strip = true, best = strip, classN
       <span className={`nw-season nw-season-${season.status}`}>
         <Icon name={w.glyph} size={14} /> {w.word}
       </span>
-      {strip && <MonthStrip filled={season.species_months} ring={season.window_months} />}
+      {strip && (
+        <>
+          <MonthStrip filled={season.species_months} ring={season.window_months} />
+          <HelpTip label="Months, spelled out">
+            {season.species_months.length ? `Planting months: ${monthsTextFull(season.species_months)}.` : 'No planting months are recorded for this species.'}{' '}
+            {season.window_months.length ? `Your dates cover ${monthsTextFull(season.window_months)}.` : null}
+          </HelpTip>
+        </>
+      )}
       {best && season.status === 'out_of_season' && <span className="nw-bestmonths">Best months: {monthsTextFull(season.species_months)}</span>}
     </span>
   )
