@@ -3383,8 +3383,15 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
         flags = list(ctx.species_flags.get(sid, []))
         if mc is not None and mc < rp.CFG["low_confidence_below"]:
             flags.append("low_confidence")
+        # round 23 (panel feedback): an area-wide mean alone can hide that one part of the area is much better than another for
+        # this species; spread = max_w - min_w over the squares where it is eligible, "varies_a_lot" at a 0.25 W gap (provisional,
+        # the same rough band the map legend uses between Good/Moderate/Poor), never set when fewer than 2 eligible squares exist.
+        spread = round(float(r.max_w - r.min_w), 4) if r.n_eligible > 1 else None
         rows.append({"rank": rnk, "species_id": sid, "common_name": ctx.species.common_name.iloc[k], "species_score": round(float(r.score), 4),
-                     "mean_W_where_suitable": round(float(r.mean_w), 4), "suitable_points": int(r.n_eligible),
+                     "mean_W_where_suitable": round(float(r.mean_w), 4), "min_W_where_suitable": round(float(r.min_w), 4) if r.n_eligible > 0 else miss,
+                     "max_W_where_suitable": round(float(r.max_w), 4) if r.n_eligible > 0 else miss,
+                     "spread_W": spread if spread is not None else miss, "varies_a_lot": bool(spread is not None and spread >= 0.25),
+                     "suitable_points": int(r.n_eligible),
                      "share_of_area_suitable": round(float(r.eligible_share), 4), "P": round(float(P[k]), 4),
                      "p_confidence": py(d.ps_by_key[(sid, req.purpose)].confidence) if py(d.ps_by_key[(sid, req.purpose)].confidence) is not None else miss,
                      "mean_site_confidence": round(float(mc), 4) if mc is not None else miss, "flags": flags,
@@ -3414,14 +3421,97 @@ def rank_area(req: AreaRankRequest, q_season=Depends(season_q), d=Depends(HD)):
                     "dioecious_left_out": pal_res["dioecious_rejected"],
                     "caps": {"max_species_share": pal.CFG["max_species_share"], "max_genus_share": pal.CFG["max_genus_share"],
                              "palette_min": pal.CFG["palette_min"], "palette_max": pal.CFG["palette_max"], "status": "provisional"}},
-            "score_definition": "species_score = mean W where the species is suitable (S >= 0.50) x the share of the area's grid points where it is suitable",
-            "missing": {"marker": miss, "columns": {"mean_site_confidence": f"{miss} = no confidence value available", "p_confidence": f"{miss} = no confidence value available"},
+            "score_definition": "species_score = mean W where the species is suitable (S >= 0.50) x the share of the area's grid points where it is suitable. "
+                                 "min_W_where_suitable/max_W_where_suitable/spread_W show how much that varies across the area's own squares: this is still "
+                                 "one average per species over however many squares make up the area - check an individual square for its own number.",
+            "missing": {"marker": miss, "columns": {"mean_site_confidence": f"{miss} = no confidence value available", "p_confidence": f"{miss} = no confidence value available",
+                                                     "min_W_where_suitable": f"{miss} = no suitable square", "max_W_where_suitable": f"{miss} = no suitable square",
+                                                     "spread_W": f"{miss} = fewer than 2 suitable squares"},
                         "note": "No value is null. In sources, a missing rank is the marker and a missing text is an empty string."},
             "sources": {k: {f: ((miss if f == "rank" else "") if v is None else v) for f, v in src.items()} for k, src in sources_map(d, ids).items()},
             "limits": limits_of(d), **season_extra(d, season)}
     if season is not None:
         out["mix"]["common_months_in_window"] = [m for m in season.months if m in pal_res["common_months"]]
     return out
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Manual planting-site evaluation (round 23, panel feedback): "what if I measured different elevation / slope / soil here
+# than the grid's own estimate?" A planter types in what they actually observed on the ground and sees the species ranking
+# recomputed from exactly that - nothing is saved, nothing on the map or in any plan changes, and a field left blank is
+# simply not evaluated for that term (never backfilled from the grid, per golden rule 1: never invent data). Uses the rule
+# score only (never the Random Forest, which is only trained on real grid squares, never on a hand-typed one) and leaves
+# wetness (distance to a creek/river) out entirely, since that is not something measured by hand on the spot.
+# ---------------------------------------------------------------------------------------------------------------------
+class SiteEvalRequest(BaseModel):
+    purpose: Purpose
+    elev_m: Optional[float] = Field(None, ge=0, le=2000, description="measured elevation in metres; omit to leave this term unevaluated")
+    slope_pct: Optional[float] = Field(None, ge=0, le=200, description="measured slope in percent; omit to leave this term unevaluated")
+    soil_texture: Optional[str] = Field(None, description=f"one of {ss.WHAT_IF_SOIL_TEXTURES}; omit or 'unknown' to leave this term unevaluated")
+    point_id: Optional[int] = Field(None, description="a real grid square's id, shown only as a side-by-side comparison; never used to fill in a field you left blank")
+    limit: int = Field(45, ge=1, le=45)
+
+
+@app.post("/site-eval")
+def site_eval(req: SiteEvalRequest, d=Depends(HD)):
+    """Species ranked for one spot described by what a planter measured there, not the grid's own estimate. See the class
+    docstring above for what this does and does not do."""
+    if req.elev_m is None and req.slope_pct is None and (not req.soil_texture or req.soil_texture.strip().lower() == "unknown"):
+        raise HTTPException(400, "Nothing to evaluate: give at least one of elev_m, slope_pct or soil_texture.")
+    tex = None if (not req.soil_texture or req.soil_texture.strip().lower() == "unknown") else req.soil_texture.strip().lower()
+    if tex is not None and tex not in ss.WHAT_IF_SOIL_TEXTURES:
+        raise HTTPException(422, f"soil_texture must be one of {ss.WHAT_IF_SOIL_TEXTURES}, 'unknown', or left out; got {req.soil_texture!r}.")
+    ctx = d.ctx
+    smode = d.score_run.get("slope_mode", ss.SLOPE_MODE)
+    gm = d.score_run.get("slope_graded_margin_fraction") or ss.SLOPE_GRADED_MARGIN_FRACTION
+    soil_mode = d.score_run.get("soil_gate_mode", ss.SOIL_GATE_MODE)
+    scored = ss.score_what_if(ctx.species, elev_m=req.elev_m, slope_pct=req.slope_pct, soil_texture=tex,
+                               slope_mode=smode, slope_margin_fraction=gm, soil_gate_mode=soil_mode)
+    P = ctx.P[req.purpose]
+    compare_row, compare_point = None, None
+    if req.point_id is not None:
+        j = d.legal_index.get(int(req.point_id))
+        if j is None:
+            raise HTTPException(404, f"point_id {req.point_id} is not a legal-zone grid point; it cannot be used for comparison (the evaluation itself still runs).")
+        pt = d.ctx.sites.iloc[j]   # j indexes ctx.sites/ctx.S (legal-zone points only), NOT d.all_points - see /rank above for the same distinction
+        compare_point = {"point_id": int(pt.point_id), "barangay": barangay_display_of(d, int(pt.point_id)),
+                          "grid_elev_m": py(pt.elev_m), "grid_slope_pct": py(pt.slope_pct),
+                          "grid_soil_texture": py(pt.soil_texture_legacy)}
+        compare_row = {sid: round(float(S), 4) for sid, S in zip(ctx.species.species_id.astype(int), ctx.S[j])}
+    rows, ids = [], set()
+    scored = scored.sort_values("species_id")
+    for r in scored.itertuples(index=False):
+        sid = int(r.species_id)
+        k = d.species_idx[sid]
+        S = float(r.s_rule)
+        W = S * float(P[k]) if S >= mt.CFG["s_min"] else 0.0
+        s_ids = species_field_ids(d, sid, [f for fs in ss.TERM_FIELDS.values() for f in fs])
+        p_ids = purpose_source_ids(d, sid, req.purpose)
+        ids |= set(s_ids) | set(p_ids)
+        flags = list(ctx.species_flags.get(sid, []))
+        if r.soil_unverified_mismatch:
+            flags.append("soil_unverified_mismatch")
+        if r.slope_graded:
+            flags.append(ss.SLOPE_GRADED_FLAG)
+        if r.confidence < rp.CFG["low_confidence_below"]:
+            flags.append("low_confidence")
+        rows.append({"species_id": sid, "common_name": ctx.species.common_name.iloc[k], "S": round(S, 4), "P": round(float(P[k]), 4),
+                     "W": round(W, 4), "eligible": bool(S >= mt.CFG["s_min"]), "confidence": round(float(r.confidence), 4), "flags": flags,
+                     "source_ids": {"site_score": s_ids, "purpose_score": p_ids},
+                     **({"grid_S": compare_row[sid], "delta_S": round(S - compare_row[sid], 4)} if compare_row is not None else {})})
+    rows.sort(key=lambda x: (not x["eligible"], -x["W"], -x["S"], x["species_id"]))
+    for rnk, r in enumerate(rows[: req.limit], 1):
+        r["rank"] = rnk
+    rows = rows[: req.limit]
+    return {"purpose": req.purpose,
+            "measured": {"elev_m": req.elev_m, "slope_pct": req.slope_pct, "soil_texture": tex},
+            "compared_to_point": compare_point,
+            "note": ("This is a rule-based recomputation of exactly what you typed - never the Random Forest (it is only trained on real grid "
+                     "squares), never saved, and never shown on the map or counted in any plan. A field you left blank is not evaluated for "
+                     "that species, the same as a missing grid value; it does not assume an average or a typical value. Wetness (distance to a "
+                     "creek or river) is not evaluated here: it is not something measured by hand on the spot."),
+            "species_total": int(len(ctx.species)), "returned": len(rows), "ranking": rows,
+            "sources": {k: {f: ((cfg["missing_marker"] if f == "rank" else "") if v is None else v) for f, v in src.items()} for k, src in sources_map(d, ids).items()}}
 
 
 # ---------------------------------------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ import { BEST_MONTHS_NOTE, MONTH_STRIP_NOTE } from './season.js'
 import FieldStatusLine from './FieldStatusLine.jsx'
 import PhSiteCard from './PhSiteCard.jsx'
 import RowIcons from './RowIcons.jsx'
+import SiteEvalPanel from './SiteEvalPanel.jsx'
 import { motion } from 'motion/react'
 import { motionAllowed } from './motionPref.js'
 import ScoreBar from './ui/ScoreBar.jsx'
@@ -185,6 +186,8 @@ export default function PointPanel({
           </div>
         )}
       </section>
+
+      <SiteEvalPanel purpose={purpose} pointId={pointId} />
     </div>
   )
 }

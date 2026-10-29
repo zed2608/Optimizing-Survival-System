@@ -694,6 +694,8 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 
 /* ======================= DESIGN V2 (Phase 4b): species rows ======================= */
 .cy-rowmeta { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px 28px; }
+/* round 24 (panel feedback): the per-species min-max spread note shown inline on an area-ranking row, not only behind Details */
+.nw-varies { display: flex; align-items: center; gap: 4px; margin: 0 0 4px 28px; font-size: 12px; }
 .cy-scorebar { flex: 1; height: 8px; border-radius: 4px; background: var(--c-surface-3); overflow: hidden; display: block; min-width: 40px; }
 .cy-scorebar-fill { display: block; height: 100%; border-radius: 4px; background: var(--c-bar, #2f9e5f); }
 .cy-scorebar[data-step='3'] { --c-bar: #1f7a45; } .cy-scorebar[data-step='2'] { --c-bar: #5db37a; } .cy-scorebar[data-step='1'] { --c-bar: #a9d6b4; }

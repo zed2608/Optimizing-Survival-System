@@ -157,6 +157,13 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
                 <ScoreBar value={s.mean_W_where_suitable === MARKER ? 0 : s.mean_W_where_suitable} label="Average match where suitable" />
                 <RowIcons season={s.season} phVerdict={s.ph_verdict} speciesId={s.species_id} site={api.data?.area?.ph ?? null} ranges={phRanges} />
               </div>
+              {s.varies_a_lot && (
+                // round 23 (panel feedback): an area-wide average alone can hide that one part of the area suits a species much
+                // better than another part - say so right in the compact row, not only behind a tap, so it is not missed.
+                <p className="muted nw-varies" role="note">
+                  <Icon name="info" size={12} /> Varies a lot across this area: {pct(s.min_W_where_suitable)} to {pct(s.max_W_where_suitable)} depending on the square. Check individual squares for their own match.
+                </p>
+              )}
               <details className="nw-pdetails" open={full || undefined}>
                 <summary>
                   Details<span className="sr-only"> for {s.common_name}</span>
@@ -172,6 +179,13 @@ export default function AreaResultPanel({ api, areaLabel, onShowAll, onChangeDat
                     <dt>Average score (W) where suitable</dt>
                     <dd>
                       <MissingOr v={s.mean_W_where_suitable} f={fmt} />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Range (W) across this area</dt>
+                    <dd>
+                      <MissingOr v={s.min_W_where_suitable} f={fmt} /> to <MissingOr v={s.max_W_where_suitable} f={fmt} />
+                      {s.varies_a_lot && <span className="muted"> · varies a lot</span>}
                     </dd>
                   </div>
                   <div>

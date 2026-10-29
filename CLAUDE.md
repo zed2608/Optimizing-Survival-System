@@ -346,8 +346,49 @@ The species data is FROZEN as release `v1.0-review` for the agriculturist's revi
 - **Fixed: invisible Back/Skip-tour buttons.** `.tr-pop` (the on-page tour popover, `TourHost.jsx` + `canopy.css`) never overrode the base `.nw-btn` colour, so Back and Skip tour rendered as `var(--c-on-primary)` text on a near-transparent tint background - nearly invisible, screenshotted by the user. Same class of bug already fixed for `.nw-dialog` / `.nw-tour-card` / `.nw-helppage`, just missed for the live tour popover; fixed the same way (`color: var(--c-text); background: var(--c-surface-2)`).
 - **Trimmed the Plan & Map control-panel tour from 34 steps to 14** (same user report: "a lot of text to digest" - the default "Tour of this page" on the Plan & Map sidebar chained all 6 sections of `STUDIO_LEFT` in `tourDefs.js` into one 34-step walkthrough). Cut to the steps `tourCoverage.test.mjs`'s `REQUIRED` registry demands plus the handful most worth a sentence, merging adjacent explanations (species search/filter folded into the species-list step; campaign name/unit/trees folded into one plan step). Nothing is deleted from the system: every cut step's target element and its tour step still exist and are reachable per-section from the Tours menu, and `docs/USER_GUIDE.md` still documents all of it (the printed-guide coverage test still passes). Verified with `node --test` on `tourCoverage.test.mjs`, `tourLayout.test.mjs` and `tutorial.test.mjs` (16/16 pass) - no `vite`/`eslint` build tooling available in this sandbox, so the visual result was also confirmed live in the user's browser after deploy.
 
+## Round 24: area-ranking spread indicator, and manual planting-site evaluation ("what-if") (added 2026-10-29; provisional)
+Three more panel points, analyzed on request: (a) ranking a whole barangay/area hides that one part of it can suit a species much better
+than another part; (b) "much better if there's a planting site evaluation to manually input the characteristics before proceeding with a
+plan"; (c) can a user see suitable species/areas without being forced into a plan. (c) needed no code change - `/rank`, `/rank/area`,
+`/areas/rank` and the dashboard's mode 1/2 views already answer this with no plan ever created; a plan is only step 5, entirely optional.
+This round builds (a) and (b).
+- **(a) Spread indicator.** `pipeline/palettes.py` `species_stats()` gained `min_w`/`max_w`: the lowest and highest per-square W among the
+  squares where a species is eligible (S >= 0.50) within the ranked area, alongside the existing area-wide mean. `api_v2.py`'s `rank_area()`
+  (`/rank/area`, what `AreaResultPanel.jsx` calls) adds `min_W_where_suitable`, `max_W_where_suitable`, `spread_W` (= max - min, `null`-marker
+  when fewer than 2 eligible squares - never computed from 1 point) and `varies_a_lot` (spread_W >= 0.25, the same rough band the map's
+  Good/Moderate/Poor colour legend already uses; PROVISIONAL threshold). Frontend (`AreaResultPanel.jsx`): a one-line note right on the
+  compact row ("Varies a lot across this area: 42% to 88% depending on the square...") when `varies_a_lot`, not only behind Details, so it
+  is not missed; Details also gets a "Range (W) across this area" line. `score_definition` and the `missing` block in the API response say
+  what the new fields mean and that an area ranking is still one number per species over however many squares make up the area.
+- **(b) Manual site evaluation ("what-if").** New `pipeline/score_sites.score_what_if(species, elev_m=, slope_pct=, soil_texture=, **kw)`:
+  a thin wrapper around the existing `score_pairs()` (never a reimplementation, so it can't drift from the real scoring rule) that scores
+  ONE described spot instead of a real grid row. A field left `None`/blank is simply not evaluated for that species (never backfilled from
+  the grid or guessed, golden rule 1); `soil_texture` is checked against `WHAT_IF_SOIL_TEXTURES` (the 5 known textures, `sorted(SOIL_COMPAT)`)
+  and a bad value raises `ValueError`. Wetness (distance to a creek/river) is deliberately left out of this function entirely: it is not
+  something measured by hand on the spot, and this describes a spot, not a real `point_id`, so there is no real distance to look up. New
+  `POST /site-eval` (`api_v2.py`, `SiteEvalRequest`): purpose + any of elev_m/slope_pct/soil_texture (400 if none given, 422 on a bad
+  soil_texture), optional `point_id` for a side-by-side `grid_S`/`delta_S` comparison against a real square (404 if that point is not a
+  legal-zone grid point). Reads `d.score_run` (slope_mode, slope_graded_margin_fraction, soil_gate_mode) so the what-if check always stays
+  config-consistent with however the live deployed scores were actually made, rather than silently using different defaults. Uses the rule
+  score only (`s_rule`), never the Random Forest (`s_prob`, trained only on real grid squares, never on a hand-typed one). The response's
+  `note` field states all of this in plain words for the dashboard to show verbatim. Frontend: `SiteEvalPanel.jsx`, a collapsible card in
+  the point panel ("Planting site evaluation") with elevation/slope/soil inputs, a "Check this measurement" button (`usePost('/site-eval', ...)`,
+  the same hook `SpeciesChooser.jsx` already uses for a POST), and a results list with S/W, flags and (when the point was ranked from a real
+  square) the grid's own S for comparison. Clearly labelled as a one-off, unsaved check - nothing here touches the map, a plan, or any
+  other viewer.
+- **Verification note:** no pytest/fastapi and no vite/eslint are available in this sandbox (same limitation as rounds 22-23), so
+  `score_what_if()` and the extended `species_stats()` were exercised with standalone `python3 -c` scripts against synthetic pandas/numpy
+  data (both libraries ARE importable here) rather than the real pytest fixtures, and `api_v2.py`/`pipeline/score_sites.py`/`pipeline/palettes.py`
+  were checked with `python3 -m py_compile` only; the three touched/added `.jsx` files and the CSS were checked by careful manual read, not a
+  real build. Needs a live Render deploy plus a connected-browser check (`/site-eval` end to end, the area-ranking spread note, the new point
+  panel card) before the defense, and `python -m pytest tests` / `npm run build && npm run lint` run properly in an environment that has them.
+
 ## Current status and next tasks
-LATEST (round 23, 2026-10-29): a provisional survival-rate threshold (85% at 1 year, cited to DENR's NGP requirement), an optional Sentinel-2/Sentinel-1 satellite/radar map layer (confirmed working live, Copernicus credentials are set in Render), the month-strip clarity fix, a tour-popover button contrast fix, and a 34→14 step trim of the Plan & Map control-panel tour (see above) - the pytest additions (5 threshold + 12 round-22 point-history = 17) pass standalone; the tour/node test suite relevant to this round's frontend changes (16 tests across 3 files) passes; the rest of the suite (698 tests as of round 21) was NOT re-run in this environment (no network access to install `fastapi`/`pandas`/etc. here, and no `vite`/`eslint` for a full frontend build - run `python -m pytest tests` and `npm run build && npm run lint` in `frontend/` yourself before relying on this). The status text below is the history of earlier rounds.
+LATEST (round 24, 2026-10-29): an area-ranking spread indicator (min/max/varies-a-lot per species across an area, not just a flat average) and
+a manual planting-site evaluation ("what-if": type measured elevation/slope/soil and see the ranking recomputed for that one spot, unsaved,
+rules-score only) answering three more panel points (see the round 24 section above); not yet re-verified live (no browser tool available this
+turn) or with a real test run (sandbox limits as in rounds 22-23).
+EARLIER (round 23, 2026-10-29): a provisional survival-rate threshold (85% at 1 year, cited to DENR's NGP requirement), an optional Sentinel-2/Sentinel-1 satellite/radar map layer (confirmed working live, Copernicus credentials are set in Render), the month-strip clarity fix, a tour-popover button contrast fix, and a 34→14 step trim of the Plan & Map control-panel tour (see above) - the pytest additions (5 threshold + 12 round-22 point-history = 17) pass standalone; the tour/node test suite relevant to this round's frontend changes (16 tests across 3 files) passes; the rest of the suite (698 tests as of round 21) was NOT re-run in this environment (no network access to install `fastapi`/`pandas`/etc. here, and no `vite`/`eslint` for a full frontend build - run `python -m pytest tests` and `npm run build && npm run lint` in `frontend/` yourself before relying on this). The status text below is the history of earlier rounds.
 EARLIER (round 21, 2026-10-10): 698 tests pass (1 skipped), qa_day1 34 passed / 0 failed, build, eslint and node tests clean; the defense documents are in `docs/defense/` (OVERNIGHT_REPORT.md: round 20 findings and the round 21 fixes).
 DONE (round 15b added: 598 tests pass, 1 browser test skipped unless OS_BROWSER_CHECK=1): Day 1 (data), Day 2 (site scores, purpose scores, model comparison), Day 3 (palettes, matching, `api_v2.py`), Day 4 (field kit, weather advisory),
 the `#/new` dashboard steps 0-3 (map, outlines, grid layer) and both modes ("I have species - find areas" / "I have an area - find species"), saved field checks,

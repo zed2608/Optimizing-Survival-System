@@ -458,6 +458,12 @@
 .nw-count-line { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
 .nw-plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .nw-plist.is-greyed { opacity: 0.5; filter: grayscale(1); }
+
+/* round 23 (panel feedback): manual planting-site evaluation ("what-if"), a one-off unsaved check in the point panel */
+.nw-siteeval-toggle { display: flex; align-items: center; gap: 6px; background: none; border: none; padding: 0; cursor: pointer; text-align: left; color: var(--c-text); }
+.nw-siteeval-form { display: grid; gap: 4px; margin-top: 8px; }
+.nw-siteeval-form .btn { margin-top: 4px; justify-self: start; }
+.nw-siteeval-result { margin-top: 12px; }
 .nw-prow { border: 1px solid var(--line); border-left: 6px solid var(--c-line); border-radius: 8px; padding: 8px; background: var(--c-surface); }
 .nw-prow.level-good { border-left-color: var(--c-primary); }
 .nw-prow.level-moderate { border-left-color: var(--c-warn); }

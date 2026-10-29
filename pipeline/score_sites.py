@@ -228,6 +228,30 @@ def score_pairs(species, sites, margin_fraction=None, weights=None, wet_distance
     return pd.DataFrame(rows)
 
 
+WHAT_IF_SOIL_TEXTURES = sorted(SOIL_COMPAT)   # the only textures a manual measurement can be scored against (round 23, panel feedback: "manual site evaluation")
+
+
+def score_what_if(species, elev_m=None, slope_pct=None, soil_texture=None, **kw):
+    """S(species) for ONE spot described directly by measured values, not a real site_points_clean.csv row - the panel's
+    'planting site evaluation' ask: a planter can type in what they actually measured on the ground (elevation in m, slope
+    in percent, one of WHAT_IF_SOIL_TEXTURES) instead of trusting the grid's own estimate, and see the recomputed S. Any
+    value left None/empty is simply not evaluated for that term (never guessed, same rule as an unknown grid value). There
+    is deliberately no wetness (distance-to-water) term here - that is not something measured by hand on the spot, and this
+    function describes a spot, not a real point_id, so there is nothing to look a real distance up against; the caller
+    should say in words that wetness is left out of this quick check.
+    Reuses score_pairs's own formulas (**kw forwards margin_fraction / soil_gate_mode / slope_mode / weights / ... so this
+    never drifts from the real scoring rule) rather than re-deriving them, so this is never more than a thin wrapper.
+    Returns the same per-species DataFrame score_pairs would for a real point (point_id is always 0, a placeholder: this
+    spot is never saved and never gets a real point_id). Never writes to site_points_clean.csv or any saved score."""
+    tex = str(soil_texture).strip().lower() if soil_texture else None
+    if tex is not None and tex not in SOIL_COMPAT:
+        raise ValueError(f"soil_texture must be one of {WHAT_IF_SOIL_TEXTURES} or empty/None (unknown), got {soil_texture!r}")
+    one = pd.DataFrame({"point_id": [0], "elev_m": [np.nan if elev_m is None else float(elev_m)],
+                         "slope_pct": [np.nan if slope_pct is None else float(slope_pct)],
+                         "is_legal_zone": [True], "soil_texture_legacy": [tex]})
+    return score_pairs(species, one, soil_source="legacy", **kw)
+
+
 def source_lookup(sources):
     """{(species_id, field_name): {'source_id', 'url', 'rank'}} from species_sources (one row per species-field)."""
     d = {}

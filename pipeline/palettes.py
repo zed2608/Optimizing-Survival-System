@@ -128,7 +128,10 @@ def parse_months(value):
 
 
 def species_stats(S, P, s_min, mult=None):
-    """Per species: eligible point count and share, mean W over eligible points, and the species score. mult = optional W multiplier per point (S and eligibility are not touched)."""
+    """Per species: eligible point count and share, mean/min/max W over eligible points, and the species score.
+    min_w/max_w are the spread of the per-square W among the squares where the species is eligible: round 23's panel
+    feedback was that an area-wide average alone hides that one part of an area can be much better than another for the
+    same species. mult = optional W multiplier per point (S and eligibility are not touched)."""
     S = np.asarray(S, dtype=float); P = np.asarray(P, dtype=float)
     n_pts = S.shape[0]
     elig = S >= s_min
@@ -138,7 +141,13 @@ def species_stats(S, P, s_min, mult=None):
         W = W * np.asarray(mult, dtype=float)[:, None]
     mean_w = np.divide(W.sum(axis=0), n_el, out=np.zeros(S.shape[1]), where=n_el > 0)
     share = n_el / n_pts if n_pts else np.zeros(S.shape[1])
-    return pd.DataFrame({"n_eligible": n_el, "eligible_share": share, "mean_w": mean_w, "score": mean_w * share})
+    W_masked = np.where(elig, W, np.nan)
+    with np.errstate(all="ignore"):
+        min_w = np.nanmin(W_masked, axis=0) if n_pts else np.full(S.shape[1], np.nan)
+        max_w = np.nanmax(W_masked, axis=0) if n_pts else np.full(S.shape[1], np.nan)
+    min_w = np.where(n_el > 0, min_w, 0.0)
+    max_w = np.where(n_el > 0, max_w, 0.0)
+    return pd.DataFrame({"n_eligible": n_el, "eligible_share": share, "mean_w": mean_w, "min_w": min_w, "max_w": max_w, "score": mean_w * share})
 
 
 def allocate_quotas(scores, genera, capacity, n, max_species_share, max_genus_share, eps=1e-9):
