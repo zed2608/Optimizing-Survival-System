@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import Icon from './Icon.jsx'
+import HelpTip from './HelpTip.jsx'
 
 // One small "Map view" button at the top right of the map. Its menu holds the map type (satellite or street map) and the field-checked points layer.
 // Escape or a click elsewhere closes it.
@@ -47,7 +48,9 @@ export default function MapViewMenu({ baseLayer, onBaseLayer, showField, onShowF
           </div>
           <p className="nw-mapview-note">Simple: coloured squares, outlines and names. Detailed adds every field-check symbol, the tree codes and the grey squares. Your own plan and the points you mark always show.</p>
           <fieldset className="nw-fieldset">
-            <legend className="nw-mapview-legend">Map type</legend>
+            <legend className="nw-mapview-legend">
+              Map type <HelpTip label="About the satellite view">This is an aerial imagery basemap (Esri World Imagery), not a live feed - satellites don't provide real-time video. Coverage dates vary by area and the provider doesn't publish an exact capture date per tile, so a change on the ground (a new building, a cleared lot, a tree that grew in) may not show here yet. Use it to judge terrain and existing cover, not as today's picture.</HelpTip>
+            </legend>
             {[
               ['satellite', 'Satellite'],
               ['street', 'Street map'],

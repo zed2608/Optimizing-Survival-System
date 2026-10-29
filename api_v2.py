@@ -141,6 +141,8 @@ LIMITS = [
     "{UNZONED_LIMIT}",
     "Field checks (marked plantable by an observer / not plantable / needs recheck) carry a name only (the mark of one person): there is no login yet, they are not an expert check, and anyone with access to the dashboard can add one.",
     "While the field-check switch is on, points whose latest check is 'not plantable' are left out of rankings and plans; 'marked plantable by an observer' only adds a badge and never changes a score.",
+    "The map's satellite view is an aerial imagery basemap (Esri World Imagery), not a live feed: no publicly available satellite service streams real-time video, and imagery coverage dates vary by area and are not published per tile. "
+    "Rankings, field checks and survival checks are answered live on every request (never a stale batch run the user waits on); the site-suitability scores themselves are precomputed offline on purpose (see scripts/rebuild_scores.py) and refreshed when the data or model changes, not on every click.",
 ]
 FIELD_LIMITS = LIMITS[-2:]
 
