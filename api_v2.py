@@ -2160,7 +2160,7 @@ def plan_files(d, plan_id):
     root = plans_dir(d)
     csv, js = (root / f"{plan_id}.csv").resolve(), (root / f"{plan_id}_summary.json").resolve()
     if csv.parent != root or js.parent != root or not csv.is_file() or not js.is_file():
-        raise HTTPException(404, f"Plan '{plan_id}' was not found. List the saved plans with GET /plans.")
+        raise HTTPException(404, f"Plan '{plan_id}' was not found. Check Campaign Logs for the list of saved plans.")
     return csv, js
 
 
@@ -2678,7 +2678,7 @@ def download_kit(filename: str, d=Depends(D)):
     check_plan_id(plan_id)
     path = kit_zip_path(d, plan_id)
     if path.parent != (d.work / d.cfg["kits_dir"]).resolve() or not path.is_file():
-        raise HTTPException(404, f"No field kit has been built for plan '{plan_id}' yet. Build it with POST /plans/{plan_id}/field-kit.")
+        raise HTTPException(404, f"No field kit has been built for plan '{plan_id}' yet. Use the 'Build field kit' button on the plan first, then download it.")
     return FileResponse(path, media_type="application/zip", filename=path.name)
 
 
@@ -2749,7 +2749,7 @@ def field_pack_info(plan_id: str, d=Depends(D)):
     check_plan_id(plan_id)
     ps.cleanup(d.work)
     live = ps.info(d.work, plan_id)
-    return pack_answer(live) if live else {"live": False, "note": f"No planter link is live for this plan (POST /plans/{plan_id}/field-pack makes one)."}
+    return pack_answer(live) if live else {"live": False, "note": "No planter link is live for this plan yet. Use 'Make a link for the planter' on the plan to create one."}
 
 
 @app.delete("/plans/{plan_id}/field-pack")
@@ -3860,7 +3860,7 @@ def survival_plan_context(d, plan_id):
         raise HTTPException(400, "This plan was made in points mode. Survival monitoring tracks confirmed blocks (trees actually marked planted in the field), which only exist for plans in blocks.")
     blocks = [b for b in block_progress(d, plan_id, plan) if b["trees_planted"] > 0]
     if not blocks:
-        raise HTTPException(400, "No block of this plan has been marked planted yet (see GET /plans/{plan_id}/progress), so there is nothing to monitor yet.")
+        raise HTTPException(400, "No block of this plan has been marked planted yet, so there is nothing to monitor yet. Mark a block as Planted (in the point panel or the Progress tab) once trees are in the ground, then come back here.")
     return plan, summary, blocks
 
 
@@ -3898,7 +3898,7 @@ def survival_check_add(req: SurvivalCheckIn, d=Depends(D)):
     _plan, _summary, blocks = survival_plan_context(d, req.plan_id)
     block = next((b for b in blocks if b["point_id"] == req.point_id), None)
     if block is None:
-        raise HTTPException(422, f"point_id {req.point_id} is not a confirmed-planted block of plan {req.plan_id} (see GET /plans/{req.plan_id}/progress).")
+        raise HTTPException(422, f"Point {req.point_id} is not a confirmed-planted block of plan {req.plan_id} yet. Mark it as Planted first, then log a survival check.")
     if req.replaces_check_id is not None:
         prev = next((e for e in sv.history(d.survival_db, req.plan_id, req.point_id) if e["check_id"] == req.replaces_check_id), None)
         if prev is None:
