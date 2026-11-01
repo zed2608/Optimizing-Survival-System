@@ -110,7 +110,10 @@ export default function AreasPanel({ focus = null, speciesNames, combine, onComb
           <AreaTable title="Barangays" kind="barangay" api={byBarangay} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} only={focus?.kind === 'barangay' ? focus.name : null} />
         )}
         {(!focus || focus.kind === 'all' || focus.kind === 'zone') && (
-          <AreaTable title="Zones" kind="zone" api={byZone} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} only={focus?.kind === 'zone' ? focus.name : null} />
+          <>
+            <p className="muted nw-hint">Every land-use zone with legal planting squares, not forest zones only - commercial, industrial, institutional and the rest, each ranked the same way.</p>
+            <AreaTable title="Zones" kind="zone" api={byZone} activeKey={activeKey} onSelect={onSelect} onPlan={onPlan} full={view === 'full'} only={focus?.kind === 'zone' ? focus.name : null} />
+          </>
         )}
       </div>
     </div>

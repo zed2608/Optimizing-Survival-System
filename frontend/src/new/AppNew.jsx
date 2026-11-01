@@ -1123,6 +1123,25 @@ export default function AppNew() {
         >
           {mode === 'species' ? (
             <>
+              {selIds.length === 0 && species.status === 'ok' && (
+                // Round 24-26: the panel's "a vacant area / business district could also be suggested" ask (Sir Jess). No
+                // new endpoint needed - /areas/rank already ranks EVERY zone that holds legal planting squares, commercial
+                // and other non-forest zones included (see build_zoning()/ZONE_RULES in api_v2.py / rebuild_site_grid.py),
+                // not only barangays. This button just runs that same ranking with every species for this purpose and
+                // "suits at least one", so a planner who has neither a species nor an area yet gets a starting list of
+                // candidate areas - including commercial/other zones - with one click, before picking species at all.
+                <button
+                  type="button"
+                  className="nw-btn nw-btn-wide"
+                  data-role="suggest-area"
+                  onClick={() => {
+                    setCombine('any')
+                    setSelIds(species.data.species.map((s) => s.species_id))
+                  }}
+                >
+                  Not sure what to plant? Suggest the best areas for {purposeLabel(purpose)}
+                </button>
+              )}
               <SpeciesFlow
                 sub={speciesSub}
                 setSub={goSub}

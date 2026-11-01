@@ -3,7 +3,7 @@ import HelpTip from './HelpTip.jsx'
 import { ErrorBox, Loading } from '../v2/components/Status.jsx'
 import { useApi } from '../v2/useApi.js'
 import { formatDay } from './season.js'
-import { LogForm, Schedule, STATUS_WORDS, CAUSE_WORDS, ROUND_WORDS } from './SurvivalPanel.jsx'
+import { LogForm, Schedule, STATUS_WORDS, CAUSE_WORDS, ROUND_WORDS, CUT_ORIGIN_WORDS, CUT_REASON_WORDS } from './SurvivalPanel.jsx'
 
 const FIELD_STATUS_WORDS = { verified_plantable: 'Confirmed plantable', not_plantable: 'Marked not plantable', needs_recheck: 'Needs a recheck', planted: 'Planted' }
 
@@ -26,8 +26,14 @@ function SurvivalEvent({ ev }) {
     <li>
       <strong>{STATUS_WORDS[ev.status] ?? ev.status}</strong>
       {` (${ROUND_WORDS[ev.round_label] ?? ev.round_label})`}
-      {ev.status !== 'not_found' ? ` - ${ev.trees_alive} of ${ev.trees_total} alive` : ''}
+      {ev.status !== 'not_found' && ev.status !== 'cut' ? ` - ${ev.trees_alive} of ${ev.trees_total} alive` : ''}
       {ev.cause ? ` · ${CAUSE_WORDS[ev.cause] ?? ev.cause}` : ''}
+      {ev.status === 'cut' && (
+        <>
+          {' · '}{ev.trees_cut} cut ({CUT_ORIGIN_WORDS[ev.cut_tree_origin] ?? ev.cut_tree_origin}, {CUT_REASON_WORDS[ev.cut_reason] ?? ev.cut_reason})
+          {' · '}<strong>{ev.replacement_seedlings_required}</strong> replacement seedlings required
+        </>
+      )}
       {' · '}{formatDay(ev.observed_at, true)} · {ev.observer || 'no name given'}
       {ev.note ? <span className="muted"> - {ev.note}</span> : null}
     </li>

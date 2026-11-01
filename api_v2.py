@@ -144,6 +144,9 @@ LIMITS = [
     "While the field-check switch is on, points whose latest check is 'not plantable' are left out of rankings and plans; 'marked plantable by an observer' only adds a badge and never changes a score.",
     "The map's default satellite view is an aerial imagery basemap (Esri World Imagery), not a live feed: no publicly available satellite service streams real-time video, and imagery coverage dates vary by area and are not published per tile. "
     "Rankings, field checks and survival checks are answered live on every request (never a stale batch run the user waits on); the site-suitability scores themselves are precomputed offline on purpose (see scripts/rebuild_scores.py) and refreshed when the data or model changes, not on every click.",
+    f"A survival check can also record status 'cut' (a tree deliberately removed at maturity, for hazard, disease, storm damage or construction, as opposed to one that simply died); its required replacement-seedling count follows "
+    f"{sv.CFG['denr_replacement_ratio_source']} ({sv.CFG['denr_replacement_ratios']['naturally_growing']} seedlings per naturally growing tree cut, {sv.CFG['denr_replacement_ratios']['planted']} per deliberately planted tree, "
+    f"{sv.CFG['denr_replacement_ratios']['registered_plantation']} within a registered tree plantation or titled land for timber production) - the real regulation, not a project estimate, but no planting here is old enough yet for a real cut event to exist.",
     "{SATELLITE_LIMIT}",
     f"Survival checks (POST /survival-checks) only exist for blocks-mode plans confirmed planted in the field; the monitoring rounds (3 months, 6 months, 1/5/10/50 years) and cause-of-death list are provisional, "
     f"not yet confirmed by the agriculturist or MENRO. The {sv.CFG['success_threshold_pct']:.0f}% survival-rate threshold shown on a plan's report, measured at the {sv.CFG['success_threshold_round'].replace('_', ' ')} round, "
@@ -3865,7 +3868,7 @@ class SurvivalCheckIn(BaseModel):
     plan_id: str
     point_id: int
     round_label: Literal["3_month", "6_month", "1_year", "5_year", "10_year", "50_year", "other"]
-    status: Literal["survived", "dead", "not_found"]
+    status: Literal["survived", "dead", "not_found", "cut"]
     trees_total: int = Field(ge=0, description="trees really planted at this block (from the plan's confirmed count; may differ from the plan's request)")
     trees_alive: int = Field(ge=0)
     trees_dead: int = Field(ge=0)
@@ -3878,6 +3881,14 @@ class SurvivalCheckIn(BaseModel):
     gps_lat: Optional[float] = None
     gps_lon: Optional[float] = None
     gps_accuracy_m: Optional[float] = None
+    # round 26: a tree deliberately removed (maturity, hazard, and so on), as opposed to one that died on its own. Naming the
+    # origin decides DENR Memorandum Order No. 2012-02's replacement-seedling count, computed server-side and returned, never
+    # taken from the client (see pipeline/survival.py's module docstring and required_replacement_seedlings()).
+    trees_cut: Optional[int] = Field(None, ge=0, description="required when status is cut")
+    cut_tree_origin: Optional[Literal["naturally_growing", "planted", "registered_plantation"]] = Field(
+        None, description="required when status is cut; decides the DENR replacement ratio")
+    cut_reason: Optional[Literal["maturity", "hazard", "disease_pest", "storm_damage", "construction", "other"]] = Field(
+        None, description="required when status is cut")
 
 
 @app.post("/survival-checks", status_code=201)
@@ -3925,6 +3936,7 @@ def plan_survival(plan_id: str, d=Depends(D)):
             "threshold": sv.threshold_summary(d.survival_db, plan_id, trees_by_point),
             "schedule_overall": sv.due_schedule(planted_at, sv.rounds_by_label([e for b in blocks for e in sv.history(d.survival_db, plan_id, b["point_id"])])),
             "blocks": rows, "statuses": list(sv.STATUSES), "round_labels": list(sv.ROUND_LABELS), "causes": list(sv.CAUSES),
+            "cut_tree_origins": list(sv.TREE_ORIGINS), "cut_reasons": list(sv.CUT_REASONS), "denr_replacement_ratios": sv.DENR_REPLACEMENT_RATIOS,
             "note": "Nothing here is a reminder or notification: it is what the dashboard and a report can show about which checks are due. "
                     "A block with no check yet is not assumed to have survived or died."}
 
@@ -3964,10 +3976,20 @@ def plan_report(plan_id: str, d=Depends(D)):
                                                         sv.rounds_by_label([e for b in blocks for e in sv.history(d.survival_db, plan_id, b["point_id"])]))}
     except HTTPException as ex:
         survival = {"available": False, "reason": ex.detail}
+    cut = survival["summary"]["cut"] if survival and survival.get("summary") else None
+    aging = {
+        "status": "tracked, nothing recorded yet" if cut is not None else "not tracked yet",
+        "note": "A tree deliberately removed at maturity (or for hazard, disease, storm damage or construction) is logged as its own "
+                "survival-check event (status 'cut'), separate from one that simply died; this is the mechanism for the panel's "
+                "forward-looking 'what happens to trees as they age' question, not a finding - no 10-year or 50-year planting in "
+                "this project is old enough yet for that to have actually happened, so the totals below are real but currently zero "
+                "for a newly planted campaign." if cut is not None else
+                "What happens to these trees over the long term (pruning, removal, replacement at maturity) is not yet recorded here. "
+                "This is a placeholder for a future monitoring cycle, not a finding: no 10-year or 50-year data can exist for a 2026 planting.",
+        "cut_and_replace": cut, "provisional": True,
+    }
     return {"plan_id": plan_id, "what_when_where": what_when_where, "survival": survival,
-            "aging": {"status": "not tracked yet", "note": "What happens to these trees over the long term (pruning, removal, replacement at maturity) is not yet "
-                      "recorded here. This is a placeholder for a future monitoring cycle, not a finding: no 10-year or 50-year data can exist for a 2026 planting.",
-                      "provisional": True},
+            "aging": aging,
             "framing": "Planned, confirmed-planted and (where checked) surviving tree counts, by campaign and barangay: the figures an LGU would cite to justify a budget request.",
             "generated_at": sv.iso(sv.now_utc())}
 

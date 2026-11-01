@@ -11,14 +11,30 @@ may point back to it (replaces_check_id). Nothing here reads or writes S, P, W o
     round_label   3_month | 6_month | 1_year | 5_year | 10_year | 50_year | other   (other = an opportunistic check not tied to
                   a scheduled round; the 10_year and 50_year rounds are the panel's own forward-looking horizons - a placeholder
                   until real data exists that far out, never guessed)
-    status        survived | dead | not_found   (not_found = the stake/tree could not be located this visit: distinct from
-                  dead, because "we don't know" is not the same fact as "it died" - golden rule 1, never invent data)
+    status        survived | dead | not_found | cut   (not_found = the stake/tree could not be located this visit: distinct
+                  from dead, because "we don't know" is not the same fact as "it died" - golden rule 1, never invent data.
+                  cut = round 26: a tree deliberately removed at maturity or for another stated reason, as opposed to one that
+                  died on its own - the panel's forward-looking "what happens to mature/old trees" question, see below)
     cause         required when trees_dead > 0: drought | pest_disease | flooding | typhoon_wind | vandalism | construction |
                   unknown | other
+    cut_tree_origin / cut_reason / replacement_seedlings_required   required when status = cut (round 26, see below)
 
 due_schedule() computes which monitoring rounds are due, upcoming or overdue from the planted date and today - a schedule the
 dashboard and a report can show, not a live reminder/notification system (out of scope for this iteration; documented as such).
 Everything here is provisional until the agriculturist and MENRO confirm the monitoring cadence and the cause-of-death list.
+
+Round 26: mature/old-tree cut-and-replace tagging, and the DENR replacement ratios. The panel's own forward-looking question
+("what happens to trees as they age - pruned, cut, still standing?", previously only a placeholder in GET /plans/{id}/report's
+"aging" block) now has a real event to record it with: status "cut" logs that a tree was deliberately removed (not that it died
+of its own accord), together with WHY (cut_reason) and what kind of tree it was (cut_tree_origin), which together decide how
+many replacement seedlings are legally required. The ratio is NOT invented here: it is DENR Memorandum Order No. 2012-02
+(https://forestry.denr.gov.ph/fmb_web/wp-content/uploads/2023/06/dmo-2012-02.pdf) - 100 replacement seedlings for every naturally
+growing tree cut, 50 for every deliberately planted tree cut, 0 within a registered tree plantation or titled land exclusively
+for timber production (see DENR_REPLACEMENT_RATIOS below). `replacement_seedlings_required` is computed ONCE at the time of the
+event and stored on the row itself, never recomputed later from the live ratio table - if the regulation's figures ever change,
+old events must keep reporting what the law required when the tree was actually cut (an append-only audit trail, not a live
+query against today's config). A "cut" event is a separate, additional fact about a block; it does not retitle or replace any
+"dead" or "survived" event already on record for that block.
 """
 import math, re, sqlite3, sys
 from datetime import datetime, timedelta, timezone
@@ -58,14 +74,37 @@ CFG = {
     # San Mateo's species and sites - said so wherever it is reported (see threshold_summary()).
     "success_threshold_pct": 85.0,
     "success_threshold_round": "1_year",
+    # Round 26: DENR Memorandum Order No. 2012-02's replacement-seedling ratios, by the origin of the tree that was cut.
+    # Source: https://forestry.denr.gov.ph/fmb_web/wp-content/uploads/2023/06/dmo-2012-02.pdf . This is the actual regulation,
+    # not a figure this project measured or chose; it is kept here, not hard-coded at the call site, exactly so a future
+    # amendment only needs changing in one place - but see the module docstring: an event already saved keeps the ratio that
+    # applied when it was logged, never recomputed against a later value here.
+    "denr_replacement_ratios": {"naturally_growing": 100, "planted": 50, "registered_plantation": 0},
+    "denr_replacement_ratio_source": "DENR Memorandum Order No. 2012-02",
+    "denr_replacement_ratio_url": "https://forestry.denr.gov.ph/fmb_web/wp-content/uploads/2023/06/dmo-2012-02.pdf",
 }
 # =====================================================================================================================
 
 ROUND_LABELS = tuple(r["label"] for r in CFG["rounds"]) + ("other",)
 ROUND_MONTHS = {r["label"]: r["months"] for r in CFG["rounds"]}
-STATUSES = ("survived", "dead", "not_found")
+STATUSES = ("survived", "dead", "not_found", "cut")
 CAUSES = ("drought", "pest_disease", "flooding", "typhoon_wind", "vandalism", "construction", "unknown", "other")
 SOURCES = ("dashboard", "kit_import")
+# Round 26: who may issue a "cut" event, and why. TREE_ORIGINS decides the DENR replacement ratio (see CFG above); CUT_REASONS
+# is a closed vocabulary (golden rule 1: never invent/guess a reason) covering the cases the panel and DENR practice name.
+TREE_ORIGINS = ("naturally_growing", "planted", "registered_plantation")
+CUT_REASONS = ("maturity", "hazard", "disease_pest", "storm_damage", "construction", "other")
+DENR_REPLACEMENT_RATIOS = CFG["denr_replacement_ratios"]
+
+
+def required_replacement_seedlings(tree_origin, trees_cut, ratios=None):
+    """How many replacement seedlings DENR Memorandum Order No. 2012-02 requires for `trees_cut` trees of one `tree_origin`.
+    Pure arithmetic, no I/O - used both when saving a new "cut" event (to freeze the number onto that row) and by callers that
+    want to show the ratio before saving. Raises ValueError on an unknown origin rather than guessing a ratio."""
+    ratios = ratios or DENR_REPLACEMENT_RATIOS
+    if tree_origin not in ratios:
+        raise ValueError(f"tree_origin must be one of {', '.join(ratios)}")
+    return int(trees_cut) * int(ratios[tree_origin])
 
 
 def table_sql(name="survival_checks"):
@@ -88,8 +127,14 @@ CREATE TABLE IF NOT EXISTS {name} (
     gps_lat REAL, gps_lon REAL, gps_accuracy_m REAL,
     source TEXT NOT NULL CHECK (source IN {SOURCES}),
     created_at TEXT NOT NULL,
-    CHECK (trees_alive + trees_dead <= trees_total),
-    CHECK (trees_dead = 0 OR cause IS NOT NULL)
+    trees_cut INTEGER CHECK (trees_cut IS NULL OR trees_cut >= 0),
+    cut_tree_origin TEXT CHECK (cut_tree_origin IS NULL OR cut_tree_origin IN {TREE_ORIGINS}),
+    cut_reason TEXT CHECK (cut_reason IS NULL OR cut_reason IN {CUT_REASONS}),
+    replacement_seedlings_required INTEGER CHECK (replacement_seedlings_required IS NULL OR replacement_seedlings_required >= 0),
+    CHECK (trees_alive + trees_dead + COALESCE(trees_cut, 0) <= trees_total),
+    CHECK (trees_dead = 0 OR cause IS NOT NULL),
+    CHECK ((status = 'cut') = (trees_cut IS NOT NULL)),
+    CHECK (status <> 'cut' OR (cut_tree_origin IS NOT NULL AND cut_reason IS NOT NULL AND replacement_seedlings_required IS NOT NULL))
 );
 """
 
@@ -100,8 +145,10 @@ CREATE TRIGGER IF NOT EXISTS survival_checks_no_update BEFORE UPDATE ON survival
 CREATE TRIGGER IF NOT EXISTS survival_checks_no_delete BEFORE DELETE ON survival_checks BEGIN SELECT RAISE(ABORT, 'survival_checks is append-only: a dead tree stays in history, it is never deleted'); END;
 """
 SCHEMA = table_sql() + EXTRAS
-EVENT_COLUMNS = ["check_id", "plan_id", "point_id", "species_id", "round_label", "status", "trees_total", "trees_alive", "trees_dead",
-                  "cause", "replaces_check_id", "note", "observer", "observed_at", "gps_lat", "gps_lon", "gps_accuracy_m", "source", "created_at"]
+# the columns of the table BEFORE round 26 (used only by migrate() to copy an older database's rows across unchanged)
+OLD_EVENT_COLUMNS = ["check_id", "plan_id", "point_id", "species_id", "round_label", "status", "trees_total", "trees_alive", "trees_dead",
+                      "cause", "replaces_check_id", "note", "observer", "observed_at", "gps_lat", "gps_lon", "gps_accuracy_m", "source", "created_at"]
+EVENT_COLUMNS = OLD_EVENT_COLUMNS + ["trees_cut", "cut_tree_origin", "cut_reason", "replacement_seedlings_required"]
 
 
 class SurvivalCheckError(ValueError):
@@ -116,8 +163,34 @@ def connect(db_path):
     p.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(p)
     con.row_factory = sqlite3.Row
-    con.executescript(SCHEMA)
+    cur = con.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='survival_checks'").fetchone()
+    if cur is not None and "trees_cut" not in cur["sql"]:
+        migrate(con, p)
+    else:
+        con.executescript(SCHEMA)
     return con
+
+
+def migrate(con, path):
+    """Round 26: the table of an older database gains the status `cut` and the columns trees_cut, cut_tree_origin,
+    cut_reason, replacement_seedlings_required. Every event is copied with its check_id (nothing is lost or changed), a copy
+    of the file is kept next to it (<name>.before_cut_tag.bak, never overwritten), and the new table has the same triggers:
+    UPDATE and DELETE are still refused. Same pattern as field_verify.py's round-10 migration."""
+    bak = Path(str(path) + ".before_cut_tag.bak")
+    if not bak.exists():
+        import shutil
+        con.commit()
+        shutil.copyfile(path, bak)
+    old_cols = ", ".join(OLD_EVENT_COLUMNS)
+    con.executescript(f"""
+BEGIN IMMEDIATE;
+{table_sql("survival_checks_new")}
+INSERT INTO survival_checks_new ({old_cols}) SELECT {old_cols} FROM survival_checks ORDER BY check_id;
+DROP TABLE survival_checks;
+ALTER TABLE survival_checks_new RENAME TO survival_checks;
+COMMIT;
+""")
+    con.executescript(EXTRAS)
 
 
 def now_utc():
@@ -203,8 +276,10 @@ def validate_event(raw, *, trees_total_known=None, now=None):
     trees_total = whole("trees_total")
     trees_alive = whole("trees_alive")
     trees_dead = whole("trees_dead")
-    if trees_alive + trees_dead > trees_total:
-        raise SurvivalCheckError(f"trees_alive ({trees_alive}) + trees_dead ({trees_dead}) cannot be more than trees_total ({trees_total})")
+    trees_cut = whole("trees_cut", required=False)
+    if trees_alive + trees_dead + (trees_cut or 0) > trees_total:
+        raise SurvivalCheckError(f"trees_alive ({trees_alive}) + trees_dead ({trees_dead}) + trees_cut ({trees_cut or 0}) "
+                                  f"cannot be more than trees_total ({trees_total})")
     if trees_total_known is not None and trees_total != trees_total_known and not (raw.get("note") or "").strip():
         raise SurvivalCheckError(f"trees_total ({trees_total}) does not match the {trees_total_known} trees this plan placed here; "
                                   "add a note saying why (a tree never planted, one missed by the plan, and so on)")
@@ -221,6 +296,29 @@ def validate_event(raw, *, trees_total_known=None, now=None):
             raise SurvivalCheckError(f"cause '{cause}' is not valid (one of: {', '.join(CAUSES)})")
     elif cause is not None:
         raise SurvivalCheckError("cause only applies when trees_dead is more than 0")
+
+    # round 26: a "cut" event - a tree deliberately removed (maturity, hazard, and so on), as opposed to one that died on its
+    # own - names its origin and reason, and that decides the DENR Memorandum Order No. 2012-02 replacement count, computed
+    # and frozen onto the row right now (never recomputed later from a possibly-changed ratio table; see the module docstring).
+    cut_tree_origin = raw.get("cut_tree_origin")
+    cut_tree_origin = None if cut_tree_origin is None or str(cut_tree_origin).strip() == "" else str(cut_tree_origin).strip()
+    cut_reason = raw.get("cut_reason")
+    cut_reason = None if cut_reason is None or str(cut_reason).strip() == "" else str(cut_reason).strip()
+    replacement_seedlings_required = None
+    if status == "cut":
+        if not trees_cut:
+            raise SurvivalCheckError("status is cut but trees_cut is 0 or missing: say how many trees were cut")
+        if cut_tree_origin not in TREE_ORIGINS:
+            raise SurvivalCheckError(f"cut_tree_origin is required when status is cut (one of: {', '.join(TREE_ORIGINS)})")
+        if cut_reason not in CUT_REASONS:
+            raise SurvivalCheckError(f"cut_reason is required when status is cut (one of: {', '.join(CUT_REASONS)})")
+        replacement_seedlings_required = required_replacement_seedlings(cut_tree_origin, trees_cut)
+    else:
+        if trees_cut:
+            raise SurvivalCheckError("trees_cut only applies when status is cut")
+        if cut_tree_origin is not None or cut_reason is not None:
+            raise SurvivalCheckError("cut_tree_origin and cut_reason only apply when status is cut")
+        trees_cut = None
     replaces = raw.get("replaces_check_id")
     replaces = None if replaces is None or str(replaces).strip() == "" else int(replaces)
     observer = (raw.get("observer") or "").strip()
@@ -242,7 +340,9 @@ def validate_event(raw, *, trees_total_known=None, now=None):
     return {"plan_id": plan_id, "point_id": point_id, "species_id": species_id, "round_label": round_label, "status": status,
             "trees_total": trees_total, "trees_alive": trees_alive, "trees_dead": trees_dead, "cause": cause, "replaces_check_id": replaces,
             "note": note, "observer": observer, "observed_at": iso(parse_time(raw.get("observed_at"), now)),
-            "gps_lat": gps_lat, "gps_lon": gps_lon, "gps_accuracy_m": acc}
+            "gps_lat": gps_lat, "gps_lon": gps_lon, "gps_accuracy_m": acc,
+            "trees_cut": trees_cut, "cut_tree_origin": cut_tree_origin, "cut_reason": cut_reason,
+            "replacement_seedlings_required": replacement_seedlings_required}
 
 
 def add_event(db_path, event, source="dashboard", con=None):
@@ -254,10 +354,12 @@ def add_event(db_path, event, source="dashboard", con=None):
     try:
         cur = con.execute(
             "INSERT INTO survival_checks (plan_id, point_id, species_id, round_label, status, trees_total, trees_alive, trees_dead, cause, "
-            "replaces_check_id, note, observer, observed_at, gps_lat, gps_lon, gps_accuracy_m, source, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "replaces_check_id, note, observer, observed_at, gps_lat, gps_lon, gps_accuracy_m, source, created_at, "
+            "trees_cut, cut_tree_origin, cut_reason, replacement_seedlings_required) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (event["plan_id"], event["point_id"], event["species_id"], event["round_label"], event["status"], event["trees_total"],
              event["trees_alive"], event["trees_dead"], event["cause"], event["replaces_check_id"], event["note"], event["observer"],
-             event["observed_at"], event["gps_lat"], event["gps_lon"], event["gps_accuracy_m"], source, iso(now_utc())))
+             event["observed_at"], event["gps_lat"], event["gps_lon"], event["gps_accuracy_m"], source, iso(now_utc()),
+             event.get("trees_cut"), event.get("cut_tree_origin"), event.get("cut_reason"), event.get("replacement_seedlings_required")))
         if own:
             con.commit()
         return int(cur.lastrowid)
@@ -298,6 +400,33 @@ def current_for_plan(db_path, plan_id):
     return {r["point_id"]: _row(r) for r in rows if r["rn"] == 1}
 
 
+def cut_summary(db_path, plan_id):
+    """Round 26: every "cut" event recorded for this plan, over the whole history (not just the latest event per point - a
+    block can have more than one mature tree cut over the years), with the DENR replacement-seedling totals each one froze
+    onto its own row at the time. Never recomputes the ratio from today's config: each event's own stored
+    replacement_seedlings_required is what is summed, so an old event keeps reporting what the law required when it happened."""
+    con = connect(db_path)
+    try:
+        rows = con.execute("SELECT * FROM survival_checks WHERE plan_id=? AND status='cut' ORDER BY check_id", (str(plan_id),)).fetchall()
+    finally:
+        con.close()
+    rows = [_row(r) for r in rows]
+    by_origin, by_reason = {o: 0 for o in TREE_ORIGINS}, {r: 0 for r in CUT_REASONS}
+    trees_cut_total = seedlings_required_total = 0
+    for r in rows:
+        trees_cut_total += int(r["trees_cut"] or 0)
+        seedlings_required_total += int(r["replacement_seedlings_required"] or 0)
+        by_origin[r["cut_tree_origin"]] += int(r["trees_cut"] or 0)
+        by_reason[r["cut_reason"]] += int(r["trees_cut"] or 0)
+    return {"cut_events": len(rows), "trees_cut_total": trees_cut_total, "replacement_seedlings_required_total": seedlings_required_total,
+            "by_origin": {k: v for k, v in by_origin.items() if v}, "by_reason": {k: v for k, v in by_reason.items() if v},
+            "basis": f"{CFG['denr_replacement_ratio_source']} ({CFG['denr_replacement_ratio_url']}): "
+                     f"{CFG['denr_replacement_ratios']['naturally_growing']} seedlings per naturally growing tree cut, "
+                     f"{CFG['denr_replacement_ratios']['planted']} per deliberately planted tree cut, "
+                     f"{CFG['denr_replacement_ratios']['registered_plantation']} within a registered tree plantation or titled land for timber production.",
+            "events": rows}
+
+
 def plan_summary(db_path, plan_id, trees_by_point):
     """Counts for one plan's survival report: how many of its points have been checked at all, current alive/dead/not_found
     trees (latest event per point), by cause, by round, and the replacement count. trees_by_point: {point_id: trees planted},
@@ -307,7 +436,7 @@ def plan_summary(db_path, plan_id, trees_by_point):
     checked = set(current)
     by_round = {}
     by_cause = {c: 0 for c in CAUSES}
-    alive = dead = not_found = 0
+    alive = dead = not_found = cut = 0
     replaced_events = 0
     for pid, c in current.items():
         by_round.setdefault(c["round_label"], 0)
@@ -318,6 +447,8 @@ def plan_summary(db_path, plan_id, trees_by_point):
             dead += 1
         elif c["status"] == "not_found":
             not_found += 1
+        elif c["status"] == "cut":
+            cut += 1
         if c["cause"]:
             by_cause[c["cause"]] += 1
     con = connect(db_path)
@@ -330,9 +461,10 @@ def plan_summary(db_path, plan_id, trees_by_point):
     trees_dead_total = sum(int(c["trees_dead"]) for c in current.values())
     trees_planned_total = int(sum(trees_by_point.values())) if trees_by_point else 0
     return {"plan_id": str(plan_id), "points_planned": len(all_points), "points_checked": len(checked), "points_not_yet_checked": len(all_points - checked),
-            "points_survived": alive, "points_dead": dead, "points_not_found": not_found,
+            "points_survived": alive, "points_dead": dead, "points_not_found": not_found, "points_cut_latest": cut,
             "trees_planned_total": trees_planned_total, "trees_alive_latest": trees_alive_total, "trees_dead_latest": trees_dead_total,
             "by_round": by_round, "by_cause": {k: v for k, v in by_cause.items() if v}, "replacement_events": replaced_events,
+            "cut": cut_summary(db_path, plan_id),
             "note": "Counts use the latest survival check of each point. A point with no check yet is not assumed to have survived or died."}
 
 

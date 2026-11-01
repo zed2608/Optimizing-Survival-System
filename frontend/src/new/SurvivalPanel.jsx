@@ -12,8 +12,15 @@ import { formatDay } from './season.js'
 export const ROUND_WORDS = { '3_month': '3 months', '6_month': '6 months', '1_year': '1 year', '5_year': '5 years', '10_year': '10 years', '50_year': '50 years', other: 'Other check' }
 const STATE_WORDS = { done: 'Checked', due: 'Due now', overdue: 'Overdue', upcoming: 'Upcoming' }
 const STATE_ICON = { done: 'check', due: 'warn', overdue: 'warn', upcoming: 'calendar' }
-export const STATUS_WORDS = { survived: 'Survived', dead: 'Dead', not_found: 'Not found' }
+export const STATUS_WORDS = { survived: 'Survived', dead: 'Dead', not_found: 'Not found', cut: 'Cut (removed)' }
 export const CAUSE_WORDS = { drought: 'Drought', pest_disease: 'Pest or disease', flooding: 'Flooding', typhoon_wind: 'Typhoon / wind', vandalism: 'Vandalism', construction: 'Construction', unknown: 'Unknown', other: 'Other' }
+// round 26: a tree deliberately removed (maturity, hazard, and so on), as opposed to one that died on its own. The origin
+// decides the DENR Memorandum Order No. 2012-02 replacement-seedling count (see pipeline/survival.py).
+export const CUT_ORIGIN_WORDS = { naturally_growing: 'Naturally growing (wild)', planted: 'Deliberately planted', registered_plantation: 'Registered tree plantation / titled timber land' }
+export const CUT_REASON_WORDS = { maturity: 'Reached maturity', hazard: 'Safety hazard', disease_pest: 'Disease or pest', storm_damage: 'Storm damage', construction: 'Construction', other: 'Other' }
+// Shown as a live preview only, before saving; the server recomputes and returns the authoritative figure on the saved event,
+// per DENR Memorandum Order No. 2012-02 (https://forestry.denr.gov.ph/fmb_web/wp-content/uploads/2023/06/dmo-2012-02.pdf).
+const DENR_RATIOS = { naturally_growing: 100, planted: 50, registered_plantation: 0 }
 
 export function Schedule({ rows }) {
   return (
@@ -58,11 +65,15 @@ export function LogForm({ planId, blocks, onSaved }) {
   const [alive, setAlive] = useState('')
   const [dead, setDead] = useState('0')
   const [cause, setCause] = useState('')
+  const [cut, setCut] = useState('0')
+  const [cutOrigin, setCutOrigin] = useState('')
+  const [cutReason, setCutReason] = useState('')
   const [observer, setObserver] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const block = blocks.find((b) => b.point_id === Number(pointId))
+  const cutPreview = status === 'cut' && cutOrigin && Number(cut) > 0 ? Number(cut) * (DENR_RATIOS[cutOrigin] ?? 0) : null
 
   async function submit(e) {
     e.preventDefault()
@@ -73,6 +84,9 @@ export function LogForm({ planId, blocks, onSaved }) {
         plan_id: planId, point_id: Number(pointId), round_label: roundLabel, status, observer,
         trees_total: block?.trees_planted ?? 0, trees_alive: alive === '' ? 0 : Number(alive), trees_dead: dead === '' ? 0 : Number(dead),
         cause: cause || null, note: note || null,
+        trees_cut: status === 'cut' ? (cut === '' ? 0 : Number(cut)) : null,
+        cut_tree_origin: status === 'cut' ? cutOrigin || null : null,
+        cut_reason: status === 'cut' ? cutReason || null : null,
       }
       await apiPost('/survival-checks', body)
       setNote('')
@@ -151,6 +165,51 @@ export function LogForm({ planId, blocks, onSaved }) {
           </select>
         </>
       )}
+      {status === 'cut' && (
+        <>
+          <div className="nw-row">
+            <div>
+              <label className="nw-label" htmlFor="sv-cut">
+                Trees cut
+              </label>
+              <input id="sv-cut" className="nw-input" type="number" min="1" value={cut} onChange={(e) => setCut(e.target.value)} />
+            </div>
+            <div>
+              <label className="nw-label" htmlFor="sv-cut-origin">
+                Tree origin
+              </label>
+              <select id="sv-cut-origin" className="nw-select" value={cutOrigin} onChange={(e) => setCutOrigin(e.target.value)}>
+                <option value="">Choose the origin</option>
+                {Object.entries(CUT_ORIGIN_WORDS).map(([k, w]) => (
+                  <option key={k} value={k}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <label className="nw-label" htmlFor="sv-cut-reason">
+            Reason for cutting
+          </label>
+          <select id="sv-cut-reason" className="nw-select" value={cutReason} onChange={(e) => setCutReason(e.target.value)}>
+            <option value="">Choose a reason</option>
+            {Object.entries(CUT_REASON_WORDS).map(([k, w]) => (
+              <option key={k} value={k}>
+                {w}
+              </option>
+            ))}
+          </select>
+          {cutPreview != null && (
+            <p className="nw-hint">
+              Required replacement seedlings: <strong>{cutPreview}</strong>
+              <HelpTip label="About this figure">
+                DENR Memorandum Order No. 2012-02: 100 seedlings per naturally growing tree cut, 50 per deliberately planted tree, 0 within a registered tree plantation or titled
+                land for timber production. The server computes and saves the final figure.
+              </HelpTip>
+            </p>
+          )}
+        </>
+      )}
       <label className="nw-label" htmlFor="sv-observer">
         Observer
       </label>
@@ -159,7 +218,11 @@ export function LogForm({ planId, blocks, onSaved }) {
         Note (optional)
       </label>
       <textarea id="sv-note" className="nw-input" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-      <button type="submit" className="btn btn-primary" disabled={busy || !pointId || !observer.trim()}>
+      <button
+        type="submit"
+        className="btn btn-primary"
+        disabled={busy || !pointId || !observer.trim() || (status === 'cut' && (!Number(cut) || !cutOrigin || !cutReason))}
+      >
         {busy ? 'Saving…' : 'Save check'}
       </button>
       {problem && (
@@ -220,6 +283,12 @@ export default function SurvivalPanel({ planId, full = false }) {
         {s.replacement_events > 0 && (
           <li>
             Replanted after dying: <strong>{s.replacement_events}</strong>
+          </li>
+        )}
+        {s.cut?.cut_events > 0 && (
+          <li>
+            Cut (removed): <strong>{s.cut.trees_cut_total}</strong> trees - <strong>{s.cut.replacement_seedlings_required_total}</strong> replacement seedlings required
+            <HelpTip label="About this figure">{s.cut.basis}</HelpTip>
           </li>
         )}
       </ul>
