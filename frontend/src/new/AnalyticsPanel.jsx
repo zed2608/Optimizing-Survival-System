@@ -142,10 +142,15 @@ export default function AnalyticsPanel() {
   return (
     <div className="an-root" data-role="analytics">
       {filters}
+      {/* Round 28 (Karren, item 26): a standard/fixed count that never moves with use (her own example: "45 species is
+          the standard") should not sit as a headline KPI tile next to numbers that actually grow as the system is used.
+          The dataset facts (squares scored, species, suitable squares) stay available - they still react to the
+          barangay/species filters above - but as one small caption line, not equal-weight cards. Only metrics that
+          move with real activity (plans, trees planned, field checks) get the prominent KPI tiles. */}
+      <p className="an-dataset" data-role="dataset-facts">
+        {t('an.dataset', { squares: nf(k.squares_scored), species: nf(k.species), suitable: nf(k.suitable_squares), th: d.suitability.threshold })}
+      </p>
       <div className="an-kpis" data-role="kpis" data-tour="an-kpis">
-        <Kpi label={t('an.kpi.squares')} value={k.squares_scored} />
-        <Kpi label={t('an.kpi.species')} value={k.species} />
-        <Kpi label={t('an.kpi.suitable')} value={k.suitable_squares} sub={t('an.kpi.suitableSub', { th: d.suitability.threshold })} />
         <Kpi label={t('an.kpi.plans')} value={k.plans} />
         <Kpi label={t('an.kpi.trees')} value={k.trees_planned} />
         <Kpi

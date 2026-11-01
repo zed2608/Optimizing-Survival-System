@@ -729,12 +729,14 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 @media (prefers-reduced-motion: reduce) { :root:not([data-motion='on']) .cy-spark, :root:not([data-motion='on']) .cy-pulse span { animation: none; display: none; } }
 
 /* ======================= DESIGN V2 (Phase 6): analytics as a bento grid ======================= */
-.nw-root .an-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.nw-root .an-kpis .an-kpi:first-child { grid-column: span 2; }
+/* Round 28: only the 3 "moving" KPIs (plans, trees planned, field checks) live in the card grid now; the fixed dataset
+   facts (squares scored, species, suitable squares) moved to .an-dataset, a plain caption line, not a KPI card. */
+.nw-root .an-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 /* .an-grid itself is the single-column accordion list set above (Phase 6 analytics section); the old 12-column masonry of
    always-open charts is gone with it, so there is nothing left to override here per chart. */
-@media (max-width: 1000px) { .nw-root .an-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nw-root .an-kpis .an-kpi:first-child { grid-column: 1 / -1; } }
+@media (max-width: 1000px) { .nw-root .an-kpis { grid-template-columns: repeat(1, minmax(0, 1fr)); } }
 .nw-root .an-kpi { background: linear-gradient(160deg, var(--c-surface), color-mix(in srgb, var(--c-accent) 8%, var(--c-surface))); }
+.an-dataset { font-size: var(--fs-sm); color: var(--c-muted); margin: 0 0 var(--sp-3); padding: 0 2px; }
 /* weather hero: the date replaces the repeated place line */
 .wx-hero-where { font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px; }
 
