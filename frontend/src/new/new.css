@@ -325,7 +325,10 @@
 
 .nw-months { display: inline-flex; gap: 2px; vertical-align: middle; }
 .nw-mo { width: 14px; height: 16px; font-size: 12px; font-weight: 600; line-height: 14px; text-align: center; border: 1px solid color-mix(in srgb, var(--c-text) 28%, transparent); border-radius: 3px; color: var(--c-muted); }
-.nw-months-large .nw-mo { width: 20px; height: 24px; font-size: 12px; line-height: 22px; }
+/* Round 28c: the large strip now renders 3-letter month abbreviations (Jan, Feb, ...) instead of single letters, so the
+   cell needs to be wide enough for 3 characters at a slightly smaller font; .nw-months already wraps to a second row
+   (flex-wrap: wrap, see canopy.css) if a narrow card can't fit all 12 on one line. */
+.nw-months-large .nw-mo { width: 30px; height: 24px; font-size: 10.5px; line-height: 22px; }
 /* v1.2 fix: was color: var(--c-ok) on a background of var(--c-primary) - in the light theme those are two nearly identical
    dark greens (#1d5f2c on #1f5d3a), so the letter all but disappears into the filled cell ("the month ... is blocked").
    --c-on-primary is the token already used correctly for this exact background by the .v2-embedded variant below. */
