@@ -4252,10 +4252,29 @@ def search_geocode(q: str = Query(min_length=3, max_length=100), d=Depends(D)):
 
 # One address for everything (deployment): OS_STATIC_DIR = the folder of the built dashboard (frontend/dist). Not set = the API alone, as before.
 # The mount is the LAST thing registered, so every API path above keeps priority; the dashboard then calls the API on its own address (no CORS needed).
+#
+# Cache-Control (round 28, 2026-11-01): plain StaticFiles sends no Cache-Control header at all, so browsers fall back to
+# heuristic caching and can keep serving a stale index.html (with stale hashed asset URLs) for a long time after a new
+# deploy - confirmed live: a browser that had the dashboard open before a deploy kept rendering the pre-deploy build,
+# missing round 27's features entirely, until a hard/cache-busted reload. Vite's hashed /assets/*-<hash>.js|css files are
+# safe to cache forever (a content change always gets a new hash), but index.html (and any other un-hashed file) must
+# always be revalidated so a deploy is visible on the very next normal reload, not just a hard refresh.
 _STATIC_DIR = os.environ.get("OS_STATIC_DIR", "").strip()
 if _STATIC_DIR and Path(_STATIC_DIR).is_dir():
     from fastapi.staticfiles import StaticFiles
-    app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="dashboard")
+    from starlette.responses import Response as _StarletteResponse
+
+    class _SPAStaticFiles(StaticFiles):
+        def file_response(self, full_path, stat_result, scope, status_code: int = 200) -> _StarletteResponse:
+            resp = super().file_response(full_path, stat_result, scope, status_code)
+            path_str = str(full_path).replace("\\", "/")
+            if "/assets/" in path_str:
+                resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            else:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            return resp
+
+    app.mount("/", _SPAStaticFiles(directory=_STATIC_DIR, html=True), name="dashboard")
 
 
 if __name__ == "__main__":
