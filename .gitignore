@@ -1,14 +1,15 @@
-# Python Environments
+# Preserve tracked research artifacts; ignore generated local files
 .venv/
 __pycache__/
+*.py[cod]
 greening_records.db
-
-# React Environments
 node_modules/
-
-# Security
+frontend/dist/
+.env
+.env.*
 *.env
-
-# GIS Heavy Files
 *.tif
-*.ovrsan_mateo_rf_model.pkl
+*.ovr
+san_mateo_rf_model.pkl
+soil_encoder.pkl
+.pytest_cache/

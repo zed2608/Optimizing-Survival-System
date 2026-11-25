@@ -1,0 +1,291 @@
+{
+  "baseline_commit": "6e0ab7b39b88fa3b1ae751ef8dda7da5e915a76d",
+  "note": "Git blob SHA-1 identifies original bytes, not scientific validity. All listed files intentionally preserved.",
+  "files": [
+    {
+      "path": "San_Mateo_Final_Suitability_Map.csv",
+      "git_blob_sha": "3bb643a07b25ddc68e454755a94f1b22a23a20f5",
+      "size_bytes": 2452649
+    },
+    {
+      "path": "San_Mateo_Site_Grid.csv",
+      "git_blob_sha": "edd0eec176809280afad45dc7f03663775a23c75",
+      "size_bytes": 2428551
+    },
+    {
+      "path": "api.py",
+      "git_blob_sha": "acc38ab0c6e88254b5fde9ebd87d5f67e8d5c2d1",
+      "size_bytes": 4574
+    },
+    {
+      "path": "backend/Working_Points.csv",
+      "git_blob_sha": "6c30222a155a4dcfbb94414d86b0833d3c6e6109",
+      "size_bytes": 3117748
+    },
+    {
+      "path": "build_tree_constraints.py",
+      "git_blob_sha": "d37fca5768c1bed921a04ce82557560accc48b46",
+      "size_bytes": 5574
+    },
+    {
+      "path": "cache/57756ccafc41d2bc5815381589e0474ca39fe7aa.json",
+      "git_blob_sha": "81d7e66606ddf74525872ca8da24f38a257ada6b",
+      "size_bytes": 23931
+    },
+    {
+      "path": "check_zoning.py",
+      "git_blob_sha": "aa4907697e7b8f0300f79737da2844c45b136ebb",
+      "size_bytes": 466
+    },
+    {
+      "path": "clustering.py",
+      "git_blob_sha": "5510f49276c6ac63bd88fb37bdfa7e89ecbc80f7",
+      "size_bytes": 931
+    },
+    {
+      "path": "code extract_lgu_coords.py",
+      "git_blob_sha": "797b58e7c2ec944c099580ac680a4b46d754653a",
+      "size_bytes": 3992
+    },
+    {
+      "path": "data/BRGY_BOUNDARY.dbf",
+      "git_blob_sha": "abcadd9d52a239f454eaf22b3867ad21b436da91",
+      "size_bytes": 5349
+    },
+    {
+      "path": "data/BRGY_BOUNDARY.prj",
+      "git_blob_sha": "f45cbadf0074d8b7b2669559a93bc50bb95f82d4",
+      "size_bytes": 145
+    },
+    {
+      "path": "data/BRGY_BOUNDARY.shp",
+      "git_blob_sha": "bc662c7635dec5a0d4a40e2aed67bf9f18704597",
+      "size_bytes": 55388
+    },
+    {
+      "path": "data/BRGY_BOUNDARY.shx",
+      "git_blob_sha": "54f1147ed0ade223064105583e53df437e08d7ec",
+      "size_bytes": 220
+    },
+    {
+      "path": "data/LandUses.dbf",
+      "git_blob_sha": "b3cab2d0b2c9576b852da11d6a4424f5adc5e8e9",
+      "size_bytes": 23590
+    },
+    {
+      "path": "data/LandUses.prj",
+      "git_blob_sha": "f45cbadf0074d8b7b2669559a93bc50bb95f82d4",
+      "size_bytes": 145
+    },
+    {
+      "path": "data/LandUses.sbn",
+      "git_blob_sha": "bf663837ca6f45371dd8c484c5cd3f65bea6ad58",
+      "size_bytes": 1884
+    },
+    {
+      "path": "data/LandUses.sbx",
+      "git_blob_sha": "bf1e1ab60860459bf99753315520f702f00debd7",
+      "size_bytes": 220
+    },
+    {
+      "path": "data/LandUses.shp",
+      "git_blob_sha": "638d0612d893a1983baa4d3d7072c2385af70c40",
+      "size_bytes": 181336
+    },
+    {
+      "path": "data/LandUses.shp.xml",
+      "git_blob_sha": "ea82060e74039f5f35f2d19211637cd14d4fdb6d",
+      "size_bytes": 8601
+    },
+    {
+      "path": "data/LandUses.shx",
+      "git_blob_sha": "878ba5452be29360e14aae10378beb04cc3b669a",
+      "size_bytes": 1516
+    },
+    {
+      "path": "data/SAN MATEO WGS TIFF.prj",
+      "git_blob_sha": "3a8f9d8447ffb9e115b6f7a533553769947f53d4",
+      "size_bytes": 426
+    },
+    {
+      "path": "data/SAN MATEO WGS TIFF.tfw",
+      "git_blob_sha": "17ae3107e35fc6e660e49bd79909bb3b350c23ef",
+      "size_bytes": 150
+    },
+    {
+      "path": "data/SMR_WATERBODIES_POLY.dbf",
+      "git_blob_sha": "1ceadfb8147376390194eaec858d8c67fa2a06a2",
+      "size_bytes": 64477
+    },
+    {
+      "path": "data/SMR_WATERBODIES_POLY.prj",
+      "git_blob_sha": "f45cbadf0074d8b7b2669559a93bc50bb95f82d4",
+      "size_bytes": 145
+    },
+    {
+      "path": "data/SMR_WATERBODIES_POLY.sbn",
+      "git_blob_sha": "d1bae30fb234b49549d238ca89e16a39d633ef5b",
+      "size_bytes": 3012
+    },
+    {
+      "path": "data/SMR_WATERBODIES_POLY.sbx",
+      "git_blob_sha": "8d32f351a9b9aa95b98d355a705ce7f8a7801b47",
+      "size_bytes": 348
+    },
+    {
+      "path": "data/SMR_WATERBODIES_POLY.shp",
+      "git_blob_sha": "9a95cb03ee0ea23b846aeabb0b8aee8703ec53c4",
+      "size_bytes": 836980
+    },
+    {
+      "path": "data/SMR_WATERBODIES_POLY.shp.xml",
+      "git_blob_sha": "8173d8c6f5dcbdf79e5b197d7326866d718934eb",
+      "size_bytes": 10903
+    },
+    {
+      "path": "data/SMR_WATERBODIES_POLY.shx",
+      "git_blob_sha": "3654de99990db31b1485b2841486db060f32b423",
+      "size_bytes": 2284
+    },
+    {
+      "path": "data/mock_environmental_grid.csv",
+      "git_blob_sha": "88802dd6d8319bc64a789b68702ea5f75e9f59f8",
+      "size_bytes": 8495
+    },
+    {
+      "path": "data/mock_tree_inventory.csv",
+      "git_blob_sha": "956cddbdd5cf49d9d84bbe16b5bd0f5a88ac85a6",
+      "size_bytes": 42851
+    },
+    {
+      "path": "data/rf_label_encoder.pkl",
+      "git_blob_sha": "3117a8bf81af2f41c8be201bc532852e43c14fc5",
+      "size_bytes": 665
+    },
+    {
+      "path": "data/rf_model_columns.pkl",
+      "git_blob_sha": "16acbdbdcf7b1635a6346b484993851d09a85e50",
+      "size_bytes": 286
+    },
+    {
+      "path": "data/rf_suitability_model.pkl",
+      "git_blob_sha": "779467bb663022dc008010da1b4895a56274a932",
+      "size_bytes": 10500537
+    },
+    {
+      "path": "data/san_mateo_farmland_coordinates.csv",
+      "git_blob_sha": "f51fc75e8bcc4d455a9d128e9e4aeea05bac0c3d",
+      "size_bytes": 1592416
+    },
+    {
+      "path": "data/san_mateo_farmland_environmental.csv",
+      "git_blob_sha": "b519b593391ddae53d0313e2546e2f804cb5727e",
+      "size_bytes": 1794906
+    },
+    {
+      "path": "data/san_mateo_final_recommendations.csv",
+      "git_blob_sha": "1fc5408b75f2c81f27f2cbb32af1b066f0e9b1e8",
+      "size_bytes": 3710948
+    },
+    {
+      "path": "data/san_mateo_species_rules.csv",
+      "git_blob_sha": "505aef8efdeeff5b0811da7fcf28f3c9434cbb09",
+      "size_bytes": 1526
+    },
+    {
+      "path": "database.py",
+      "git_blob_sha": "52086a5735081ccd80a2f495737698b130673601",
+      "size_bytes": 529
+    },
+    {
+      "path": "enforce_boundary.py",
+      "git_blob_sha": "69b9d1b502f3f22b4efc87da7560e14d37240835",
+      "size_bytes": 2037
+    },
+    {
+      "path": "evaluate_system.py",
+      "git_blob_sha": "42360a4076cfd03010e052c8cb2ea0fea6477bee",
+      "size_bytes": 5191
+    },
+    {
+      "path": "extract_elevation.py",
+      "git_blob_sha": "efb302c1d1c9363e9a2f830f638b27b455285f38",
+      "size_bytes": 1908
+    },
+    {
+      "path": "extract_lgu_coords.py",
+      "git_blob_sha": "797b58e7c2ec944c099580ac680a4b46d754653a",
+      "size_bytes": 3992
+    },
+    {
+      "path": "filter_zones.py",
+      "git_blob_sha": "e16d107de1371a332cf164d71d958514d6754687",
+      "size_bytes": 1307
+    },
+    {
+      "path": "generate_environment.py",
+      "git_blob_sha": "c69ad880aae0ddc6637af7b06e8cdd68d671ee58",
+      "size_bytes": 2422
+    },
+    {
+      "path": "generate_supply.py",
+      "git_blob_sha": "e8a855c53050cdd93685ad8f85f57f5a4f54f29e",
+      "size_bytes": 1343
+    },
+    {
+      "path": "generate_targets.py",
+      "git_blob_sha": "476edca6f1f636e01dce722f0e9a7f52e9445829",
+      "size_bytes": 1753
+    },
+    {
+      "path": "main.py",
+      "git_blob_sha": "a15aa08cf2b178cbabfdaf6fbcee893cd34ab790",
+      "size_bytes": 3200
+    },
+    {
+      "path": "match_species.py",
+      "git_blob_sha": "1f190b4900445bb99981539eef30097df24f2f5f",
+      "size_bytes": 2444
+    },
+    {
+      "path": "models.py",
+      "git_blob_sha": "793c3cb0d0b8e9528a835a82b9ec6faf4c64592a",
+      "size_bytes": 1411
+    },
+    {
+      "path": "optimization.py",
+      "git_blob_sha": "2e3833b5f383c620ef6d799ac9cc0d20e8c96c15",
+      "size_bytes": 4016
+    },
+    {
+      "path": "run_matching.py",
+      "git_blob_sha": "9b6aa2562abe4f3689610416a41acbba5faf0e1f",
+      "size_bytes": 3074
+    },
+    {
+      "path": "san_mateo_species_rules.csv",
+      "git_blob_sha": "46e966cd14fa365ece89634a56d108341d29da0c",
+      "size_bytes": 5022
+    },
+    {
+      "path": "stack_vectors.py",
+      "git_blob_sha": "7d1dd9c7014db617074a6cb4c4e2680d746dfa62",
+      "size_bytes": 1324
+    },
+    {
+      "path": "train_model.py",
+      "git_blob_sha": "c197e70f9802fdead35125ca97a395cf058ba2cd",
+      "size_bytes": 3121
+    },
+    {
+      "path": "train_suitability_model.py",
+      "git_blob_sha": "175637fe568a584f7ae58127dd15b0448c7c16a0",
+      "size_bytes": 4689
+    },
+    {
+      "path": "view_raster.py",
+      "git_blob_sha": "50841491224f3ca5a09d0c8e52b132ce25a421e9",
+      "size_bytes": 1394
+    }
+  ]
+}

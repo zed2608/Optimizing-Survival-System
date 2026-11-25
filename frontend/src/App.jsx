@@ -228,11 +228,11 @@ const calculateSuitability = (species, pt, targetMonth = null) => {
   if (targetMonth !== null && rules.optimal_planting_months) {
       if (!rules.optimal_planting_months.includes(targetMonth)) {
           score -= 20;
-          reasons.push(`Off-Season Planting Risk: High mortality if planted in Month ${targetMonth}. (-20%)`);
+          reasons.push(`Off-season planting rule penalty in Month ${targetMonth}. (-20%)`);
       }
   }
 
-  if (reasons.length === 0) reasons.push("✓ Perfect environmental match.");
+  if (reasons.length === 0) reasons.push("✓ No penalty under the implemented rules.");
   score = Math.max(0, Math.min(100, score));
 
   return { score, elev, ph, slope, soil: ptSoil, reasons, details: rules };
@@ -303,6 +303,7 @@ function App() {
   
   const [points, setPoints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dataError, setDataError] = useState('');
   const [stats, setStats] = useState({ verified: 0, rejected: 0 });
   const [pointStatuses, setPointStatuses] = useState({}); 
   
@@ -328,7 +329,7 @@ function App() {
   const availableSpecies = Object.keys(speciesRules).sort();
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:5000/api/points')
+    axios.get(`${(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')}/api/points`, { timeout: 30000 })
       .then((response) => {
         const dataWithStableIds = response.data.map((pt, i) => ({
           ...pt,
@@ -339,6 +340,7 @@ function App() {
       })
       .catch((error) => {
         console.error("Error fetching points:", error);
+        setDataError("Spatial dataset unavailable. Check that the Flask map API is running, then reload.");
         setLoading(false);
       });
   }, []);
@@ -695,6 +697,10 @@ function App() {
         boxShadow: '10px 0 30px rgba(0,0,0,0.4)'
       }}>
 
+        <div role="note" style={{ marginBottom: '16px', padding: '10px', borderRadius: '8px', background: 'rgba(56,189,248,0.09)', color: '#bae6fd', fontSize: '12px', lineHeight: 1.5 }}>
+          Research prototype · Map scores are rule-based suitability indices, not validated survival probabilities. Site verification is required.
+        </div>
+        {dataError && <div role="alert" style={{ marginBottom: '16px', color: '#fecaca', fontSize: '13px' }}>{dataError} <button onClick={() => window.location.reload()}>Retry</button></div>}
         {/* MODE SWITCHER TABS */}
         <div style={{ marginBottom: '24px', background: 'rgba(255, 255, 255, 0.04)', padding: '5px', borderRadius: '12px', display: 'flex', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <button 
@@ -859,7 +865,7 @@ function App() {
         background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         padding: '18px 22px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.08)', color: 'white', minWidth: '230px', boxShadow: '0 15px 35px rgba(0,0,0,0.4)'
       }}>
-        <h4 style={{ margin: '0 0 10px 0', color: '#f8fafc', fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px', fontWeight: '700', letterSpacing: '0.3px' }}>San Mateo Live Telemetry</h4>
+        <h4 style={{ margin: '0 0 10px 0', color: '#f8fafc', fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px', fontWeight: '700', letterSpacing: '0.3px' }}>San Mateo Map Data</h4>
         <div style={{ fontSize: '13px', display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontWeight: '500' }}>
           <span style={{ color: '#94a3b8' }}>Active Points:</span> <strong>{activePoints.length}</strong>
         </div>

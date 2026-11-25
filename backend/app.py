@@ -5,14 +5,18 @@ from flask_cors import CORS
 import pandas as pd
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r'/api/*': {'origins': os.getenv('MAP_CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')}})
+app.config['POINTS_CSV'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Working_Points.csv')
 
 @app.route('/api/points', methods=['GET'])
 def get_points():
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    CSV_PATH = os.path.join(BASE_DIR, 'Working_Points.csv')
-
-    df = pd.read_csv(CSV_PATH)
+    CSV_PATH = app.config['POINTS_CSV']
+    try:
+        df = pd.read_csv(CSV_PATH)
+    except (OSError, UnicodeError, pd.errors.ParserError, pd.errors.EmptyDataError):
+        return jsonify({'error': 'Spatial dataset unavailable'}), 503
+    if not {'x', 'y'}.issubset(df.columns):
+        return jsonify({'error': 'Spatial dataset missing coordinate columns'}), 422
     
     # ==========================================
     # DATA SANITIZATION PIPELINE
@@ -67,4 +71,4 @@ def get_points():
     return jsonify(points)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='127.0.0.1', debug=False, port=5000)
